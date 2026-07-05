@@ -39,8 +39,13 @@ Runs at http://localhost:3000.
 - Script generation (3-act structure, scene generation/improve/suggest via Claude)
 - Storyboard generation (DALL-E 3 frames per scene)
 - Script export (PDF, Word, production package)
+- Version history UI (Versions tab in script editor)
+- Comment threads UI (Notes tab in script editor)
+- Real-time collaboration bar (Supabase presence; "Solo session" fallback without keys)
+- Pricing page at `/pricing` (three tiers; payments not wired)
+- Demo mode: mock database, mock AI, and placeholder storyboards when `.env` has placeholder keys
+  (test login: `test@example.com` / `password`)
 
-**Backend routes exist but have no frontend UI yet:**
-- Real-time collaboration (comments — `collaboration.py`)
-- Version history (save/restore/diff — `versions.py`)
-- Subscriptions/payments (`subscriptions` table exists, no routes or UI)
+**Not yet built:**
+- Payment processing (pricing page CTAs route to register/dashboard)
+- Live cursor/co-editing (presence bar shows who's online only)
