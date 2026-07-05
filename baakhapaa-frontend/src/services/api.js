@@ -36,6 +36,7 @@ export const projects = {
 
 export const scripts = {
   getById: (id) => instance.get(`/scripts/${id}`),
+  getByProject: (projectId) => instance.get(`/scripts/project/${projectId}`),
   save: (id, content) => instance.put(`/scripts/${id}`, { content }),
   finalize: (id) => instance.post(`/scripts/${id}/finalize`),
   generateStructure: (data, projectId) =>

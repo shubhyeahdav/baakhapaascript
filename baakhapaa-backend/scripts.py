@@ -68,6 +68,25 @@ def suggest(req: SuggestRequest, user_id: str = Depends(get_current_user)):
         raise HTTPException(status_code=503, detail=str(e))
 
 
+@router.get("/project/{project_id}")
+def get_script_for_project(project_id: str, user_id: str = Depends(get_current_user)):
+    """Return the project's script, creating an empty one if none exists yet
+    (lets the dashboard open any project directly in the editor)."""
+    from database import get_project_by_id
+    project = get_project_by_id(project_id)
+    if not project or project["user_id"] != user_id:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    existing = supabase.table("scripts").select("*").eq("project_id", project_id).execute()
+    if existing.data:
+        return existing.data[0]
+
+    created = supabase.table("scripts").insert({
+        "project_id": project_id, "content": "", "status": "draft",
+    }).execute()
+    return created.data[0]
+
+
 @router.get("/{script_id}")
 def get_script(script_id: str, user_id: str = Depends(get_current_user)):
     script = get_script_by_id(script_id)

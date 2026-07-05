@@ -22,11 +22,16 @@ export default function ScriptEditor() {
   const [pageTheme, setPageTheme] = useState("light");
   const textareaRef = useRef(null);
 
+  const [loadError, setLoadError] = useState("");
+
   useEffect(() => {
-    scripts.getById(id).then((res) => {
-      setScript(res.data);
-      setContent(res.data.content || "");
-    });
+    scripts
+      .getById(id)
+      .then((res) => {
+        setScript(res.data);
+        setContent(res.data.content || "");
+      })
+      .catch((err) => setLoadError(err.response?.data?.detail || "Could not load this script."));
   }, [id]);
 
   const saveContent = useCallback(async () => {
@@ -156,6 +161,16 @@ export default function ScriptEditor() {
       }, 0);
     }
   };
+
+  if (loadError)
+    return (
+      <div className="h-screen bg-bg flex flex-col items-center justify-center gap-4 text-ink">
+        <p className="text-inkSoft">{loadError}</p>
+        <button onClick={() => navigate("/dashboard")} className="btn-gold text-sm">
+          Back to Dashboard
+        </button>
+      </div>
+    );
 
   if (!script) return <div className="h-screen bg-bg flex items-center justify-center text-gold">Loading...</div>;
 

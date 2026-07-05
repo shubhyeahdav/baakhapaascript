@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { scripts } from "../services/api";
 
 const statusStyle = {
   draft: "text-inkMuted border-border bg-bgDeep/40",
@@ -15,10 +16,25 @@ const statusLabel = {
 
 export default function ProjectCard({ project }) {
   const navigate = useNavigate();
+  const [opening, setOpening] = useState(false);
+
+  // The editor route takes a SCRIPT id — resolve (or create) the project's
+  // script first, since project cards only know the project id.
+  const handleOpen = async () => {
+    if (opening) return;
+    setOpening(true);
+    try {
+      const res = await scripts.getByProject(project.id);
+      navigate(`/projects/${res.data.id}/editor`);
+    } catch (err) {
+      alert(err.response?.data?.detail || "Could not open this project.");
+      setOpening(false);
+    }
+  };
 
   return (
     <button
-      onClick={() => navigate(`/projects/${project.id}/editor`)}
+      onClick={handleOpen}
       className="group text-left bg-surface border border-borderSoft rounded-2xl overflow-hidden shadow-card
                  hover:border-gold/40 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full"
     >
