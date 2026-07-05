@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { scripts, exportApi } from "../services/api";
 import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
+import CollabBar from "../components/CollabBar";
 
 export default function ScriptEditor() {
   const { id } = useParams();
@@ -170,6 +171,8 @@ export default function ScriptEditor() {
           <span className="opacity-45 text-sm font-sans">Workspace /</span> {script.title}
         </div>
         <div className="flex gap-3 items-center">
+          <CollabBar scriptId={id} />
+          <div className="h-4 w-px bg-borderSoft" />
           <span className="text-[11px] font-semibold text-inkMuted uppercase tracking-wider mr-2">{saving ? "Saving..." : "Synced"}</span>
           <button 
             onClick={() => setZenMode(!zenMode)} 
