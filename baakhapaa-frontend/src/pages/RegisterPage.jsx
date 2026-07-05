@@ -108,9 +108,10 @@ export default function RegisterPage() {
               <label className="field-label">Password</label>
               <input
                 type="password"
-                placeholder="••••••••"
+                placeholder="Min 6 characters"
                 className="field"
                 value={form.password}
+                minLength={6}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
               />

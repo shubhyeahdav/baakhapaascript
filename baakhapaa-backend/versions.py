@@ -1,12 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends
 from database import supabase, get_versions_by_script
-from auth import get_current_user
+from auth import get_current_user, require_script_access
 
 router = APIRouter(prefix="/versions", tags=["versions"])
 
 
 @router.post("/")
 def save_version(script_id: str, content: str, label: str = "Manual save", user_id: str = Depends(get_current_user)):
+    require_script_access(script_id, user_id)
     result = supabase.table("versions").insert({
         "script_id": script_id, "user_id": user_id, "content": content, "label": label,
     }).execute()
@@ -15,6 +16,7 @@ def save_version(script_id: str, content: str, label: str = "Manual save", user_
 
 @router.get("/{script_id}")
 def get_versions(script_id: str, user_id: str = Depends(get_current_user)):
+    require_script_access(script_id, user_id)
     return get_versions_by_script(script_id)
 
 
@@ -24,14 +26,20 @@ def restore_version(version_id: str, user_id: str = Depends(get_current_user)):
     if not version.data:
         raise HTTPException(status_code=404, detail="Version not found")
     v = version.data[0]
+    require_script_access(v["script_id"], user_id)
     result = supabase.table("scripts").update({"content": v["content"]}).eq("id", v["script_id"]).execute()
     return result.data[0]
 
 
 @router.get("/diff/compare")
 def get_diff(version_id_a: str, version_id_b: str, user_id: str = Depends(get_current_user)):
-    va = supabase.table("versions").select("*").eq("id", version_id_a).execute().data[0]
-    vb = supabase.table("versions").select("*").eq("id", version_id_b).execute().data[0]
+    ra = supabase.table("versions").select("*").eq("id", version_id_a).execute()
+    rb = supabase.table("versions").select("*").eq("id", version_id_b).execute()
+    if not ra.data or not rb.data:
+        raise HTTPException(status_code=404, detail="Version not found")
+    va, vb = ra.data[0], rb.data[0]
+    require_script_access(va["script_id"], user_id)
+    require_script_access(vb["script_id"], user_id)
     lines_a = set(va["content"].split("\n"))
     lines_b = set(vb["content"].split("\n"))
     return {

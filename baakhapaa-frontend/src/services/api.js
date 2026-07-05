@@ -13,7 +13,10 @@ instance.interceptors.request.use((config) => {
 instance.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    // Session expiry → back to login. Skip auth endpoints themselves, otherwise
+    // a failed login reloads the page and wipes the error message.
+    const isAuthCall = err.config?.url?.startsWith("/auth/");
+    if (err.response?.status === 401 && !isAuthCall) {
       localStorage.removeItem("token");
       window.location.href = "/login";
     }

@@ -9,7 +9,10 @@ export default function StoryboardView() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    storyboard.getAll(id).then((res) => setFrames(res.data));
+    storyboard
+      .getAll(id)
+      .then((res) => setFrames(res.data))
+      .catch(() => setFrames([]));
   }, [id]);
 
   const handleGenerate = async () => {

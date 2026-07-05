@@ -1,20 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { versions as versionsApi } from "../services/api";
-
-// Backend version rows carry: id, script_id, user_id, content, label, created_at.
-// A display user name is used when present (user_name), otherwise we fall back to a
-// short user id so the list still reads cleanly without changing the backend.
-function formatTime(ts) {
-  if (!ts) return "Unknown time";
-  return new Date(ts).toLocaleString(undefined, {
-    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-  });
-}
-
-function userLabel(v) {
-  return v.user_name || (v.user_id ? `User ${String(v.user_id).slice(0, 6)}` : "Unknown");
-}
+import { userLabel, formatTime } from "../utils/format";
 
 export default function VersionHistory({ scriptId, onRestore }) {
   const [list, setList] = useState([]);

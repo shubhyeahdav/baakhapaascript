@@ -1,19 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { comments as commentsApi } from "../services/api";
 import { useAuth } from "../context/AuthContext";
-
-// Backend comment rows carry: id, script_id, user_id, content, line_number, created_at.
-// Display name falls back to a short user id until the backend returns user_name.
-function userLabel(c) {
-  return c.user_name || (c.user_id ? `User ${String(c.user_id).slice(0, 6)}` : "Unknown");
-}
-
-function formatTime(ts) {
-  if (!ts) return "";
-  return new Date(ts).toLocaleString(undefined, {
-    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-  });
-}
+import { userLabel, formatTime } from "../utils/format";
 
 export default function CommentThreads({ scriptId }) {
   const { user } = useAuth();

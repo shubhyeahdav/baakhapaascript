@@ -1,13 +1,14 @@
 from fastapi import APIRouter, HTTPException, Depends
 from models import CommentCreate
 from database import supabase
-from auth import get_current_user
+from auth import get_current_user, require_script_access
 
 router = APIRouter(prefix="/collaboration", tags=["collaboration"])
 
 
 @router.post("/comments")
 def add_comment(comment: CommentCreate, user_id: str = Depends(get_current_user)):
+    require_script_access(comment.script_id, user_id)
     result = supabase.table("comments").insert({
         "script_id": comment.script_id, "user_id": user_id,
         "content": comment.content, "line_number": comment.line_number,
@@ -17,6 +18,7 @@ def add_comment(comment: CommentCreate, user_id: str = Depends(get_current_user)
 
 @router.get("/comments/{script_id}")
 def get_comments(script_id: str, user_id: str = Depends(get_current_user)):
+    require_script_access(script_id, user_id)
     result = supabase.table("comments").select("*").eq("script_id", script_id).execute()
     return result.data
 

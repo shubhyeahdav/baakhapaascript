@@ -40,12 +40,19 @@ def get_project(project_id: str, user_id: str = Depends(get_current_user)):
     return project
 
 
+# Only these project fields may be changed from the client (never id/user_id)
+PROJECT_UPDATE_FIELDS = {"title", "genre", "tone", "language", "duration_minutes", "status", "target_audience"}
+
+
 @router.put("/{project_id}")
 def update_project(project_id: str, updates: dict, user_id: str = Depends(get_current_user)):
     project = get_project_by_id(project_id)
     if not project or project["user_id"] != user_id:
         raise HTTPException(status_code=404, detail="Project not found")
-    result = supabase.table("projects").update(updates).eq("id", project_id).execute()
+    safe_updates = {k: v for k, v in updates.items() if k in PROJECT_UPDATE_FIELDS}
+    if not safe_updates:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    result = supabase.table("projects").update(safe_updates).eq("id", project_id).execute()
     return result.data[0]
 
 

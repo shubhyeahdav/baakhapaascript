@@ -151,6 +151,24 @@ def get_versions_by_script(script_id: str):
     return result.data
 
 
+def get_script_owner(script_id: str):
+    """Return (owner_user_id, script) for a script, or (None, None) if missing."""
+    script = get_script_by_id(script_id)
+    if not script:
+        return None, None
+    project = get_project_by_id(script.get("project_id"))
+    return (project.get("user_id") if project else None), script
+
+
+def get_frame_script_id(frame_id: str):
+    """Resolve a storyboard frame to its script id (or None)."""
+    frame = supabase.table("storyboard_frames").select("*").eq("id", frame_id).execute()
+    if not frame.data:
+        return None
+    scene = supabase.table("scenes").select("*").eq("id", frame.data[0]["scene_id"]).execute()
+    return scene.data[0]["script_id"] if scene.data else None
+
+
 def check_user_subscription(user_id: str) -> str:
     user = get_user_by_id(user_id)
     return user.get("subscription_tier", "free") if user else "free"

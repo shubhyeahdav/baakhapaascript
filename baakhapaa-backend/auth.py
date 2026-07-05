@@ -37,6 +37,16 @@ def get_current_user(authorization: str = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
+def require_script_access(script_id: str, user_id: str):
+    """Return the script if it belongs to the user; 404 otherwise
+    (404 rather than 403 so script ids can't be probed)."""
+    from database import get_script_owner
+    owner, script = get_script_owner(script_id)
+    if not script or owner != user_id:
+        raise HTTPException(status_code=404, detail="Script not found")
+    return script
+
+
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate):
     existing = get_user_by_email(user.email)
@@ -44,13 +54,17 @@ def register(user: UserCreate):
         raise HTTPException(status_code=400, detail="Email already registered")
 
     hashed = pwd_context.hash(user.password)
-    result = supabase.table("users").insert({
-        "email": user.email,
-        "name": user.name,
-        "password_hash": hashed,
-        "role": "editor",
-        "subscription_tier": "free",
-    }).execute()
+    try:
+        result = supabase.table("users").insert({
+            "email": user.email,
+            "name": user.name,
+            "password_hash": hashed,
+            "role": "editor",
+            "subscription_tier": "free",
+        }).execute()
+    except Exception:
+        # e.g. unique-email race against the DB constraint
+        raise HTTPException(status_code=400, detail="Could not create account. Try a different email.")
 
     new_user = result.data[0]
     return UserResponse(

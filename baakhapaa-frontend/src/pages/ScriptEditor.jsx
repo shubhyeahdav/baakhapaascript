@@ -38,6 +38,8 @@ export default function ScriptEditor() {
     setSaving(true);
     try {
       await scripts.save(id, content);
+    } catch (err) {
+      console.error("Auto-save failed:", err.response?.data?.detail || err.message);
     } finally {
       setSaving(false);
     }
@@ -79,19 +81,28 @@ export default function ScriptEditor() {
   };
 
   const handleFinalize = async () => {
-    await saveContent();
-    await scripts.finalize(id);
-    navigate(`/projects/${id}/storyboard`);
+    try {
+      await saveContent();
+      await scripts.finalize(id);
+      navigate(`/projects/${id}/storyboard`);
+    } catch (err) {
+      alert(err.response?.data?.detail || "Could not finalize the script.");
+    }
   };
 
   const handleExport = async (type) => {
-    const res = await exportApi[type](id);
-    const url = window.URL.createObjectURL(new Blob([res.data]));
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `script.${type === "word" ? "docx" : "pdf"}`);
-    document.body.appendChild(link);
-    link.click();
+    try {
+      const res = await exportApi[type](id);
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `script.${type === "word" ? "docx" : "pdf"}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      alert(err.response?.data?.detail || "Export failed.");
+    }
   };
 
   // Keyboard Navigation & Screenwriting Tab-and-Enter helper rules

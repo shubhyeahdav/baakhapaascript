@@ -3,8 +3,8 @@ from models import (
     GenerateStructureRequest, GenerateSceneRequest,
     ImproveSceneRequest, SuggestRequest, ScriptSave,
 )
-from database import supabase, get_script_by_id
-from auth import get_current_user
+from database import supabase, get_project_by_id
+from auth import get_current_user, require_script_access
 import script_engine
 
 router = APIRouter(prefix="/scripts", tags=["scripts"])
@@ -12,6 +12,9 @@ router = APIRouter(prefix="/scripts", tags=["scripts"])
 
 @router.post("/generate-structure")
 def generate_structure(req: GenerateStructureRequest, project_id: str, user_id: str = Depends(get_current_user)):
+    project = get_project_by_id(project_id)
+    if not project or project["user_id"] != user_id:
+        raise HTTPException(status_code=404, detail="Project not found")
     try:
         structure = script_engine.generate_structure(
             req.genre, req.tone, req.duration_minutes, req.language, req.target_audience
@@ -24,15 +27,16 @@ def generate_structure(req: GenerateStructureRequest, project_id: str, user_id: 
     }).execute()
     script_id = script_result.data[0]["id"]
 
-    for act in structure["acts"]:
-        for idx, scene in enumerate(act["scenes"]):
+    # AI output may omit keys — use defaults so one malformed scene can't 500 the request
+    for act in structure.get("acts", []):
+        for idx, scene in enumerate(act.get("scenes", [])):
             supabase.table("scenes").insert({
                 "script_id": script_id,
-                "act_number": act["act_number"],
-                "scene_type": scene["scene_type"],
-                "title": scene["title"],
-                "description": scene["description"],
-                "time_allocation": scene["time_allocation"],
+                "act_number": act.get("act_number", 1),
+                "scene_type": scene.get("scene_type", "minor"),
+                "title": scene.get("title", "Untitled scene"),
+                "description": scene.get("description", ""),
+                "time_allocation": scene.get("time_allocation", 0),
                 "order_index": idx,
             }).execute()
 
@@ -89,9 +93,7 @@ def get_script_for_project(project_id: str, user_id: str = Depends(get_current_u
 
 @router.get("/{script_id}")
 def get_script(script_id: str, user_id: str = Depends(get_current_user)):
-    script = get_script_by_id(script_id)
-    if not script:
-        raise HTTPException(status_code=404, detail="Script not found")
+    script = require_script_access(script_id, user_id)
     from database import get_scenes_by_script
     scenes = get_scenes_by_script(script_id)
     return {**script, "scenes": scenes}
@@ -99,9 +101,7 @@ def get_script(script_id: str, user_id: str = Depends(get_current_user)):
 
 @router.put("/{script_id}")
 def save_script(script_id: str, data: ScriptSave, user_id: str = Depends(get_current_user)):
-    script = get_script_by_id(script_id)
-    if not script:
-        raise HTTPException(status_code=404, detail="Script not found")
+    script = require_script_access(script_id, user_id)
 
     supabase.table("versions").insert({
         "script_id": script_id, "user_id": user_id,
@@ -114,7 +114,6 @@ def save_script(script_id: str, data: ScriptSave, user_id: str = Depends(get_cur
 
 @router.post("/{script_id}/finalize")
 def finalize_script(script_id: str, user_id: str = Depends(get_current_user)):
+    require_script_access(script_id, user_id)
     result = supabase.table("scripts").update({"status": "finalized"}).eq("id", script_id).execute()
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Script not found")
     return result.data[0]

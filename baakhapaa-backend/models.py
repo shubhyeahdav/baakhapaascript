@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import List
 
 class UserCreate(BaseModel):
     email: str
@@ -24,26 +24,6 @@ class ProjectCreate(BaseModel):
     language: str = "English"
     duration_minutes: int
     target_audience: str = "General"
-
-class ProjectResponse(BaseModel):
-    id: str
-    user_id: str
-    title: str
-    genre: str
-    tone: str
-    language: str
-    duration_minutes: int
-    status: str = "draft"
-    created_at: Optional[str] = None
-
-class SceneCreate(BaseModel):
-    script_id: str
-    act_number: int
-    scene_type: str
-    title: str
-    description: str
-    time_allocation: float
-    order_index: int
 
 class GenerateStructureRequest(BaseModel):
     genre: str
