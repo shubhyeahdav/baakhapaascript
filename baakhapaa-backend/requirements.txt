@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+supabase
+python-dotenv
+anthropic
+openai
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+reportlab
+python-docx
