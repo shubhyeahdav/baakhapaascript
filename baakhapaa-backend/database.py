@@ -82,7 +82,7 @@ if use_mock:
                     "id": "test-user-id",
                     "email": "test@example.com",
                     "name": "Test User",
-                    "password_hash": "$2b$12$xqx1K.9q91eKzS99K.f8ueM1LdD85JtPqgq4dC3V3uG8L9M.Ue/eW",  # bcrypt hash of 'password'
+                    "password_hash": "$2b$12$zUjPcSMtMoocoiMm2q5cq.bW2lzJZI0f0..KjMaOc523W5uQgUTVO",  # bcrypt hash of 'password'
                     "role": "editor",
                     "subscription_tier": "pro",
                     "created_at": datetime.datetime.now().isoformat()
