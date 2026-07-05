@@ -50,6 +50,11 @@ export const storyboard = {
   getAll: (scriptId) => instance.get(`/storyboard/${scriptId}`),
 };
 
+export const versions = {
+  getAll: (scriptId) => instance.get(`/versions/${scriptId}`),
+  restore: (versionId) => instance.post(`/versions/${versionId}/restore`),
+};
+
 export const exportApi = {
   pdf: (id) => instance.get(`/export/script/pdf/${id}`, { responseType: "blob" }),
   word: (id) => instance.get(`/export/script/word/${id}`, { responseType: "blob" }),

@@ -1,13 +1,102 @@
 import os
 from dotenv import load_dotenv
-from supabase import create_client, Client
 
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Check if we should use a mock database client
+use_mock = not SUPABASE_URL or "your-supabase" in SUPABASE_URL or not SUPABASE_URL.startswith("http")
+
+if use_mock:
+    import uuid
+    import datetime
+
+    class MockResponse:
+        def __init__(self, data):
+            self.data = data
+
+    class MockQueryBuilder:
+        def __init__(self, table_name, data_store):
+            self.table_name = table_name
+            self.data_store = data_store
+            self.records = data_store.setdefault(table_name, [])
+            self.filtered_records = list(self.records)
+
+        def select(self, *args, **kwargs):
+            return self
+
+        def eq(self, field, value):
+            self.filtered_records = [r for r in self.filtered_records if r.get(field) == value]
+            return self
+
+        def in_(self, field, values):
+            self.filtered_records = [r for r in self.filtered_records if r.get(field) in values]
+            return self
+
+        def order(self, field, desc=False):
+            # Sort helper that handles potentially missing values
+            def get_sort_key(r):
+                val = r.get(field)
+                return (val is not None, val)
+            self.filtered_records.sort(key=get_sort_key, reverse=desc)
+            return self
+
+        def insert(self, data):
+            new_data = dict(data)
+            if "id" not in new_data:
+                new_data["id"] = str(uuid.uuid4())
+            if "created_at" not in new_data:
+                new_data["created_at"] = datetime.datetime.now().isoformat()
+            self.records.append(new_data)
+            self.filtered_records = [new_data]
+            return self
+
+        def update(self, updates):
+            for r in self.filtered_records:
+                r.update(updates)
+            # Find in main records and update them too
+            for r in self.records:
+                if r.get("id") in [fr.get("id") for fr in self.filtered_records if fr.get("id")]:
+                    r.update(updates)
+            return self
+
+        def delete(self):
+            ids_to_delete = {r["id"] for r in self.filtered_records if "id" in r}
+            self.records[:] = [r for r in self.records if r.get("id") not in ids_to_delete]
+            self.data_store[self.table_name] = self.records
+            return self
+
+        def execute(self):
+            return MockResponse(self.filtered_records)
+
+    class MockSupabaseClient:
+        def __init__(self):
+            self.data_store = {}
+            # Prepopulate a test user
+            # email: test@example.com
+            # password: password
+            self.data_store["users"] = [
+                {
+                    "id": "test-user-id",
+                    "email": "test@example.com",
+                    "name": "Test User",
+                    "password_hash": "$2b$12$xqx1K.9q91eKzS99K.f8ueM1LdD85JtPqgq4dC3V3uG8L9M.Ue/eW",  # bcrypt hash of 'password'
+                    "role": "editor",
+                    "subscription_tier": "pro",
+                    "created_at": datetime.datetime.now().isoformat()
+                }
+            ]
+
+        def table(self, name):
+            return MockQueryBuilder(name, self.data_store)
+
+    supabase = MockSupabaseClient()
+    print("WARNING: Running with Mock Supabase Database Client.")
+else:
+    from supabase import create_client, Client
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def get_user_by_email(email: str):
