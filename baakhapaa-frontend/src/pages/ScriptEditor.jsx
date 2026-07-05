@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { scripts, exportApi } from "../services/api";
 import VersionHistory from "../components/VersionHistory";
+import CommentThreads from "../components/CommentThreads";
 
 export default function ScriptEditor() {
   const { id } = useParams();
@@ -231,6 +232,7 @@ export default function ScriptEditor() {
               {[
                 { key: "ai", label: "AI Writer" },
                 { key: "versions", label: "Versions" },
+                { key: "comments", label: "Notes" },
               ].map((t) => (
                 <button
                   key={t.key}
@@ -247,6 +249,8 @@ export default function ScriptEditor() {
             {panelTab === "versions" && (
               <VersionHistory scriptId={id} onRestore={(restored) => setContent(restored)} />
             )}
+
+            {panelTab === "comments" && <CommentThreads scriptId={id} />}
 
             {panelTab === "ai" && (
             <>

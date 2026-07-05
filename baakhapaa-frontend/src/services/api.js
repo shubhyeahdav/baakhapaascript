@@ -55,6 +55,15 @@ export const versions = {
   restore: (versionId) => instance.post(`/versions/${versionId}/restore`),
 };
 
+export const comments = {
+  getAll: (scriptId) => instance.get(`/collaboration/comments/${scriptId}`),
+  add: (scriptId, content, lineNumber) =>
+    instance.post("/collaboration/comments", {
+      script_id: scriptId, content, line_number: lineNumber,
+    }),
+  remove: (commentId) => instance.delete(`/collaboration/comments/${commentId}`),
+};
+
 export const exportApi = {
   pdf: (id) => instance.get(`/export/script/pdf/${id}`, { responseType: "blob" }),
   word: (id) => instance.get(`/export/script/word/${id}`, { responseType: "blob" }),
