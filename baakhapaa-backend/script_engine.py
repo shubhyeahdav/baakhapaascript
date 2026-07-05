@@ -5,8 +5,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+_api_key = os.getenv("ANTHROPIC_API_KEY")
+# Demo mode: no real key configured — return sample content instead of calling the API
+MOCK_AI = not _api_key or _api_key.startswith("your-")
+client = None if MOCK_AI else anthropic.Anthropic(api_key=_api_key)
 MODEL = "claude-sonnet-5"
+if MOCK_AI:
+    print("WARNING: Running with Mock AI (no ANTHROPIC_API_KEY set).")
 
 BAAKHAPAA_STYLE = """You are writing for Baakhapaa, a Nepali storytelling platform for young audiences.
 Style: emotional, authentic, youth focused.
@@ -15,6 +20,65 @@ Dialogue: conversational, natural Nepali and English mix as spoken in urban Kath
 Themes: personal growth, relationships, family expectations, ambition, modern Nepal.
 Avoid: melodrama, cliche resolutions, overly formal language.
 For bilingual output: dialogue in Nepali (Devanagari script), action lines in English."""
+
+
+_DEMO_SCENE = """INT. CHIYA PASAL, PATAN - MORNING
+
+Steam rises from glasses of chiya. RAAJA (24) sits by the window,
+phone face-down on the table. SANJANA (23) slides into the seat
+across from him.
+
+                      SANJANA
+          Timro result aayo?
+
+                      RAAJA
+              (not looking up)
+          Aayo. Pass bhaye. Tara baba lai
+          kasari bhanne... maile job chodera
+          film banauna khojeko.
+
+Sanjana pushes her chiya toward him. Outside, a school bus
+rattles past, children shouting.
+
+                      SANJANA
+          Sapana dekhna paisa lagdaina, Raaja.
+          Tara bachna chai lagcha.
+"""
+
+
+def _demo_structure(duration_minutes):
+    a1 = round(duration_minutes * 0.33, 1)
+    a2 = round(duration_minutes * 0.33, 1)
+    a3 = round(duration_minutes - a1 - a2, 1)
+    return {
+        "acts": [
+            {"act_number": 1, "name": "Setup", "duration_minutes": a1, "percentage": 33, "scenes": [
+                {"scene_number": 1, "title": "Morning at the Chiya Pasal", "scene_type": "major",
+                 "description": "Raaja gets his exam result but hides his real dream from his family.",
+                 "time_allocation": round(a1 * 0.6, 1), "characters": ["Raaja", "Sanjana"],
+                 "location": "Chiya pasal, Patan", "emotional_beat": "quiet anxiety"},
+                {"scene_number": 2, "title": "Dinner Expectations", "scene_type": "minor",
+                 "description": "At home, Raaja's father plans his son's 'stable' future.",
+                 "time_allocation": round(a1 * 0.4, 1), "characters": ["Raaja", "Baba"],
+                 "location": "Family kitchen", "emotional_beat": "pressure"}]},
+            {"act_number": 2, "name": "Confrontation", "duration_minutes": a2, "percentage": 33, "scenes": [
+                {"scene_number": 3, "title": "The Secret Project", "scene_type": "major",
+                 "description": "Raaja secretly shoots a short film with borrowed gear; it goes wrong.",
+                 "time_allocation": round(a2 * 0.5, 1), "characters": ["Raaja", "Sanjana", "Kanchha"],
+                 "location": "Rooftop, Kathmandu", "emotional_beat": "hope then panic"},
+                {"scene_number": 4, "title": "Found Out", "scene_type": "major",
+                 "description": "Baba discovers the truth. The family confrontation everyone avoided.",
+                 "time_allocation": round(a2 * 0.5, 1), "characters": ["Raaja", "Baba", "Aama"],
+                 "location": "Family kitchen", "emotional_beat": "rupture"}]},
+            {"act_number": 3, "name": "Resolution", "duration_minutes": a3, "percentage": 34, "scenes": [
+                {"scene_number": 5, "title": "The Screening", "scene_type": "major",
+                 "description": "Raaja's film screens at a local festival. A familiar face in the crowd.",
+                 "time_allocation": a3, "characters": ["Raaja", "Baba", "Sanjana"],
+                 "location": "Community hall", "emotional_beat": "earned understanding"}]},
+        ],
+        "total_characters": ["Raaja", "Sanjana", "Baba", "Aama", "Kanchha"],
+        "suggested_locations": ["Chiya pasal, Patan", "Family kitchen", "Rooftop, Kathmandu", "Community hall"],
+    }
 
 
 def _call_claude(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> str:
@@ -31,6 +95,8 @@ def _call_claude(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -
 
 
 def generate_structure(genre, tone, duration_minutes, language, target_audience):
+    if MOCK_AI:
+        return _demo_structure(duration_minutes)
     act1 = round(duration_minutes * 0.33, 1)
     act2 = round(duration_minutes * 0.33, 1)
     act3 = round(duration_minutes - act1 - act2, 1)
@@ -75,6 +141,8 @@ Respond ONLY with valid JSON in this exact format, no other text:
 
 
 def generate_scene(scene_description, genre, tone, language, character_names, act_number=1):
+    if MOCK_AI:
+        return _DEMO_SCENE
     chars = ", ".join(character_names) if character_names else "characters as needed"
     prompt = f"""Write a full screenplay scene.
 Genre: {genre} | Tone: {tone} | Language: {language} | Act: {act_number}
@@ -92,6 +160,8 @@ Format correctly:
 
 
 def improve_scene(scene_text, instruction, language="English"):
+    if MOCK_AI:
+        return scene_text.rstrip() + "\n\n[Demo mode: showing your scene unchanged. Add a real ANTHROPIC_API_KEY to .env for AI rewrites following: \"" + instruction + "\"]"
     prompt = f"""Here is a screenplay scene:
 
 {scene_text}
@@ -105,6 +175,12 @@ Rewrite the scene following the instruction exactly. Keep the same characters, l
 
 
 def suggest_continuations(scene_text, genre, tone):
+    if MOCK_AI:
+        return [
+            "Sanjana reveals she already submitted Raaja's film to the festival without telling him — the deadline he thought he missed has passed, and they got in.",
+            "Baba arrives at the chiya pasal unexpectedly. He sits at the next table, and Raaja must choose: keep pretending, or say it out loud, here, now.",
+            "A phone call interrupts: the borrowed camera was reported missing by the rental shop. Kanchha never actually had permission to lend it.",
+        ]
     prompt = f"""Here is an incomplete screenplay scene:
 
 {scene_text}
@@ -124,6 +200,8 @@ Respond ONLY with valid JSON: {{"suggestions": ["option 1", "option 2", "option 
 
 
 def review_script(script_content):
+    if MOCK_AI:
+        return []
     prompt = f"""Review this screenplay for issues:
 
 {script_content}

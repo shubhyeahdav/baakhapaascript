@@ -3,7 +3,13 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+_api_key = os.getenv("OPENAI_API_KEY")
+# Demo mode: no real key configured — use placeholder frame images instead of DALL-E
+MOCK_AI = not _api_key or _api_key.startswith("your-")
+openai_client = None if MOCK_AI else OpenAI(api_key=_api_key)
+if MOCK_AI:
+    print("WARNING: Running with Mock Storyboard AI (no OPENAI_API_KEY set).")
 
 
 def assign_shot_type(scene_type, scene_index, total_scenes, act_number):
@@ -21,6 +27,9 @@ def assign_shot_type(scene_type, scene_index, total_scenes, act_number):
 
 
 def generate_frame(scene_description, shot_type, genre, location="", emotional_beat=""):
+    if MOCK_AI:
+        label = shot_type.replace(" ", "+")
+        return f"https://placehold.co/1792x1024/141A29/6366F1?text={label}+%28demo%29"
     prompt = (
         f"{shot_type} cinematic storyboard frame. {location}. {scene_description}. "
         f"{emotional_beat} mood. {genre} film aesthetic. Professional cinematography. "
