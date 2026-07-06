@@ -23,6 +23,7 @@ if use_mock:
             self.data_store = data_store
             self.records = data_store.setdefault(table_name, [])
             self.filtered_records = list(self.records)
+            self.order_specs = []
 
         def select(self, *args, **kwargs):
             return self
@@ -36,11 +37,12 @@ if use_mock:
             return self
 
         def order(self, field, desc=False):
-            # Sort helper that handles potentially missing values
-            def get_sort_key(r):
-                val = r.get(field)
-                return (val is not None, val)
-            self.filtered_records.sort(key=get_sort_key, reverse=desc)
+            # Accumulate ordering keys and apply them together at execute() time.
+            # Real Supabase treats chained .order() calls as a compound sort
+            # (first call = primary key); applying each immediately here would let
+            # the last call override the first, scrambling multi-key ordering
+            # (e.g. scenes sorted by order_index only, ignoring act_number).
+            self.order_specs.append((field, desc))
             return self
 
         def insert(self, data):
@@ -69,7 +71,17 @@ if use_mock:
             return self
 
         def execute(self):
-            return MockResponse(self.filtered_records)
+            records = self.filtered_records
+            # Apply accumulated ordering as a stable compound sort. Sort from the
+            # least-significant key to the most-significant (first .order() wins),
+            # so Python's stable sort yields the intended multi-key ordering.
+            for field, desc in reversed(self.order_specs):
+                records = sorted(
+                    records,
+                    key=lambda r, f=field: (r.get(f) is not None, r.get(f)),
+                    reverse=desc,
+                )
+            return MockResponse(records)
 
     class MockSupabaseClient:
         def __init__(self):
