@@ -36,6 +36,17 @@ Runs at http://localhost:3000 (often **3001** locally when 3000 is taken; backen
 - Backend venv is at `baakhapaa-backend/venv` (use `./venv/Scripts/python`). `bcrypt` is pinned to `4.0.1` — newer breaks passlib.
 - Mock DB is **in-memory**: restarting the backend wipes all data (re-register/login).
 
+## Project docs (all at repo root)
+Start with `ONBOARDING.md` (doc map + 15-min setup). Then:
+- `PRD.md` — product requirements (problem, users, scope, metrics)
+- `TRD.md` — technical architecture, data model, API contract, deploy plan
+- `LEARNING_GUIDE.md` — beginner full-stack walkthrough
+- `AUDIT_REPORT.md` — security audit findings
+- `HANDOVER.md` — latest session test results
+- `UI_Inspiration.md` — dark-UI references (Linear/Cursor/etc.) for design prompts
+- Legal (templates, unreviewed): `Terms_of_Use.md`, `Privacy_Policy.md`,
+  `Data_Compliance_Checklist.md` (Nepal law), `Trademark_Check_Guide.md`
+
 ## Current State
 
 **Working:**
