@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { subscription } from "../services/api";
 
 const TIERS = [
   {
@@ -64,10 +65,28 @@ function Check() {
 export default function PricingPage() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [loadingTier, setLoadingTier] = useState(null);
 
-  const handleCta = () => {
-    // Payments are not wired up yet — route everyone toward the app itself.
-    navigate(isAuthenticated ? "/dashboard" : "/register");
+  const handleCta = async (tier) => {
+    // Free tier just sends the user into the app.
+    if (tier === "free") {
+      navigate(isAuthenticated ? "/dashboard" : "/register");
+      return;
+    }
+    // Paid tiers require an account first, then a Stripe Checkout session.
+    if (!isAuthenticated) {
+      navigate("/register");
+      return;
+    }
+    setLoadingTier(tier);
+    try {
+      const res = await subscription.checkout(tier);
+      // Redirect to Stripe Checkout (or, in demo mode, the simulated success URL).
+      window.location.href = res.data.url;
+    } catch (err) {
+      alert(err.response?.data?.detail || "Could not start checkout. Please try again.");
+      setLoadingTier(null);
+    }
   };
 
   return (
@@ -130,18 +149,19 @@ export default function PricingPage() {
             </ul>
 
             <button
-              onClick={handleCta}
+              onClick={() => handleCta(tier.key)}
+              disabled={loadingTier === tier.key}
               className={tier.highlight ? "btn-gold w-full" : "btn-ghost w-full"}
             >
-              {tier.cta}
+              {loadingTier === tier.key ? "Redirecting…" : tier.cta}
             </button>
           </div>
         ))}
       </div>
 
       <p className="text-center text-inkMuted text-xs mt-10">
-        Prices in Nepali Rupees. Online payment coming soon — Pro and Studio are
-        currently enabled manually for early collaborators.
+        Prices in Nepali Rupees. Secure checkout via Stripe. Running in test mode
+        until live payment keys are configured.
       </p>
     </div>
   );

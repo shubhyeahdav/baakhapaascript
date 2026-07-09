@@ -56,3 +56,6 @@ class CommentCreate(BaseModel):
     script_id: str
     content: str
     line_number: int
+
+class CheckoutRequest(BaseModel):
+    tier: str

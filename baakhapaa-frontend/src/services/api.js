@@ -68,6 +68,10 @@ export const comments = {
   remove: (commentId) => instance.delete(`/collaboration/comments/${commentId}`),
 };
 
+export const subscription = {
+  checkout: (tier) => instance.post("/subscription/checkout", { tier }),
+};
+
 export const exportApi = {
   pdf: (id) => instance.get(`/export/script/pdf/${id}`, { responseType: "blob" }),
   word: (id) => instance.get(`/export/script/word/${id}`, { responseType: "blob" }),
