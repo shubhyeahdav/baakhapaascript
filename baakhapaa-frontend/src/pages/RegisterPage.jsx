@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { checkPassword } from "../utils/password";
+import { authErrorMessage } from "../utils/apiError";
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
@@ -9,11 +11,19 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
 
+  const pw = checkPassword(form.password);
+  const confirmTouched = form.confirm.length > 0;
+  const passwordsMatch = form.password === form.confirm;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (form.password !== form.confirm) {
-      setError("Passwords do not match");
+    if (!pw.valid) {
+      setError("Your password doesn't meet all the requirements below.");
+      return;
+    }
+    if (!passwordsMatch) {
+      setError("Passwords do not match.");
       return;
     }
     setLoading(true);
@@ -21,7 +31,7 @@ export default function RegisterPage() {
       await register(form.email, form.password, form.name);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.detail || "Registration failed");
+      setError(authErrorMessage(err, "Registration failed. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -108,26 +118,49 @@ export default function RegisterPage() {
               <label className="field-label">Password</label>
               <input
                 type="password"
-                placeholder="Min 6 characters"
+                placeholder="Create a strong password"
                 className="field"
                 value={form.password}
-                minLength={6}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
               />
+              {form.password.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {pw.results.map((r) => (
+                    <li
+                      key={r.key}
+                      className={`flex items-center gap-2 text-xs ${
+                        r.passed ? "text-emerald-400" : "text-inkMuted"
+                      }`}
+                    >
+                      <span className="inline-block w-3 text-center">{r.passed ? "✓" : "○"}</span>
+                      {r.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
             <div>
               <label className="field-label">Confirm Password</label>
               <input
                 type="password"
-                placeholder="••••••••"
+                placeholder="Re-enter your password"
                 className="field"
                 value={form.confirm}
                 onChange={(e) => setForm({ ...form, confirm: e.target.value })}
                 required
               />
+              {confirmTouched && (
+                <p className={`mt-1.5 text-xs ${passwordsMatch ? "text-emerald-400" : "text-red-400"}`}>
+                  {passwordsMatch ? "✓ Passwords match" : "Passwords do not match"}
+                </p>
+              )}
             </div>
-            <button type="submit" disabled={loading} className="btn-gold w-full mt-2">
+            <button
+              type="submit"
+              disabled={loading || !pw.valid || !passwordsMatch}
+              className="btn-gold w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {loading ? "Creating Account…" : "Create Account"}
             </button>
           </form>
