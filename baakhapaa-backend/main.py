@@ -13,7 +13,9 @@ app = FastAPI(title="Baakhapaa API", version="1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    # Local testing: allow any localhost port (CRA/preview servers pick varying
+    # ports). Before deploying, replace this with an explicit prod-domain allowlist.
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
