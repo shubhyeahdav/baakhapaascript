@@ -57,15 +57,16 @@ html, body {
     margin-bottom: 7px;
   }
 
-  /* Buttons — flat gold, sharp corners, no glow */
+  /* Buttons — flat gold, pill geometry (one shared button shape across the
+     editorial + utilitarian shells), no glow */
   .btn-gold {
     position: relative;
     background: #D4A843;
     color: #141006;
     font-weight: 600;
     font-size: 13.5px;
-    padding: 10px 20px;
-    border-radius: 3px;
+    padding: 10px 22px;
+    border-radius: 999px;
     border: none;
     cursor: pointer;
     transition: background 0.15s ease;
@@ -78,8 +79,8 @@ html, body {
     background: transparent;
     color: #9B968A;
     border: 1px solid rgba(255, 255, 255, 0.12);
-    padding: 9px 18px;
-    border-radius: 3px;
+    padding: 9px 20px;
+    border-radius: 999px;
     font-size: 13.5px;
     cursor: pointer;
     transition: border-color 0.18s ease, color 0.18s ease;

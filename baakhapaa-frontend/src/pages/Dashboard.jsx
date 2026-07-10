@@ -1,22 +1,38 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../components/Sidebar";
-import ProjectCard from "../components/ProjectCard";
-import { projects } from "../services/api";
+import TopNav from "../components/TopNav";
+import { projects, scripts } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
-function Stat({ label, value }) {
-  return (
-    <div className="bg-surface border border-borderSoft rounded-xl px-5 py-4">
-      <div className="font-display text-3xl text-ink leading-none">{value}</div>
-      <div className="text-inkMuted text-[11px] tracking-[0.14em] uppercase mt-2">{label}</div>
-    </div>
-  );
+// Relative "last edited" label from an ISO timestamp.
+function relTime(iso) {
+  if (!iso) return "";
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return "yesterday";
+  if (d < 7) return `${d}d ago`;
+  return `${Math.floor(d / 7)}w ago`;
 }
+
+// Kathmandu wall-clock (UTC+5:45) for the footer ledger line.
+function nptClock() {
+  const utc = Date.now() + new Date().getTimezoneOffset() * 60000;
+  const npt = new Date(utc + (5 * 60 + 45) * 60000);
+  return npt.toTimeString().slice(0, 5);
+}
+
+const statusText = (s) =>
+  s === "finalized" ? "FINAL" : s === "in_progress" ? "ACT II" : "DRAFT";
 
 export default function Dashboard() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [opening, setOpening] = useState(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -28,70 +44,147 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  const stats = {
-    total: list.length,
-    drafts: list.filter((p) => p.status === "draft").length,
-    finalized: list.filter((p) => p.status === "finalized").length,
+  // The editor route takes a SCRIPT id — resolve (or create) the project's
+  // script first (same path ProjectCard used).
+  const open = async (projectId) => {
+    if (opening) return;
+    setOpening(projectId);
+    try {
+      const res = await scripts.getByProject(projectId);
+      navigate(`/projects/${res.data.id}/editor`);
+    } catch (err) {
+      alert(err.response?.data?.detail || "Could not open this project.");
+      setOpening(null);
+    }
   };
 
+  // "Continue" hero = most recent still-open project; fall back to newest.
+  const sorted = [...list].sort(
+    (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+  );
+  const hero = sorted.find((p) => p.status !== "finalized") || sorted[0];
+  const totalMin = list.reduce((n, p) => n + (p.duration_minutes || 0), 0);
+
   return (
-    <div className="cine-bg min-h-screen">
-      <Sidebar />
-      <main className="ml-64 px-10 py-9 max-w-6xl">
-        {/* Header */}
-        <div className="flex justify-between items-end mb-9 animate-fade-up">
-          <div>
-            <p className="text-inkMuted text-xs tracking-[0.2em] uppercase mb-2">
-              Studio Dashboard
-            </p>
-            <h1 className="font-display text-4xl text-ink">
-              Welcome back, {user?.name?.split(" ")[0] || "filmmaker"}
-            </h1>
-          </div>
-          <button onClick={() => navigate("/projects/new")} className="btn-gold flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-            New Project
+    <div className="cine-bg min-h-screen flex flex-col text-ink">
+      <TopNav active="Projects" />
+
+      {loading ? (
+        <div className="flex-1 px-8 md:px-14 pt-16">
+          <div className="h-24 w-2/3 bg-elevated/50 rounded animate-pulse mb-10" />
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-16 border-b border-borderSoft animate-pulse" />
+          ))}
+        </div>
+      ) : list.length === 0 ? (
+        /* Editorial empty state — no card, type carries it */
+        <div className="flex-1 flex flex-col justify-center px-8 md:px-14 animate-fade-up">
+          <p className="font-mono text-[11px] tracking-[0.14em] text-inkMuted mb-5">
+            NO PROJECTS YET
+          </p>
+          <h1 className="font-display text-6xl md:text-7xl leading-[0.98] text-ink mb-6 max-w-3xl">
+            Every story starts<br />on a blank page.
+          </h1>
+          <p className="text-inkSoft text-[15px] max-w-md mb-8">
+            Give the studio a genre, a tone, and a runtime — it returns a
+            three-act structure you can write straight into.
+          </p>
+          <button
+            onClick={() => navigate("/projects/new")}
+            className="btn-gold self-start"
+          >
+            Start your first story →
           </button>
         </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-10 animate-fade-up">
-          <Stat label="Projects" value={stats.total} />
-          <Stat label="In Draft" value={stats.drafts} />
-          <Stat label="Finalized" value={stats.finalized} />
-        </div>
-
-        {/* Projects */}
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-ink text-sm tracking-[0.14em] uppercase">Your Projects</h2>
-          <div className="flex-1 ml-5 h-px bg-borderSoft" />
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-3 gap-4">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="h-52 rounded-2xl bg-surface border border-borderSoft animate-pulse" />
-            ))}
-          </div>
-        ) : list.length === 0 ? (
-          <div className="text-center py-20 border border-dashed border-border rounded-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-goldDim flex items-center justify-center mx-auto mb-5">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D4A843" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4zM4 9h16M9 9v11"/></svg>
+      ) : (
+        <>
+          {/* Continue hero */}
+          {hero && (
+            <div className="flex-none px-8 md:px-14 pt-10 pb-9 border-b border-border animate-fade-up">
+              <div className="flex flex-wrap items-baseline gap-4 font-mono text-[11px] tracking-[0.14em] text-inkMuted mb-4">
+                <span>CONTINUE</span>
+                <span className="text-gold">{hero.genre?.toUpperCase()} · {hero.language?.toUpperCase()}</span>
+                <span>LAST OPENED {relTime(hero.created_at).toUpperCase()}</span>
+              </div>
+              <div className="flex flex-wrap items-end gap-10">
+                <h1 className="font-display font-medium text-5xl md:text-[84px] leading-[0.98] tracking-tight text-ink">
+                  {hero.title}
+                </h1>
+                <div className="flex flex-col gap-3 pb-2">
+                  <p className="text-[13.5px] text-inkSoft leading-relaxed max-w-xs">
+                    {hero.genre} · {hero.language} · {hero.duration_minutes} min<br />
+                    {hero.tone} · {statusText(hero.status).replace("_", " ")}
+                  </p>
+                  <button
+                    onClick={() => open(hero.id)}
+                    disabled={opening === hero.id}
+                    className="font-display italic text-lg text-gold border-b border-gold/40 self-start pb-0.5 hover:border-gold transition-colors disabled:opacity-50"
+                  >
+                    {opening === hero.id ? "Opening…" : "Continue writing →"}
+                  </button>
+                </div>
+              </div>
             </div>
-            <p className="text-ink text-lg font-display mb-1">No projects yet</p>
-            <p className="text-inkMuted text-sm mb-6">Start your first screenplay and let the studio do the heavy lifting.</p>
-            <button onClick={() => navigate("/projects/new")} className="btn-gold">
-              Create Your First Project
+          )}
+
+          {/* Project index */}
+          <div className="flex-1 min-h-0 flex flex-col px-8 md:px-14">
+            <div className="flex items-baseline justify-between py-5">
+              <span className="font-mono text-[11px] tracking-[0.14em] text-inkMuted">
+                INDEX — ALL PROJECTS ({list.length})
+              </span>
+              <span className="font-mono text-[11px] tracking-[0.14em] text-inkMuted">
+                SORTED BY LAST EDITED
+              </span>
+            </div>
+
+            {sorted.map((p, i) => (
+              <button
+                key={p.id}
+                onClick={() => open(p.id)}
+                disabled={opening === p.id}
+                className="group flex items-baseline gap-8 py-[18px] border-b border-borderSoft text-left hover:bg-white/[0.02] transition-colors disabled:opacity-60"
+              >
+                <span className="font-mono text-xs text-gold w-8 flex-none">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="font-display text-2xl md:text-[28px] text-ink flex-1 min-w-0 truncate group-hover:text-gold transition-colors">
+                  {p.title}
+                </span>
+                <span className="hidden sm:block text-[12.5px] text-inkMuted w-40 flex-none">
+                  {p.genre} · {p.language}
+                </span>
+                <span className="hidden md:block font-mono text-xs text-inkSoft w-28 flex-none">
+                  {statusText(p.status)} · {p.duration_minutes}:00
+                </span>
+                <span className="font-mono text-[11px] text-inkMuted w-20 flex-none text-right">
+                  {opening === p.id ? "opening…" : relTime(p.created_at)}
+                </span>
+              </button>
+            ))}
+
+            {/* Start-new row */}
+            <button
+              onClick={() => navigate("/projects/new")}
+              className="flex items-baseline gap-8 py-[18px] text-left hover:opacity-100 opacity-80 transition"
+            >
+              <span className="font-mono text-xs text-inkMuted w-8 flex-none">
+                {String(sorted.length + 1).padStart(2, "0")}
+              </span>
+              <span className="font-display italic text-2xl md:text-[28px] text-inkMuted flex-1">
+                Start a new story…
+              </span>
             </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-4">
-            {list.map((p) => (
-              <ProjectCard key={p.id} project={p} />
-            ))}
+
+          {/* Ledger footer */}
+          <div className="flex-none flex justify-between px-8 md:px-14 py-5 border-t border-border font-mono text-[10.5px] tracking-[0.12em] text-inkMuted/70">
+            <span>KATHMANDU — {nptClock()} NPT</span>
+            <span>{list.length} PROJECTS · {totalMin} MIN PLANNED</span>
+            <span>{(user?.name || "Creator").toUpperCase()} — {(user?.subscription_tier || "free").toUpperCase()}</span>
           </div>
-        )}
-      </main>
+        </>
+      )}
     </div>
   );
 }
