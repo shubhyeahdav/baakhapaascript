@@ -50,9 +50,13 @@ export default function TopNav({ active = "Projects", right }) {
       <div className="ml-auto flex items-center gap-6">
         {right || (
           <>
-            <span className="text-[12.5px] text-inkMuted select-none" title="Command palette (coming soon)">
+            <button
+              onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+              className="text-[12.5px] text-inkMuted hover:text-inkSoft transition-colors"
+              title="Search — ⌘K"
+            >
               ⌘K Search
-            </span>
+            </button>
             <button
               onClick={() => navigate("/projects/new")}
               className="text-[13px] font-semibold text-bgDeep bg-ink hover:bg-gold px-[18px] py-2 rounded-full transition-colors"
