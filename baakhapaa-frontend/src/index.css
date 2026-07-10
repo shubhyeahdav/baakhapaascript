@@ -3,115 +3,105 @@
 @tailwind utilities;
 
 :root {
-  --indigo: #6366F1;
+  --gold: #D4A843;
 }
 
 html, body {
-  background-color: #0B0F19;
-  color: #F8FAFC;
-  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  background-color: #0B0B0A;
+  color: #EDEAE3;
+  font-family: 'Mukta', ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Subtle film-grain vignette for cinematic depth */
+/* Flat system — the old vignette class now just sets the base color. */
 .cine-bg {
   position: relative;
-  background-color: #0B0F19;
-  background-image:
-    radial-gradient(130% 100% at 50% -10%, rgba(99, 102, 241, 0.05) 0%, rgba(11, 15, 25, 0) 50%),
-    radial-gradient(80% 60% at 100% 100%, rgba(99, 102, 241, 0.03) 0%, rgba(11, 15, 25, 0) 60%);
+  background-color: #0B0B0A;
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #1E2538; border-radius: 6px; border: 2px solid #0B0F19; }
-::-webkit-scrollbar-thumb:hover { background: #2D3748; }
+::-webkit-scrollbar-thumb { background: #26241F; border-radius: 6px; border: 2px solid #0B0B0A; }
+::-webkit-scrollbar-thumb:hover { background: #33312B; }
 
 @layer components {
-  /* Wordmark */
+  /* Wordmark — flat ivory, no gradient text */
   .wordmark {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Spectral', Georgia, serif;
     font-weight: 600;
-    letter-spacing: 0.28em;
-    background: linear-gradient(135deg, #818CF8 0%, #6366F1 50%, #4F46E5 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.22em;
+    color: #EDEAE3;
   }
 
-  /* Inputs */
+  /* Inputs — flat, hairline, sharp */
   .field {
     width: 100%;
-    background: #141A29;
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    color: #F8FAFC;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #EDEAE3;
     padding: 12px 14px;
-    border-radius: 10px;
+    border-radius: 3px;
     font-size: 14px;
-    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    transition: border-color 0.18s ease;
   }
-  .field::placeholder { color: #64748B; }
+  .field::placeholder { color: #57544B; }
   .field:focus {
     outline: none;
-    background: #182032;
-    border-color: rgba(99, 102, 241, 0.6);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    border-color: #D4A843;
   }
   .field-label {
     display: block;
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #64748B;
+    font-size: 11.5px;
+    color: #57544B;
     margin-bottom: 7px;
   }
 
-  /* Buttons */
+  /* Buttons — flat gold, sharp corners, no glow */
   .btn-gold {
     position: relative;
-    background: linear-gradient(135deg, #818CF8 0%, #6366F1 50%, #4F46E5 100%);
-    color: #FFFFFF;
+    background: #D4A843;
+    color: #141006;
     font-weight: 600;
-    font-size: 14px;
-    padding: 11px 20px;
-    border-radius: 10px;
+    font-size: 13.5px;
+    padding: 10px 20px;
+    border-radius: 3px;
     border: none;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    transition: background 0.15s ease;
   }
-  .btn-gold:hover { filter: brightness(1.08); box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.45); }
+  .btn-gold:hover { background: #E4BE64; }
   .btn-gold:active { transform: translateY(1px); }
-  .btn-gold:disabled { opacity: 0.55; cursor: not-allowed; filter: none; box-shadow: none; }
+  .btn-gold:disabled { opacity: 0.45; cursor: not-allowed; }
 
   .btn-ghost {
     background: transparent;
-    color: #CBD5E1;
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    padding: 10px 18px;
-    border-radius: 10px;
-    font-size: 14px;
+    color: #9B968A;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 9px 18px;
+    border-radius: 3px;
+    font-size: 13.5px;
     cursor: pointer;
-    transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+    transition: border-color 0.18s ease, color 0.18s ease;
   }
-  .btn-ghost:hover { color: #F8FAFC; border-color: rgba(148, 163, 184, 0.25); background: rgba(255,255,255,0.02); }
+  .btn-ghost:hover { color: #EDEAE3; border-color: rgba(255, 255, 255, 0.25); }
 
   /* Legacy alias kept so any not-yet-redesigned page still styles cleanly */
   .input-dark {
     width: 100%;
-    background: #141A29;
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    color: #F8FAFC;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #EDEAE3;
     padding: 12px 14px;
-    border-radius: 10px;
+    border-radius: 3px;
   }
-  .input-dark:focus { outline: none; border-color: rgba(99, 102, 241, 0.6); }
+  .input-dark:focus { outline: none; border-color: #D4A843; }
 }
 
 /* Screenplay typesetting classes */
 .screenplay-container {
-  background-color: #080A10;
-  padding: 2rem 1rem;
+  background-color: #0B0B0A;
+  padding: 2.5rem 1rem;
   min-height: 100%;
   display: flex;
   justify-content: center;
@@ -119,52 +109,54 @@ html, body {
   overflow-y: auto;
 }
 
+/* Light page kept for the user-toggleable paper mode */
 .screenplay-page {
   background-color: #FAF9F6;
   color: #1E1E20;
   width: 100%;
-  max-width: 816px; /* US Letter width proportional */
+  max-width: 816px;   /* US Letter width proportional */
   min-height: 1056px; /* US Letter height proportional */
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-  border-radius: 4px;
+  border-radius: 2px;
   padding: 4rem 5rem;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 14px;
-  line-height: 1.5;
+  font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+  font-size: 15px;
+  line-height: 1.66;
   outline: none;
   white-space: pre-wrap;
   transition: background-color 0.2s, color 0.2s;
 }
 
-/* Screenplay Dark Page Mode */
+/* Dark page mode (default per design): pageless — script sits directly on
+   the app background, no card, no border. Warm off-white text. */
 .screenplay-page.dark-page {
-  background-color: #131824;
-  color: #F1F5F9;
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.05), 0 10px 25px -5px rgba(0, 0, 0, 0.7);
+  background-color: transparent;
+  color: #D8D4C8;
+  box-shadow: none;
+  border-radius: 0;
+  min-height: 0;
 }
 
-/* Custom range input styling */
+/* Custom range input styling — flat gold thumb, no glow */
 input[type="range"].custom-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 6px;
-  background: #1E2538;
-  border-radius: 3px;
+  height: 2px;
+  background: #26241F;
+  border-radius: 0;
   outline: none;
 }
 input[type="range"].custom-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #6366F1;
+  background: #D4A843;
   cursor: pointer;
-  box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
-  transition: background 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease;
 }
 input[type="range"].custom-slider::-webkit-slider-thumb:hover {
-  background: #818CF8;
-  transform: scale(1.2);
+  background: #E4BE64;
 }

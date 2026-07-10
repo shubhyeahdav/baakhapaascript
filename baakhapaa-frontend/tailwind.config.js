@@ -3,48 +3,51 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Deep cool slate background & surfaces
-        bg: "#0B0F19",
-        bgDeep: "#070A10",
-        surface: "#141A29",
-        elevated: "#1E2538",
-        border: "rgba(148, 163, 184, 0.12)",
-        borderSoft: "rgba(148, 163, 184, 0.06)",
+        // Warm near-black background & surfaces (Baakhapaa turn-2 system)
+        bg: "#0B0B0A",
+        bgDeep: "#080807",
+        surface: "#141311",
+        elevated: "#191813",
+        border: "rgba(255, 255, 255, 0.08)",
+        borderSoft: "rgba(255, 255, 255, 0.05)",
 
-        // Indigo accent mappings (aliased to legacy gold names for compatibility)
-        gold: "#6366F1",
-        goldBright: "#818CF8",
-        goldHover: "#4338CA",
-        goldDim: "rgba(99, 102, 241, 0.12)",
+        // True gold accent (token names unchanged — no component edits needed)
+        gold: "#D4A843",
+        goldBright: "#E4BE64",
+        goldHover: "#C79A35",
+        goldDim: "rgba(212, 168, 67, 0.10)",
 
-        // Accent tokens
-        accent: "#4F46E5",
-        accentLight: "#6366F1",
-        accentDim: "rgba(79, 70, 229, 0.12)",
-        skyAccent: "#38BDF8",
-        skyDim: "rgba(56, 189, 248, 0.12)",
+        // Accent tokens now map to the same gold system
+        accent: "#D4A843",
+        accentLight: "#E4BE64",
+        accentDim: "rgba(212, 168, 67, 0.10)",
+        skyAccent: "#D4A843",
+        skyDim: "rgba(212, 168, 67, 0.10)",
 
-        // Cool text ramp
-        ink: "#F8FAFC",
-        inkSoft: "#E2E8F0",
-        inkMuted: "#94A3B8",
+        // Warm text ramp
+        ink: "#EDEAE3",
+        inkSoft: "#9B968A",
+        inkMuted: "#7E7A6F",
       },
       fontFamily: {
-        display: ['Fraunces', 'Georgia', 'serif'],
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        mono: ['"Courier New"', 'Courier', 'monospace'],
+        display: ['Spectral', 'Georgia', 'serif'],
+        sans: ['Mukta', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['"Courier Prime"', '"Courier New"', 'Courier', 'monospace'],
       },
       letterSpacing: {
-        brand: '0.28em',
+        brand: '0.22em',
       },
       boxShadow: {
-        card: '0 1px 0 rgba(255,255,255,0.03) inset, 0 20px 40px -24px rgba(0,0,0,0.9)',
-        gold: '0 0 0 1px rgba(99, 102, 241, 0.4), 0 18px 40px -18px rgba(99, 102, 241, 0.35)',
-        glow: '0 0 60px -12px rgba(99, 102, 241, 0.25)',
+        // Flat system: no glows. Kept as near-invisible values so existing
+        // shadow-card / shadow-gold / shadow-glow usages render calmly.
+        card: '0 1px 0 rgba(255,255,255,0.03) inset',
+        gold: '0 0 0 1px rgba(212, 168, 67, 0.4)',
+        glow: 'none',
       },
       backgroundImage: {
-        'gold-sheen': 'linear-gradient(135deg, #818CF8 0%, #6366F1 45%, #4F46E5 100%)',
-        'vignette': 'radial-gradient(120% 120% at 50% 0%, rgba(99, 102, 241, 0.05) 0%, rgba(11, 15, 25, 0) 55%)',
+        // Gradients retired — solid gold. Names kept for compatibility.
+        'gold-sheen': 'linear-gradient(135deg, #D4A843 0%, #D4A843 100%)',
+        'vignette': 'none',
       },
       keyframes: {
         'fade-up': {
