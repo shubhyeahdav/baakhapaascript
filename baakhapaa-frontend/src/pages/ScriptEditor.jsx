@@ -20,9 +20,29 @@ export default function ScriptEditor() {
   // Custom Screenwriting Usability State
   const [zenMode, setZenMode] = useState(false);
   const [pageTheme, setPageTheme] = useState("light");
+  const [activeScene, setActiveScene] = useState(0);
   const textareaRef = useRef(null);
 
   const [loadError, setLoadError] = useState("");
+
+  // Jump the editor to a scene: find the Nth slugline (INT./EXT.) in the script
+  // and scroll the caret there. Scenes are written in order, so the Nth slug ≈
+  // scene N; if it hasn't been written yet, jump to the end so the writer can add it.
+  const goToScene = (index) => {
+    setActiveScene(index);
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const text = ta.value;
+    const re = /^[ \t]*(INT\.|EXT\.|INT\/EXT\.)/gim;
+    const starts = [];
+    let m;
+    while ((m = re.exec(text)) !== null) starts.push(m.index);
+    const pos = starts.length > index ? starts[index] : text.length;
+    ta.focus();
+    ta.setSelectionRange(pos, pos);
+    const line = text.slice(0, pos).split("\n").length - 1;
+    ta.scrollTop = Math.max(0, line * 25 - 90); // ~25px line height
+  };
 
   useEffect(() => {
     scripts
@@ -228,7 +248,16 @@ export default function ScriptEditor() {
           <aside className="w-64 bg-surface border-r border-border overflow-y-auto p-4 shrink-0 animate-fade-up">
             <div className="text-[10px] font-bold text-inkMuted uppercase tracking-wider mb-4">Scene Index Cards</div>
             {script.scenes?.map((scene, i) => (
-              <div key={scene.id} className="p-3 mb-2 rounded-xl bg-surface/50 border border-borderSoft hover:border-gold/30 hover:bg-elevated/40 transition duration-300">
+              <button
+                key={scene.id}
+                onClick={() => goToScene(i)}
+                title="Jump to this scene"
+                className={`w-full text-left p-3 mb-2 rounded-xl border transition duration-200 ${
+                  activeScene === i
+                    ? "border-gold/50 bg-goldDim"
+                    : "border-borderSoft bg-surface/50 hover:border-gold/30 hover:bg-elevated/40"
+                }`}
+              >
                 <div className="text-[10px] font-mono text-gold mb-1 uppercase tracking-wider">Scene {i + 1}</div>
                 <div className="text-ink font-semibold text-sm truncate mb-2">{scene.title}</div>
                 <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider">
@@ -237,21 +266,44 @@ export default function ScriptEditor() {
                   </span>
                   <span className="text-inkMuted">{scene.time_allocation}m</span>
                 </div>
-              </div>
+              </button>
             ))}
           </aside>
         )}
 
         {/* Editor */}
-        <div className="flex-1 screenplay-container">
-          <textarea
-            ref={textareaRef}
-            className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} resize-none`}
-            placeholder="Type Scene Headings starting with INT. or EXT., and press TAB to format characters, parentheticals, and dialogue..."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Scene timeline — clickable strip above the page for quick navigation */}
+          {script.scenes?.length > 0 && (
+            <div className="shrink-0 flex items-center gap-1 px-4 h-12 border-b border-border bg-surface overflow-x-auto">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-inkMuted pr-2 shrink-0">Timeline</span>
+              {script.scenes.map((scene, i) => (
+                <button
+                  key={scene.id}
+                  onClick={() => goToScene(i)}
+                  title={`${scene.title} · ${scene.time_allocation}m`}
+                  className={`group flex items-center gap-2 h-7 px-3 rounded-full text-xs whitespace-nowrap border transition-colors shrink-0 ${
+                    activeScene === i
+                      ? "bg-goldDim border-gold/40 text-gold"
+                      : "border-transparent text-inkMuted hover:text-ink hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <span className="font-mono text-[10px] opacity-80">{i + 1}</span>
+                  <span className="max-w-[130px] truncate">{scene.title}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex-1 screenplay-container min-h-0">
+            <textarea
+              ref={textareaRef}
+              className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} resize-none`}
+              placeholder="Type Scene Headings starting with INT. or EXT., and press TAB to format characters, parentheticals, and dialogue..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </div>
         </div>
 
         {/* AI Assistant */}
