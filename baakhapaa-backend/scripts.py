@@ -1,7 +1,8 @@
+import json
 from fastapi import APIRouter, HTTPException, Depends
 from models import (
     GenerateStructureRequest, GenerateSceneRequest,
-    ImproveSceneRequest, SuggestRequest, ScriptSave,
+    ImproveSceneRequest, SuggestRequest, ScriptSave, AddSceneRequest,
 )
 from database import supabase, get_project_by_id
 from auth import get_current_user, require_script_access
@@ -12,6 +13,10 @@ router = APIRouter(prefix="/scripts", tags=["scripts"])
 
 @router.post("/generate-structure")
 def generate_structure(req: GenerateStructureRequest, project_id: str, user_id: str = Depends(get_current_user)):
+    """Generate the three-act structure as a PREVIEW. No scenes are saved —
+    the suggestion set is stored on the script row (suggestions_json) so the
+    user can add scenes one at a time (POST /scripts/add-scene) and revisit
+    un-added suggestions later without regenerating."""
     project = get_project_by_id(project_id)
     if not project or project["user_id"] != user_id:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -24,23 +29,27 @@ def generate_structure(req: GenerateStructureRequest, project_id: str, user_id: 
 
     script_result = supabase.table("scripts").insert({
         "project_id": project_id, "content": "", "status": "draft",
+        "suggestions_json": json.dumps(structure),
     }).execute()
     script_id = script_result.data[0]["id"]
 
-    # AI output may omit keys — use defaults so one malformed scene can't 500 the request
-    for act in structure.get("acts", []):
-        for idx, scene in enumerate(act.get("scenes", [])):
-            supabase.table("scenes").insert({
-                "script_id": script_id,
-                "act_number": act.get("act_number", 1),
-                "scene_type": scene.get("scene_type", "minor"),
-                "title": scene.get("title", "Untitled scene"),
-                "description": scene.get("description", ""),
-                "time_allocation": scene.get("time_allocation", 0),
-                "order_index": idx,
-            }).execute()
-
     return {"script_id": script_id, "structure": structure}
+
+
+@router.post("/add-scene")
+def add_scene(req: AddSceneRequest, user_id: str = Depends(get_current_user)):
+    """Save ONE scene from the structure preview into the scenes table."""
+    require_script_access(req.script_id, user_id)
+    result = supabase.table("scenes").insert({
+        "script_id": req.script_id,
+        "act_number": req.act_number,
+        "scene_type": req.scene_type,
+        "title": req.title,
+        "description": req.description,
+        "time_allocation": req.time_allocation,
+        "order_index": req.order_index,
+    }).execute()
+    return result.data[0]
 
 
 @router.post("/generate-scene")

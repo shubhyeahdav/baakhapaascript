@@ -59,3 +59,12 @@ class CommentCreate(BaseModel):
 
 class CheckoutRequest(BaseModel):
     tier: str
+
+class AddSceneRequest(BaseModel):
+    script_id: str
+    title: str
+    description: str = ""
+    act_number: int = 1
+    scene_type: str = "minor"
+    time_allocation: float = 0
+    order_index: int = 0

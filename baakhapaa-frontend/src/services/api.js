@@ -44,6 +44,7 @@ export const scripts = {
   finalize: (id) => instance.post(`/scripts/${id}/finalize`),
   generateStructure: (data, projectId) =>
     instance.post(`/scripts/generate-structure?project_id=${projectId}`, data),
+  addScene: (data) => instance.post("/scripts/add-scene", data),
   generateScene: (data) => instance.post("/scripts/generate-scene", data),
   improve: (data) => instance.post("/scripts/improve", data),
   suggest: (data) => instance.post("/scripts/suggest", data),

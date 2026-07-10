@@ -4,6 +4,7 @@ import { scripts, exportApi } from "../services/api";
 import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
 import CollabBar from "../components/CollabBar";
+import StructureTimeline from "../components/StructureTimeline";
 
 export default function ScriptEditor() {
   const { id } = useParams();
@@ -44,15 +45,60 @@ export default function ScriptEditor() {
     ta.scrollTop = Math.max(0, line * 25 - 90); // ~25px line height
   };
 
+  const [showStructure, setShowStructure] = useState(false);
+  const [addingScene, setAddingScene] = useState(null);
+
   useEffect(() => {
     scripts
       .getById(id)
       .then((res) => {
         setScript(res.data);
         setContent(res.data.content || "");
+        // Open the structure preview by default when the script has AI
+        // suggestions but no scenes added yet (fresh from the wizard).
+        if (res.data.suggestions_json && (res.data.scenes || []).length === 0) {
+          setShowStructure(true);
+        }
       })
       .catch((err) => setLoadError(err.response?.data?.detail || "Could not load this script."));
   }, [id]);
+
+  // AI suggestion set (persisted on the script row) + which are already added.
+  const suggestions = React.useMemo(() => {
+    try { return script?.suggestions_json ? JSON.parse(script.suggestions_json) : null; }
+    catch { return null; }
+  }, [script?.suggestions_json]);
+  const addedKeys = React.useMemo(
+    () => new Set((script?.scenes || []).map((s) => `${s.act_number}:${s.title}`)),
+    [script?.scenes]
+  );
+
+  const handleAddScene = async (scene, actNumber, orderIndex) => {
+    const key = `${actNumber}:${scene.title}`;
+    setAddingScene(key);
+    try {
+      const res = await scripts.addScene({
+        script_id: id,
+        title: scene.title || "Untitled scene",
+        description: scene.description || "",
+        act_number: actNumber,
+        scene_type: scene.scene_type || "minor",
+        time_allocation: scene.time_allocation || 0,
+        order_index: orderIndex,
+      });
+      // Insert into the local scene list keeping act/order sorting.
+      setScript((prev) => ({
+        ...prev,
+        scenes: [...(prev.scenes || []), res.data].sort(
+          (a, b) => a.act_number - b.act_number || a.order_index - b.order_index
+        ),
+      }));
+    } catch (err) {
+      alert(err.response?.data?.detail || "Could not add this scene.");
+    } finally {
+      setAddingScene(null);
+    }
+  };
 
   const saveContent = useCallback(async () => {
     setSaving(true);
@@ -235,12 +281,36 @@ export default function ScriptEditor() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           </button>
           <div className="h-4 w-px bg-borderSoft mx-1" />
+          {suggestions && (
+            <button
+              onClick={() => setShowStructure((s) => !s)}
+              className={`text-xs py-1.5 px-3 rounded-full border transition ${
+                showStructure
+                  ? "bg-goldDim border-gold/40 text-gold"
+                  : "border-border text-inkMuted hover:text-ink"
+              }`}
+              title="Show/hide the AI-suggested three-act structure"
+            >
+              Structure
+            </button>
+          )}
           <button onClick={() => handleExport("pdf")} className="btn-ghost text-xs py-1.5 px-3">
             Export PDF
           </button>
           <button onClick={handleFinalize} className="btn-gold text-xs py-1.5 px-3.5">Finalize & Storyboard</button>
         </div>
       </header>
+
+      {/* Three-act structure preview (design mockup): act timeline bar +
+          suggested scene cards. Nothing is in the script until added. */}
+      {showStructure && suggestions && (
+        <StructureTimeline
+          structure={suggestions}
+          addedKeys={addedKeys}
+          onAdd={handleAddScene}
+          adding={addingScene}
+        />
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         {/* Scene list */}

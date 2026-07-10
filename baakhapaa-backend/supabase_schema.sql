@@ -25,6 +25,7 @@ CREATE TABLE scripts (
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
   content TEXT DEFAULT '',
   status TEXT DEFAULT 'draft',
+  suggestions_json TEXT,  -- AI structure preview; scenes are added one-by-one via /scripts/add-scene
   finalized_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW()
 );
