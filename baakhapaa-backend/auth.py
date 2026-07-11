@@ -10,7 +10,14 @@ from database import supabase, get_user_by_email
 
 load_dotenv()
 
-JWT_SECRET = os.getenv("JWT_SECRET", "fallback-secret")
+# Fail fast: a guessable or missing JWT secret lets anyone forge tokens for
+# any user. No fallback — the server refuses to boot without a real secret.
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET or len(JWT_SECRET) < 32 or JWT_SECRET.startswith("baakhapaa-secr"):
+    raise RuntimeError(
+        "JWT_SECRET missing or insecure. Set a strong random value in "
+        "baakhapaa-backend/.env, e.g.:  python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+    )
 ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
