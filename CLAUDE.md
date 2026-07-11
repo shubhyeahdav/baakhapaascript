@@ -34,7 +34,7 @@ Runs at http://localhost:3000 (often **3001** locally when 3000 is taken; backen
 **Windows gotchas:**
 - `uvicorn --reload` is unreliable here (orphaned processes squat on port 8000). Prefer running **without** `--reload` and restart manually after backend edits. Kill stragglers: `Get-Process python | Stop-Process -Force`.
 - Backend venv is at `baakhapaa-backend/venv` (use `./venv/Scripts/python`). `bcrypt` is pinned to `4.0.1` — newer breaks passlib.
-- Mock DB is **in-memory**: restarting the backend wipes all data (re-register/login).
+- Local demo DB now **persists to SQLite** (`baakhapaa-backend/baakhapaa_local.db`) — restarts keep users/projects. Delete the file to reset.
 
 ## Project docs (all at repo root)
 Start with `ONBOARDING.md` (doc map + 15-min setup). Then:
@@ -47,25 +47,36 @@ Start with `ONBOARDING.md` (doc map + 15-min setup). Then:
 - Legal (templates, unreviewed): `Terms_of_Use.md`, `Privacy_Policy.md`,
   `Data_Compliance_Checklist.md` (Nepal law), `Trademark_Check_Guide.md`
 
-## Current State
+## Current State (verified end-to-end 2026-07-11 — full stock-take in PROJECT_PLAN.md)
 
-**Working:**
-- Auth (register/login/JWT, protected routes)
-- Project CRUD
-- Script generation (3-act structure, scene generation/improve/suggest via Claude)
-- Storyboard generation (DALL-E 3 frames per scene)
-- Script export (PDF, Word, production package)
-- Version history UI (Versions tab in script editor)
-- Comment threads UI (Notes tab in script editor)
-- Real-time collaboration bar (Supabase presence; "Solo session" fallback without keys)
-- Pricing page at `/pricing` (three tiers; payments not wired)
-- Demo mode: mock database, mock AI, and placeholder storyboards when `.env` has placeholder keys
-  (test login: `test@example.com` / `password`)
+**Working (every item re-tested live, demo mode):**
+- Auth (register/login/JWT, protected routes; password strength rules are client-side only)
+- Project CRUD (delete has no dashboard UI yet)
+- Script structure — **two-step flow**: generate-structure returns a preview only
+  (suggestions persisted on the script row), scenes added one at a time via
+  `POST /scripts/add-scene`; StructureTimeline panel in the editor
+- AI scene generation/improve/suggest (mock-verified; real Claude path never run)
+- Storyboard generation (placeholder frames; frame edit/regenerate routes have no UI)
+- Version history (auto-snapshot on save, restore, set-based diff) + Versions tab
+- Comment threads (Notes tab; line number is manual, not anchored)
+- Collaboration bar (presence; "Solo session" fallback — never tested against real Supabase)
+- Script export PDF/Word/production package (⚠ PDF cannot render Devanagari — ReportLab Courier)
+- Stripe Checkout for Pro/Studio (test/demo mode; **tier limits enforced nowhere**)
+- Command palette (⌘K), bento dashboard, warm near-black + gold retheme
+  (Spectral/Mukta/Courier Prime), clickable scene cards + editor timeline strip
+- Demo mode: local SQLite DB + mock AI + placeholder storyboards + mock Stripe
+  when `.env` has placeholder keys (test login: `test@example.com` / `password`)
 
-**Not yet built:**
-- Payment processing (pricing page CTAs route to register/dashboard)
-- Live cursor/co-editing (presence bar shows who's online only)
-- Real API keys / real Supabase (still placeholders → demo mode is active)
+**Not yet built / known broken:**
+- Tier enforcement (free = 1 project etc. — the actual monetization gating)
+- `/settings` route (Sidebar links to it — dead link)
+- Custom user-added scenes UI + structure-panel compact timeline state (interrupted work)
+- Devanagari in PDF exports; narrow screenplay column CSS
+- Live cursor/co-editing (out of Phase-1 scope)
+- Real API keys / real Supabase (all verification so far is demo-mode)
+- GENERATION_ARCHITECTURE.md is a spec only — nothing implemented
+
+**Next priorities:** PROJECT_PLAN.md §4 (Blockers → Security → Incomplete → Polish).
 
 ## Security (see AUDIT_REPORT.md)
 A full audit was done. All script-related endpoints now enforce ownership via
