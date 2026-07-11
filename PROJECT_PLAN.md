@@ -99,14 +99,14 @@ mobile app, video analysis, marketplace.
 | # | Item | Size | Files |
 |---|---|---|---|
 | A1 | **Devanagari in PDF exports** — register a bundled Devanagari-capable TTF (e.g. Noto Sans Devanagari) with ReportLab and use it for script body text; verify Nepali content renders in PDF + package | **M** | `export_service.py`, add font asset |
-| A2 | **Dead `/settings` link** — either add a minimal Settings page+route or remove the link | **S** | `Sidebar.jsx`, `App.jsx` |
+| A2 ✅ done `85a1a9c` | **Dead `/settings` link** — either add a minimal Settings page+route or remove the link | **S** | `Sidebar.jsx`, `App.jsx` |
 | A3 | **First real-keys smoke test** — run the whole flow once with real Claude + DALL-E + Supabase keys; fix whatever surfaces (real-AI JSON parsing, Supabase client differences vs mock, presence). Everything to date is mock-verified only | **M** (unknowns) | `.env`, potentially `script_engine.py`, `database.py`, `realtime.js` |
 
 ### B. Security-critical (before any real deployment)
 
 | # | Item | Size | Files |
 |---|---|---|---|
-| B1 | Require `JWT_SECRET` from env — remove the fallback, refuse to boot without it (or generate+persist one); set a strong value | **S** | `auth.py`, `.env` |
+| B1 ✅ done `3b66222` | Require `JWT_SECRET` from env — remove the fallback, refuse to boot without it (or generate+persist one); set a strong value | **S** | `auth.py`, `.env` |
 | B2 | Rate-limit `/auth/login` (and register) — e.g. slowapi, 5/min/IP | **S** | `main.py`, `auth.py`, `requirements.txt` |
 | B3 | Server-side password policy mirroring the client rules (8+ chars, mixed classes) → clean 400 | **S** | `auth.py` or `models.py` (validator) |
 | B4 | Production CORS allowlist swap (documented, gated on having a domain) | **S** | `main.py` |
