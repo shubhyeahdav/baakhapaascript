@@ -1,0 +1,122 @@
+[
+  {
+    "title_ref": "Parasite (2019)",
+    "source_type": "movie",
+    "genre": "thriller",
+    "origin_tradition": "Korean",
+    "one_line_takeaway": "Let the inciting opportunity be something the protagonist actively wants, so the audience becomes complicit in the deception and tension compounds with every win.",
+    "structural_pattern": "Slow infiltration setup where each small victory raises the cost of exposure; a literal descent at the midpoint flips comedy into dread; the climax detonates at a celebration, the least safe 'safe' place."
+  },
+  {
+    "title_ref": "Rocky (1976)",
+    "source_type": "movie",
+    "genre": "underdog sports drama",
+    "origin_tradition": "Hollywood",
+    "one_line_takeaway": "Define victory as self-respect rather than winning, so the ending can satisfy even when the protagonist loses the surface contest.",
+    "structural_pattern": "Long humble-life setup before the opportunity arrives unearned; training montage doubles as relationship deepening; final contest intercuts physical endurance with emotional stakes established in act one."
+  },
+  {
+    "title_ref": "3 Idiots (2009)",
+    "source_type": "movie",
+    "genre": "comedy drama",
+    "origin_tradition": "Bollywood",
+    "one_line_takeaway": "Frame family/institutional pressure as the true antagonist, letting individual authority figures remain human and even sympathetic.",
+    "structural_pattern": "Present-day search frames past-tense friendship story; comic set pieces each encode one thesis point about education pressure; a suicide-adjacent crisis is the act-two low; reunion resolution pays off a years-long mystery."
+  },
+  {
+    "title_ref": "Kumbalangi Nights (2019)",
+    "source_type": "movie",
+    "genre": "family drama",
+    "origin_tradition": "Malayalam",
+    "one_line_takeaway": "Let a broken household heal one pairwise relationship at a time — each brother's arc unlocks the next — instead of a single group reconciliation scene.",
+    "structural_pattern": "Ensemble setup establishes each member's private shame; an outsider entering the home is the inciting force; the antagonist is a 'respectable' patriarch whose menace escalates quietly; climax converges all arcs at the house."
+  },
+  {
+    "title_ref": "Tokyo Story (1953)",
+    "source_type": "movie",
+    "genre": "slow-cinema family drama",
+    "origin_tradition": "Japanese",
+    "one_line_takeaway": "Withhold confrontation entirely; let meaning accumulate through routine, small courtesies, and what characters pointedly do not say.",
+    "structural_pattern": "Episodic visits replace plot beats; disappointment is distributed across many small scenes rather than one betrayal; death arrives off-screen late and reframes every earlier scene; resolution is acceptance, not change."
+  },
+  {
+    "title_ref": "Super 30 (2019)",
+    "source_type": "movie",
+    "genre": "underdog education drama",
+    "origin_tradition": "Bollywood",
+    "one_line_takeaway": "Make the mentor's sacrifice the engine: every act of teaching costs him something material, so knowledge transfer itself carries dramatic stakes.",
+    "structural_pattern": "Talented-outsider setup denied by class barriers; midpoint pivot from personal ambition to collective uplift; institutional antagonists escalate from mockery to violence; exam-as-battle climax."
+  },
+  {
+    "title_ref": "Oldboy (2003)",
+    "source_type": "movie",
+    "genre": "revenge thriller",
+    "origin_tradition": "Korean",
+    "one_line_takeaway": "Give the antagonist authorship of the plot — the protagonist's investigation is itself the trap — so the twist recontextualizes agency, not just facts.",
+    "structural_pattern": "Compressed brutal inciting stretch (imprisonment) shown as montage; investigation structured as a breadcrumb trail laid by the enemy; tonal genre-blend of absurd comedy inside violence; revelation lands as moral catastrophe, not victory."
+  },
+  {
+    "title_ref": "Kota Factory (2019, S1)",
+    "source_type": "webseries",
+    "genre": "coming-of-age drama",
+    "origin_tradition": "TVF-style",
+    "one_line_takeaway": "Ground each episode in one mundane, hyper-specific student problem (a batch change, a lost notebook) and let the emotional arc ride on it — relatability is the hook, not plot.",
+    "structural_pattern": "Each episode: small practical problem → escalation through peer/institutional friction → mentor monologue reframes it → quiet emotional beat with a friend. Episode hooks are unresolved anxieties, not cliffhangers. Season arc: innocence eroding across episodes."
+  },
+  {
+    "title_ref": "Panchayat (2020, S1)",
+    "source_type": "webseries",
+    "genre": "comedy drama",
+    "origin_tradition": "TVF-style",
+    "one_line_takeaway": "Let the reluctant protagonist's contempt for his situation slowly become investment, one absurd local problem at a time — the season arc is an attitude change, not an event.",
+    "structural_pattern": "Fish-out-of-water setup; each episode is a self-contained village problem with a comic escalation and a humane resolution; finale withholds the escape the protagonist wanted, revealing he no longer fully wants it."
+  },
+  {
+    "title_ref": "Crash Landing on You (2019)",
+    "source_type": "webseries",
+    "genre": "romance drama",
+    "origin_tradition": "K-drama",
+    "one_line_takeaway": "Sustain a slow emotional burn by making the obstacle structural (a border, a duty) rather than a misunderstanding — so intimacy grows in small domestic scenes while the threat stays external.",
+    "structural_pattern": "High-concept inciting accident; long middle of enforced cohabitation building intimacy through care rituals; episode hooks alternate between romantic near-misses and external danger; separation before reunion finale."
+  },
+  {
+    "title_ref": "Fleabag (2016, S1)",
+    "source_type": "webseries",
+    "genre": "dark comedy drama",
+    "origin_tradition": "Western prestige",
+    "one_line_takeaway": "Use direct-address as a defense mechanism the narrative eventually turns against the narrator — the style itself becomes the character's arc.",
+    "structural_pattern": "Comic episodic surface hides a withheld traumatic backstory revealed in fragments; the penultimate episode detonates the withheld truth; finale strips the protagonist of her audience-facing armor."
+  },
+  {
+    "title_ref": "Hook-driven educational short (composite pattern)",
+    "source_type": "short",
+    "genre": "educational",
+    "origin_tradition": "shorts-general",
+    "one_line_takeaway": "Open with the counterintuitive claim stated as fact in the first two seconds, then make the viewer earn the explanation by watching the middle.",
+    "structural_pattern": "0-3s bold claim or pattern interrupt; 3-15s stakes ('why this matters to you'); 15-40s the mechanism explained with one concrete example; final 5s callback to the opening claim plus soft CTA."
+  },
+  {
+    "title_ref": "Storytime narrative short (composite pattern)",
+    "source_type": "short",
+    "genre": "storytime",
+    "origin_tradition": "shorts-general",
+    "one_line_takeaway": "Start at the moment of maximum drama mid-story ('so the police officer is holding my phone...') then rewind — the open loop is the retention engine.",
+    "structural_pattern": "Cold open at the crisis point; rewind to compressed setup; escalate back to the opening moment with new context; payoff exceeds or subverts what the opening implied; twist beat before CTA."
+  },
+  {
+    "title_ref": "Transformation/before-after short (composite pattern)",
+    "source_type": "short",
+    "genre": "transformation",
+    "origin_tradition": "shorts-general",
+    "one_line_takeaway": "Show the 'after' state in the first frame as proof, then sell the journey — viewers stay for process, not outcome.",
+    "structural_pattern": "0-2s after-state flash; 2-10s before-state with relatable pain; middle is compressed process with visible incremental wins; end on side-by-side comparison and one actionable takeaway."
+  },
+  {
+    "title_ref": "Comedic skit short (composite pattern)",
+    "source_type": "short",
+    "genre": "comedy skit",
+    "origin_tradition": "shorts-general",
+    "one_line_takeaway": "Establish the absurd premise inside the first line of dialogue and escalate the same joke three times, each faster — the third escalation is the share trigger.",
+    "structural_pattern": "Premise in one line; rule-of-three escalation with rising absurdity and shrinking beat length; final beat breaks the established pattern for the punchline; no CTA — the loop rewatch is the CTA."
+  }
+]

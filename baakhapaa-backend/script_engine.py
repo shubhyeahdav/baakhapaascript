@@ -3,6 +3,11 @@ import json
 import anthropic
 from dotenv import load_dotenv
 
+# RAG: semantic retrieval over analyzed structural patterns (works in demo
+# mode too — embeddings are local). Exposed here so callers can use
+# script_engine.retrieve_relevant_patterns(genre, tone, theme, top_k=3).
+from rag import retrieve_relevant_patterns, format_patterns_for_prompt
+
 load_dotenv()
 
 _api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -95,6 +100,16 @@ def _call_claude(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -
 
 
 def generate_structure(genre, tone, duration_minutes, language, target_audience):
+    # Semantic retrieval replaces pure genre/tone tag matching: the request is
+    # embedded and matched against analyzed patterns, so a "sports underdog"
+    # request can pull a boxing drama's structure even with no shared tag.
+    patterns = retrieve_relevant_patterns(
+        genre, tone, f"{target_audience} audience, {language} language", top_k=3
+    )
+    if patterns:
+        print("RAG patterns for structure:",
+              [f"{p['title_ref']} ({p['similarity']})" for p in patterns])
+
     if MOCK_AI:
         return _demo_structure(duration_minutes)
     act1 = round(duration_minutes * 0.33, 1)
@@ -107,6 +122,7 @@ Tone: {tone}
 Total duration: {duration_minutes} minutes
 Target audience: {target_audience}
 Language: {language}
+{format_patterns_for_prompt(patterns)}
 
 Act 1 (Setup): {act1} minutes
 Act 2 (Confrontation): {act2} minutes

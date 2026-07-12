@@ -57,6 +57,7 @@ if use_mock:
             self.records = data_store.setdefault(table_name, [])
             self.filtered_records = list(self.records)
             self.order_specs = []
+            self._pending_delete = False
 
         def _persist(self):
             if self.local_store:
@@ -104,13 +105,19 @@ if use_mock:
             return self
 
         def delete(self):
-            ids_to_delete = {r["id"] for r in self.filtered_records if "id" in r}
-            self.records[:] = [r for r in self.records if r.get("id") not in ids_to_delete]
-            self.data_store[self.table_name] = self.records
-            self._persist()
+            # Deferred until execute(): real Supabase chains filters AFTER
+            # delete() (table.delete().eq(...).execute()), so deleting eagerly
+            # here would wipe the whole table before the filter applies.
+            self._pending_delete = True
             return self
 
         def execute(self):
+            if self._pending_delete:
+                ids_to_delete = {r["id"] for r in self.filtered_records if "id" in r}
+                self.records[:] = [r for r in self.records if r.get("id") not in ids_to_delete]
+                self.data_store[self.table_name] = self.records
+                self._persist()
+                return MockResponse(self.filtered_records)
             records = self.filtered_records
             # Apply accumulated ordering as a stable compound sort. Sort from the
             # least-significant key to the most-significant (first .order() wins),
