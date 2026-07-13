@@ -99,6 +99,57 @@ def _call_claude(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -
         raise RuntimeError(f"Claude API error: {str(e)}")
 
 
+def rag_only_structure(genre, tone, duration_minutes, language, target_audience):
+    """Free-tier structure: no Claude call. A standard five-beat three-act
+    skeleton whose scene descriptions carry guidance from the retrieved
+    structural patterns, so free users still get grounded, useful direction."""
+    patterns = retrieve_relevant_patterns(
+        genre, tone, f"{target_audience} audience, {language} language", top_k=3
+    )
+    tips = [p["one_line_takeaway"] for p in patterns]
+    while len(tips) < 3:
+        tips.append("Make every beat change something: the world, a relationship, or what a character knows.")
+
+    a1 = round(duration_minutes * 0.33, 1)
+    a2 = round(duration_minutes * 0.33, 1)
+    a3 = round(duration_minutes - a1 - a2, 1)
+
+    def beat(n, title, sc_type, desc, alloc):
+        return {"scene_number": n, "title": title, "scene_type": sc_type,
+                "description": desc, "time_allocation": alloc,
+                "characters": [], "location": "", "emotional_beat": ""}
+
+    return {
+        "rag_only": True,
+        "acts": [
+            {"act_number": 1, "name": "Setup", "duration_minutes": a1, "percentage": 33, "scenes": [
+                beat(1, "Opening — establish the ordinary world", "minor",
+                     f"Introduce your protagonist and what they want. Pattern guidance: {tips[0]}",
+                     round(a1 * 0.5, 1)),
+                beat(2, "Inciting incident", "major",
+                     f"The event that makes the story unavoidable. Pattern guidance: {tips[1]}",
+                     round(a1 * 0.5, 1))]},
+            {"act_number": 2, "name": "Confrontation", "duration_minutes": a2, "percentage": 33, "scenes": [
+                beat(3, "Rising tension", "minor",
+                     "Complications compound; every small win should raise the cost of failure.",
+                     round(a2 * 0.5, 1)),
+                beat(4, "Crisis", "major",
+                     f"The lowest point — the protagonist's plan collapses. Pattern guidance: {tips[2]}",
+                     round(a2 * 0.5, 1))]},
+            {"act_number": 3, "name": "Resolution", "duration_minutes": a3, "percentage": 34, "scenes": [
+                beat(5, "Resolution", "major",
+                     "Answer the dramatic question posed in Act 1 — aim for earned understanding, not total triumph.",
+                     a3)]},
+        ],
+        "total_characters": [],
+        "suggested_locations": [],
+        "pattern_sources": [
+            {"takeaway": p["one_line_takeaway"], "tradition": p["origin_tradition"]}
+            for p in patterns
+        ],
+    }
+
+
 def generate_structure(genre, tone, duration_minutes, language, target_audience):
     # Semantic retrieval replaces pure genre/tone tag matching: the request is
     # embedded and matched against analyzed patterns, so a "sports underdog"

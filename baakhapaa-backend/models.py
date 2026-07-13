@@ -60,6 +60,11 @@ class CommentCreate(BaseModel):
 class CheckoutRequest(BaseModel):
     tier: str
 
+class RecommendRequest(BaseModel):
+    scene_text: str = ""
+    genre: str = "Drama"
+    tone: str = "Emotional"
+
 class AddSceneRequest(BaseModel):
     script_id: str
     title: str

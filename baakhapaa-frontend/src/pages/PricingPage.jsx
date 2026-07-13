@@ -14,7 +14,8 @@ const TIERS = [
     highlight: false,
     features: [
       "1 active project",
-      "Three-act structure generator",
+      "Pattern-based structure starter",
+      "Structural recommendations while writing",
       "Script editor with auto-save",
       "PDF export",
     ],
@@ -29,6 +30,7 @@ const TIERS = [
     highlight: true,
     features: [
       "Unlimited projects",
+      "AI three-act structure generator",
       "Full AI scene generation & rewrites",
       "AI storyboard frames",
       "Word & production package exports",

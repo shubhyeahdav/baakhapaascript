@@ -3,9 +3,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from models import (
     GenerateStructureRequest, GenerateSceneRequest,
     ImproveSceneRequest, SuggestRequest, ScriptSave, AddSceneRequest,
+    RecommendRequest,
 )
 from database import supabase, get_project_by_id
-from auth import get_current_user, require_script_access
+from auth import get_current_user, require_script_access, require_paid_tier, get_user_tier
 import script_engine
 
 router = APIRouter(prefix="/scripts", tags=["scripts"])
@@ -21,9 +22,16 @@ def generate_structure(req: GenerateStructureRequest, project_id: str, user_id: 
     if not project or project["user_id"] != user_id:
         raise HTTPException(status_code=404, detail="Project not found")
     try:
-        structure = script_engine.generate_structure(
-            req.genre, req.tone, req.duration_minutes, req.language, req.target_audience
-        )
+        # Freemium split: free tier gets a RAG-grounded skeleton (no Claude
+        # call, zero AI cost); Pro/Studio get full Claude generation.
+        if get_user_tier(user_id) in ("pro", "studio"):
+            structure = script_engine.generate_structure(
+                req.genre, req.tone, req.duration_minutes, req.language, req.target_audience
+            )
+        else:
+            structure = script_engine.rag_only_structure(
+                req.genre, req.tone, req.duration_minutes, req.language, req.target_audience
+            )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
@@ -52,8 +60,19 @@ def add_scene(req: AddSceneRequest, user_id: str = Depends(get_current_user)):
     return result.data[0]
 
 
+@router.post("/recommendations")
+def recommendations(req: RecommendRequest, user_id: str = Depends(get_current_user)):
+    """RAG-only structural recommendations while writing — available on EVERY
+    tier (local embeddings, no Claude call, zero marginal cost). This is the
+    free plan's AI feature: the last stretch of the writer's scene text is
+    matched against the analyzed pattern library."""
+    theme = (req.scene_text or "")[-1500:] or "starting a new scene"
+    patterns = script_engine.retrieve_relevant_patterns(req.genre, req.tone, theme, top_k=3)
+    return {"patterns": patterns}
+
+
 @router.post("/generate-scene")
-def generate_scene(req: GenerateSceneRequest, user_id: str = Depends(get_current_user)):
+def generate_scene(req: GenerateSceneRequest, user_id: str = Depends(require_paid_tier)):
     try:
         text = script_engine.generate_scene(
             req.scene_description, req.genre, req.tone, req.language, req.character_names
@@ -64,7 +83,7 @@ def generate_scene(req: GenerateSceneRequest, user_id: str = Depends(get_current
 
 
 @router.post("/improve")
-def improve(req: ImproveSceneRequest, user_id: str = Depends(get_current_user)):
+def improve(req: ImproveSceneRequest, user_id: str = Depends(require_paid_tier)):
     try:
         text = script_engine.improve_scene(req.scene_text, req.instruction, req.language)
         return {"improved_text": text}
@@ -73,7 +92,7 @@ def improve(req: ImproveSceneRequest, user_id: str = Depends(get_current_user)):
 
 
 @router.post("/suggest")
-def suggest(req: SuggestRequest, user_id: str = Depends(get_current_user)):
+def suggest(req: SuggestRequest, user_id: str = Depends(require_paid_tier)):
     try:
         suggestions = script_engine.suggest_continuations(req.scene_text, req.genre, req.tone)
         return {"suggestions": suggestions}

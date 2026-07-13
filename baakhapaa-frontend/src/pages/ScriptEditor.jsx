@@ -5,6 +5,7 @@ import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
 import CollabBar from "../components/CollabBar";
 import StructureTimeline from "../components/StructureTimeline";
+import { useAuth } from "../context/AuthContext";
 
 export default function ScriptEditor() {
   const { id } = useParams();
@@ -17,6 +18,16 @@ export default function ScriptEditor() {
   const [aiResponse, setAiResponse] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [panelTab, setPanelTab] = useState("ai");
+  const [patterns, setPatterns] = useState(null);
+
+  const { user } = useAuth();
+  const isFree = !["pro", "studio"].includes(user?.subscription_tier);
+
+  // Free plan's AI feature is RAG pattern recommendations — make it the
+  // default tab so free users land on something that works for them.
+  useEffect(() => {
+    if (isFree) setAiMode("patterns");
+  }, [isFree]);
 
   // Custom Screenwriting Usability State
   const [zenMode, setZenMode] = useState(false);
@@ -121,7 +132,16 @@ export default function ScriptEditor() {
   const handleAI = async () => {
     setAiLoading(true);
     try {
-      if (aiMode === "generate") {
+      if (aiMode === "patterns") {
+        // RAG-only recommendations (every tier): match the current writing
+        // against the analyzed pattern library. No Claude call.
+        const res = await scripts.recommendations({
+          scene_text: content || instruction,
+          genre: "Drama",
+          tone: "Emotional",
+        });
+        setPatterns(res.data.patterns);
+      } else if (aiMode === "generate") {
         const res = await scripts.generateScene({
           scene_description: instruction, genre: "Drama", tone: "Emotional", language: "English",
         });
@@ -406,35 +426,68 @@ export default function ScriptEditor() {
             {panelTab === "ai" && (
             <>
             <div className="flex border-b border-borderSoft mb-4">
-              {["generate", "improve", "suggest"].map((mode) => (
-                <button 
-                  key={mode} 
+              {["patterns", "generate", "improve", "suggest"].map((mode) => (
+                <button
+                  key={mode}
                   onClick={() => setAiMode(mode)}
+                  title={isFree && mode !== "patterns" ? "Pro / Studio feature" : undefined}
                   className={`text-xs pb-2.5 font-semibold capitalize flex-1 border-b-2 transition duration-200 ${
-                    aiMode === mode 
-                      ? "border-gold text-gold" 
+                    aiMode === mode
+                      ? "border-gold text-gold"
                       : "border-transparent text-inkMuted hover:text-ink"
                   }`}
                 >
-                  {mode}
+                  {mode}{isFree && mode !== "patterns" ? " ✦" : ""}
                 </button>
               ))}
             </div>
-            
-            <textarea
-              className="field h-28 mb-4 text-sm"
-              placeholder={
-                aiMode === "generate" ? "Describe the scene action or dialogue to generate..." :
-                aiMode === "improve" ? "Instruction on how to improve the scene content..." :
-                "Get suggestions and story directions based on current scene writing."
-              }
-              value={instruction}
-              onChange={(e) => setInstruction(e.target.value)}
-            />
-            
+
+            {aiMode === "patterns" ? (
+              <p className="text-[12px] text-inkMuted mb-4 leading-relaxed">
+                Structural recommendations from analyzed films & series, matched
+                to what you're writing right now. Included on every plan.
+              </p>
+            ) : (
+              <textarea
+                className="field h-28 mb-4 text-sm"
+                placeholder={
+                  aiMode === "generate" ? "Describe the scene action or dialogue to generate..." :
+                  aiMode === "improve" ? "Instruction on how to improve the scene content..." :
+                  "Get suggestions and story directions based on current scene writing."
+                }
+                value={instruction}
+                onChange={(e) => setInstruction(e.target.value)}
+              />
+            )}
+
             <button onClick={handleAI} disabled={aiLoading} className="btn-gold w-full text-sm py-2.5 mb-4">
-              {aiLoading ? "Generating lines..." : "Execute AI Action"}
+              {aiLoading
+                ? (aiMode === "patterns" ? "Matching patterns..." : "Generating lines...")
+                : (aiMode === "patterns" ? "Get Recommendations" : "Execute AI Action")}
             </button>
+
+            {aiMode === "patterns" && patterns && (
+              patterns.length === 0 ? (
+                <p className="text-inkMuted text-sm">No patterns matched — try writing a little more first.</p>
+              ) : (
+                <div className="space-y-3">
+                  {patterns.map((p, i) => (
+                    <div key={i} className="bg-elevated/40 border border-borderSoft rounded-xl p-4">
+                      <div className="flex items-baseline justify-between mb-2">
+                        <span className="font-mono text-[10px] uppercase tracking-wider text-gold">
+                          {p.origin_tradition} · {p.genre}
+                        </span>
+                        <span className="font-mono text-[10px] text-inkMuted">
+                          {Math.round(p.similarity * 100)}% match
+                        </span>
+                      </div>
+                      <p className="text-sm text-ink leading-snug mb-2">{p.one_line_takeaway}</p>
+                      <p className="text-[12px] text-inkSoft leading-relaxed">{p.structural_pattern}</p>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
             
             {aiResponse && (
               <div className="bg-elevated/40 border border-borderSoft rounded-xl p-4 mt-2">

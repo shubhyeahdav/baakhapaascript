@@ -44,6 +44,25 @@ def get_current_user(authorization: str = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
+def get_user_tier(user_id: str) -> str:
+    from database import get_user_by_id
+    user = get_user_by_id(user_id)
+    return (user or {}).get("subscription_tier", "free")
+
+
+def require_paid_tier(user_id: str = Depends(get_current_user)) -> str:
+    """Dependency for Claude-powered endpoints. Free tier gets RAG pattern
+    recommendations only (zero marginal cost); Claude generation is Pro/Studio."""
+    if get_user_tier(user_id) not in ("pro", "studio"):
+        raise HTTPException(
+            status_code=403,
+            detail="AI generation requires a Pro or Studio plan. Your free plan "
+                   "includes structural pattern recommendations in the editor — "
+                   "upgrade at /pricing for full AI writing.",
+        )
+    return user_id
+
+
 def require_script_access(script_id: str, user_id: str):
     """Return the script if it belongs to the user; 404 otherwise
     (404 rather than 403 so script ids can't be probed)."""
