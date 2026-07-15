@@ -5,6 +5,7 @@ import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
 import CollabBar from "../components/CollabBar";
 import StructureTimeline from "../components/StructureTimeline";
+import CompactTimeline from "../components/CompactTimeline";
 import { useAuth } from "../context/AuthContext";
 
 export default function ScriptEditor() {
@@ -321,15 +322,26 @@ export default function ScriptEditor() {
         </div>
       </header>
 
-      {/* Three-act structure preview (design mockup): act timeline bar +
-          suggested scene cards. Nothing is in the script until added. */}
-      {showStructure && suggestions && (
+      {/* Structure zone. Expanded: the full preview (act bar + suggestion
+          cards you can add from). Minimized: the compact 2b timeline
+          instrument, so act balance and runtime stay visible while writing. */}
+      {showStructure && suggestions ? (
         <StructureTimeline
           structure={suggestions}
           addedKeys={addedKeys}
           onAdd={handleAddScene}
           adding={addingScene}
         />
+      ) : (
+        !zenMode && (
+          <CompactTimeline
+            scenes={script.scenes || []}
+            suggestions={suggestions}
+            activeScene={activeScene}
+            onSceneClick={goToScene}
+            onExpand={() => setShowStructure(true)}
+          />
+        )
       )}
 
       <div className="flex-1 flex overflow-hidden">
@@ -363,27 +375,6 @@ export default function ScriptEditor() {
 
         {/* Editor */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Scene timeline — clickable strip above the page for quick navigation */}
-          {script.scenes?.length > 0 && (
-            <div className="shrink-0 flex items-center gap-1 px-4 h-12 border-b border-border bg-surface overflow-x-auto">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-inkMuted pr-2 shrink-0">Timeline</span>
-              {script.scenes.map((scene, i) => (
-                <button
-                  key={scene.id}
-                  onClick={() => goToScene(i)}
-                  title={`${scene.title} · ${scene.time_allocation}m`}
-                  className={`group flex items-center gap-2 h-7 px-3 rounded-full text-xs whitespace-nowrap border transition-colors shrink-0 ${
-                    activeScene === i
-                      ? "bg-goldDim border-gold/40 text-gold"
-                      : "border-transparent text-inkMuted hover:text-ink hover:bg-white/[0.04]"
-                  }`}
-                >
-                  <span className="font-mono text-[10px] opacity-80">{i + 1}</span>
-                  <span className="max-w-[130px] truncate">{scene.title}</span>
-                </button>
-              ))}
-            </div>
-          )}
           <div className="flex-1 screenplay-container min-h-0">
             <textarea
               ref={textareaRef}
