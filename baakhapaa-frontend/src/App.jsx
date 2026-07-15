@@ -12,6 +12,8 @@ import ScriptEditor from "./pages/ScriptEditor";
 import StoryboardView from "./pages/StoryboardView";
 import PricingPage from "./pages/PricingPage";
 import SettingsPage from "./pages/SettingsPage";
+import StoryboardsPage from "./pages/StoryboardsPage";
+import ExportsPage from "./pages/ExportsPage";
 
 export default function App() {
   return (
@@ -25,6 +27,8 @@ export default function App() {
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/projects/new" element={<ProtectedRoute><NewProject /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/storyboards" element={<ProtectedRoute><StoryboardsPage /></ProtectedRoute>} />
+          <Route path="/exports" element={<ProtectedRoute><ExportsPage /></ProtectedRoute>} />
           <Route path="/projects/:id/editor" element={<ProtectedRoute><ScriptEditor /></ProtectedRoute>} />
           <Route path="/projects/:id/storyboard" element={<ProtectedRoute><StoryboardView /></ProtectedRoute>} />
         </Routes>

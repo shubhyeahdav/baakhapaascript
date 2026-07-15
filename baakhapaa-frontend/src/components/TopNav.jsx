@@ -32,13 +32,11 @@ export default function TopNav({ active = "Projects", right }) {
     };
   }, [menuOpen]);
 
-  // Only Projects is a real route today; the rest are placeholders the design
-  // reserves in the bar. They render but don't navigate until their sections land.
   const items = [
     { label: "Projects", to: "/dashboard" },
-    { label: "Storyboards", to: null },
-    { label: "Team", to: null },
-    { label: "Exports", to: null },
+    { label: "Storyboards", to: "/storyboards" },
+    { label: "Team", to: "/settings?tab=teammembers" },
+    { label: "Exports", to: "/exports" },
   ];
 
   const initials = (user?.name || "?")
@@ -58,13 +56,7 @@ export default function TopNav({ active = "Projects", right }) {
               ? "text-ink border-b border-gold"
               : "text-inkMuted hover:text-inkSoft"
           }`;
-          return it.to ? (
-            <Link key={it.label} to={it.to} className={cls}>{it.label}</Link>
-          ) : (
-            <span key={it.label} className={`${cls} cursor-default`} title="Coming soon">
-              {it.label}
-            </span>
-          );
+          return <Link key={it.label} to={it.to} className={cls}>{it.label}</Link>;
         })}
       </nav>
 

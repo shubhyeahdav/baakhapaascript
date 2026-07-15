@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import TopNav from "../components/TopNav";
 import { projects } from "../services/api";
 import { useAuth } from "../context/AuthContext";
@@ -18,7 +18,12 @@ function Row({ label, value }) {
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState("Account");
+  // ?tab=team lets the Team nav item deep-link straight to the right tab.
+  const [params] = useSearchParams();
+  const deepLink = TABS.find(
+    (t) => t.toLowerCase().replace(/\s+/g, "") === (params.get("tab") || "").toLowerCase()
+  );
+  const [tab, setTab] = useState(deepLink || "Account");
   const [stats, setStats] = useState(null);
 
   // Lightweight usage stats derived from the projects list (no usage-metering
@@ -44,7 +49,8 @@ export default function SettingsPage() {
 
   return (
     <div className="cine-bg min-h-screen flex flex-col text-ink">
-      <TopNav active="Projects" />
+      {/* Highlight Team in the bar when arriving via the Team nav item. */}
+      <TopNav active={tab === "Team Members" ? "Team" : "Projects"} />
 
       <main className="flex-1 px-8 md:px-14 pb-14 max-w-3xl">
         <div className="py-8">
