@@ -124,7 +124,20 @@ def get_script(script_id: str, user_id: str = Depends(get_current_user)):
     script = require_script_access(script_id, user_id)
     from database import get_scenes_by_script
     scenes = get_scenes_by_script(script_id)
-    return {**script, "scenes": scenes}
+    # Embed the parent project so the editor can title itself and drive AI
+    # calls from the project's real genre/tone instead of guessing.
+    project = get_project_by_id(script.get("project_id")) or {}
+    return {
+        **script,
+        "scenes": scenes,
+        "project": {
+            "title": project.get("title"),
+            "genre": project.get("genre"),
+            "tone": project.get("tone"),
+            "language": project.get("language"),
+            "duration_minutes": project.get("duration_minutes"),
+        },
+    }
 
 
 @router.put("/{script_id}")

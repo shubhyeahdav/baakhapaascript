@@ -6,6 +6,17 @@ import CommentThreads from "../components/CommentThreads";
 import CollabBar from "../components/CollabBar";
 import StructureTimeline from "../components/StructureTimeline";
 import CompactTimeline from "../components/CompactTimeline";
+
+// One-click focuses for pattern recommendations. The pattern library is
+// indexed by the PROBLEM a technique solves, so each chip just names that
+// problem in the retrieval query — no extra endpoint, no extra cost.
+const FOCUSES = [
+  { key: "scene", label: "This scene", query: "" },
+  { key: "hook", label: "Hook", query: "opening hook, grabbing attention, inciting incident that starts the story" },
+  { key: "middle", label: "Middle", query: "sagging middle, rising tension, complications compounding toward a crisis" },
+  { key: "ending", label: "Ending", query: "resolution, earned ending, paying off the dramatic question" },
+  { key: "character", label: "Character", query: "antagonist pressure, character motivation, subtext in dialogue" },
+];
 import { useAuth } from "../context/AuthContext";
 
 export default function ScriptEditor() {
@@ -20,6 +31,9 @@ export default function ScriptEditor() {
   const [aiLoading, setAiLoading] = useState(false);
   const [panelTab, setPanelTab] = useState("ai");
   const [patterns, setPatterns] = useState(null);
+  const [patternsLoading, setPatternsLoading] = useState(false);
+  const [focus, setFocus] = useState("scene");
+  const [openPattern, setOpenPattern] = useState(null);
 
   const { user } = useAuth();
   const isFree = !["pro", "studio"].includes(user?.subscription_tier);
@@ -130,28 +144,55 @@ export default function ScriptEditor() {
     return () => clearTimeout(timer);
   }, [content, saveContent]);
 
+  // AI calls follow the project's own genre/tone/language rather than guessing.
+  const proj = script?.project || {};
+  const genre = proj.genre || "Drama";
+  const tone = proj.tone || "Emotional";
+  const language = proj.language || "English";
+
+  // Fetch pattern recommendations. `focus` steers what KIND of pattern comes
+  // back (see FOCUSES) — the library is indexed by the problem a technique
+  // solves, so naming the problem is what makes retrieval land.
+  const loadPatterns = useCallback(async (focusKey) => {
+    setPatternsLoading(true);
+    try {
+      const f = FOCUSES.find((x) => x.key === focusKey) || FOCUSES[0];
+      // "This scene" matches on what you've written. A focus chip instead
+      // queries the problem itself — mixing in the scene text drowns the
+      // short focus phrase in the embedding and every chip returns the same
+      // three patterns, which makes the chips decorative.
+      const res = await scripts.recommendations({
+        scene_text: f.key === "scene" ? (content || instruction) : f.query,
+        genre,
+        tone,
+      });
+      setPatterns(res.data.patterns);
+    } catch (err) {
+      setPatterns([]);
+    } finally {
+      setPatternsLoading(false);
+    }
+  }, [content, instruction, genre, tone]);
+
+  // Load once when the Patterns tab is opened — no button press needed.
+  useEffect(() => {
+    if (aiMode === "patterns" && patterns === null && script) loadPatterns(focus);
+    // eslint-disable-next-line
+  }, [aiMode, script]);
+
   const handleAI = async () => {
     setAiLoading(true);
     try {
-      if (aiMode === "patterns") {
-        // RAG-only recommendations (every tier): match the current writing
-        // against the analyzed pattern library. No Claude call.
-        const res = await scripts.recommendations({
-          scene_text: content || instruction,
-          genre: "Drama",
-          tone: "Emotional",
-        });
-        setPatterns(res.data.patterns);
-      } else if (aiMode === "generate") {
+      if (aiMode === "generate") {
         const res = await scripts.generateScene({
-          scene_description: instruction, genre: "Drama", tone: "Emotional", language: "English",
+          scene_description: instruction, genre, tone, language,
         });
         setAiResponse(res.data.scene_text);
       } else if (aiMode === "improve") {
-        const res = await scripts.improve({ scene_text: content, instruction, language: "English" });
+        const res = await scripts.improve({ scene_text: content, instruction, language });
         setAiResponse(res.data.improved_text);
       } else {
-        const res = await scripts.suggest({ scene_text: content, genre: "Drama", tone: "Emotional" });
+        const res = await scripts.suggest({ scene_text: content, genre, tone });
         setAiResponse(res.data.suggestions.join("\n\n---\n\n"));
       }
     } catch (err) {
@@ -281,7 +322,7 @@ export default function ScriptEditor() {
           Back
         </button>
         <div className="font-display font-medium text-ink text-[15px] flex items-center gap-2">
-          <span className="opacity-45 text-sm font-sans">Workspace /</span> {script.title}
+          <span className="opacity-45 text-sm font-sans">Workspace /</span> {script.project?.title || "Untitled"}
         </div>
         <div className="flex gap-3 items-center">
           <CollabBar scriptId={id} />
@@ -434,48 +475,97 @@ export default function ScriptEditor() {
             </div>
 
             {aiMode === "patterns" ? (
-              <p className="text-[12px] text-inkMuted mb-4 leading-relaxed">
-                Structural recommendations from analyzed films & series, matched
-                to what you're writing right now. Included on every plan.
-              </p>
+              <>
+                {/* One tap = the kind of help you need. Loads on open; each
+                    chip re-queries for that problem type. */}
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {FOCUSES.map((f) => (
+                    <button
+                      key={f.key}
+                      onClick={() => { setFocus(f.key); setOpenPattern(null); loadPatterns(f.key); }}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                        focus === f.key
+                          ? "bg-goldDim border-gold/40 text-gold"
+                          : "border-border text-inkMuted hover:text-ink"
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-inkMuted">
+                    {genre} · {tone}
+                  </span>
+                  <button
+                    onClick={() => loadPatterns(focus)}
+                    disabled={patternsLoading}
+                    className="text-[11px] text-inkMuted hover:text-gold transition-colors disabled:opacity-50"
+                  >
+                    {patternsLoading ? "Matching…" : "↻ Refresh"}
+                  </button>
+                </div>
+              </>
             ) : (
-              <textarea
-                className="field h-28 mb-4 text-sm"
-                placeholder={
-                  aiMode === "generate" ? "Describe the scene action or dialogue to generate..." :
-                  aiMode === "improve" ? "Instruction on how to improve the scene content..." :
-                  "Get suggestions and story directions based on current scene writing."
-                }
-                value={instruction}
-                onChange={(e) => setInstruction(e.target.value)}
-              />
+              <>
+                <textarea
+                  className="field h-28 mb-4 text-sm"
+                  placeholder={
+                    aiMode === "generate" ? "Describe the scene action or dialogue to generate..." :
+                    aiMode === "improve" ? "Instruction on how to improve the scene content..." :
+                    "Get suggestions and story directions based on current scene writing."
+                  }
+                  value={instruction}
+                  onChange={(e) => setInstruction(e.target.value)}
+                />
+                <button onClick={handleAI} disabled={aiLoading} className="btn-gold w-full text-sm py-2.5 mb-4">
+                  {aiLoading ? "Generating lines..." : "Execute AI Action"}
+                </button>
+              </>
             )}
 
-            <button onClick={handleAI} disabled={aiLoading} className="btn-gold w-full text-sm py-2.5 mb-4">
-              {aiLoading
-                ? (aiMode === "patterns" ? "Matching patterns..." : "Generating lines...")
-                : (aiMode === "patterns" ? "Get Recommendations" : "Execute AI Action")}
-            </button>
-
-            {aiMode === "patterns" && patterns && (
-              patterns.length === 0 ? (
+            {aiMode === "patterns" && (
+              patternsLoading && !patterns ? (
+                <div className="space-y-2">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="h-16 rounded-xl bg-elevated/40 border border-borderSoft animate-pulse" />
+                  ))}
+                </div>
+              ) : patterns?.length === 0 ? (
                 <p className="text-inkMuted text-sm">No patterns matched — try writing a little more first.</p>
               ) : (
-                <div className="space-y-3">
-                  {patterns.map((p, i) => (
-                    <div key={i} className="bg-elevated/40 border border-borderSoft rounded-xl p-4">
-                      <div className="flex items-baseline justify-between mb-2">
-                        <span className="font-mono text-[10px] uppercase tracking-wider text-gold">
-                          {p.origin_tradition} · {p.genre}
-                        </span>
-                        <span className="font-mono text-[10px] text-inkMuted">
-                          {Math.round(p.similarity * 100)}% match
-                        </span>
-                      </div>
-                      <p className="text-sm text-ink leading-snug mb-2">{p.one_line_takeaway}</p>
-                      <p className="text-[12px] text-inkSoft leading-relaxed">{p.structural_pattern}</p>
-                    </div>
-                  ))}
+                <div className="space-y-2">
+                  {patterns?.map((p, i) => {
+                    const open = openPattern === i;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => setOpenPattern(open ? null : i)}
+                        className={`w-full text-left rounded-xl p-3.5 border transition-colors ${
+                          open ? "bg-elevated/60 border-gold/30" : "bg-elevated/40 border-borderSoft hover:border-gold/20"
+                        }`}
+                      >
+                        <div className="flex items-baseline justify-between gap-2 mb-1.5">
+                          <span className="font-mono text-[10px] uppercase tracking-wider text-gold truncate">
+                            {p.origin_tradition} · {p.genre}
+                          </span>
+                          <span className="font-mono text-[10px] text-inkMuted shrink-0">
+                            {Math.round(p.similarity * 100)}%
+                          </span>
+                        </div>
+                        {/* The takeaway is the actionable line — keep it whole.
+                            The mechanics only unfold when asked for. */}
+                        <p className="text-[13px] text-ink leading-snug">{p.one_line_takeaway}</p>
+                        {open ? (
+                          <p className="text-[12px] text-inkSoft leading-relaxed mt-2 pt-2 border-t border-borderSoft">
+                            {p.structural_pattern}
+                          </p>
+                        ) : (
+                          <span className="text-[10px] text-inkMuted mt-1.5 inline-block">How it's built ↓</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )
             )}
