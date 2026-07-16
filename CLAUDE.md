@@ -47,7 +47,7 @@ Start with `ONBOARDING.md` (doc map + 15-min setup). Then:
 - Legal (templates, unreviewed): `Terms_of_Use.md`, `Privacy_Policy.md`,
   `Data_Compliance_Checklist.md` (Nepal law), `Trademark_Check_Guide.md`
 
-## Current State (verified end-to-end 2026-07-11 — full stock-take in PROJECT_PLAN.md)
+## Current State (verified 2026-07-11, updated 2026-07-14 — PROJECT_PLAN.md §6 has the changelog, HANDOVER.md the narrative)
 
 **Working (every item re-tested live, demo mode):**
 - Auth (register/login/JWT, protected routes; password strength rules are client-side only)
@@ -61,29 +61,58 @@ Start with `ONBOARDING.md` (doc map + 15-min setup). Then:
 - Comment threads (Notes tab; line number is manual, not anchored)
 - Collaboration bar (presence; "Solo session" fallback — never tested against real Supabase)
 - Script export PDF/Word/production package (⚠ PDF cannot render Devanagari — ReportLab Courier)
-- Stripe Checkout for Pro/Studio (test/demo mode; **tier limits enforced nowhere**)
+- Stripe Checkout for Pro/Studio (test/demo mode)
+- **RAG pattern grounding** — `knowledge_base.json` (15 structural analyses) →
+  `load_knowledge_base.py` → `script_patterns`; `rag.retrieve_relevant_patterns()`
+  injects the top-3 semantic matches into `generate_structure`. Embeddings are
+  local (fastembed `bge-small-en-v1.5`, 384-dim), so this needs no API key
+- **Freemium split** — free tier runs on RAG only, zero Claude cost:
+  `POST /scripts/recommendations` (all tiers) powers the editor's Patterns tab;
+  `generate-scene`/`improve`/`suggest` are Pro/Studio (403 for free);
+  `generate-structure` gives free users a RAG-grounded skeleton
+- Settings page (`/settings`), account dropdown, all four nav tabs routing,
+  `/storyboards` + `/exports` index pages
 - Command palette (⌘K), bento dashboard, warm near-black + gold retheme
-  (Spectral/Mukta/Courier Prime), clickable scene cards + editor timeline strip
+  (Spectral/Mukta/Courier Prime), clickable scene cards, and the 2b compact
+  timeline instrument when the structure panel is minimized
 - Demo mode: local SQLite DB + mock AI + placeholder storyboards + mock Stripe
   when `.env` has placeholder keys (test login: `test@example.com` / `password`)
 
 **Not yet built / known broken:**
-- Tier enforcement (free = 1 project etc. — the actual monetization gating)
-- `/settings` route (Sidebar links to it — dead link)
-- Custom user-added scenes UI + structure-panel compact timeline state (interrupted work)
-- Devanagari in PDF exports; narrow screenplay column CSS
+- Tier enforcement is **partial** — AI is gated, but the free project limit is
+  unenforced and **Word/package export is gated in the UI only** (the API
+  returns 200 for a free user)
+- Devanagari in PDF exports (ReportLab Courier lacks the glyphs) — the last
+  true blocker; narrow screenplay column CSS
+- Login rate limiting + server-side password policy (client-side rules only)
+- Custom user-added scenes UI (the API already supports it)
+- NewProject still uses the old Sidebar — shell split half-applied
 - Live cursor/co-editing (out of Phase-1 scope)
-- Real API keys / real Supabase (all verification so far is demo-mode)
-- GENERATION_ARCHITECTURE.md is a spec only — nothing implemented
+- Real API keys / real Supabase — **all verification to date is demo-mode**
+- GENERATION_ARCHITECTURE.md: the RAG layer shipped; the 4-stage
+  scaffold→expansion→critic→revision pipeline is still spec-only
+
+**Project skills** (`.claude/skills/`, auto-load in this repo): `script-rag`
+(operate the RAG pipeline), `script-structure` (beat grammars + the technique
+playbook distilled from every analysis — use when writing or analyzing scripts).
+
+**Repo:** `shubhyeahdav/baakhapaascript`, default branch **`codebase`** (`main`
+holds an unrelated empty starter commit — don't target it). PR #1 open.
 
 **Next priorities:** PROJECT_PLAN.md §4 (Blockers → Security → Incomplete → Polish).
 
-## Security (see AUDIT_REPORT.md)
-A full audit was done. All script-related endpoints now enforce ownership via
-`require_script_access()` in `auth.py` (returns 404 to avoid id probing). Project/
-frame updates use field whitelists. **Still needs the owner's review before any
-deploy:** set a strong `JWT_SECRET` (has a guessable fallback), add login rate
-limiting, remove the compiled-in mock test user, and widen CORS to the prod domain.
+## Security (see AUDIT_REPORT.md; re-checked in PROJECT_PLAN.md §3 + §6)
+A full audit was done. All script-related endpoints enforce ownership via
+`require_script_access()` in `auth.py` (returns 404 to avoid id probing) —
+re-verified 2026-07-11. Project/frame updates use field whitelists.
+**Fixed:** `JWT_SECRET` is now required — the backend refuses to boot on a
+missing/short/default secret (`3b66222`).
+**Still open before any deploy:** login rate limiting; a server-side password
+policy (rules are client-side only, the API accepts a 1-char password);
+tighten CORS from the dev any-localhost regex to a prod-domain allowlist;
+move the compiled-in mock test user behind an explicit demo flag; and gate
+Word/package export server-side (currently UI-only — the API returns 200 for
+a free user).
 
 ## Session log (2026-07-05)
 Built this session, each its own commit (`git log` for hashes):

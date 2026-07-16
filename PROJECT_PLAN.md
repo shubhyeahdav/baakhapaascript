@@ -1,9 +1,12 @@
-# PROJECT_PLAN — Full Stock-Take & Priority Plan (2026-07-11)
+# PROJECT_PLAN — Full Stock-Take & Priority Plan
+
+**Stock-take: 2026-07-11 · Last updated: 2026-07-14** (11 commits later — see
+§6 for what changed since the stock-take; §1–§3 below remain accurate except
+where §6 supersedes them).
 
 Produced by a complete planning pass: every backend file and frontend page
-read, full git history reviewed (24 commits), and the entire flow re-tested
-end-to-end against the running servers on this date. No code was changed in
-this pass.
+read, full git history reviewed, and the entire flow re-tested end-to-end
+against the running servers. No code was changed in the original pass.
 
 **Test environment:** demo mode — local SQLite persistence, mock Claude, mock
 DALL-E, mock Stripe (all `.env` keys are placeholders). Every HTTP result
@@ -116,9 +119,9 @@ mobile app, video analysis, marketplace.
 
 | # | Item | Size | Files |
 |---|---|---|---|
-| C1 | **Tier enforcement** — free: 1 active project, no Word/package export, capped AI calls; pro/studio: per pricing page. This is the actual monetization mechanic and nothing checks tiers today | **M** | `projects.py`, `scripts.py`, `export.py`, small helper in `auth.py`; frontend upsell states |
+| C1 🟡 **partly done** `297f9ed` | **Tier enforcement.** DONE: AI generation is gated — `generate-scene`/`improve`/`suggest` return 403 for free (`require_paid_tier`), `generate-structure` branches to a RAG-only skeleton, free tier gets RAG recommendations. **STILL OPEN:** (a) free project limit — `POST /projects/` returns 200 unlimited; (b) **Word/package export is gated in the UI only — `GET /export/script/word/{id}` returns 200 for a free user** (verified 2026-07-14). Server-side gate needed | **S** remaining | `projects.py`, `export.py` |
 | C2 | **Custom user scenes** — UI to add a scene the AI didn't suggest (API already supports it); pending from an interrupted request | **S** | `ScriptEditor.jsx`, `StructureTimeline.jsx` |
-| C3 | **Structure panel minimized state** — compact act-timeline bar when collapsed (design 2e "timeline instrument"); pending from the same interrupted request | **S** | `StructureTimeline.jsx`, `ScriptEditor.jsx` |
+| C3 ✅ done `a74822e` | **Structure panel minimized state** — compact act-timeline bar when collapsed. Built to design **2b** ("instrument, not diagram"): timecode ruler, proportional scene blocks, dashed outline-only blocks, gold playhead, "X written of Y" | **S** | `CompactTimeline.jsx`, `ScriptEditor.jsx` |
 | C4 | **Storyboard frame editing UI** — per-frame regenerate (description + shot type) and camera-notes editing; backend routes exist unused | **M** | `StoryboardView.jsx` |
 | C5 | **Real presence verification** — CollabBar against a live Supabase project (pairs with A3) | **S** after A3 | `realtime.js`, `CollabBar.jsx` |
 | C6 | **Line-anchored comments** — pick line from the editor selection instead of a typed number | **M** | `CommentThreads.jsx`, `ScriptEditor.jsx` |
@@ -129,7 +132,7 @@ mobile app, video analysis, marketplace.
 | # | Item | Size | Files |
 |---|---|---|---|
 | D1 | Widen the screenplay page column (long-standing CSS issue) | **S** | `index.css` |
-| D2 | Finish the shell split — TopNav on NewProject (+ editorial wizard styling per design 2d), consistent StoryboardView header, retire Sidebar or make it consistent | **M** | `NewProject.jsx`, `StoryboardView.jsx`, `Sidebar.jsx` |
+| D2 🟡 | Finish the shell split — TopNav on NewProject (+ editorial wizard styling per design 2d), consistent StoryboardView header, retire Sidebar or make it consistent. NOTE: nav tabs now all route (`d6b1e3c`), and new `/storyboards` + `/exports` index pages use TopNav; NewProject still uses the old Sidebar | **M** | `NewProject.jsx`, `StoryboardView.jsx`, `Sidebar.jsx` |
 | D3 | Wizard "Skip — start blank" escape hatch (design item 9) | **S** | `NewProject.jsx` |
 | D4 | Bilingual नेपाली/English/split reading toggle in editor (design item 6) | **M** | `ScriptEditor.jsx` |
 | D5 | Command palette: refresh project list on open; add "jump to scene" action | **S** | `CommandPalette.jsx` |
@@ -138,14 +141,18 @@ mobile app, video analysis, marketplace.
 | D8 | Dashboard project delete affordance | **S** | `Dashboard.jsx` |
 | D9 | Remaining premium design features (AI-provenance gutter, version-freshness indicator, presence-on-dashboard) — each **L**, spec'd in the design brief; sequence after A–C | **L** | multiple |
 
-**Not in this plan:** GENERATION_ARCHITECTURE.md implementation (the RAG script
-engine) — it's a separate product track; slot it after B, alongside C, if it's
-the commercial priority.
+**RAG script engine:** no longer "not in this plan" — a first slice of
+GENERATION_ARCHITECTURE.md shipped (`32d0956`, see §6). The remaining spec work
+(4-stage scaffold→expansion→critic→revision pipeline) is still a separate track.
 
-### Suggested order of attack
-1. A2 (5 min) → A1 → B1–B3 (one short security pass) → C1 (monetization) →
-   C2+C3 (finish interrupted work) → A3+C5+C7 (the real-keys milestone) →
-   C4, C6 → D-track.
+### Suggested order of attack (revised 2026-07-14)
+1. **A1** Devanagari PDF font (last true blocker) →
+2. **B2/B3** rate limit + server-side password policy (one short security pass) →
+3. **C1 remainder** free project limit + server-side export gate (small, and the
+   export gate is currently bypassable) →
+4. **C2** custom scenes (finishes the last interrupted request) →
+5. **A3 + C5 + C7** the real-keys milestone →
+6. **C4, C6** → D-track.
 
 ---
 
@@ -159,3 +166,60 @@ the commercial priority.
 - Existing local test accounts: `test@example.com`/`password` (pro), plus
   various `*_@example.com` accounts created by automated tests. One junk
   project has a shell-mangled Devanagari title ("?????? WiFi") — data only.
+- **CRA dev server wedged once** on this machine (hung pre-compile across
+  restarts, cache clears, and killing 8 orphaned node processes).
+  `npm run build` was unaffected; a reboot cleared it. If `npm start` hangs,
+  that's the cause — not the code.
+- `gh` is **not installed**; the git credential helper holds GitHub auth, so
+  `git push` works but PRs must be opened in the browser. `winget install
+  GitHub.cli && gh auth login` would remove that friction.
+
+---
+
+## 6. CHANGELOG SINCE THE STOCK-TAKE (2026-07-11 → 07-14)
+
+11 commits. §1–§3 above are the 07-11 snapshot; where this section conflicts,
+this section wins.
+
+### Shipped
+
+| Commit | What | Plan item |
+|---|---|---|
+| `85a1a9c` | Settings page (Account / Team Members / API Usage) — killed the dead `/settings` link | **A2 ✅** |
+| `3b66222` | `JWT_SECRET` required — refuses to boot on missing/short/default secret; fresh 64-char value in `.env` | **B1 ✅** |
+| `32d0956` | **RAG retrieval**: `knowledge_base.json` (15 structural analyses), `rag.py` (fastembed `bge-small-en-v1.5`, 384-dim, local — no API key), `load_knowledge_base.py` one-command loader, `pgvector_script_patterns.sql`, patterns injected into `generate_structure` | new track |
+| `00918e5` `97f906c` | Two project skills: `script-rag` (how to operate the pipeline) and `script-structure` (the writing playbook + beat grammars distilled from all analyses) | — |
+| `297f9ed` | **Freemium split**: `POST /scripts/recommendations` (all tiers, RAG-only, zero Claude cost); Claude endpoints gated to Pro/Studio; free `generate-structure` returns a RAG-grounded skeleton | **C1 🟡** |
+| `4fa5d94` | Profile avatar opened → account dropdown instead of instant logout | — |
+| `a74822e` | Minimized structure panel → 2b timeline instrument | **C3 ✅** |
+| `c947116` | Pattern recs: real project genre/tone (was hardcoded Drama/Emotional), auto-load, focus chips, progressive-disclosure cards | — |
+| `d6b1e3c` | All four nav tabs clickable; new `/storyboards` + `/exports` index pages; Team deep-links to Settings | **D2 🟡** |
+
+### Bugs found and fixed along the way (not in the original plan)
+
+- **Mock DB `delete()` ran eagerly before chained `.eq()` filters** — so
+  `table.delete().eq(...)` wiped the **entire table** in demo mode. Affected
+  project and comment deletes. Now deferred to `execute()` (`32d0956`).
+- **Editor hardcoded `genre: "Drama", tone: "Emotional"`** on every AI call;
+  the script API never exposed the project's real genre/tone. Fixed by
+  embedding the parent project in `GET /scripts/{id}` (`c947116`). Same fix
+  repaired the editor header, which showed "Workspace /" with no title.
+
+### Corrections to §1–§3
+
+- **Export tier gating is UI-only.** `GET /export/script/word/{id}` returns 200
+  for a free user (verified 07-14). The Exports page hides it behind ✦, but the
+  API doesn't enforce it. Folded into **C1**.
+- **§1 "Structure panel has no minimized state"** — resolved (C3).
+- **§1 "Sidebar links to /settings — no such route"** — resolved (A2).
+- **§3 S1 (JWT fallback)** — resolved (B1). **S2/S4 still open. S3 unchanged.**
+- The RAG library is **15 entries**; retrieval differentiation is genuinely
+  limited at that size — a few sources dominate results. It sharpens as
+  analyses are added (template in the `script-structure` skill).
+
+### Repo / delivery
+
+- Remote wired: `shubhyeahdav/baakhapaascript`, **default branch `codebase`**
+  (the old `main` holds only an unrelated empty starter commit — don't target it).
+- **PR #1** open: `editor-ux-and-nav-fixes` → `codebase` (4 commits, 8 files,
+  +659/−99, mergeable clean).

@@ -1,81 +1,148 @@
-# Handover — 2026-07-06
+# Handover — 2026-07-14
 
-End-to-end test of the core creative flow, plus one bug fix found during testing.
+Covers the work since the 2026-07-11 stock-take (11 commits). The previous
+handover (2026-07-06, core-flow test) is superseded and its content now lives
+in `PROJECT_PLAN.md` §1.
 
-## Environment under test
-- **Demo mode** (no real keys): `.env` still has placeholder Anthropic / OpenAI /
-  Supabase values, so the backend runs with the **Mock Supabase DB** and **Mock AI**.
-  No external API credits were spent during this test.
-- Backend: `uvicorn main:app` on `127.0.0.1:8000` (run **without** `--reload` per the
-  Windows note in CLAUDE.md). Frontend: CRA dev server on `localhost:3001`.
-- Reminder: the mock DB is **in-memory** — restarting the backend wipes all users,
-  projects, and scripts (re-register after any restart).
+**Read `PROJECT_PLAN.md` first** — §6 is the changelog, §4 is the ordered
+build queue. This file is the narrative: what was built, what's verified, and
+what will bite you.
 
-## What was tested and confirmed working today
+---
 
-The full chain was exercised twice: once directly against the API (curl) and once
-through the browser UI (register form → editor). Both passed.
+## Environment (unchanged, still demo mode)
 
-| # | Step | Result |
-|---|------|--------|
-| 1 | **Register** a new account (`/register` form) | ✅ 200 — account created |
-| 2 | **Login** / auto-login after register | ✅ 200 — JWT issued, redirect to `/dashboard` |
-| 3 | **Create project** via the New Project form (title, genre, tone, audience, duration, language) | ✅ 200 — project persisted |
-| 4 | **Generate three-act structure** (Claude, mocked) | ✅ 200 — 3 acts, 5 scenes returned and stored |
-| 5 | **Open the script editor** (`GET /scripts/{id}`) | ✅ 200 — scenes load into the Scene Index Cards |
-| 6 | **Generate a scene** with the AI Assistant (Generate mode) | ✅ 200 — screenplay text returned |
-| 6b | **Accept** the AI output into the editor | ✅ inserted into the editor textarea (verified 629 chars) |
+All `.env` keys are placeholders, so the app runs on: local **SQLite**
+(`baakhapaa-backend/baakhapaa_local.db`, persists across restarts — delete to
+reset), **mock Claude**, **mock DALL-E**, **mock Stripe**. Embeddings are the
+exception — they're **real**, computed locally by fastembed with no API key.
 
-- Browser console during the flow: **no warnings or errors**.
-- The three-act structure returned by the AI is: **Act 1 – Setup** (Morning at the
-  Chiya Pasal, Dinner Expectations), **Act 2 – Confrontation** (The Secret Project,
-  Found Out), **Act 3 – Resolution** (The Screening).
+```
+cd baakhapaa-backend && ./venv/Scripts/python -m uvicorn main:app --port 8000   # no --reload on Windows
+cd baakhapaa-frontend && npm start                                              # 3000/3001
+```
 
-## Bug found and fixed in this pass
+Test login: `test@example.com` / `password` (pro tier).
 
-**Scene cards displayed in the wrong order in the editor (demo mode).**
-- **Symptom:** after generating the structure, the editor's Scene Index Cards showed
-  the scenes ordered by `order_index` only, ignoring `act_number` — so Act 3's
-  "The Screening" appeared as scene 3, before Act 1's "Dinner Expectations".
-  Displayed order was: Morning → The Secret Project → The Screening → Dinner
-  Expectations → Found Out.
-- **Root cause:** `baakhapaa-backend/database.py`, the mock Supabase client.
-  `get_scenes_by_script()` calls `.order("act_number").order("order_index")`, expecting
-  a compound sort (primary = act, secondary = order within act). The mock's `order()`
-  sorted `filtered_records` in place on **each** call, so the second `.order()` fully
-  re-sorted by `order_index` and discarded the act-level ordering. (Real Supabase treats
-  chained `.order()` calls as a compound sort, so this only manifested in demo mode.)
-- **Fix:** `order()` now **accumulates** `(field, desc)` specs and `execute()` applies
-  them as a **stable compound sort** (least- to most-significant, so the first
-  `.order()` is the primary key). Single-key ordering (projects list, version history)
-  is unchanged.
-- **Verified after fix** (backend restarted): both the API response and the browser
-  Scene Index Cards now show the correct narrative order —
-  **Morning at the Chiya Pasal → Dinner Expectations → The Secret Project → Found Out → The Screening.**
+---
 
-No other changes were made — scope was limited to the register → login → project →
-structure → editor → scene chain.
+## What was built
 
-## Issues noticed but NOT fixed (out of scope for this pass)
+### 1. RAG script grounding (the big one)
+Structure generation is no longer generic AI theory — it's grounded in real
+analyzed patterns.
 
-1. **Screenplay editor column looks very narrow** — the editor `<textarea>` renders in
-   a thin column (its placeholder wraps one character per line, visible in a fresh, empty
-   editor). Purely cosmetic CSS in the `.screenplay-page` / `.screenplay-container`
-   layout; the editor is fully functional (typing, Tab/Enter formatting, and Accept-from-AI
-   all work). Worth a styling look, but it is not part of the tested chain.
-2. **Pre-existing security items from `AUDIT_REPORT.md` (S1–S4) still stand** and must be
-   handled before any deploy: guessable `JWT_SECRET` fallback, no login rate limiting,
-   the compiled-in mock test user (`test@example.com` / `password`), and localhost-only
-   CORS. None are blockers for local demo use.
-3. **Storyboard / export / finalize** steps were **not** part of the requested chain and
-   were not re-tested here (they were covered in the 2026-07-05 audit).
-4. **Environment noise (not an app issue):** the `claude-mem` plugin worker is unreachable
-   and its hooks emit errors on most tool calls. It does not affect Baakhapaa.
+- `knowledge_base.json` — **15 structural analyses** (Parasite, Rocky, 3 Idiots,
+  Kumbalangi Nights, Tokyo Story, Oldboy, Kota Factory, Panchayat, Fleabag,
+  K-drama, plus shorts categories). Structural analysis only, never copyrighted
+  text — the loader rejects fields over 600 chars as a guard.
+- `rag.py` — `retrieve_relevant_patterns(genre, tone, theme, top_k=3)`.
+  Embeddings via **fastembed** (`bge-small-en-v1.5`, 384-dim, local ONNX).
+  Chosen because Claude has no embeddings API and OpenAI's key is a
+  placeholder — this needs no key at all and works in demo mode.
+- `load_knowledge_base.py` — one command: validate → embed → upsert (idempotent
+  by `title_ref`), with canned retrieval probes as a spot-check.
+- `pgvector_script_patterns.sql` — the real-Supabase table + HNSW index + RPC
+  for when you outgrow fetch-and-rank (~500 entries).
+- Retrieval is injected into `generate_structure`'s prompt (Stage 1 only, by
+  design — see `GENERATION_ARCHITECTURE.md`).
 
-## How to reproduce the test locally
-1. Backend: `cd baakhapaa-backend && ./venv/Scripts/python -m uvicorn main:app --port 8000`
-   (expect the three "Running with Mock ..." warnings).
-2. Frontend: `cd baakhapaa-frontend && npm start` (opens on 3000/3001).
-3. Register a new account → you land on the dashboard → **New Project** → fill the form →
-   **Generate Project Structure** → you land in the editor with 5 scenes in act order →
-   in the **AI Writer** panel, type a scene description → **Execute AI Action** → **Accept**.
+**Proof it's semantic, not tag-matching:** a `genre="boxing underdog"` query —
+a tag that exists nowhere in the library — returns **Rocky at 0.69**.
+
+### 2. Freemium split — free tier costs zero Claude
+| | Free | Pro / Studio |
+|---|---|---|
+| Pattern recommendations while writing | ✅ RAG, local, $0 | ✅ |
+| Structure generation | ✅ RAG-built skeleton, no Claude | ✅ Claude |
+| Scene generate / improve / suggest | ❌ 403 + upgrade message | ✅ Claude |
+
+New `POST /scripts/recommendations` powers the editor's **Patterns** tab (the
+free plan's AI feature). Verified: a secret-boxing-gym scene pulled
+mentor-sacrifice underdog (60%), structural-obstacle slow burn (56%),
+family-pressure antagonist (55%) — zero Claude tokens.
+
+### 3. Editor UX (PR #1)
+- **Account dropdown** — the avatar used to log you out on a single click.
+- **2b timeline instrument** — the minimized structure panel now shows a
+  timecode ruler, proportional scene blocks (solid = written, dashed = outline
+  only), act dividers, gold playhead, "X written of Y".
+- **Pattern recs made usable** — auto-load, focus chips, takeaway-first cards.
+- **All four nav tabs work** — new `/storyboards` and `/exports` index pages;
+  Team deep-links into Settings.
+
+### 4. Settings page + JWT hardening
+`/settings` exists (Account / Team Members / API Usage), and `JWT_SECRET` is
+now mandatory — the backend refuses to boot without a strong one.
+
+### 5. Two project skills (`.claude/skills/`)
+Auto-load for any future session in this repo:
+- **`script-rag`** — how to operate the pipeline (add analyses, reload, the
+  invariants not to break).
+- **`script-structure`** — the writing playbook: beat grammars for
+  shorts/scene/web-series and a technique library indexed by the problem each
+  solves, distilled from every analysis.
+
+---
+
+## Verified working (live, this session)
+
+- Free user: recommendations 200 with on-theme patterns; generate/improve/
+  suggest 403; structure returns a RAG skeleton. Pro user: generate-scene 200.
+- RAG: 15 patterns loaded; loader idempotent; cross-genre retrieval lands.
+- Editor: timeline solid/dashed states, playhead sync, toggle round-trip.
+- Nav: all four tabs route with correct active state; `/exports` PDF download
+  returns a valid 2.2 KB `%PDF`.
+- Cross-user security still holds (404s on other users' scripts).
+- No console or server errors anywhere.
+
+---
+
+## Issues noticed but NOT fixed — read this part
+
+1. **Export tier gating is UI-only.** `GET /export/script/word/{id}` returns
+   **200 for a free user**. The Exports page hides Word/Package behind ✦, but
+   the API doesn't enforce it. Anyone with the URL bypasses it. (PROJECT_PLAN
+   **C1**, small fix.)
+2. **Free project limit unenforced** — `POST /projects/` is unlimited despite
+   the pricing page promising "1 active project". (Also C1.)
+3. **Devanagari still can't render in PDF exports** — ReportLab's built-in
+   Courier has no Devanagari glyphs, so Nepali dialogue silently won't appear.
+   This breaks a PRD promise and is the **last true blocker** (**A1**).
+4. **Login rate limiting + server-side password policy still open** (**B2/B3**).
+   Password rules are enforced in the React form only; the API accepts a
+   1-char password.
+5. **RAG differentiation is limited by library size.** With 15 entries a few
+   sources dominate every query. This isn't a bug — it wants more analyses.
+6. **Nothing has ever run with real keys.** Every verification to date is
+   demo-mode. The real Claude/DALL-E/Supabase paths are the biggest unknown
+   in the project (**A3**).
+7. **NewProject still uses the old Sidebar** while everything else uses TopNav
+   — the shell split is half-applied (**D2**).
+8. **Screenplay column renders narrow** (**D1**, cosmetic, long-standing).
+
+---
+
+## Gotchas for whoever's next
+
+- **Don't target `main`** on the remote — it holds an unrelated empty starter
+  commit. The default branch is **`codebase`**. PR #1 is open against it.
+- `gh` isn't installed; `git push` works via the credential helper but PRs
+  must be opened in the browser (or install `gh`).
+- The mock DB's `delete()` is **deliberately deferred** to `execute()` so
+  `table.delete().eq(...)` matches real Supabase. Reverting it to eager
+  deletion wipes whole tables in demo mode.
+- Test data is messy: ~11 projects from automated runs, one with a
+  shell-mangled Devanagari title ("?????? WiFi"). Harmless; delete the SQLite
+  file for a clean slate.
+- The CRA dev server wedged once (hung pre-compile, survived cache clears and
+  killing orphaned node processes). `npm run build` was fine; a reboot fixed
+  it.
+
+---
+
+## Suggested next step
+
+`PROJECT_PLAN.md` §4: **A1** (Devanagari font) → **B2/B3** (security pass) →
+**C1 remainder** (the export gate above is bypassable today) → **C2** (custom
+scenes) → **A3** (the real-keys milestone, the biggest de-risker).
