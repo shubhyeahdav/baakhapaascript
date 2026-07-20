@@ -16,9 +16,11 @@ import sys
 from database import supabase
 import rag
 
-REQUIRED = ("title_ref", "source_type", "genre", "origin_tradition",
-            "one_line_takeaway", "structural_pattern")
-VALID_TYPES = {"movie", "webseries", "short"}
+REQUIRED = ("title_ref", "source_type", "craft_level", "genre", "origin_tradition",
+            "technique", "problem", "how_it_works", "how_to_apply",
+            "worked_example", "warning_sign")
+VALID_TYPES = {"movie", "webseries", "short", "craft"}
+VALID_LEVELS = {"structure", "scene", "dialogue", "character", "image"}
 KB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "knowledge_base.json")
 
 
@@ -30,10 +32,13 @@ def validate(entry, idx):
             return f"entry {idx} ({entry.get('title_ref', '?')}): missing/invalid '{f}'"
     if entry["source_type"] not in VALID_TYPES:
         return f"entry {idx} ({entry['title_ref']}): source_type must be one of {VALID_TYPES}"
-    # Copyright guard: structural analysis never needs long text or long quotes
-    for f in ("one_line_takeaway", "structural_pattern"):
-        if len(entry[f]) > 600:
-            return f"entry {idx} ({entry['title_ref']}): '{f}' too long — structural analysis only"
+    if entry["craft_level"] not in VALID_LEVELS:
+        return f"entry {idx} ({entry['title_ref']}): craft_level must be one of {VALID_LEVELS}"
+    # Copyright guard: entries hold original analysis and original worked
+    # examples only — never transcribed dialogue from a source work.
+    for f in ("problem", "how_it_works", "how_to_apply", "worked_example", "warning_sign"):
+        if len(entry[f]) > 900:
+            return f"entry {idx} ({entry['title_ref']}): '{f}' too long — original analysis only"
     return None
 
 
@@ -58,12 +63,7 @@ def main():
     for entry, vec in zip(good, vectors):
         supabase.table(rag.TABLE).delete().eq("title_ref", entry["title_ref"]).execute()
         supabase.table(rag.TABLE).insert({
-            "title_ref": entry["title_ref"],
-            "source_type": entry["source_type"],
-            "genre": entry["genre"],
-            "origin_tradition": entry["origin_tradition"],
-            "one_line_takeaway": entry["one_line_takeaway"],
-            "structural_pattern": entry["structural_pattern"],
+            **{k: entry[k] for k in REQUIRED},
             "embed_text": rag.pattern_to_text(entry),
             "embedding": vec,
         }).execute()
@@ -72,17 +72,18 @@ def main():
     print(f"Loaded {len(good)} entries; table now holds {total} patterns.")
 
     # Lightweight spot-check: two canned probes with expected top-3 hits
+    # Probes are stated as writing PROBLEMS, matching how the app queries.
     probes = [
-        ("comedy", "lighthearted", "students struggling with exam pressure in a small town",
-         {"Kota Factory (2019, S1)", "3 Idiots (2009)", "Super 30 (2019)"}),
-        ("educational", "punchy", "a counterintuitive money fact people scroll past",
-         {"Hook-driven educational short (composite pattern)"}),
+        ("drama", "emotional", "my dialogue is on the nose, characters say exactly what they feel", "dialogue"),
+        ("drama", "emotional", "this scene feels flat, nothing changes in it", "scene"),
+        ("drama", "emotional", "my characters all sound the same and feel predictable", "character"),
+        ("comedy skit", "punchy", "my short loses viewers halfway through", "structure"),
     ]
-    for genre, tone, theme, expected in probes:
+    for genre, tone, theme, want_level in probes:
         top = rag.retrieve_relevant_patterns(genre, tone, theme, top_k=3)
-        hits = {p["title_ref"] for p in top}
-        status = "OK " if hits & expected else "WARN"
-        print(f"  probe [{status}] '{theme[:40]}...' -> {sorted(hits)}")
+        levels = [p.get("craft_level") for p in top]
+        status = "OK " if want_level in levels else "WARN"
+        print(f"  probe [{status}] want={want_level:9} got={levels} :: {top[0]['technique'] if top else '-'}")
 
 
 if __name__ == "__main__":

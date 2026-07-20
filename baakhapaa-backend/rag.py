@@ -33,13 +33,22 @@ def embed_texts(texts):
 
 
 def pattern_to_text(entry: dict) -> str:
-    """The text that gets embedded for a knowledge-base entry:
-    genre + origin_tradition + one_line_takeaway combined (title deliberately
-    excluded so retrieval matches structure, not fame)."""
+    """The text that gets embedded for a craft entry.
+
+    Leads with the PROBLEM, because that is how writers actually search — they
+    arrive with "this scene feels flat", not with a genre tag. Weighting the
+    problem statement (repeated once) over the technique keeps retrieval on the
+    writer's symptom rather than on subject matter, which was the failure mode
+    of the earlier genre+takeaway embedding.
+    """
+    problem = entry.get("problem") or entry.get("one_line_takeaway", "")
     return (
-        f"{entry.get('genre', '')} | {entry.get('origin_tradition', '')} | "
-        f"{entry.get('one_line_takeaway', '')}"
-    )
+        f"{problem} {problem} "
+        f"{entry.get('technique', '')} "
+        f"{entry.get('craft_level', '')} craft. "
+        f"{entry.get('how_it_works', '')} "
+        f"{entry.get('genre', '')} {entry.get('origin_tradition', '')}"
+    ).strip()
 
 
 def _cosine(a, b):
@@ -76,8 +85,15 @@ def retrieve_relevant_patterns(genre, tone, theme_description, top_k=3):
                 "title_ref": r.get("title_ref"),
                 "genre": r.get("genre"),
                 "origin_tradition": r.get("origin_tradition"),
-                "one_line_takeaway": r.get("one_line_takeaway"),
-                "structural_pattern": r.get("structural_pattern"),
+                "craft_level": r.get("craft_level"),
+                "technique": r.get("technique"),
+                "problem": r.get("problem"),
+                "how_it_works": r.get("how_it_works"),
+                "how_to_apply": r.get("how_to_apply"),
+                "worked_example": r.get("worked_example"),
+                "warning_sign": r.get("warning_sign"),
+                # Legacy field kept so older callers/rows keep working.
+                "one_line_takeaway": r.get("technique") or r.get("one_line_takeaway"),
                 "similarity": round(sim, 4),
             }
             for sim, r in scored[:top_k]
@@ -93,13 +109,15 @@ def format_patterns_for_prompt(patterns) -> str:
     if not patterns:
         return ""
     lines = [
-        "\nProven structural patterns from analyzed films/series — ground your "
-        "beat structure in these techniques. Never mention these titles or "
-        "copy any dialogue; adapt the structural ideas to the request:"
+        "\nCraft techniques drawn from analyzed exceptional writing — apply "
+        "these mechanically to the beats you produce. Never mention these "
+        "labels or reproduce their examples verbatim:"
     ]
     for i, p in enumerate(patterns, 1):
-        lines.append(
-            f"{i}. [{p['genre']} · {p['origin_tradition']}] {p['one_line_takeaway']} "
-            f"Structure: {p['structural_pattern']}"
-        )
+        tech = p.get("technique") or p.get("one_line_takeaway") or ""
+        lines.append(f"{i}. {tech}")
+        if p.get("how_it_works"):
+            lines.append(f"   Why it works: {p['how_it_works']}")
+        if p.get("how_to_apply"):
+            lines.append(f"   Apply: {p['how_to_apply']}")
     return "\n".join(lines) + "\n"

@@ -103,12 +103,28 @@ def rag_only_structure(genre, tone, duration_minutes, language, target_audience)
     """Free-tier structure: no Claude call. A standard five-beat three-act
     skeleton whose scene descriptions carry guidance from the retrieved
     structural patterns, so free users still get grounded, useful direction."""
+    # Each beat queries the craft library for the problem THAT beat has to
+    # solve, so the guidance attached to it is actually about that beat.
+    BEAT_PROBLEMS = {
+        "opening": "my character introduction is static and described rather than shown in action",
+        "inciting": "the inciting incident feels passive, things just happen to the protagonist",
+        "rising": "the middle sags, complications do not compound, tension resets each scene",
+        "crisis": "my confrontation is on the nose and melodramatic, characters state their feelings",
+        "resolution": "the ending feels unearned and the emotional payoff does not land",
+    }
+    FALLBACK = "Make this beat change something: the world, a relationship, or what a character knows."
+
+    def tip(key):
+        hit = retrieve_relevant_patterns(genre, tone, BEAT_PROBLEMS[key], top_k=1)
+        if not hit:
+            return FALLBACK
+        p = hit[0]
+        return f"{p.get('technique')} — {p.get('how_to_apply', '')}"
+
+    tips = {k: tip(k) for k in BEAT_PROBLEMS}
     patterns = retrieve_relevant_patterns(
         genre, tone, f"{target_audience} audience, {language} language", top_k=3
     )
-    tips = [p["one_line_takeaway"] for p in patterns]
-    while len(tips) < 3:
-        tips.append("Make every beat change something: the world, a relationship, or what a character knows.")
 
     a1 = round(duration_minutes * 0.33, 1)
     a2 = round(duration_minutes * 0.33, 1)
@@ -124,27 +140,27 @@ def rag_only_structure(genre, tone, duration_minutes, language, target_audience)
         "acts": [
             {"act_number": 1, "name": "Setup", "duration_minutes": a1, "percentage": 33, "scenes": [
                 beat(1, "Opening — establish the ordinary world", "minor",
-                     f"Introduce your protagonist and what they want. Pattern guidance: {tips[0]}",
+                     f"Introduce your protagonist and what they want. Craft: {tips['opening']}",
                      round(a1 * 0.5, 1)),
                 beat(2, "Inciting incident", "major",
-                     f"The event that makes the story unavoidable. Pattern guidance: {tips[1]}",
+                     f"The event that makes the story unavoidable. Craft: {tips['inciting']}",
                      round(a1 * 0.5, 1))]},
             {"act_number": 2, "name": "Confrontation", "duration_minutes": a2, "percentage": 33, "scenes": [
                 beat(3, "Rising tension", "minor",
-                     "Complications compound; every small win should raise the cost of failure.",
+                     f"Complications compound; every small win should raise the cost of failure. Craft: {tips['rising']}",
                      round(a2 * 0.5, 1)),
                 beat(4, "Crisis", "major",
-                     f"The lowest point — the protagonist's plan collapses. Pattern guidance: {tips[2]}",
+                     f"The lowest point — the protagonist's plan collapses. Craft: {tips['crisis']}",
                      round(a2 * 0.5, 1))]},
             {"act_number": 3, "name": "Resolution", "duration_minutes": a3, "percentage": 34, "scenes": [
                 beat(5, "Resolution", "major",
-                     "Answer the dramatic question posed in Act 1 — aim for earned understanding, not total triumph.",
+                     f"Answer the dramatic question posed in Act 1 — aim for earned understanding, not total triumph. Craft: {tips['resolution']}",
                      a3)]},
         ],
         "total_characters": [],
         "suggested_locations": [],
         "pattern_sources": [
-            {"takeaway": p["one_line_takeaway"], "tradition": p["origin_tradition"]}
+            {"takeaway": p.get("technique") or p.get("one_line_takeaway"), "tradition": p["origin_tradition"]}
             for p in patterns
         ],
     }

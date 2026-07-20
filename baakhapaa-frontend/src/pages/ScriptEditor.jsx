@@ -12,10 +12,11 @@ import CompactTimeline from "../components/CompactTimeline";
 // problem in the retrieval query — no extra endpoint, no extra cost.
 const FOCUSES = [
   { key: "scene", label: "This scene", query: "" },
-  { key: "hook", label: "Hook", query: "opening hook, grabbing attention, inciting incident that starts the story" },
-  { key: "middle", label: "Middle", query: "sagging middle, rising tension, complications compounding toward a crisis" },
-  { key: "ending", label: "Ending", query: "resolution, earned ending, paying off the dramatic question" },
-  { key: "character", label: "Character", query: "antagonist pressure, character motivation, subtext in dialogue" },
+  { key: "flat", label: "Feels flat", query: "this scene feels flat and skippable, nothing changes in it, the characters just talk and it drags" },
+  { key: "dialogue", label: "On the nose", query: "my dialogue is on the nose, characters say exactly what they feel, it sounds like a therapy transcript with no subtext" },
+  { key: "character", label: "Thin character", query: "my characters sound the same and feel predictable, thin, described rather than shown" },
+  { key: "structure", label: "Structure", query: "the middle sags and the ending feels unearned, the protagonist is passive and things just happen to them" },
+  { key: "melodrama", label: "Melodramatic", query: "the emotion is overwrought and melodramatic, it feels sentimental and false rather than restrained" },
 ];
 import { useAuth } from "../context/AuthContext";
 
@@ -547,21 +548,42 @@ export default function ScriptEditor() {
                       >
                         <div className="flex items-baseline justify-between gap-2 mb-1.5">
                           <span className="font-mono text-[10px] uppercase tracking-wider text-gold truncate">
-                            {p.origin_tradition} · {p.genre}
+                            {p.craft_level || "craft"} · {p.origin_tradition}
                           </span>
                           <span className="font-mono text-[10px] text-inkMuted shrink-0">
                             {Math.round(p.similarity * 100)}%
                           </span>
                         </div>
-                        {/* The takeaway is the actionable line — keep it whole.
-                            The mechanics only unfold when asked for. */}
-                        <p className="text-[13px] text-ink leading-snug">{p.one_line_takeaway}</p>
+                        {/* Lead with the technique. The mechanics, the concrete
+                            steps and a worked example unfold only when asked. */}
+                        <p className="text-[13px] text-ink leading-snug font-medium">
+                          {p.technique || p.one_line_takeaway}
+                        </p>
                         {open ? (
-                          <p className="text-[12px] text-inkSoft leading-relaxed mt-2 pt-2 border-t border-borderSoft">
-                            {p.structural_pattern}
-                          </p>
+                          <div className="mt-2 pt-2 border-t border-borderSoft space-y-2.5">
+                            {p.how_to_apply && (
+                              <div>
+                                <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-1">Do this</div>
+                                <p className="text-[12px] text-inkSoft leading-relaxed">{p.how_to_apply}</p>
+                              </div>
+                            )}
+                            {p.worked_example && (
+                              <div>
+                                <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-1">On the page</div>
+                                <p className="text-[12px] text-inkSoft leading-relaxed font-mono bg-bgDeep/40 border border-borderSoft rounded-lg p-2.5 whitespace-pre-wrap">
+                                  {p.worked_example}
+                                </p>
+                              </div>
+                            )}
+                            {p.warning_sign && (
+                              <div>
+                                <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-1">You need this if</div>
+                                <p className="text-[12px] text-inkMuted leading-relaxed italic">{p.warning_sign}</p>
+                              </div>
+                            )}
+                          </div>
                         ) : (
-                          <span className="text-[10px] text-inkMuted mt-1.5 inline-block">How it's built ↓</span>
+                          <span className="text-[10px] text-inkMuted mt-1.5 inline-block">How to use it ↓</span>
                         )}
                       </button>
                     );
