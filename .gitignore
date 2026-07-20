@@ -1,0 +1,10 @@
+# Personal study material — copyrighted screenplays. NEVER commit or publish.
+# Contains full script text (raw_scripts_TEMP/knowledge_base.json is ~19MB of
+# copyrighted content). Reading these to learn is fine; distributing is not.
+raw_scripts_TEMP/
+
+# Local env / build
+.venv/
+venv/
+node_modules/
+*.env
