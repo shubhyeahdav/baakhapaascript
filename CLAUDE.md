@@ -37,7 +37,9 @@ Runs at http://localhost:3000 (often **3001** locally when 3000 is taken; backen
 - Local demo DB now **persists to SQLite** (`baakhapaa-backend/baakhapaa_local.db`) — restarts keep users/projects. Delete the file to reset.
 
 ## Project docs (all at repo root)
-Start with `ONBOARDING.md` (doc map + 15-min setup). Then:
+Start with `ONBOARDING.md` (doc map + 15-min setup), then `WORKING_GUIDE.md`
+(git topology, commit/push loop, copyright rules, Claude Code setup on another
+machine). Then:
 - `PRD.md` — product requirements (problem, users, scope, metrics)
 - `TRD.md` — technical architecture, data model, API contract, deploy plan
 - `LEARNING_GUIDE.md` — beginner full-stack walkthrough
@@ -62,10 +64,14 @@ Start with `ONBOARDING.md` (doc map + 15-min setup). Then:
 - Collaboration bar (presence; "Solo session" fallback — never tested against real Supabase)
 - Script export PDF/Word/production package (⚠ PDF cannot render Devanagari — ReportLab Courier)
 - Stripe Checkout for Pro/Studio (test/demo mode)
-- **RAG pattern grounding** — `knowledge_base.json` (15 structural analyses) →
+- **RAG craft grounding** — `knowledge_base.json` (**29 craft entries** across
+  five levels: structure, scene, dialogue, character, image) →
   `load_knowledge_base.py` → `script_patterns`; `rag.retrieve_relevant_patterns()`
-  injects the top-3 semantic matches into `generate_structure`. Embeddings are
-  local (fastembed `bge-small-en-v1.5`, 384-dim), so this needs no API key
+  injects the top-3 semantic matches into `generate_structure`. Retrieval embeds
+  the entry's **problem** first, since writers arrive with a symptom, not a genre
+  tag. Embeddings are local (fastembed `bge-small-en-v1.5`, 384-dim), so this
+  needs no API key. Every `worked_example` is original prose — that's what keeps
+  the corpus publishable by construction
 - **Freemium split** — free tier runs on RAG only, zero Claude cost:
   `POST /scripts/recommendations` (all tiers) powers the editor's Patterns tab;
   `generate-scene`/`improve`/`suggest` are Pro/Studio (403 for free);
@@ -96,8 +102,16 @@ Start with `ONBOARDING.md` (doc map + 15-min setup). Then:
 (operate the RAG pipeline), `script-structure` (beat grammars + the technique
 playbook distilled from every analysis — use when writing or analyzing scripts).
 
-**Repo:** `shubhyeahdav/baakhapaascript`, default branch **`codebase`** (`main`
-holds an unrelated empty starter commit — don't target it). PR #1 open.
+**Repo:** `shubhyeahdav/baakhapaascript`, default branch **`codebase`**. This
+working copy is **two nested repos** — the wrapper at `D:\AkxyaRup` (branch
+`main`, holds `.claude/` + a gitlink) and this project repo (branch `master` →
+`origin/codebase`). Don't target `main` with project work. Full explanation and
+the push sequence: `WORKING_GUIDE.md` §1 and §3. PR #1 open.
+
+**Copyright:** `raw_scripts_TEMP/` (117 screenplays, incl. a ~19MB
+`knowledge_base.json` of full script text) is gitignored at the wrapper level
+and must never be committed or published. Don't confuse it with the app's own
+`baakhapaa-backend/knowledge_base.json` (~35KB, all original prose).
 
 **Next priorities:** PROJECT_PLAN.md §4 (Blockers → Security → Incomplete → Polish).
 

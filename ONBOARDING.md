@@ -6,9 +6,12 @@ Estimated time to first working local run: 15 minutes.
 ## 1. Read These Files First (in order)
 
 1. `CLAUDE.md` — current state, conventions, what's working/not working
-2. `PRD.md` — what we're building and why
-3. `TRD.md` — how it's architected
-4. `LEARNING_GUIDE.md` — if you're newer to full-stack web dev, start here
+2. `WORKING_GUIDE.md` — the git topology (two nested repos — surprising, read
+   it before your first push), commit/push loop, copyright rules, and Claude
+   Code setup on a second machine
+3. `PRD.md` — what we're building and why
+4. `TRD.md` — how it's architected
+5. `LEARNING_GUIDE.md` — if you're newer to full-stack web dev, start here
    instead of diving into code cold
 
 ## 2. Local Setup
@@ -88,6 +91,7 @@ Project owner: Shubham — [YOUR EMAIL / CONTACT]
 | Doc | Purpose |
 |---|---|
 | CLAUDE.md | Live project state, conventions |
+| WORKING_GUIDE.md | Git topology, push sequence, copyright rules, office Claude setup |
 | PRD.md | Product requirements |
 | TRD.md | Technical architecture |
 | LEARNING_GUIDE.md | Beginner-friendly codebase walkthrough |
