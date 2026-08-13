@@ -28,6 +28,7 @@ export const auth = {
   login: (email, password) => instance.post("/auth/login", { email, password }),
   register: (email, password, name) => instance.post("/auth/register", { email, password, name }),
   getMe: () => instance.get("/auth/me"),
+  setPreferences: (prefs) => instance.put("/auth/preferences", prefs),
 };
 
 export const projects = {

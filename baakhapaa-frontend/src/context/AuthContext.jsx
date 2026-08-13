@@ -37,8 +37,18 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Re-read the user after preferences change, so onboarding state and
+  // project defaults update without a page reload.
+  const refreshUser = async () => {
+    const res = await auth.getMe();
+    setUser(res.data);
+    return res.data;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, isAuthenticated: !!user, login, register, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

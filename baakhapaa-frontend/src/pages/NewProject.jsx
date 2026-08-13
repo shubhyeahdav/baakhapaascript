@@ -2,15 +2,29 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { projects, scripts } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 const GENRES = ["Drama", "Romance", "Thriller", "Comedy", "Action", "Horror", "Documentary", "Social Issue"];
 const TONES = ["Emotional", "Dark", "Lighthearted", "Tense", "Inspirational", "Melancholic"];
 const AUDIENCES = ["Youth", "General", "Mature", "Children"];
 
+// Typical runtime per format, so the onboarding answer sets a sane duration
+// instead of leaving everyone on the same default.
+const DURATION_FOR_FORMAT = { short: 12, web_series: 22, film: 90 };
+
 export default function NewProject() {
+  const { user } = useAuth();
+  const prefs = user?.preferences;
+
+  // Onboarding already asked these. Asking again is the kind of friction that
+  // makes a wizard feel long, so the answers arrive pre-filled and editable.
   const [form, setForm] = useState({
-    title: "", genre: "Drama", tone: "Emotional", target_audience: "Youth",
-    duration_minutes: 15, language: "English",
+    title: "",
+    genre: prefs?.genre || "Drama",
+    tone: prefs?.tone || "Emotional",
+    target_audience: "Youth",
+    duration_minutes: DURATION_FOR_FORMAT[prefs?.format] || 15,
+    language: prefs?.language || "English",
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();

@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { scripts, exportApi } from "../services/api";
+import { downloadBlob } from "../utils/download";
 import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
-import CollabBar from "../components/CollabBar";
 import StructureTimeline from "../components/StructureTimeline";
 import CompactTimeline from "../components/CompactTimeline";
 
@@ -56,24 +56,68 @@ export default function ScriptEditor() {
   // Jump the editor to a scene: find the Nth slugline (INT./EXT.) in the script
   // and scroll the caret there. Scenes are written in order, so the Nth slug ≈
   // scene N; if it hasn't been written yet, jump to the end so the writer can add it.
+  // Scroll so the caret sits comfortably in view. Reads the real line height
+  // instead of assuming 25px, which drifts as soon as the font or zoom
+  // changes. In zen mode the caret is centred (typewriter scrolling) so the
+  // writer's eye stays in one place.
+  const scrollCaretIntoView = useCallback((centre = false) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const cs = getComputedStyle(ta);
+    const lineHeight = parseFloat(cs.lineHeight) || 25;
+    // Text starts below the padding box, and zen mode uses a 45vh top pad to
+    // make centring possible. Omitting it under-scrolls by that whole amount.
+    const padTop = parseFloat(cs.paddingTop) || 0;
+    const line = ta.value.slice(0, ta.selectionStart).split("\n").length - 1;
+    const caretY = padTop + line * lineHeight;
+    const target = centre
+      ? caretY - ta.clientHeight / 2
+      : caretY - lineHeight * 4;
+    ta.scrollTop = Math.max(0, target);
+  }, []);
+
+  // Jump the editor to a scene: find the Nth slugline and put the caret there.
+  // Scenes are written in order, so the Nth slugline is scene N.
   const goToScene = (index) => {
     setActiveScene(index);
     const ta = textareaRef.current;
     if (!ta) return;
-    const text = ta.value;
-    const re = /^[ \t]*(INT\.|EXT\.|INT\/EXT\.)/gim;
-    const starts = [];
-    let m;
-    while ((m = re.exec(text)) !== null) starts.push(m.index);
-    const pos = starts.length > index ? starts[index] : text.length;
+    const starts = sluglinePositions(ta.value);
+    const pos = starts.length > index ? starts[index] : ta.value.length;
     ta.focus();
     ta.setSelectionRange(pos, pos);
-    const line = text.slice(0, pos).split("\n").length - 1;
-    ta.scrollTop = Math.max(0, line * 25 - 90); // ~25px line height
+    scrollCaretIntoView(zenMode);
   };
 
   const [showStructure, setShowStructure] = useState(false);
   const [addingScene, setAddingScene] = useState(null);
+
+  // Zen mode: Esc leaves. Without a keyboard exit the only way out is a button
+  // that zen mode itself has just hidden most of the context around.
+  useEffect(() => {
+    if (!zenMode) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setZenMode(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zenMode]);
+
+  // Typewriter scrolling: hold the caret near the middle of the page so the
+  // writer's eye stays in one place instead of tracking down the screen.
+  useEffect(() => {
+    if (!zenMode) return;
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const recentre = () => scrollCaretIntoView(true);
+    ta.addEventListener("input", recentre);
+    ta.addEventListener("click", recentre);
+    recentre();
+    return () => {
+      ta.removeEventListener("input", recentre);
+      ta.removeEventListener("click", recentre);
+    };
+  }, [zenMode, scrollCaretIntoView]);
 
   useEffect(() => {
     scripts
@@ -100,6 +144,64 @@ export default function ScriptEditor() {
     [script?.scenes]
   );
 
+  // Positions of every slugline in the draft, in document order.
+  const sluglinePositions = (text) => {
+    const re = /^[ \t]*(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/gim;
+    const out = [];
+    let m;
+    while ((m = re.exec(text)) !== null) out.push(m.index);
+    return out;
+  };
+
+  // A scene block the writer can immediately work on: a slugline (so the
+  // structure panel and cursor can find it) plus the beat description as a
+  // starting action line.
+  const sceneBlock = (scene) => {
+    const where = (scene.location || scene.title || "LOCATION").toUpperCase();
+    const heading = `INT. ${where} - DAY`;
+    const body = scene.description ? `\n${scene.description}\n` : "\n";
+    return `${heading}\n${body}\n`;
+  };
+
+  /**
+   * Insert text at `pos` THROUGH the browser's own editing pipeline.
+   *
+   * Writing to React state directly (setContent) replaces the textarea's value
+   * wholesale, which wipes the native undo stack — that is why Ctrl+Z did
+   * nothing after adding a scene. `execCommand("insertText")` performs the edit
+   * the way a keystroke would, so the browser records an undo entry and fires
+   * an input event that React's onChange picks up.
+   *
+   * execCommand is deprecated but remains the only way to preserve native undo
+   * in a plain textarea; there is no standards-track replacement yet. The
+   * setContent path below is a fallback for browsers that refuse it.
+   */
+  const replaceRange = useCallback((start, end, text) => {
+    const ta = textareaRef.current;
+    if (!ta) return false;
+    ta.focus();
+    ta.setSelectionRange(start, end);
+    const ok = document.execCommand && document.execCommand("insertText", false, text);
+    if (!ok) {
+      // Fallback: correct output, but this edit will not be undoable.
+      setContent((prev) => prev.slice(0, start) + text + prev.slice(end));
+    }
+    return true;
+  }, []);
+
+  const insertAtPosition = (pos, text) => {
+    if (!replaceRange(pos, pos, text)) {
+      setContent((prev) => prev.slice(0, pos) + text + prev.slice(pos));
+      return;
+    }
+    // Leave the caret on the new scene's action line, ready to write.
+    const caret = pos + text.indexOf("\n\n") + 2;
+    requestAnimationFrame(() => {
+      textareaRef.current?.setSelectionRange(caret, caret);
+      scrollCaretIntoView(zenMode);
+    });
+  };
+
   const handleAddScene = async (scene, actNumber, orderIndex) => {
     const key = `${actNumber}:${scene.title}`;
     setAddingScene(key);
@@ -113,13 +215,22 @@ export default function ScriptEditor() {
         time_allocation: scene.time_allocation || 0,
         order_index: orderIndex,
       });
-      // Insert into the local scene list keeping act/order sorting.
-      setScript((prev) => ({
-        ...prev,
-        scenes: [...(prev.scenes || []), res.data].sort(
-          (a, b) => a.act_number - b.act_number || a.order_index - b.order_index
-        ),
-      }));
+
+      const nextScenes = [...(script?.scenes || []), res.data].sort(
+        (a, b) => a.act_number - b.act_number || a.order_index - b.order_index
+      );
+
+      // Write the scene into the screenplay itself. Without this the card
+      // reads "Added" while the page stays blank, and the structure panel
+      // and the draft drift apart.
+      const rank = nextScenes.findIndex((s) => s.id === res.data.id);
+      const starts = sluglinePositions(textareaRef.current?.value ?? content);
+      const at = rank < starts.length ? starts[rank] : (textareaRef.current?.value ?? content).length;
+
+      insertAtPosition(at, sceneBlock(scene));
+      setActiveScene(rank);
+
+      setScript((prev) => ({ ...prev, scenes: nextScenes }));
     } catch (err) {
       alert(err.response?.data?.detail || "Could not add this scene.");
     } finally {
@@ -222,13 +333,7 @@ export default function ScriptEditor() {
   const handleExport = async (type) => {
     try {
       const res = await exportApi[type](id);
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `script.${type === "word" ? "docx" : "pdf"}`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      downloadBlob(res.data, `script.${type === "word" ? "docx" : "pdf"}`);
     } catch (err) {
       alert(err.response?.data?.detail || "Export failed.");
     }
@@ -259,14 +364,15 @@ export default function ScriptEditor() {
       }
       
       const newCurrentLine = " ".repeat(newLeadingSpaces) + lineContent;
-      const newValue = value.slice(0, lineStart) + newCurrentLine + value.slice(lineEnd === -1 ? value.length : lineEnd);
-      
-      setContent(newValue);
-      
-      setTimeout(() => {
+      // Re-indent through the browser's editing pipeline so Ctrl+Z can undo
+      // it. Rewriting the whole value with setContent discards the undo stack,
+      // and Tab runs on almost every line of a screenplay.
+      replaceRange(lineStart, lineEnd === -1 ? value.length : lineEnd, newCurrentLine);
+
+      requestAnimationFrame(() => {
         const newCursorPos = lineStart + newLeadingSpaces + lineContent.length;
         e.target.setSelectionRange(newCursorPos, newCursorPos);
-      }, 0);
+      });
     } else if (e.key === "Enter") {
       const { selectionStart, value } = e.target;
       const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
@@ -292,13 +398,13 @@ export default function ScriptEditor() {
       
       e.preventDefault();
       const insertText = "\n" + " ".repeat(nextLeadingSpaces);
-      const newValue = value.slice(0, selectionStart) + insertText + value.slice(selectionStart);
-      setContent(newValue);
-      
-      setTimeout(() => {
+      replaceRange(selectionStart, selectionStart, insertText);
+
+      requestAnimationFrame(() => {
         const newCursorPos = selectionStart + insertText.length;
         e.target.setSelectionRange(newCursorPos, newCursorPos);
-      }, 0);
+        if (zenMode) scrollCaretIntoView(true);
+      });
     }
   };
 
@@ -326,8 +432,6 @@ export default function ScriptEditor() {
           <span className="opacity-45 text-sm font-sans">Workspace /</span> {script.project?.title || "Untitled"}
         </div>
         <div className="flex gap-3 items-center">
-          <CollabBar scriptId={id} />
-          <div className="h-4 w-px bg-borderSoft" />
           <span className="text-[11px] font-semibold text-inkMuted uppercase tracking-wider mr-2">{saving ? "Saving..." : "Synced"}</span>
           <button 
             onClick={() => setZenMode(!zenMode)} 
@@ -417,10 +521,11 @@ export default function ScriptEditor() {
 
         {/* Editor */}
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex-1 screenplay-container min-h-0">
+          <div className={`flex-1 screenplay-container min-h-0 ${zenMode ? "zen-container" : ""}`}>
+            {zenMode && <div className="zen-hint">Esc to leave focus mode</div>}
             <textarea
               ref={textareaRef}
-              className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} resize-none`}
+              className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} resize-none`}
               placeholder="Type Scene Headings starting with INT. or EXT., and press TAB to format characters, parentheticals, and dialogue..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
