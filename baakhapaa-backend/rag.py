@@ -51,6 +51,52 @@ def pattern_to_text(entry: dict) -> str:
     ).strip()
 
 
+def _pattern_payload(row: dict, similarity=None) -> dict:
+    """The shape every retrieval path returns, however the row was found."""
+    return {
+        "title_ref": row.get("title_ref"),
+        "genre": row.get("genre"),
+        "origin_tradition": row.get("origin_tradition"),
+        "craft_level": row.get("craft_level"),
+        "technique": row.get("technique"),
+        "problem": row.get("problem"),
+        "how_it_works": row.get("how_it_works"),
+        "how_to_apply": row.get("how_to_apply"),
+        "worked_example": row.get("worked_example"),
+        "warning_sign": row.get("warning_sign"),
+        # Legacy field kept so older callers/rows keep working.
+        "one_line_takeaway": row.get("technique") or row.get("one_line_takeaway"),
+        "similarity": similarity,
+    }
+
+
+def get_patterns_by_technique(names) -> list:
+    """Fetch craft entries by exact `technique` name — no embedding involved.
+
+    When the linter fires it has already identified the technique that fixes
+    the flag, because every rule was derived from a craft entry's
+    `warning_sign`. Running semantic search at that point is a lossy way to
+    look up something you already know the name of: it costs an embedding pass
+    and can return the wrong entry. Exact match cannot.
+    """
+    wanted = [n for n in names if n]
+    if not wanted:
+        return []
+    try:
+        from database import supabase
+        rows = supabase.table(TABLE).select("*").execute().data or []
+        by_name = {r.get("technique"): r for r in rows if r.get("technique")}
+        seen, out = set(), []
+        for n in wanted:
+            if n in by_name and n not in seen:
+                seen.add(n)
+                out.append(_pattern_payload(by_name[n], similarity=1.0))
+        return out
+    except Exception as e:
+        print(f"RAG exact lookup unavailable ({e}).")
+        return []
+
+
 def _cosine(a, b):
     dot = sum(x * y for x, y in zip(a, b))
     na = sum(x * x for x in a) ** 0.5
@@ -80,24 +126,7 @@ def retrieve_relevant_patterns(genre, tone, theme_description, top_k=3):
                 continue
             scored.append((_cosine(qvec, emb), r))
         scored.sort(key=lambda t: t[0], reverse=True)
-        return [
-            {
-                "title_ref": r.get("title_ref"),
-                "genre": r.get("genre"),
-                "origin_tradition": r.get("origin_tradition"),
-                "craft_level": r.get("craft_level"),
-                "technique": r.get("technique"),
-                "problem": r.get("problem"),
-                "how_it_works": r.get("how_it_works"),
-                "how_to_apply": r.get("how_to_apply"),
-                "worked_example": r.get("worked_example"),
-                "warning_sign": r.get("warning_sign"),
-                # Legacy field kept so older callers/rows keep working.
-                "one_line_takeaway": r.get("technique") or r.get("one_line_takeaway"),
-                "similarity": round(sim, 4),
-            }
-            for sim, r in scored[:top_k]
-        ]
+        return [_pattern_payload(r, similarity=round(sim, 4)) for sim, r in scored[:top_k]]
     except Exception as e:
         print(f"RAG retrieval unavailable ({e}); generating without pattern context.")
         return []

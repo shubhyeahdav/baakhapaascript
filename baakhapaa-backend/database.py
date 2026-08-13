@@ -16,7 +16,11 @@ if use_mock:
     import json
     import threading
 
-    LOCAL_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "baakhapaa_local.db")
+    # Overridable so the test suite can point at a throwaway file instead of
+    # the developer's working database.
+    LOCAL_DB_PATH = os.getenv("LOCAL_DB_PATH") or os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "baakhapaa_local.db"
+    )
 
     class LocalStore:
         """SQLite-backed persistence for local testing: each record is stored
@@ -58,6 +62,7 @@ if use_mock:
             self.filtered_records = list(self.records)
             self.order_specs = []
             self._pending_delete = False
+            self._pending_update = None
 
         def _persist(self):
             if self.local_store:
@@ -95,13 +100,13 @@ if use_mock:
             return self
 
         def update(self, updates):
-            for r in self.filtered_records:
-                r.update(updates)
-            # Find in main records and update them too
-            for r in self.records:
-                if r.get("id") in [fr.get("id") for fr in self.filtered_records if fr.get("id")]:
-                    r.update(updates)
-            self._persist()
+            # Deferred until execute(), for the same reason as delete(): real
+            # Supabase chains filters AFTER update
+            # (table.update({...}).eq("id", x).execute()), so applying eagerly
+            # here writes to every row in the table — .eq() has not run yet.
+            # This previously leaked one user's subscription tier and
+            # preferences onto every account in demo mode.
+            self._pending_update = dict(updates)
             return self
 
         def delete(self):
@@ -112,6 +117,16 @@ if use_mock:
             return self
 
         def execute(self):
+            if self._pending_update is not None:
+                target_ids = {r["id"] for r in self.filtered_records if "id" in r}
+                for r in self.records:
+                    if r.get("id") in target_ids:
+                        r.update(self._pending_update)
+                self._persist()
+                # filtered_records hold the same dict objects as records, so
+                # they already reflect the write.
+                return MockResponse(self.filtered_records)
+
             if self._pending_delete:
                 ids_to_delete = {r["id"] for r in self.filtered_records if "id" in r}
                 self.records[:] = [r for r in self.records if r.get("id") not in ids_to_delete]
@@ -134,9 +149,11 @@ if use_mock:
         def __init__(self):
             self.local_store = LocalStore(LOCAL_DB_PATH)
             self.data_store = self.local_store.load_all()
-            # Seed the demo test user only on a fresh database
-            # email: test@example.com / password: password
-            if not self.data_store.get("users"):
+            # Seed the demo test user only on a fresh database, and only when
+            # explicitly asked for. Set DEMO_SEED=true in .env for the documented
+            # test@example.com / password login; without it no known-credential
+            # account is ever created.
+            if not self.data_store.get("users") and os.getenv("DEMO_SEED", "").lower() == "true":
                 self.data_store["users"] = [
                     {
                         "id": "test-user-id",

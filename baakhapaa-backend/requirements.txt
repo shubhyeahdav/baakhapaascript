@@ -11,3 +11,6 @@ reportlab
 python-docx
 stripe
 fastembed  # local ONNX embeddings for RAG pattern retrieval (no API key needed)
+slowapi  # per-IP rate limiting on the credential endpoints
+pytest  # test suite: ./venv/Scripts/python -m pytest
+httpx  # required by fastapi.testclient

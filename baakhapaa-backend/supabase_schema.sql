@@ -5,8 +5,14 @@ CREATE TABLE users (
   password_hash TEXT NOT NULL,
   role TEXT DEFAULT 'editor',
   subscription_tier TEXT DEFAULT 'free',
+  -- Onboarding answers as JSON: experience, format, language, genre, tone.
+  -- One nullable column rather than a migration per question. NULL means the
+  -- user has not been onboarded yet, which is what routes them to /onboarding.
+  preferences_json TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Existing databases: ALTER TABLE users ADD COLUMN preferences_json TEXT;
 
 CREATE TABLE projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
