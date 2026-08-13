@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import anthropic
 from dotenv import load_dotenv
 
@@ -10,13 +11,44 @@ from rag import retrieve_relevant_patterns, format_patterns_for_prompt
 
 load_dotenv()
 
+def _usable(key):
+    """A key that is absent or still the .env placeholder is not a key."""
+    return bool(key) and not key.startswith("your-")
+
+
 _api_key = os.getenv("ANTHROPIC_API_KEY")
-# Demo mode: no real key configured — return sample content instead of calling the API
-MOCK_AI = not _api_key or _api_key.startswith("your-")
-client = None if MOCK_AI else anthropic.Anthropic(api_key=_api_key)
+_groq_key = os.getenv("GROQ_API_KEY")
+
+# Provider precedence: Claude if configured, else Groq (free tier, no card),
+# else canned demo content. Groq is a development convenience — it is
+# OpenAI-compatible so it costs no new dependency, but it is NOT the product's
+# model and does not substitute for the A3 real-Claude smoke test.
+if _usable(_api_key):
+    PROVIDER = "anthropic"
+elif _usable(_groq_key):
+    PROVIDER = "groq"
+else:
+    PROVIDER = "mock"
+
+MOCK_AI = PROVIDER == "mock"
+
 MODEL = "claude-sonnet-5"
-if MOCK_AI:
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+
+client = anthropic.Anthropic(api_key=_api_key) if PROVIDER == "anthropic" else None
+
+_groq_client = None
+if PROVIDER == "groq":
+    from openai import OpenAI  # already a dependency (DALL-E); Groq is OpenAI-compatible
+
+    _groq_client = OpenAI(api_key=_groq_key, base_url=GROQ_BASE_URL)
+
+if PROVIDER == "mock":
     print("WARNING: Running with Mock AI (no ANTHROPIC_API_KEY set).")
+elif PROVIDER == "groq":
+    print(f"WARNING: No ANTHROPIC_API_KEY — using Groq ({GROQ_MODEL}). "
+          "Development only; the product ships on Claude.")
 
 BAAKHAPAA_STYLE = """You are writing for Baakhapaa, a Nepali storytelling platform for young audiences.
 Style: emotional, authentic, youth focused.
@@ -51,10 +83,20 @@ rattles past, children shouting.
 """
 
 
+def _act_split(duration_minutes):
+    """Split a runtime into the 33/33/34 three-act shape.
+
+    Act 3 takes the remainder rather than its own rounded 34% so the three
+    always sum back to the runtime the user asked for — rounding each act
+    independently can drift by a tenth of a minute.
+    """
+    act1 = round(duration_minutes * 0.33, 1)
+    act2 = round(duration_minutes * 0.33, 1)
+    return act1, act2, round(duration_minutes - act1 - act2, 1)
+
+
 def _demo_structure(duration_minutes):
-    a1 = round(duration_minutes * 0.33, 1)
-    a2 = round(duration_minutes * 0.33, 1)
-    a3 = round(duration_minutes - a1 - a2, 1)
+    a1, a2, a3 = _act_split(duration_minutes)
     return {
         "acts": [
             {"act_number": 1, "name": "Setup", "duration_minutes": a1, "percentage": 33, "scenes": [
@@ -86,7 +128,22 @@ def _demo_structure(duration_minutes):
     }
 
 
-def _call_claude(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> str:
+def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> str:
+    """Single choke point for every text generation call."""
+    if PROVIDER == "groq":
+        try:
+            resp = _groq_client.chat.completions.create(
+                model=GROQ_MODEL,
+                max_tokens=max_tokens,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+            )
+            return resp.choices[0].message.content or ""
+        except Exception as e:
+            raise RuntimeError(f"Groq API error: {str(e)}")
+
     try:
         message = client.messages.create(
             model=MODEL,
@@ -94,9 +151,57 @@ def _call_claude(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
         )
-        return message.content[0].text
+        # Filter by type rather than indexing [0]: with thinking enabled a
+        # thinking block comes first and content[0].text would raise.
+        return next((b.text for b in message.content if b.type == "text"), "")
     except Exception as e:
         raise RuntimeError(f"Claude API error: {str(e)}")
+
+
+# Back-compat alias from when Claude was the only provider. Call sites all use
+# `_call_llm`; this stays so nothing importing the old name breaks.
+_call_claude = _call_llm
+
+
+def _extract_json(raw: str):
+    """Parse a JSON object out of a model response.
+
+    The previous cleaning handled bare and fenced JSON but failed whenever the
+    model wrote anything around it — measured:
+
+        bare {"a": 1}                     PARSES
+        ```json fenced```                 PARSES
+        "Here it is:" + fenced            FAILS
+        {"a": 1} + "Let me know!"         FAILS
+
+    Preamble and sign-off are exactly what open-weight models produce most, so
+    this matters more on the Groq path, but it is a real failure mode on the
+    Claude path too — see plan item A3.
+
+    (It also used `str.strip("```json")`, which strips *characters* rather than
+    a substring. That is fragile, but harmless in practice: JSON starts with
+    `{` and ends with `}`, so no real content was ever removed.)
+    """
+    text = (raw or "").strip()
+
+    fenced = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
+    if fenced:
+        text = fenced.group(1).strip()
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Last resort: the outermost {...} span in the response.
+    start, end = text.find("{"), text.rfind("}")
+    if start != -1 and end > start:
+        try:
+            return json.loads(text[start:end + 1])
+        except json.JSONDecodeError:
+            pass
+
+    raise RuntimeError("AI response could not be parsed as JSON. Try again.")
 
 
 def rag_only_structure(genre, tone, duration_minutes, language, target_audience):
@@ -126,9 +231,7 @@ def rag_only_structure(genre, tone, duration_minutes, language, target_audience)
         genre, tone, f"{target_audience} audience, {language} language", top_k=3
     )
 
-    a1 = round(duration_minutes * 0.33, 1)
-    a2 = round(duration_minutes * 0.33, 1)
-    a3 = round(duration_minutes - a1 - a2, 1)
+    a1, a2, a3 = _act_split(duration_minutes)
 
     def beat(n, title, sc_type, desc, alloc):
         return {"scene_number": n, "title": title, "scene_type": sc_type,
@@ -179,9 +282,7 @@ def generate_structure(genre, tone, duration_minutes, language, target_audience)
 
     if MOCK_AI:
         return _demo_structure(duration_minutes)
-    act1 = round(duration_minutes * 0.33, 1)
-    act2 = round(duration_minutes * 0.33, 1)
-    act3 = round(duration_minutes - act1 - act2, 1)
+    act1, act2, act3 = _act_split(duration_minutes)
 
     prompt = f"""Create a three act screenplay structure.
 Genre: {genre}
@@ -215,12 +316,8 @@ Respond ONLY with valid JSON in this exact format, no other text:
   "suggested_locations": ["string"]
 }}"""
 
-    raw = _call_claude(BAAKHAPAA_STYLE, prompt, max_tokens=3000)
-    try:
-        cleaned = raw.strip().strip("```json").strip("```").strip()
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        raise RuntimeError("AI response could not be parsed as JSON. Try again.")
+    raw = _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=3000)
+    return _extract_json(raw)
 
 
 def generate_scene(scene_description, genre, tone, language, character_names, act_number=1):
@@ -239,7 +336,7 @@ Format correctly:
 - Dialogue below character name
 {"- Dialogue in Nepali Devanagari script, action lines in English" if language.lower() in ["nepali", "bilingual"] else ""}"""
 
-    return _call_claude(BAAKHAPAA_STYLE, prompt, max_tokens=2000)
+    return _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=2000)
 
 
 def improve_scene(scene_text, instruction, language="English"):
@@ -254,7 +351,7 @@ Language: {language}
 
 Rewrite the scene following the instruction exactly. Keep the same characters, location, and core story beat. Return only the rewritten scene."""
 
-    return _call_claude(BAAKHAPAA_STYLE, prompt, max_tokens=2000)
+    return _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=2000)
 
 
 def suggest_continuations(scene_text, genre, tone):
@@ -273,12 +370,10 @@ Genre: {genre} | Tone: {tone}
 Provide exactly 3 different ways to continue this scene, each 3-5 sentences.
 Respond ONLY with valid JSON: {{"suggestions": ["option 1", "option 2", "option 3"]}}"""
 
-    raw = _call_claude(BAAKHAPAA_STYLE, prompt, max_tokens=1000)
+    raw = _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=1000)
     try:
-        cleaned = raw.strip().strip("```json").strip("```").strip()
-        data = json.loads(cleaned)
-        return data.get("suggestions", [])
-    except json.JSONDecodeError:
+        return _extract_json(raw).get("suggestions", [])
+    except RuntimeError:
         return [raw]
 
 
@@ -292,10 +387,8 @@ def review_script(script_content):
 Check for: character name inconsistencies, missing scene headings, unfinished dialogue, act balance.
 Respond ONLY with valid JSON: {{"issues": [{{"line": 0, "issue": "string", "severity": "high/medium/low"}}]}}"""
 
-    raw = _call_claude(BAAKHAPAA_STYLE, prompt, max_tokens=1000)
+    raw = _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=1000)
     try:
-        cleaned = raw.strip().strip("```json").strip("```").strip()
-        data = json.loads(cleaned)
-        return data.get("issues", [])
-    except json.JSONDecodeError:
+        return _extract_json(raw).get("issues", [])
+    except RuntimeError:
         return []

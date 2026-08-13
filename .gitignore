@@ -18,3 +18,14 @@ Thumbs.db
 # Secrets
 .env
 baakhapaa-backend/baakhapaa_local.db
+
+# Downloaded installers — ~300 MB of tooling that landed in the repo root.
+# Nothing here belongs in version control.
+*.exe
+
+# Corpus fingerprints are generated, and the corpus itself must never be
+# committed (see CLAUDE.md "Copyright"). The fingerprint FILE is safe to
+# commit if you choose to — it holds measurements only, no script text —
+# so this is a convenience default, not a safety rule.
+corpus_fingerprints.json
+baakhapaa-backend/corpus_fingerprints.json

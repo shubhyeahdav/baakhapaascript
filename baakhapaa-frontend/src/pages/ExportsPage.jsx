@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TopNav from "../components/TopNav";
 import { projects, scripts, exportApi } from "../services/api";
+import { downloadBlob, safeFilename } from "../utils/download";
 import { useAuth } from "../context/AuthContext";
 
 const FORMATS = [
@@ -36,15 +37,7 @@ export default function ExportsPage() {
     try {
       const s = await scripts.getByProject(project.id);
       const res = await exportApi[fmt.key](s.data.id);
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      const safe = (project.title || "script").replace(/[^\w\- ]+/g, "").trim() || "script";
-      link.setAttribute("download", `${safe}.${fmt.ext}`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      downloadBlob(res.data, `${safeFilename(project.title)}.${fmt.ext}`);
     } catch (err) {
       alert(err.response?.data?.detail || `Could not export ${fmt.label}.`);
     } finally {
