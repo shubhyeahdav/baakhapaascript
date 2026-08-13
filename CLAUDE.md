@@ -49,7 +49,17 @@ machine). Then:
 - Legal (templates, unreviewed): `Terms_of_Use.md`, `Privacy_Policy.md`,
   `Data_Compliance_Checklist.md` (Nepal law), `Trademark_Check_Guide.md`
 
-## Current State (verified 2026-07-11, updated 2026-07-14 — PROJECT_PLAN.md §6 has the changelog, HANDOVER.md the narrative)
+## Current State (updated 2026-08-13 — PROJECT_PLAN.md §6/§7 has the changelog, HANDOVER.md the narrative)
+
+> **Read `HANDOVER.md` first.** Two things reliably waste a session's first hour:
+> `script_patterns` is often **empty** in the local DB (run
+> `load_knowledge_base.py`, then **restart the backend** — the mock DB caches at
+> startup), and the **script corpus is not on this machine** (no
+> `raw_scripts_TEMP/`, no `D:\AkxyaRup`; this is a single repo at
+> `C:\baakhapaa` on branch `codebase`).
+>
+> Backend tests: **120 across 12 files**, `./venv/Scripts/python -m pytest`.
+> Frontend tests: **zero** — `test:ci` passes vacuously.
 
 **Working (every item re-tested live, demo mode):**
 - Auth (register/login/JWT, protected routes; password strength rules are client-side only)
@@ -61,7 +71,14 @@ machine). Then:
 - Storyboard generation (placeholder frames; frame edit/regenerate routes have no UI)
 - Version history (auto-snapshot on save, restore, set-based diff) + Versions tab
 - Comment threads (Notes tab; line number is manual, not anchored)
-- Collaboration bar (presence; "Solo session" fallback — never tested against real Supabase)
+- **Craft linter** (`POST /scripts/lint`) — deterministic diagnostics built from
+  every craft entry's `warning_sign`; zero AI cost, works on partial drafts,
+  groups flags by `craft_level`
+- **Measurement layer** — `fingerprint.py` / `benchmark.py` /
+  `build_fingerprints.py` + `POST /scripts/benchmark`: compares a draft's shape
+  against corpus percentiles. Gated on draft size, not on a user clicking
+  "done". See `RECOMMENDATION_ARCHITECTURE.md`
+- Screenplay parser (`screenplay.py`) + `.fdx` export
 - Script export PDF/Word/production package (⚠ PDF cannot render Devanagari — ReportLab Courier)
 - Stripe Checkout for Pro/Studio (test/demo mode)
 - **RAG craft grounding** — `knowledge_base.json` (**29 craft entries** across
@@ -85,15 +102,17 @@ machine). Then:
   when `.env` has placeholder keys (test login: `test@example.com` / `password`)
 
 **Not yet built / known broken:**
-- Tier enforcement is **partial** — AI is gated, but the free project limit is
-  unenforced and **Word/package export is gated in the UI only** (the API
-  returns 200 for a free user)
+- Tier enforcement is now **complete** — AI generation, Word/package export, the
+  free project limit (402), and storyboard generation are all gated server-side
 - Devanagari in PDF exports (ReportLab Courier lacks the glyphs) — the last
   true blocker; narrow screenplay column CSS
 - Login rate limiting + server-side password policy (client-side rules only)
 - Custom user-added scenes UI (the API already supports it)
 - NewProject still uses the old Sidebar — shell split half-applied
-- Live cursor/co-editing (out of Phase-1 scope)
+- **Collaboration/presence was REMOVED 2026-08-13** (`CollabBar`, `realtime.js`,
+  `@supabase/supabase-js`) — it showed "Solo session" to every user because it
+  needs real Supabase keys. This contradicts PRD US4, which still lists
+  real-time collaboration as in scope; that reconciliation is PROJECT_PLAN **E7**
 - Real API keys / real Supabase — **all verification to date is demo-mode**
 - GENERATION_ARCHITECTURE.md: the RAG layer shipped; the 4-stage
   scaffold→expansion→critic→revision pipeline is still spec-only

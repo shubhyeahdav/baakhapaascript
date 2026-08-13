@@ -97,11 +97,23 @@ mobile app, video analysis, marketplace.
 
 ## 4. REVISED PRIORITY PLAN
 
+> **Test suite.** `baakhapaa-backend/tests/` — **120 tests across 12 files,
+> ~24s**, no API keys and no embedding model needed. Run with
+> `./venv/Scripts/python -m pytest`. Covers auth and the password policy, login
+> enumeration resistance, rate limiting, cross-account isolation (the
+> 404-not-403 rule), every tier gate, storyboard spend limits, the 33/33/34 act
+> split, Devanagari font selection, the screenplay parser, the craft linter, and
+> the fingerprint/benchmark layer. Runs against a throwaway SQLite file
+> (`LOCAL_DB_PATH`), so it never touches your working database.
+>
+> ⚠ **Frontend has zero tests.** `npm run test:ci` passes `--passWithNoTests`,
+> so it exits green having run nothing. It looks like CI coverage and isn't.
+
 ### A. Blockers (core flow breaks or product promise fails)
 
 | # | Item | Size | Files |
 |---|---|---|---|
-| A1 | **Devanagari in PDF exports** — register a bundled Devanagari-capable TTF (e.g. Noto Sans Devanagari) with ReportLab and use it for script body text; verify Nepali content renders in PDF + package | **M** | `export_service.py`, add font asset |
+| A1 🟡 **code done, asset pending** | **Devanagari in PDF exports** — `export_service._register_devanagari_font()` searches `assets/`, then system paths, and falls back to Courier with a printed warning. Font is chosen **per line** (`_font_for`) so Latin action lines stay monospaced and only Devanagari lines use the proportional face. Verified: `FontFile2` embedded, `AAAAAA+NirmalaUI-0` subset in output. **REMAINING:** Nirmala is a Microsoft font (dev only) — drop `NotoSansDevanagari-Regular.ttf` (SIL OFL) into `baakhapaa-backend/assets/` before deploying, or Linux hosts render blank boxes | **S** remaining | `export_service.py`, add font asset |
 | A2 ✅ done `85a1a9c` | **Dead `/settings` link** — either add a minimal Settings page+route or remove the link | **S** | `Sidebar.jsx`, `App.jsx` |
 | A3 | **First real-keys smoke test** — run the whole flow once with real Claude + DALL-E + Supabase keys; fix whatever surfaces (real-AI JSON parsing, Supabase client differences vs mock, presence). Everything to date is mock-verified only | **M** (unknowns) | `.env`, potentially `script_engine.py`, `database.py`, `realtime.js` |
 
@@ -110,16 +122,17 @@ mobile app, video analysis, marketplace.
 | # | Item | Size | Files |
 |---|---|---|---|
 | B1 ✅ done `3b66222` | Require `JWT_SECRET` from env — remove the fallback, refuse to boot without it (or generate+persist one); set a strong value | **S** | `auth.py`, `.env` |
-| B2 | Rate-limit `/auth/login` (and register) — e.g. slowapi, 5/min/IP | **S** | `main.py`, `auth.py`, `requirements.txt` |
-| B3 | Server-side password policy mirroring the client rules (8+ chars, mixed classes) → clean 400 | **S** | `auth.py` or `models.py` (validator) |
-| B4 | Production CORS allowlist swap (documented, gated on having a domain) | **S** | `main.py` |
-| B5 | Strip the compiled-in test-user hash from non-mock builds (move seed behind explicit `DEMO_SEED=true`) | **S** | `database.py` |
+| B2 ✅ done | Rate-limit `/auth/login` and `/auth/register` — slowapi, 5/min/IP, tunable via `LOGIN_RATE_LIMIT` / `REGISTER_RATE_LIMIT`. Limiter lives in `rate_limit.py` to avoid a circular import with `main`. Verified live: 5×401 then 429. **Note:** set `--proxy-headers` on uvicorn in prod or every request shares one bucket | **S** | `rate_limit.py`, `main.py`, `auth.py`, `requirements.txt` |
+| B3 ✅ done | Server-side password policy — `models.password_policy_errors()` mirrors `frontend/src/utils/password.js` rule for rule; `register` returns 400 naming the unmet rules. 5 parametrised tests | **S** | `models.py`, `auth.py` |
+| B4 ✅ done | CORS is now env-driven: `CORS_ORIGINS=https://a.com,https://b.com` sets an explicit allowlist; unset falls back to the localhost regex **and prints a warning**. Still needs the var set at deploy time | **S** | `main.py` |
+| B5 ✅ done | Demo seed is behind `DEMO_SEED=true` (added to local `.env`). Without it no known-credential account is ever created; the test suite runs with it off | **S** | `database.py` |
+| B6 ✅ done | **(new)** Login no longer leaks account existence by timing. The old code short-circuited on unknown email, skipping bcrypt — a ~1ms vs ~250ms difference that enumerates registered emails. Unknown emails now verify against a dummy hash. Covered by a timing test | **S** | `auth.py` |
 
 ### C. Incomplete features (partially built — finish next)
 
 | # | Item | Size | Files |
 |---|---|---|---|
-| C1 🟡 **partly done** `297f9ed` | **Tier enforcement.** DONE: AI generation is gated — `generate-scene`/`improve`/`suggest` return 403 for free (`require_paid_tier`), `generate-structure` branches to a RAG-only skeleton, free tier gets RAG recommendations. **STILL OPEN:** (a) free project limit — `POST /projects/` returns 200 unlimited; (b) **Word/package export is gated in the UI only — `GET /export/script/word/{id}` returns 200 for a free user** (verified 2026-07-14). Server-side gate needed | **S** remaining | `projects.py`, `export.py` |
+| C1 ✅ done | **Tier enforcement complete.** AI generation was already gated (`297f9ed`). Now also: (a) `projects.enforce_project_limit()` caps free at `FREE_PROJECT_LIMIT = 1` and returns **402**; (b) `auth.require_tier()` gates Word and production-package export server-side. PDF export deliberately stays free — it is advertised on the free plan, and a test asserts the gate doesn't overreach | **S** | `projects.py`, `export.py`, `auth.py` |
 | C2 | **Custom user scenes** — UI to add a scene the AI didn't suggest (API already supports it); pending from an interrupted request | **S** | `ScriptEditor.jsx`, `StructureTimeline.jsx` |
 | C3 ✅ done `a74822e` | **Structure panel minimized state** — compact act-timeline bar when collapsed. Built to design **2b** ("instrument, not diagram"): timecode ruler, proportional scene blocks, dashed outline-only blocks, gold playhead, "X written of Y" | **S** | `CompactTimeline.jsx`, `ScriptEditor.jsx` |
 | C4 | **Storyboard frame editing UI** — per-frame regenerate (description + shot type) and camera-notes editing; backend routes exist unused | **M** | `StoryboardView.jsx` |
@@ -145,14 +158,37 @@ mobile app, video analysis, marketplace.
 GENERATION_ARCHITECTURE.md shipped (`32d0956`, see §6). The remaining spec work
 (4-stage scaffold→expansion→critic→revision pipeline) is still a separate track.
 
-### Suggested order of attack (revised 2026-07-14)
-1. **A1** Devanagari PDF font (last true blocker) →
-2. **B2/B3** rate limit + server-side password policy (one short security pass) →
-3. **C1 remainder** free project limit + server-side export gate (small, and the
-   export gate is currently bypassable) →
-4. **C2** custom scenes (finishes the last interrupted request) →
-5. **A3 + C5 + C7** the real-keys milestone →
-6. **C4, C6** → D-track.
+### E. Added 2026-08-13 (see §7 and `RECOMMENDATION_ARCHITECTURE.md`)
+
+| # | Item | Size | Status |
+|---|---|---|---|
+| E1 ✅ done | **Storyboard spend gate** — generation was open to any authenticated user and looped over *every* scene at DALL-E rates (~$3.20 for a 40-scene script, repeatable, on a NPR 999 plan). Now `require_tier` + `MAX_STORYBOARD_FRAMES=24`; viewing/editing stay free | **S** | `storyboard.py` |
+| E2 ✅ done | **Measurement layer** — `fingerprint.py`, `benchmark.py`, `build_fingerprints.py`, `POST /scripts/benchmark`. This is `SCRIPT_CORPUS_PLAN.md` P1+P4 | **M** | — |
+| E3 ✅ done | **Diagnosis-driven retrieval** — exact technique lookup from linter flags before semantic search; `/scripts/lint` groups by `craft_level` | **S** | `rag.py`, `scripts.py` |
+| E4 ✅ done | **Refactor** — 8 duplication classes collapsed; fixed a leaked object URL in the editor's export path | **M** | multiple |
+| E5 ✅ done | **Cut ZenAudio, CollabBar, `realtime.js`** + dropped `@supabase/supabase-js` | **S** | — |
+| E6 | **Run `build_fingerprints.py` on the real corpus** — blocked, corpus is on another machine | **S** | — |
+| E7 | **Reconcile docs with the presence cut** — PRD US4 still lists real-time collaboration as in scope; `PRD.md`, `TRD.md`, `AUDIT_REPORT.md`, `MONTH_1_REPORT.md`, `SESSION_SUMMARY.md` all still describe it | **S** | docs |
+| E8 | **Frontend test suite** — currently zero tests behind a vacuous `--passWithNoTests` | **M** | — |
+| E9 | **Test asserting the Devanagari font asset exists** — A1 passes CI today and still renders blank boxes on Linux | **S** | `tests/` |
+| E10 | **Layer-2 craft expansion** 29 → ~150–250 entries. At 1000 films this is ~$60–180, not the $5–15 estimated for 117. Techniques saturate; measurements don't — so use all scripts for E2, a curated subset here | **M** + $ | — |
+
+### Suggested order of attack (revised 2026-08-13)
+
+B2/B3, C1 and E1–E5 are done. Remaining:
+
+1. **A1** Devanagari font asset — still the only true blocker, and it is now
+   just a file to drop into `baakhapaa-backend/assets/` (+ **E9**, a test that
+   asserts it exists) →
+2. **E6** corpus fingerprints, on the machine that holds the scripts →
+3. **A3** real-keys smoke test — materially cheaper now that storyboards are
+   gated and can be deferred, so this needs only Claude + Supabase, not DALL-E →
+4. **E7** reconcile the docs with the presence cut (a PRD decision, not a
+   cleanup) →
+5. **C2** custom scenes → **E8** frontend tests → **C4/C6** → D-track.
+
+*Superseded 2026-07-14 order, for reference: A1 → B2/B3 → C1 remainder → C2 →
+A3+C5+C7 → C4/C6 → D.*
 
 ---
 

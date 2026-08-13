@@ -1,0 +1,24 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "${workspaceFolder}/baakhapaa-backend/venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--port", "8000"],
+      "cwd": "${workspaceFolder}/baakhapaa-backend",
+      "port": 8000
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "C:/Program Files/nodejs/npm.cmd",
+      "runtimeArgs": ["start"],
+      "cwd": "${workspaceFolder}/baakhapaa-frontend",
+      "port": 3000,
+      "env": {
+        "BROWSER": "none",
+        "PORT": "3000",
+        "PATH": "C:\\Program Files\\nodejs;C:\\Windows\\System32;C:\\Windows"
+      }
+    }
+  ]
+}
