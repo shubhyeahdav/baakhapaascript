@@ -36,6 +36,14 @@ def create_project(project: ProjectCreate, user_id: str = Depends(get_current_us
         "tone": project.tone,
         "language": project.language,
         "duration_minutes": project.duration_minutes,
+        # Previously dropped on the floor: both were accepted by the request
+        # model and whitelisted for update, but never written on create.
+        "target_audience": project.target_audience,
+        "format": project.format,
+        "episode_count": project.episode_count,
+        "duration_seconds": project.duration_seconds,
+        "hook_type": project.hook_type,
+        "short_form_category": project.short_form_category,
         "status": "draft",
     }).execute()
     return result.data[0]
@@ -59,7 +67,11 @@ def get_project(project_id: str, user_id: str = Depends(get_current_user)):
 
 
 # Only these project fields may be changed from the client (never id/user_id)
-PROJECT_UPDATE_FIELDS = {"title", "genre", "tone", "language", "duration_minutes", "status", "target_audience"}
+PROJECT_UPDATE_FIELDS = {
+    "title", "genre", "tone", "language", "duration_minutes", "status",
+    "target_audience", "format", "episode_count",
+    "duration_seconds", "hook_type", "short_form_category",
+}
 
 
 @router.put("/{project_id}")

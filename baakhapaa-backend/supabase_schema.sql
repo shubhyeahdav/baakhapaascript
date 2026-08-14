@@ -14,6 +14,13 @@ CREATE TABLE users (
 
 -- Existing databases: ALTER TABLE users ADD COLUMN preferences_json TEXT;
 
+-- genre / tone / target_audience are free text on purpose. The UI suggests
+-- common values but must not constrain them: they feed prompts and retrieval,
+-- and a writer whose project is a Nepali social-realist docudrama should not
+-- have to file it under whichever enum value is least wrong.
+--
+-- For format = 'web_series', duration_minutes is ONE EPISODE, not the season.
+-- Season length is duration_minutes * episode_count.
 CREATE TABLE projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -22,9 +29,24 @@ CREATE TABLE projects (
   tone TEXT,
   language TEXT DEFAULT 'English',
   duration_minutes INTEGER,
+  target_audience TEXT DEFAULT 'General',
+  format TEXT DEFAULT 'short',
+  episode_count INTEGER DEFAULT 1,
+  -- short_form only: runtime in SECONDS, plus the two choices that shape a
+  -- vertical video's beat spine. Minutes cannot express a 30-second reel.
+  duration_seconds INTEGER DEFAULT 45,
+  hook_type TEXT DEFAULT 'relatable_pain',
+  short_form_category TEXT DEFAULT 'storytime',
   status TEXT DEFAULT 'draft',
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Migration for databases created before 2026-08-14. target_audience was
+-- accepted by the API and whitelisted for update while never existing as a
+-- column; demo mode hid it because the local mock stores rows as JSON.
+-- ALTER TABLE projects ADD COLUMN IF NOT EXISTS target_audience TEXT DEFAULT 'General';
+-- ALTER TABLE projects ADD COLUMN IF NOT EXISTS format TEXT DEFAULT 'short';
+-- ALTER TABLE projects ADD COLUMN IF NOT EXISTS episode_count INTEGER DEFAULT 1;
 
 CREATE TABLE scripts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -269,6 +269,114 @@ def rag_only_structure(genre, tone, duration_minutes, language, target_audience)
     }
 
 
+# --- short-form -----------------------------------------------------------
+#
+# Vertical social video is not a compressed film. Three acts do not apply:
+# the spine is hook -> escalation -> payoff -> (twist) -> soft CTA, and every
+# beat carries a retention function. A second without one is where viewers
+# leave, which is the only metric this format actually has.
+
+# Proportion of total runtime per beat. The hook is capped in absolute seconds
+# rather than by share, because the window where a viewer decides to stay is
+# about three seconds whether the video runs 20 seconds or 90.
+HOOK_MAX_SECONDS = 3
+
+SHORT_FORM_BEATS = [
+    ("Hook", "stop_scroll", 0.0),
+    ("Escalation", "open_loop", 0.45),
+    ("Core payoff", "payoff", 0.30),
+    ("Twist", "rewatch_trigger", 0.15),
+    ("Soft CTA", "share_trigger", 0.10),
+]
+
+# What the middle and ending owe, per category.
+CATEGORY_SHAPE = {
+    "educational": (
+        "State the counterintuitive claim as fact. No preamble.",
+        "Say why it matters to this viewer, then give exactly ONE concrete mechanism.",
+        "Call back to the opening claim so the loop closes.",
+    ),
+    "storytime": (
+        "Cold-open at the crisis moment, mid-story. No setup first.",
+        "Rewind and compress the setup, escalating back toward the opening moment.",
+        "Pay off past what the opening implied — the twist lands before the CTA.",
+    ),
+    "transformation": (
+        "Flash the after-state in the first frame as proof.",
+        "Compress the process into visible incremental wins.",
+        "Side-by-side comparison, then one takeaway they can act on.",
+    ),
+    "comedy_skit": (
+        "Put the absurd premise inside the FIRST line of dialogue.",
+        "Rule of three: escalate the same joke 3x, each beat shorter than the last.",
+        "The third escalation breaks the pattern. No CTA — the rewatch is the CTA.",
+    ),
+}
+
+HOOK_GUIDANCE = {
+    "pattern_interrupt": "Break the expected rhythm in frame one — an unexpected cut, sound, or position.",
+    "bold_claim": "Open on a contestable statement delivered as settled fact.",
+    "question": "Ask the gap directly, in the viewer's own words.",
+    "visual_shock": "Lead with the image. Let it arrive before any speech.",
+    "relatable_pain": "Name one hyper-specific frustration the viewer already owns.",
+    "curiosity_gap": "Promise a payoff while withholding its shape.",
+}
+
+
+def shorts_structure(genre, tone, duration_seconds, language, target_audience,
+                     hook_type="relatable_pain", category="storytime"):
+    """Beat spine for vertical short-form. No Claude call — this is grammar,
+    not generation, so it costs nothing and works on every tier."""
+    opening, middle, ending = CATEGORY_SHAPE.get(category, CATEGORY_SHAPE["storytime"])
+
+    hook_seconds = min(HOOK_MAX_SECONDS, max(1, round(duration_seconds * 0.12)))
+    remaining = max(1, duration_seconds - hook_seconds)
+
+    beats, elapsed = [], 0
+    for i, (name, retention, share) in enumerate(SHORT_FORM_BEATS):
+        secs = hook_seconds if name == "Hook" else round(remaining * share)
+        # Last beat absorbs rounding so the beats sum to the runtime asked for.
+        if i == len(SHORT_FORM_BEATS) - 1:
+            secs = max(1, duration_seconds - elapsed)
+        secs = max(1, secs)
+
+        if name == "Hook":
+            guidance = f"{HOOK_GUIDANCE.get(hook_type, '')} {opening}".strip()
+        elif name == "Escalation":
+            guidance = middle
+        elif name == "Core payoff":
+            guidance = ending
+        elif name == "Twist":
+            guidance = "Optional. Subvert what the payoff implied — this is what earns a rewatch."
+        else:
+            guidance = "One line, low pressure. A hard ask here costs more reach than it gains."
+
+        beats.append({
+            "beat_number": i + 1,
+            "name": name,
+            "retention_function": retention,
+            "start_second": elapsed,
+            "duration_seconds": secs,
+            "description": guidance,
+        })
+        elapsed += secs
+
+    return {
+        "short_form": True,
+        "hook_type": hook_type,
+        "category": category,
+        "total_seconds": elapsed,
+        "beats": beats,
+        "pattern_sources": [
+            {"takeaway": p.get("technique") or p.get("one_line_takeaway"),
+             "tradition": p["origin_tradition"]}
+            for p in retrieve_relevant_patterns(
+                genre, tone, "my short-form video loses viewers before the payoff", top_k=2
+            )
+        ],
+    }
+
+
 def generate_structure(genre, tone, duration_minutes, language, target_audience):
     # Semantic retrieval replaces pure genre/tone tag matching: the request is
     # embedded and matched against analyzed patterns, so a "sports underdog"

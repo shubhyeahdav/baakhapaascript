@@ -44,9 +44,17 @@ def generate_structure(req: GenerateStructureRequest, project_id: str, user_id: 
     un-added suggestions later without regenerating."""
     require_project_access(project_id, user_id)
     with ai_unavailable_as_503():
+        # Short-form has its own beat spine (hook -> escalation -> payoff ->
+        # twist -> CTA). Running it through a three-act split would produce
+        # advice about act breaks for a 30-second video.
+        if req.format == "short_form":
+            structure = script_engine.shorts_structure(
+                req.genre, req.tone, req.duration_seconds, req.language,
+                req.target_audience, req.hook_type, req.short_form_category,
+            )
         # Freemium split: free tier gets a RAG-grounded skeleton (no Claude
         # call, zero AI cost); Pro/Studio get full Claude generation.
-        if is_paid_tier(user_id):
+        elif is_paid_tier(user_id):
             structure = script_engine.generate_structure(
                 req.genre, req.tone, req.duration_minutes, req.language, req.target_audience
             )
@@ -263,6 +271,11 @@ def get_script(script_id: str, user_id: str = Depends(get_current_user)):
             "tone": project.get("tone"),
             "language": project.get("language"),
             "duration_minutes": project.get("duration_minutes"),
+            # Without these the editor cannot tell a 90-minute feature from one
+            # episode of a series, and every AI call it makes guesses.
+            "target_audience": project.get("target_audience"),
+            "format": project.get("format"),
+            "episode_count": project.get("episode_count"),
         },
     }
 
