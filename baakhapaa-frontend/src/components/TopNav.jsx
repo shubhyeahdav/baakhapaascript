@@ -34,6 +34,7 @@ export default function TopNav({ active = "Projects", right }) {
 
   const items = [
     { label: "Projects", to: "/dashboard" },
+    { label: "Learn", to: "/learn" },
     { label: "Storyboards", to: "/storyboards" },
     { label: "Team", to: "/settings?tab=teammembers" },
     { label: "Exports", to: "/exports" },

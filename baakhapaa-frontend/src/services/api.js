@@ -47,6 +47,12 @@ export const scripts = {
     instance.post(`/scripts/generate-structure?project_id=${projectId}`, data),
   addScene: (data) => instance.post("/scripts/add-scene", data),
   recommendations: (data) => instance.post("/scripts/recommendations", data),
+  // Deterministic craft diagnostics — every tier, no AI cost, works on a
+  // partial draft. Returns flags with line numbers plus by_craft_level.
+  lint: (data) => instance.post("/scripts/lint", data),
+  // Shape comparison against the analysed corpus. Returns {ready:false} with
+  // progress until the draft is big enough to say anything honest about.
+  benchmark: (data) => instance.post("/scripts/benchmark", data),
   generateScene: (data) => instance.post("/scripts/generate-scene", data),
   improve: (data) => instance.post("/scripts/improve", data),
   suggest: (data) => instance.post("/scripts/suggest", data),
@@ -69,6 +75,14 @@ export const comments = {
       script_id: scriptId, content, line_number: lineNumber,
     }),
   remove: (commentId) => instance.delete(`/collaboration/comments/${commentId}`),
+};
+
+export const learn = {
+  lessons: () => instance.get("/learn/lessons"),
+  lesson: (id) => instance.get(`/learn/lessons/${id}`),
+  // Graded by the craft linter, so the verdict is deterministic and free.
+  submit: (id, content) => instance.post(`/learn/lessons/${id}/submit`, { content }),
+  forRule: (rule) => instance.get(`/learn/for-rule/${rule}`),
 };
 
 export const subscription = {

@@ -13,6 +13,7 @@ import versions
 import collaboration
 import export
 import subscription
+import learn
 from rate_limit import limiter
 
 app = FastAPI(title="Baakhapaa API", version="1.0")
@@ -54,6 +55,7 @@ app.include_router(versions.router)
 app.include_router(collaboration.router)
 app.include_router(export.router)
 app.include_router(subscription.router)
+app.include_router(learn.router)
 
 
 @app.get("/health")

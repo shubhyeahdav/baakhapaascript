@@ -15,6 +15,7 @@ import PricingPage from "./pages/PricingPage";
 import SettingsPage from "./pages/SettingsPage";
 import StoryboardsPage from "./pages/StoryboardsPage";
 import ExportsPage from "./pages/ExportsPage";
+import LearnPage from "./pages/LearnPage";
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/storyboards" element={<ProtectedRoute><StoryboardsPage /></ProtectedRoute>} />
           <Route path="/exports" element={<ProtectedRoute><ExportsPage /></ProtectedRoute>} />
+          <Route path="/learn" element={<ProtectedRoute><LearnPage /></ProtectedRoute>} />
           <Route path="/projects/:id/editor" element={<ProtectedRoute><ScriptEditor /></ProtectedRoute>} />
           <Route path="/projects/:id/storyboard" element={<ProtectedRoute><StoryboardView /></ProtectedRoute>} />
         </Routes>
