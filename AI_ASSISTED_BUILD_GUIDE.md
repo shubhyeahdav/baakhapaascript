@@ -37,11 +37,17 @@ clearest link to output quality. The reasoning:
 > Claude stops when the work looks done. Without a check it can run, "looks done" is the
 > only signal available, and you become the verification loop.
 
-**This project currently has zero automated tests.** No `test_*.py`, no `*.test.jsx`, no
+> **Status update (2026-08-13):** this section's premise has been addressed on the
+> backend. There are now **120 tests across 12 files**, runnable with
+> `./venv/Scripts/python -m pytest`. The argument below is kept because it explains
+> *why* they matter — and because **the frontend still has zero tests**:
+> `npm run test:ci` passes `--passWithNoTests`, so it exits green having run nothing.
+> That is worse than having no script at all, because it looks like coverage in CI.
+
+**This project originally had zero automated tests.** No `test_*.py`, no `*.test.jsx`, no
 pytest in `requirements.txt`, and no test script in `package.json`. Every correctness
-check in Months 1 has been you or me looking at the screen. That is the main structural
-weakness going into the harder half of the build, and it is worth fixing before Week 5
-rather than after Week 12.
+check in Month 1 was you or me looking at the screen. That was the main structural
+weakness going into the harder half of the build.
 
 You do not need full coverage. You need a signal an agent can read. Start here:
 

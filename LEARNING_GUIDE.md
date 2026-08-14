@@ -26,8 +26,9 @@ npm start
 ```
 Open http://localhost:3000 (or :3001). Log in with `test@example.com` / `password`.
 
-> Reminder: the demo database is in-memory — restarting the backend wipes all
-> accounts and projects. Just register/log in again.
+> The demo database is **SQLite on disk** (`baakhapaa-backend/baakhapaa_local.db`),
+> so restarts keep your accounts and projects. Delete that file to reset.
+> (An earlier version of this guide said in-memory — that changed in `80c4da2`.)
 
 ---
 
@@ -66,6 +67,11 @@ with a status code: `200` = ok, `401` = not logged in, `404` = not found,
 | `database.py` | Reading/writing the database. |
 | `projects.py` / `scripts.py` / `storyboard.py` / `versions.py` / `collaboration.py` / `export.py` | One topic of endpoints each. |
 | `script_engine.py` / `storyboard_engine.py` | The AI calls (Claude, DALL·E). |
+| `rag.py` | Semantic search over the craft library (local embeddings, no API key). |
+| `screenplay.py` | Turns editor text into typed elements and scenes. The parser everything else reads. |
+| `linter.py` | Deterministic craft diagnostics. **No AI at all** — pure rules. |
+| `fingerprint.py` / `benchmark.py` | Measures a script; compares its shape to corpus percentiles. |
+| `updates.py` / `rate_limit.py` | Small shared helpers (field whitelisting, per-IP limits). |
 
 **Frontend** (`src/`):
 | Folder/File | What it does |

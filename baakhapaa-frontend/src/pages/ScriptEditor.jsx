@@ -4,6 +4,7 @@ import { scripts, exportApi } from "../services/api";
 import { downloadBlob } from "../utils/download";
 import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
+import CraftPanel from "../components/CraftPanel";
 import StructureTimeline from "../components/StructureTimeline";
 import CompactTimeline from "../components/CompactTimeline";
 
@@ -33,6 +34,11 @@ export default function ScriptEditor() {
   const [panelTab, setPanelTab] = useState("ai");
   const [patterns, setPatterns] = useState(null);
   const [patternsLoading, setPatternsLoading] = useState(false);
+  // Why the current patterns were chosen: [] plus "similarity" means nothing
+  // was flagged and these are semantic matches; a populated list plus
+  // "diagnosis" means each one answers a specific flagged line.
+  const [diagnosed, setDiagnosed] = useState([]);
+  const [patternSource, setPatternSource] = useState("similarity");
   const [focus, setFocus] = useState("scene");
   const [openPattern, setOpenPattern] = useState(null);
 
@@ -279,8 +285,14 @@ export default function ScriptEditor() {
         tone,
       });
       setPatterns(res.data.patterns);
+      // `diagnosed` is why these patterns came back: the linter flagged a
+      // specific line and named the technique that fixes it. Showing the
+      // reason is the difference between advice and a horoscope.
+      setDiagnosed(res.data.diagnosed || []);
+      setPatternSource(res.data.source || "similarity");
     } catch (err) {
       setPatterns([]);
+      setDiagnosed([]);
     } finally {
       setPatternsLoading(false);
     }
@@ -540,6 +552,7 @@ export default function ScriptEditor() {
             <div className="flex gap-2 mb-4">
               {[
                 { key: "ai", label: "AI Writer" },
+                { key: "craft", label: "Craft" },
                 { key: "versions", label: "Versions" },
                 { key: "comments", label: "Notes" },
               ].map((t) => (
@@ -554,6 +567,12 @@ export default function ScriptEditor() {
                 </button>
               ))}
             </div>
+
+            {/* Remounts on open so it re-reads the current draft rather than
+                showing a check from three edits ago. */}
+            {panelTab === "craft" && (
+              <CraftPanel content={content} genre={genre} tone={tone} />
+            )}
 
             {panelTab === "versions" && (
               <VersionHistory scriptId={id} onRestore={(restored) => setContent(restored)} />
@@ -611,6 +630,24 @@ export default function ScriptEditor() {
                     {patternsLoading ? "Matching…" : "↻ Refresh"}
                   </button>
                 </div>
+
+                {/* Say why. Generic advice is the single most common complaint
+                    writers make about paid script coverage — naming the line
+                    that triggered each pattern is what separates this from it. */}
+                {patternSource === "diagnosis" && diagnosed.length > 0 && (
+                  <div className="mb-3 rounded-xl border border-gold/25 bg-goldDim/40 p-3">
+                    <div className="font-mono text-[9.5px] uppercase tracking-wider text-gold mb-1.5">
+                      Found in your draft
+                    </div>
+                    <ul className="space-y-1">
+                      {diagnosed.map((d) => (
+                        <li key={`${d.rule}-${d.line}`} className="text-[11.5px] text-inkSoft leading-snug">
+                          <span className="font-mono text-gold/80">L{d.line}</span> — {d.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -643,6 +680,11 @@ export default function ScriptEditor() {
                 <div className="space-y-2">
                   {patterns?.map((p, i) => {
                     const open = openPattern === i;
+                    // An exact hit came from a linter flag, not from embedding
+                    // distance. Its similarity is a placeholder 1.0, so showing
+                    // "100%" would dress a diagnosis up as a perfect semantic
+                    // match. Show the line it answers instead.
+                    const hit = diagnosed.find((d) => d.technique === p.technique);
                     return (
                       <button
                         key={i}
@@ -656,7 +698,7 @@ export default function ScriptEditor() {
                             {p.craft_level || "craft"} · {p.origin_tradition}
                           </span>
                           <span className="font-mono text-[10px] text-inkMuted shrink-0">
-                            {Math.round(p.similarity * 100)}%
+                            {hit ? `line ${hit.line}` : `${Math.round((p.similarity || 0) * 100)}%`}
                           </span>
                         </div>
                         {/* Lead with the technique. The mechanics, the concrete
