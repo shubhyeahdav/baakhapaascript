@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { scripts, exportApi } from "../services/api";
 import { downloadBlob } from "../utils/download";
@@ -6,6 +6,7 @@ import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
 import CraftPanel from "../components/CraftPanel";
 import FormatGuide from "../components/FormatGuide";
+import FormatShortcuts, { harvestVocabulary, suggestFor } from "../components/FormatShortcuts";
 import StructureTimeline from "../components/StructureTimeline";
 import ShortFormTimeline from "../components/ShortFormTimeline";
 import CompactTimeline from "../components/CompactTimeline";
@@ -52,6 +53,12 @@ export default function ScriptEditor() {
   };
   const [showGuide, setShowGuide] = useState(false);
   const [currentLine, setCurrentLine] = useState("");
+
+  // Type-ahead completion. `suggest` holds what the caret position offers;
+  // `suggestIndex` is which one Tab will take.
+  const [suggest, setSuggest] = useState(null);
+  const [suggestIndex, setSuggestIndex] = useState(0);
+  const [dismissed, setDismissed] = useState(false);
   const [focus, setFocus] = useState("scene");
   const [openPattern, setOpenPattern] = useState(null);
 
@@ -76,12 +83,50 @@ export default function ScriptEditor() {
     try { localStorage.setItem("baakhapaa.formatGuide.off", "1"); } catch { /* private mode */ }
   };
 
-  // Which line the caret sits on, for the guide's live indicator.
+  // Vocabulary for type-ahead — locations and character names already in the
+  // draft. Recomputed only when the text changes, not per keystroke of the
+  // caret moving.
+  const vocab = useMemo(() => harvestVocabulary(content), [content]);
+
+  // Which line the caret sits on — drives both the guide's live indicator and
+  // the completion offered.
   const trackCaret = (e) => {
     const { value, selectionStart } = e.target;
     const start = value.lastIndexOf("\n", selectionStart - 1) + 1;
     const end = value.indexOf("\n", selectionStart);
-    setCurrentLine(value.slice(start, end === -1 ? value.length : end));
+    const line = value.slice(start, end === -1 ? value.length : end);
+    setCurrentLine(line);
+
+    const next = suggestFor(line, selectionStart - start, vocab);
+    setSuggest(next?.options?.length ? next : null);
+    setSuggestIndex(0);
+  };
+
+  /** Replace the typed fragment on the current line with a completion. */
+  const applySuggestion = (index) => {
+    const ta = textareaRef.current;
+    if (!ta || !suggest) return;
+    const option = suggest.options[index];
+    if (!option) return;
+
+    const { value, selectionStart } = ta;
+    const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
+    // Replace only the fragment the caret is sitting after, so a completion
+    // never eats text the writer typed earlier on the line.
+    const from = selectionStart - suggest.fragment.length;
+
+    ta.focus();
+    ta.setSelectionRange(from, selectionStart);
+    // Go through the browser's editing pipeline so Ctrl+Z still undoes it.
+    if (!document.execCommand("insertText", false, option)) {
+      const updated = value.slice(0, from) + option + value.slice(selectionStart);
+      setContent(updated);
+      const caret = from + option.length;
+      requestAnimationFrame(() => ta.setSelectionRange(caret, caret));
+    }
+    setSuggest(null);
+    setDismissed(false);
+    void lineStart;
   };
 
   // Custom Screenwriting Usability State
@@ -386,6 +431,35 @@ export default function ScriptEditor() {
 
   // Keyboard Navigation & Screenwriting Tab-and-Enter helper rules
   const handleKeyDown = (e) => {
+    // Completion keys, only while a suggestion is showing. Tab is the key a
+    // screenwriter already reaches for to "make the format right", so it does
+    // both jobs: take the completion when there is one, cycle the indent when
+    // there isn't. The two never compete — a suggestion requires typed text,
+    // and indent-cycling is what you want on a line you haven't typed on yet.
+    const open = suggest && !dismissed;
+    if (open) {
+      if (e.key === "Tab" || (e.key === "Enter" && suggest.options.length === 1)) {
+        e.preventDefault();
+        applySuggestion(suggestIndex);
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSuggestIndex((i) => (i + 1) % suggest.options.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSuggestIndex((i) => (i - 1 + suggest.options.length) % suggest.options.length);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setDismissed(true);
+        return;
+      }
+    }
+
     if (e.key === "Tab") {
       e.preventDefault();
       const { selectionStart, selectionEnd, value } = e.target;
@@ -594,12 +668,23 @@ export default function ScriptEditor() {
               className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} resize-none`}
               placeholder="Type Scene Headings starting with INT. or EXT., and press TAB to format characters, parentheticals, and dialogue..."
               value={content}
-              onChange={(e) => { setContent(e.target.value); trackCaret(e); }}
+              onChange={(e) => { setContent(e.target.value); setDismissed(false); trackCaret(e); }}
               onKeyDown={handleKeyDown}
               onClick={trackCaret}
               onKeyUp={trackCaret}
+              onBlur={() => setSuggest(null)}
             />
           </div>
+
+          {/* Type-ahead strip. Hidden in zen mode — the point of focus mode is
+              that nothing appears while you write. */}
+          {!zenMode && !dismissed && (
+            <FormatShortcuts
+              options={suggest?.options}
+              activeIndex={suggestIndex}
+              onPick={applySuggestion}
+            />
+          )}
         </div>
 
         {/* Format guide — sits between the page and the assistant so the
