@@ -5,6 +5,7 @@ import { downloadBlob } from "../utils/download";
 import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
 import CraftPanel from "../components/CraftPanel";
+import FormatGuide from "../components/FormatGuide";
 import StructureTimeline from "../components/StructureTimeline";
 import ShortFormTimeline from "../components/ShortFormTimeline";
 import CompactTimeline from "../components/CompactTimeline";
@@ -40,6 +41,17 @@ export default function ScriptEditor() {
   // "diagnosis" means each one answers a specific flagged line.
   const [diagnosed, setDiagnosed] = useState([]);
   const [patternSource, setPatternSource] = useState("similarity");
+
+  // Format guide. Onboarding's first-timer option promises "show me what a
+  // slugline is and check my format as I write", so honour that answer by
+  // default — but remember a dismissal, because a guide that returns every
+  // session is a guide people learn to close rather than read.
+  const guideDismissed = () => {
+    try { return localStorage.getItem("baakhapaa.formatGuide.off") === "1"; }
+    catch { return false; }
+  };
+  const [showGuide, setShowGuide] = useState(false);
+  const [currentLine, setCurrentLine] = useState("");
   const [focus, setFocus] = useState("scene");
   const [openPattern, setOpenPattern] = useState(null);
 
@@ -51,6 +63,26 @@ export default function ScriptEditor() {
   useEffect(() => {
     if (isFree) setAiMode("patterns");
   }, [isFree]);
+
+  // Open the guide for writers who said this is their first screenplay.
+  useEffect(() => {
+    if (user?.preferences?.experience === "first_time" && !guideDismissed()) {
+      setShowGuide(true);
+    }
+  }, [user]); // eslint-disable-line
+
+  const closeGuide = () => {
+    setShowGuide(false);
+    try { localStorage.setItem("baakhapaa.formatGuide.off", "1"); } catch { /* private mode */ }
+  };
+
+  // Which line the caret sits on, for the guide's live indicator.
+  const trackCaret = (e) => {
+    const { value, selectionStart } = e.target;
+    const start = value.lastIndexOf("\n", selectionStart - 1) + 1;
+    const end = value.indexOf("\n", selectionStart);
+    setCurrentLine(value.slice(start, end === -1 ? value.length : end));
+  };
 
   // Custom Screenwriting Usability State
   const [zenMode, setZenMode] = useState(false);
@@ -446,8 +478,24 @@ export default function ScriptEditor() {
         </div>
         <div className="flex gap-3 items-center">
           <span className="text-[11px] font-semibold text-inkMuted uppercase tracking-wider mr-2">{saving ? "Saving..." : "Synced"}</span>
-          <button 
-            onClick={() => setZenMode(!zenMode)} 
+          <button
+            onClick={() => {
+              setShowGuide((v) => !v);
+              // Reopening is a decision too — respect it next session.
+              try { localStorage.setItem("baakhapaa.formatGuide.off", showGuide ? "1" : "0"); }
+              catch { /* private mode */ }
+            }}
+            title="Screenplay format guide"
+            className={`p-2 rounded-lg border transition duration-200 ${
+              showGuide ? "bg-goldDim border-gold text-gold" : "bg-bg border-border text-inkMuted hover:text-ink"
+            }`}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </button>
+          <button
+            onClick={() => setZenMode(!zenMode)}
             className={`p-2 rounded-lg border transition duration-200 ${zenMode ? "bg-goldDim border-gold text-gold" : "bg-bg border-border text-inkMuted hover:text-ink"}`}
             title="Zen Focus Mode"
           >
@@ -546,11 +594,19 @@ export default function ScriptEditor() {
               className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} resize-none`}
               placeholder="Type Scene Headings starting with INT. or EXT., and press TAB to format characters, parentheticals, and dialogue..."
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => { setContent(e.target.value); trackCaret(e); }}
               onKeyDown={handleKeyDown}
+              onClick={trackCaret}
+              onKeyUp={trackCaret}
             />
           </div>
         </div>
+
+        {/* Format guide — sits between the page and the assistant so the
+            example column lines up beside what you are typing. */}
+        {showGuide && !zenMode && (
+          <FormatGuide currentLine={currentLine} onClose={closeGuide} />
+        )}
 
         {/* AI Assistant */}
         {!zenMode && (
