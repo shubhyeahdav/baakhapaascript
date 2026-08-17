@@ -25,6 +25,38 @@ export default function CompactTimeline({
   onSceneClick,
   onExpand,
 }) {
+  // Short-form has beats, not acts. Rather than returning null — which left
+  // the minimized strip blank for every short-form project — collapse to a
+  // one-line beat bar so runtime and shape stay visible while writing.
+  if (suggestions?.short_form) {
+    const beats = suggestions.beats || [];
+    const total = suggestions.total_seconds || 1;
+    return (
+      <button
+        onClick={onExpand}
+        title="Expand the beat sheet"
+        className="shrink-0 w-full border-b border-border bg-surface/60 px-5 py-2.5 text-left hover:bg-surface/80 transition-colors"
+      >
+        <div className="flex items-baseline justify-between mb-1.5">
+          <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-inkMuted">
+            {suggestions.category?.replace("_", " ")} · {beats.length} beats
+          </span>
+          <span className="font-mono text-[9.5px] text-inkMuted">{total}s</span>
+        </div>
+        <div className="flex gap-0.5 h-1.5 rounded-full overflow-hidden">
+          {beats.map((b, i) => (
+            <div
+              key={b.beat_number}
+              title={`${b.name} · ${b.duration_seconds}s`}
+              style={{ width: `${(b.duration_seconds / total) * 100}%` }}
+              className={i === 0 ? "bg-gold/70" : i < 3 ? "bg-gold/40" : "bg-inkMuted/30"}
+            />
+          ))}
+        </div>
+      </button>
+    );
+  }
+
   const sugActs = suggestions?.acts || [];
   const addedKeys = new Set(scenes.map((s) => `${s.act_number}:${s.title}`));
 
