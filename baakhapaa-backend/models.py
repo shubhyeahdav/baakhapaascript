@@ -255,6 +255,54 @@ class LessonSubmission(BaseModel):
     content: str = ""
 
 
+# --- story bible ----------------------------------------------------------
+#
+# The material a script needs to exist but that never appears on the page:
+# who these people are, what they want, what the story is actually about.
+# Writers keep it in a separate document anyway — keeping it beside the draft
+# means the editor can use it (character names feed the type-ahead) instead of
+# it being a notes file the app knows nothing about.
+
+MAX_BIBLE_CHARACTERS = 40
+MAX_BIBLE_LOCATIONS = 60
+
+
+class BibleCharacter(BaseModel):
+    name: str = ""
+    age: str = ""
+    # Want is what they chase; need is what would actually help. Stories work
+    # when those are not the same thing, so they are separate fields.
+    want: str = ""
+    need: str = ""
+    wound: str = ""
+    voice: str = ""
+    notes: str = ""
+
+
+class StoryBible(BaseModel):
+    logline: str = ""
+    # The question the script poses in act one and answers at the end.
+    dramatic_question: str = ""
+    theme: str = ""
+    characters: List[BibleCharacter] = []
+    locations: List[str] = []
+    notes: str = ""
+
+    @field_validator("characters")
+    @classmethod
+    def _characters(cls, v):
+        if len(v) > MAX_BIBLE_CHARACTERS:
+            raise ValueError(f"at most {MAX_BIBLE_CHARACTERS} characters")
+        return v
+
+    @field_validator("locations")
+    @classmethod
+    def _locations(cls, v):
+        if len(v) > MAX_BIBLE_LOCATIONS:
+            raise ValueError(f"at most {MAX_BIBLE_LOCATIONS} locations")
+        return [loc.strip() for loc in v if loc and loc.strip()]
+
+
 class AddSceneRequest(BaseModel):
     script_id: str
     title: str

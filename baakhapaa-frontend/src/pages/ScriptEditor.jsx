@@ -5,8 +5,24 @@ import { downloadBlob } from "../utils/download";
 import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
 import CraftPanel from "../components/CraftPanel";
-import FormatGuide from "../components/FormatGuide";
 import FormatShortcuts, { harvestVocabulary, suggestFor } from "../components/FormatShortcuts";
+import StoryBible from "../components/StoryBible";
+
+// What the shortcuts dropdown lists. Kept beside the editor rather than in
+// FormatShortcuts so the reference and the engine can't silently disagree
+// about which letters do what — this is the one place a human reads them.
+const SHORTCUT_HINTS = [
+  { keys: "i", gives: "INT.", where: "line start" },
+  { keys: "e", gives: "EXT.", where: "line start" },
+  { keys: "c", gives: "CUT TO:", where: "line start" },
+  { keys: "f", gives: "FADE IN: / OUT.", where: "line start" },
+  { keys: "d", gives: "DAY / DAWN / DUSK", where: "after  - " },
+  { keys: "n", gives: "NIGHT", where: "after  - " },
+  { keys: "m", gives: "MORNING", where: "after  - " },
+  { keys: "a–z", gives: "a location", where: "after INT." },
+  { keys: "a–z", gives: "a character", where: "cue column" },
+  { keys: "(", gives: "(beat), (V.O.)…", where: "parenthetical" },
+];
 import StructureTimeline from "../components/StructureTimeline";
 import ShortFormTimeline from "../components/ShortFormTimeline";
 import CompactTimeline from "../components/CompactTimeline";
@@ -43,22 +59,13 @@ export default function ScriptEditor() {
   const [diagnosed, setDiagnosed] = useState([]);
   const [patternSource, setPatternSource] = useState("similarity");
 
-  // Format guide. Onboarding's first-timer option promises "show me what a
-  // slugline is and check my format as I write", so honour that answer by
-  // default — but remember a dismissal, because a guide that returns every
-  // session is a guide people learn to close rather than read.
-  const guideDismissed = () => {
-    try { return localStorage.getItem("baakhapaa.formatGuide.off") === "1"; }
-    catch { return false; }
-  };
-  const [showGuide, setShowGuide] = useState(false);
-  const [currentLine, setCurrentLine] = useState("");
-
   // Type-ahead completion. `suggest` holds what the caret position offers;
   // `suggestIndex` is which one Tab will take.
   const [suggest, setSuggest] = useState(null);
   const [suggestIndex, setSuggestIndex] = useState(0);
   const [dismissed, setDismissed] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [bible, setBible] = useState(null);
   const [focus, setFocus] = useState("scene");
   const [openPattern, setOpenPattern] = useState(null);
 
@@ -71,31 +78,38 @@ export default function ScriptEditor() {
     if (isFree) setAiMode("patterns");
   }, [isFree]);
 
-  // Open the guide for writers who said this is their first screenplay.
+  // Close the shortcuts dropdown on an outside click. Not onBlur — a blur
+  // fires on the opening click itself in some browsers, which closes the panel
+  // in the same gesture that opened it.
   useEffect(() => {
-    if (user?.preferences?.experience === "first_time" && !guideDismissed()) {
-      setShowGuide(true);
-    }
-  }, [user]); // eslint-disable-line
+    if (!showShortcuts) return undefined;
+    const close = (e) => {
+      if (!e.target.closest?.("[data-shortcuts]")) setShowShortcuts(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [showShortcuts]);
 
-  const closeGuide = () => {
-    setShowGuide(false);
-    try { localStorage.setItem("baakhapaa.formatGuide.off", "1"); } catch { /* private mode */ }
-  };
+  // Vocabulary for type-ahead. The draft is the primary source, but the story
+  // bible is merged in so a character can be completed the first time they are
+  // written — before they have ever appeared on the page, which is exactly
+  // when the completion is most useful.
+  const vocab = useMemo(() => {
+    const harvested = harvestVocabulary(content);
+    const fromBible = bible?.characters?.map((c) => (c.name || "").trim().toUpperCase()) || [];
+    const bibleLocations = bible?.locations?.map((l) => l.trim().toUpperCase()) || [];
+    return {
+      characters: [...new Set([...harvested.characters, ...fromBible.filter(Boolean)])],
+      locations: [...new Set([...harvested.locations, ...bibleLocations.filter(Boolean)])],
+    };
+  }, [content, bible]);
 
-  // Vocabulary for type-ahead — locations and character names already in the
-  // draft. Recomputed only when the text changes, not per keystroke of the
-  // caret moving.
-  const vocab = useMemo(() => harvestVocabulary(content), [content]);
-
-  // Which line the caret sits on — drives both the guide's live indicator and
-  // the completion offered.
+  // The line the caret sits on decides what completion is offered.
   const trackCaret = (e) => {
     const { value, selectionStart } = e.target;
     const start = value.lastIndexOf("\n", selectionStart - 1) + 1;
     const end = value.indexOf("\n", selectionStart);
     const line = value.slice(start, end === -1 ? value.length : end);
-    setCurrentLine(line);
 
     const next = suggestFor(line, selectionStart - start, vocab);
     setSuggest(next?.options?.length ? next : null);
@@ -209,6 +223,9 @@ export default function ScriptEditor() {
       .then((res) => {
         setScript(res.data);
         setContent(res.data.content || "");
+        // Arrives with the script so the type-ahead has character names
+        // before the first keystroke, not after a second round trip.
+        setBible(res.data.bible || null);
         // Open the structure preview by default when the script has AI
         // suggestions but no scenes added yet (fresh from the wizard).
         if (res.data.suggestions_json && (res.data.scenes || []).length === 0) {
@@ -552,22 +569,40 @@ export default function ScriptEditor() {
         </div>
         <div className="flex gap-3 items-center">
           <span className="text-[11px] font-semibold text-inkMuted uppercase tracking-wider mr-2">{saving ? "Saving..." : "Synced"}</span>
-          <button
-            onClick={() => {
-              setShowGuide((v) => !v);
-              // Reopening is a decision too — respect it next session.
-              try { localStorage.setItem("baakhapaa.formatGuide.off", showGuide ? "1" : "0"); }
-              catch { /* private mode */ }
-            }}
-            title="Screenplay format guide"
-            className={`p-2 rounded-lg border transition duration-200 ${
-              showGuide ? "bg-goldDim border-gold text-gold" : "bg-bg border-border text-inkMuted hover:text-ink"
-            }`}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-            </svg>
-          </button>
+          {/* Shortcut reference. A dropdown rather than a standing panel:
+              you need it while learning the letters and never again, so it
+              shouldn't hold editor width permanently. */}
+          <div className="relative" data-shortcuts>
+            <button
+              onClick={() => setShowShortcuts((v) => !v)}
+              title="Format shortcuts"
+              className={`px-2.5 py-2 rounded-lg border transition duration-200 font-mono text-[11px] ${
+                showShortcuts ? "bg-goldDim border-gold text-gold" : "bg-bg border-border text-inkMuted hover:text-ink"
+              }`}
+            >
+              ⌨ shortcuts
+            </button>
+            {showShortcuts && (
+              <div className="absolute right-0 top-full mt-1.5 w-72 z-30 rounded-xl border border-borderSoft bg-surface shadow-card p-3">
+                <p className="text-[11px] text-inkMuted mb-2.5 leading-snug">
+                  Type the letter, press <kbd className="px-1 py-0.5 rounded bg-elevated border border-borderSoft font-mono text-[10px]">Tab</kbd>.
+                </p>
+                <div className="space-y-1">
+                  {SHORTCUT_HINTS.map((s) => (
+                    <div key={s.keys + s.gives} className="flex items-baseline gap-2 text-[11.5px]">
+                      <span className="font-mono text-gold w-8 shrink-0">{s.keys}</span>
+                      <span className="font-mono text-inkSoft">{s.gives}</span>
+                      <span className="text-inkMuted text-[10.5px] ml-auto shrink-0">{s.where}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10.5px] text-inkMuted mt-2.5 pt-2 border-t border-borderSoft leading-snug">
+                  Character names and locations come from your draft and your
+                  Story tab.
+                </p>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => setZenMode(!zenMode)}
             className={`p-2 rounded-lg border transition duration-200 ${zenMode ? "bg-goldDim border-gold text-gold" : "bg-bg border-border text-inkMuted hover:text-ink"}`}
@@ -689,16 +724,14 @@ export default function ScriptEditor() {
 
         {/* Format guide — sits between the page and the assistant so the
             example column lines up beside what you are typing. */}
-        {showGuide && !zenMode && (
-          <FormatGuide currentLine={currentLine} onClose={closeGuide} />
-        )}
 
         {/* AI Assistant */}
         {!zenMode && (
           <aside className="w-80 bg-surface border-l border-border p-5 overflow-y-auto shrink-0 animate-fade-up flex flex-col">
             <div className="flex gap-2 mb-4">
               {[
-                { key: "ai", label: "AI Writer" },
+                { key: "ai", label: "AI" },
+                { key: "story", label: "Story" },
                 { key: "craft", label: "Craft" },
                 { key: "versions", label: "Versions" },
                 { key: "comments", label: "Notes" },
@@ -717,6 +750,10 @@ export default function ScriptEditor() {
 
             {/* Remounts on open so it re-reads the current draft rather than
                 showing a check from three edits ago. */}
+            {panelTab === "story" && (
+              <StoryBible scriptId={id} initial={bible} onChange={setBible} />
+            )}
+
             {panelTab === "craft" && (
               <CraftPanel content={content} genre={genre} tone={tone} />
             )}

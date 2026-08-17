@@ -67,6 +67,31 @@ class TestFingerprint:
         fp = fingerprint.fingerprint("")
         assert fp["scene_count"] == 0 and fp["valid"] is False
 
+    def test_every_comparable_metric_is_length_independent(self):
+        """A short and a feature of the same SHAPE must score alike.
+
+        Regression: longest_scene_pages was benchmarked raw, so a two-page
+        short scored the 0th percentile against features and was told its
+        longest scene was short -- which only restated that it was a short.
+        """
+        # Locations must scale with length or the fixture invents a length
+        # dependence real scripts do not have: measured across 785 screenplays,
+        # location_churn correlates with page count at r = -0.02. Capping the
+        # pool at four would make a 60-scene script reuse each location 15
+        # times and fail this for a reason that exists only in the fixture.
+        def locs(n):
+            return [f"PLACE {i}" for i in range(max(1, int(n * 0.6)))]
+
+        short = fingerprint.fingerprint(make_script(scenes=6, locations=locs(6)))
+        feature = fingerprint.fingerprint(make_script(scenes=60, locations=locs(60)))
+        for metric in fingerprint.COMPARABLE_METRICS:
+            a, b = short.get(metric), feature.get(metric)
+            if a is None or b is None:
+                continue
+            assert abs(a - b) < 0.2, (
+                f"{metric} moved {a} -> {b} on length alone; it is not comparable"
+            )
+
 
 def corpus(n=20, **kw):
     return [fingerprint.fingerprint(make_script(**kw), title_ref=f"f{i}", genre="drama")

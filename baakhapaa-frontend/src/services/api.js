@@ -42,6 +42,9 @@ export const scripts = {
   getById: (id) => instance.get(`/scripts/${id}`),
   getByProject: (projectId) => instance.get(`/scripts/project/${projectId}`),
   save: (id, content) => instance.put(`/scripts/${id}`, { content }),
+  // Story bible — character sheets, logline, theme, locations.
+  bible: (id) => instance.get(`/scripts/${id}/bible`),
+  saveBible: (id, bible) => instance.put(`/scripts/${id}/bible`, bible),
   finalize: (id) => instance.post(`/scripts/${id}/finalize`),
   generateStructure: (data, projectId) =>
     instance.post(`/scripts/generate-structure?project_id=${projectId}`, data),

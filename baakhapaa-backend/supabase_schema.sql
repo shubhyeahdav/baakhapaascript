@@ -48,8 +48,12 @@ CREATE TABLE projects (
 -- ALTER TABLE projects ADD COLUMN IF NOT EXISTS format TEXT DEFAULT 'short';
 -- ALTER TABLE projects ADD COLUMN IF NOT EXISTS episode_count INTEGER DEFAULT 1;
 
+-- bible_json holds the story bible (logline, dramatic question, theme,
+-- character sheets, locations) as a JSON string — one nullable column rather
+-- than a migration per field, same pattern as suggestions_json.
 CREATE TABLE scripts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  bible_json TEXT,
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
   content TEXT DEFAULT '',
   status TEXT DEFAULT 'draft',

@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from models import (
     GenerateStructureRequest, GenerateSceneRequest,
     ImproveSceneRequest, SuggestRequest, ScriptSave, AddSceneRequest,
-    RecommendRequest,
+    RecommendRequest, StoryBible,
 )
 from database import supabase, get_project_by_id, get_scenes_by_script
 from auth import (
@@ -271,6 +271,9 @@ def get_script(script_id: str, user_id: str = Depends(get_current_user)):
     return {
         **script,
         "scenes": scenes,
+        # Parsed so the editor gets it in the same call that loads the draft —
+        # the type-ahead needs character names before the first keystroke.
+        "bible": _read_bible(script),
         "project": {
             "title": project.get("title"),
             "genre": project.get("genre"),
@@ -289,6 +292,35 @@ def get_script(script_id: str, user_id: str = Depends(get_current_user)):
             "short_form_category": project.get("short_form_category"),
         },
     }
+
+
+def _read_bible(script: dict) -> dict:
+    """Stored as a JSON string so the scripts table needs one nullable column
+    rather than a migration per new field. Same shape as suggestions_json."""
+    raw = script.get("bible_json")
+    if not raw:
+        return StoryBible().model_dump()
+    try:
+        return StoryBible(**json.loads(raw)).model_dump()
+    except (TypeError, ValueError):
+        # A malformed blob must not make the script unopenable.
+        return StoryBible().model_dump()
+
+
+@router.get("/{script_id}/bible")
+def get_bible(script_id: str, user_id: str = Depends(get_current_user)):
+    return _read_bible(require_script_access(script_id, user_id))
+
+
+@router.put("/{script_id}/bible")
+def save_bible(script_id: str, bible: StoryBible, user_id: str = Depends(get_current_user)):
+    """Save the story bible. Whole-object replace — the editor holds the full
+    document, so a partial merge would silently drop fields it didn't send."""
+    require_script_access(script_id, user_id)
+    supabase.table("scripts").update(
+        {"bible_json": json.dumps(bible.model_dump())}
+    ).eq("id", script_id).execute()
+    return bible.model_dump()
 
 
 @router.put("/{script_id}")

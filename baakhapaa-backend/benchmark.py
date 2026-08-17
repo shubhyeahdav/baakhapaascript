@@ -84,9 +84,9 @@ METRIC_LANGUAGE = {
         "Your lead is absent from more of the script than is typical.",
         "Your lead is present in nearly every scene.",
     ),
-    "longest_scene_pages": (
-        "Your longest scene is short compared to the corpus.",
-        "You have a single scene much longer than the corpus norm.",
+    "longest_scene_share": (
+        "Your scenes are evenly sized — no single scene dominates.",
+        "One scene takes up much more of your script than is typical.",
     ),
 }
 

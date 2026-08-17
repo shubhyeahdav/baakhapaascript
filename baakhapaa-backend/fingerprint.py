@@ -127,6 +127,14 @@ def fingerprint(text: str, title_ref: str = "", genre: str = "", tradition: str 
         # --- corpus-only additions ------------------------------------------
         "median_scene_pages": round(median(pages), 3) if pages else None,
         "longest_scene_pages": round(max(pages), 3) if pages else None,
+        # Longest scene as a SHARE of the script, which is the length-
+        # independent version. Raw page count is not comparable across formats:
+        # a feature's longest scene is longer than a short's entire runtime, so
+        # benchmarking the raw number tells a short-film writer only that they
+        # wrote a short film.
+        "longest_scene_share": (
+            round(max(pages) / sum(pages), 3) if pages and sum(pages) else None
+        ),
         "day_night_ratio": round(day / (day + night), 3) if (day + night) else None,
         "unique_locations": unique_locations,
         "location_churn": round(unique_locations / len(scs), 3) if scs else None,
@@ -146,5 +154,8 @@ COMPARABLE_METRICS = (
     "day_night_ratio",
     "location_churn",
     "lead_presence_pct",
-    "longest_scene_pages",
+    # Share, not raw pages — see the note on longest_scene_share above.
+    # `longest_scene_pages` is still recorded on each fingerprint because it is
+    # a useful fact about a script; it is simply not comparable across formats.
+    "longest_scene_share",
 )
