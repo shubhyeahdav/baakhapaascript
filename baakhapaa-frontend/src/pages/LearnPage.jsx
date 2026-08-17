@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import TopNav from "../components/TopNav";
 import { learn } from "../services/api";
 
@@ -63,18 +64,26 @@ export default function LearnPage() {
   const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [params] = useSearchParams();
 
   const load = useCallback(async () => {
     try {
       const res = await learn.lessons();
       setLessons(res.data.lessons);
       setCompleted(res.data.completed);
-      // Open the first unfinished lesson — resuming beats re-choosing.
-      setActiveId((cur) => cur || (res.data.lessons.find((l) => !l.completed) || res.data.lessons[0])?.id);
+      setActiveId((cur) => {
+        if (cur) return cur;
+        // Arriving from a linter flag ("Learn this") opens that exact lesson.
+        // Otherwise resume at the first unfinished one — resuming beats
+        // re-choosing.
+        const requested = params.get("lesson");
+        if (requested && res.data.lessons.some((l) => l.id === requested)) return requested;
+        return (res.data.lessons.find((l) => !l.completed) || res.data.lessons[0])?.id;
+      });
     } catch (err) {
       setLoadError("Could not load the course.");
     }
-  }, []);
+  }, [params]);
 
   useEffect(() => { load(); }, [load]);
 

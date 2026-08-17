@@ -18,6 +18,7 @@ import screenplay
 import fingerprint
 import benchmark
 import rag
+import lessons
 
 router = APIRouter(prefix="/scripts", tags=["scripts"])
 
@@ -162,7 +163,12 @@ def lint_draft(req: RecommendRequest, user_id: str = Depends(get_current_user)):
               for p in rag.get_patterns_by_technique([f["technique"] for f in flags])}
     by_level: dict = {}
     for f in flags:
-        f = {**f, "craft_level": levels.get(f["technique"])}
+        # `lesson_id` turns a flag into a way into the course rather than a
+        # dead end. Resolved here rather than by a per-flag request from the
+        # client, which would be one round trip per problem found.
+        f = {**f,
+             "craft_level": levels.get(f["technique"]),
+             "lesson_id": lessons.RULE_TO_LESSON.get(f["rule"])}
         by_level.setdefault(f["craft_level"] or "other", []).append(f)
 
     return {
@@ -276,6 +282,11 @@ def get_script(script_id: str, user_id: str = Depends(get_current_user)):
             "target_audience": project.get("target_audience"),
             "format": project.get("format"),
             "episode_count": project.get("episode_count"),
+            # Short-form runs on seconds and a chosen hook, not on minutes and
+            # acts. Without these the editor cannot render its beat sheet.
+            "duration_seconds": project.get("duration_seconds"),
+            "hook_type": project.get("hook_type"),
+            "short_form_category": project.get("short_form_category"),
         },
     }
 

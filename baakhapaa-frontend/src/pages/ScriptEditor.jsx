@@ -6,6 +6,7 @@ import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
 import CraftPanel from "../components/CraftPanel";
 import StructureTimeline from "../components/StructureTimeline";
+import ShortFormTimeline from "../components/ShortFormTimeline";
 import CompactTimeline from "../components/CompactTimeline";
 
 // One-click focuses for pattern recommendations. The pattern library is
@@ -483,7 +484,12 @@ export default function ScriptEditor() {
       {/* Structure zone. Expanded: the full preview (act bar + suggestion
           cards you can add from). Minimized: the compact 2b timeline
           instrument, so act balance and runtime stay visible while writing. */}
-      {showStructure && suggestions ? (
+      {showStructure && suggestions?.short_form ? (
+        // Short-form has beats, not acts. The act timeline reads
+        // `structure.acts` and renders nothing for these, which left the panel
+        // silently empty for every short-form project.
+        <ShortFormTimeline structure={suggestions} />
+      ) : showStructure && suggestions ? (
         <StructureTimeline
           structure={suggestions}
           addedKeys={addedKeys}

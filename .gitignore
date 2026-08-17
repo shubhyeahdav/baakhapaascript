@@ -23,6 +23,15 @@ baakhapaa-backend/baakhapaa_local.db
 # Nothing here belongs in version control.
 *.exe
 
+# THE SCRIPT CORPUS — copyrighted screenplays. Never commit, never push,
+# never publish. See CLAUDE.md "Copyright". The archive and any extraction of
+# it are covered here because the repo root is not a safe place to keep it and
+# a single `git add -A` would otherwise stage 1.8 GB of other people's work.
+*.zip
+Script Library/
+raw_scripts_TEMP/
+extracted_scripts/
+
 # Corpus fingerprints are generated, and the corpus itself must never be
 # committed (see CLAUDE.md "Copyright"). The fingerprint FILE is safe to
 # commit if you choose to — it holds measurements only, no script text —

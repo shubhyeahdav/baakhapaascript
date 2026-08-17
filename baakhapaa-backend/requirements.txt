@@ -14,3 +14,4 @@ fastembed  # local ONNX embeddings for RAG pattern retrieval (no API key needed)
 slowapi  # per-IP rate limiting on the credential endpoints
 pytest  # test suite: ./venv/Scripts/python -m pytest
 httpx  # required by fastapi.testclient
+pypdf  # corpus tooling only (extract_corpus_text.py) — not used at runtime

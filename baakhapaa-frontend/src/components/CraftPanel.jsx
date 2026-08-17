@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { scripts } from "../services/api";
 
 /**
@@ -83,6 +84,15 @@ function Flags({ byLevel, counts }) {
                       <p className="text-[11px] text-gold/70 mt-1 leading-snug">
                         → {f.technique}
                       </p>
+                    )}
+                    {/* A flag should be a way into the course, not a dead end. */}
+                    {f.lesson_id && (
+                      <Link
+                        to={`/learn?lesson=${f.lesson_id}`}
+                        className="inline-block text-[10.5px] text-inkMuted hover:text-gold mt-1.5 transition-colors underline decoration-dotted underline-offset-2"
+                      >
+                        Learn this
+                      </Link>
                     )}
                   </div>
                 </div>
