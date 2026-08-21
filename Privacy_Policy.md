@@ -18,12 +18,16 @@ hashed value, never in plain text).
 duration, language), storyboard images, comments, and version history you
 create using the Service.
 
-**Payment information:** if you subscribe to a paid tier, payment is
-processed by a third-party payment processor (e.g., Stripe or a local
-gateway). We do not store your full card number ourselves.
+**Payment information:** if you subscribe to a paid tier, the payment itself
+is taken by Khalti, eSewa or Stripe on their own pages. **No card number,
+wallet PIN or bank credential ever reaches our servers.** What we keep is a
+receipt: which plan, how much, whether it succeeded, when, and the reference
+numbers needed to look the payment up with the gateway.
 
-**Usage data:** log data such as IP address, browser type, and feature
-usage, collected automatically to maintain and improve the Service.
+**Usage data:** our servers keep ordinary web logs, which include your IP
+address, for security and rate limiting. We do not run analytics or
+behavioural tracking, and we do not build a profile of how you use the
+Service.
 
 ## 2. Purpose of Collection (disclosed per Data Act 2079 requirements)
 
@@ -49,23 +53,43 @@ at any time by deleting your account, subject to Section 7 below.
 
 We share data with the following categories of third parties, only as
 necessary to operate the Service:
-- **Anthropic** (Claude API) — receives your script prompts/content to
-  generate AI text. See Anthropic's own privacy policy.
-- **OpenAI** (DALL-E API) — receives scene descriptions to generate
-  storyboard images. See OpenAI's own privacy policy.
-- **Supabase** — our database and authentication provider, storing your
-  account and project data.
-- **Payment processor** (e.g., Stripe) — for subscription billing.
+- **Anthropic** (Claude) — receives a scene brief, or the scene text being
+  rewritten, when you use AI generation or improvement. **Paid tiers only.**
+- **OpenAI** (gpt-image) — receives a scene description, location, cast, time
+  of day and mood when you generate a storyboard.
+- **Supabase** — our database provider, storing your account and project data.
+- **Khalti / eSewa** — Nepali payment gateways. Receive the amount and our
+  order reference; Khalti also receives your name and email. Neither receives
+  any script content.
+- **Stripe** — card payments. Receives your email and the plan. No script
+  content.
+- **Pollinations** — an optional image provider, **off by default**. If it is
+  switched on, the image prompt is sent in the URL itself. We will tell you
+  if we ever enable it.
+
+### What is never sent anywhere
+
+The free tier's craft layer runs entirely on our own servers: the linter, the
+pattern recommendations, the review, the parser, every export, and the
+similarity search behind them all. **If you are on the free plan, your script
+is not transmitted to anyone.** That is a property of how the product is
+built, not a promise we are asking you to take on trust.
+
+We do not use your script to train or fine-tune any AI model, and we do not
+permit our providers to do so on our behalf.
 
 We require these providers to handle your data securely, but their own
 privacy practices also govern how they process data on our behalf.
 
 ## 5. Cross-Border Data Transfer
 
-Some of our service providers (Anthropic, OpenAI, Supabase, payment
-processors) may store or process data outside Nepal. Per the Data Act 2079,
-we only transfer data to jurisdictions with adequate data protection
-standards, and solely for the purposes described in this Policy.
+Anthropic, OpenAI, Supabase and Stripe process data outside Nepal. Khalti and
+eSewa are Nepali companies and your payment data stays in Nepal when you pay
+through them — which is one reason both are offered.
+
+Per the Data Act 2079, we only transfer data to jurisdictions with adequate
+data protection standards, and solely for the purposes described in this
+Policy.
 
 ## 6. Data Security
 
@@ -95,9 +119,18 @@ within a reasonable time, generally within 30 days.
 ## 8. Data Retention
 
 We retain your account and project data for as long as your account is
-active. If you delete your account, we will delete your personal data
-within [30/60/90] days, except where retention is required for legal,
-tax, or dispute-resolution purposes.
+active.
+
+**Deleting your account deletes your data immediately, not eventually.** Your
+projects, scripts, every version snapshot, scenes, storyboard frames,
+comments — including comments you left on other people's projects — and your
+payment receipts are removed in the same operation. Projects shared *with*
+you belong to their owner and are not touched; only your membership goes.
+
+Deleting a single project removes that project's scripts, versions, scenes,
+frames and comments in the same way.
+
+Backups, where they exist, are overwritten on their normal cycle.
 
 ## 9. Children's Privacy
 

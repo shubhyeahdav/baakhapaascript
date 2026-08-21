@@ -633,3 +633,75 @@ def test_every_provider_reaches_a_real_gateway_by_default(monkeypatch):
 
     assert khalti.mode() == payments.SANDBOX
     assert esewa.mode() == payments.SANDBOX
+
+
+# ---------------------------------------------------------------------------
+# The listed price is what the writer pays
+#
+# Khalti's KPG charge is a flat Rs 5 + 13% VAT = Rs 5.65 per transaction, and
+# their merchant terms prohibit levying it on the customer — the merchant bears
+# it. So a Rs 999 plan bills Rs 999 and settles Rs 993.35 to us.
+#
+# The sandbox checkout displays "Product Amount 999.00 / Service Charge 5.65 /
+# Total Payable 1004.65", which reads exactly like an undercharge waiting to be
+# corrected. Adding the fee to `amount` would breach the merchant agreement, so
+# it is pinned here rather than left to look like a bug.
+# ---------------------------------------------------------------------------
+def test_the_gateway_is_sent_the_listed_price_and_nothing_more(monkeypatch):
+    import khalti
+    monkeypatch.setenv("KHALTI_SECRET_KEY", "live_secret_key_abc123")
+
+    sent = {}
+
+    class _Res:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"pidx": "p1", "payment_url": "https://dev.khalti.com/pay/p1"}
+
+    def capture(url, json=None, headers=None, timeout=None):
+        sent.update(json or {})
+        return _Res()
+
+    monkeypatch.setattr("httpx.post", capture)
+    record = {"amount": payments.TIERS["pro"]["amount"], "reference": "BKP-a", "tier": "pro"}
+    khalti.initiate(record, "https://baakhapaa.com", {})
+
+    # Rs 999.00 exactly — not Rs 1,004.65.
+    assert sent["amount"] == 99900
+
+
+def test_esewa_is_sent_the_listed_price_and_nothing_more(monkeypatch):
+    monkeypatch.setenv("PAYMENT_SANDBOX", "true")
+    result = esewa.initiate(
+        {"amount": payments.TIERS["studio"]["amount"], "reference": "BKP-b", "tier": "studio"},
+        "https://baakhapaa.com", {},
+    )
+    fields = result["fields"]
+    assert fields["total_amount"] == "2499.00"
+    # No service charge, no delivery charge, no tax added to the writer's bill.
+    assert fields["product_service_charge"] == "0"
+    assert fields["product_delivery_charge"] == "0"
+    assert fields["tax_amount"] == "0"
+    # And the signed total is the price, so the gateway cannot be told one
+    # number while the signature covers another.
+    assert fields["total_amount"] == fields["amount"]
+
+
+def test_a_gateway_that_collected_its_fee_on_top_still_settles_the_plan(monkeypatch, client, make_user):
+    """If a merchant account IS configured to pass the charge on, the gateway
+    reports MORE than we asked for. That must activate the plan, not read as a
+    mismatch — the writer paid at least the price."""
+    import khalti
+
+    user = make_user("free")
+    record = payments.create_record(user["id"], "pro", "khalti")
+
+    monkeypatch.setattr(khalti, "verify", lambda rec, params: {
+        "paid": True, "amount": 100465, "provider_ref": "x",  # 999 + 5.65
+    })
+
+    result = payments.verify("khalti", {"reference": record["reference"]}, user["id"])
+    assert result["status"] == "completed"
+    assert result["tier"] == "pro"

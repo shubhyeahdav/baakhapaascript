@@ -144,10 +144,18 @@ eSewa: `9806800001`–`5`, password `Nepal@123`, token `123456`.
 `PAYMENT_SANDBOX=false` forces the offline simulation everywhere; the test suite
 pins it, because a unit test must not depend on a third party being up.
 
-**Khalti adds its service charge on top of our amount.** A Rs 999 plan bills the
-customer Rs 1,004.65. The amount check on return compares against the price we
-recorded and allows more, never less, so this passes — but who absorbs that fee
-is a pricing decision nobody has made yet.
+**The listed price is what the writer pays. The gateway fee is ours.**
+
+Khalti's KPG gateway charge is a flat Rs 5 per transaction plus 13% VAT — the
+Rs 5.65 the sandbox shows beside a Rs 999 payment. Khalti's merchant terms
+prohibit levying it on the customer, so the merchant bears it: a Rs 999 plan
+charges the writer Rs 999 and settles Rs 993.35 to us.
+
+This is also what the code already does — `amount` is the tier price and
+nothing is added to it — so the rule to protect is *not adding the fee later*.
+`test_payments.py` pins it: sending the customer a bill of Rs 1,004.65 would
+breach the merchant agreement, and it is the kind of "helpful" change that
+looks like correcting an undercharge.
 
 The pricing page shows the mode per gateway — "Sandbox — real gateway, no real
 money" reads differently from "Simulated — no gateway contacted", and it should.
@@ -247,12 +255,19 @@ art — and `STORYBOARD_IMAGE_MODEL` / `STORYBOARD_IMAGE_QUALITY` are the levers
 Pro/Studio only, and the free tier's craft layer (linter, patterns, review,
 benchmark) costs nothing per call — it runs in-process with local embeddings.
 
+**Gateway fee.** Khalti takes a flat Rs 5 + 13% VAT = **Rs 5.65 per
+transaction**, borne by us, not the writer (their merchant terms require this).
+On a Rs 999 monthly plan that is 0.57% — one payment a month, so it does not
+scale with usage the way images do. eSewa and Stripe rates depend on the
+merchant agreement and are not known yet.
+
+Net of the gateway fee, a Rs 999 month settles **Rs 993.35**. The heavy-user
+image column above is the number that actually threatens the margin.
+
 **What this does not cover:** nobody has watched a real writer for a month, so
 the frequencies above are assumptions, not measurements. The pilot is what
 turns them into numbers. Two things to decide before then:
 
-- **Khalti adds its service charge on top.** A Rs 999 plan bills the customer
-  Rs 1,004.65. Who absorbs that has not been decided.
 - **The frame cap is the spend ceiling.** 24 is the number to change if the
   heavy-user column looks wrong; it is one environment variable.
 - **Renewal reminders.** See above — a lapsed plan currently just stops working.

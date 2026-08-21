@@ -43,19 +43,38 @@ you confirm you have permission from a parent or guardian.
 
 ## 6. User Content and Ownership
 
-- You retain ownership of the original ideas, briefs, and inputs you provide.
-- Subject to your compliance with these Terms and payment of applicable
-  fees, you own the screenplay and storyboard output generated for your
-  projects and may use it for any lawful purpose, including commercial
-  distribution.
-- You grant us a limited license to store, process, and display your content
-  solely to operate and improve the Service.
+- **Everything you write is yours, unconditionally.** Your screenplay, your
+  notes and your ideas remain your property whether you pay us or not,
+  whether your account is active or closed, and whether or not you are in
+  breach of these Terms. Nothing in this agreement makes ownership of your
+  own words conditional on anything.
+- You also own the AI-generated output produced for your projects and may
+  use it for any lawful purpose, including commercial distribution. If we
+  suspend your account we may stop *serving* that output to you; we do not
+  thereby acquire it.
+- You grant us a narrow licence to store, process, transmit and display your
+  content **only to operate the Service for you** — to save your draft, run
+  the checks you ask for, generate what you ask us to generate, and produce
+  your exports.
+- **That licence does not extend to improving the Service.** We do not use
+  your screenplay to train or fine-tune any model, ours or anyone else's,
+  and we do not read it to develop features. If that ever changes it will be
+  an opt-in you are asked for separately, not a line in a contract you
+  accepted when you signed up.
 
 ## 7. Subscription Plans and Payment
 
-- Free, Creator, and Pro tiers are described on our Pricing page.
-- Paid subscriptions renew automatically unless cancelled before the renewal
-  date.
+- Free, Pro and Studio tiers are described on our Pricing page.
+- **Nothing renews automatically when you pay through Khalti or eSewa.**
+  Neither gateway supports standing subscriptions, so a plan bought through
+  either is a single payment covering one month. It ends on its expiry date
+  unless you come back and pay again. We will warn you in the app before it
+  ends. There is nothing to cancel, and we cannot charge you again without
+  you starting a new payment.
+- A plan paid by card through Stripe *is* a recurring subscription and does
+  renew until you cancel it.
+- The price shown on the Pricing page is what you pay. Gateway transaction
+  fees are ours, not yours.
 - Fees are non-refundable except where required by law or explicitly stated
   otherwise.
 - We may change pricing with at least 30 days' notice to active subscribers.
@@ -73,10 +92,17 @@ You agree not to:
 
 ## 9. Third-Party AI Providers
 
-The Service relies on Anthropic and OpenAI APIs. Their respective terms and
-acceptable use policies also apply to content generated through their
-models. We are not responsible for outages, changes, or discontinuation of
-these third-party services.
+The Service relies on Anthropic (Claude, for text) and OpenAI (gpt-image,
+for storyboard frames). Their respective terms and acceptable use policies
+also apply to content generated through their models. We are not responsible
+for outages, changes, or discontinuation of these third-party services.
+
+Paid features only. The free tier's craft tools — the linter, the pattern
+recommendations, the review and the benchmark — run entirely on our own
+servers and send your script to nobody. See the Privacy Policy.
+
+Payments are handled by Khalti, eSewa or Stripe, depending on which you
+choose at checkout.
 
 ## 10. Termination
 
