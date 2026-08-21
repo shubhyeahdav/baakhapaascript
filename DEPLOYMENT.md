@@ -94,6 +94,28 @@ changing it requires a redeploy, not a restart.
 
 See the section below. Nothing else blocks a deploy; this blocks revenue.
 
+### 4b. Renewal reminders
+
+Set `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` and `MAIL_FROM` (any
+transactional provider — plain SMTP, no SDK), then schedule:
+
+```
+python renewals.py
+```
+
+Once a day is enough; the job is idempotent and records what it sent against
+the expiry date it was about, so running it twice mails nobody twice. Check who
+it would reach before you arm it:
+
+```
+python renewals.py --dry-run
+```
+
+With no `SMTP_HOST` it prints what it would have sent and delivers nothing. It
+never reports a send that did not happen — a mailer that silently succeeds is
+worse than one that is obviously off, because nobody learns that nobody was
+told.
+
 ### 5. First run
 
 Register a real account, then walk it: structure → write → finalize →
@@ -183,6 +205,37 @@ Both Nepali gateways default to their **sandbox** hosts. Defaulting to live
 would mean a misconfigured deploy takes real money from real people while it is
 being tested.
 
+### Getting the merchant accounts
+
+Neither of these can be done from code. Both take days, not minutes, because a
+human reviews the application.
+
+**Khalti** — apply at [khalti.com/payment-gateway](https://khalti.com/payment-gateway/).
+They will ask for company registration (or sole-proprietor registration), PAN,
+a bank account in the business's name, and the website URL. You need the site
+live first, so do this after the Vercel deploy. Two dashboards come out of it:
+`test-admin.khalti.com` for a sandbox key and `admin.khalti.com` for the live
+one. Set `KHALTI_SECRET_KEY` to the test key first and leave `KHALTI_ENV`
+unset — the code stays on the sandbox host until you set it to `live`, so a
+half-finished setup cannot take real money.
+
+Note their fee: flat Rs 5 + 13% VAT per transaction, borne by you. Their
+merchant terms prohibit charging it to the writer.
+
+**eSewa** — apply through their merchant onboarding; same paperwork. Until the
+account exists the code runs against eSewa's published UAT pair, which is a
+real sandbox and enough to prove the integration. Set `ESEWA_PRODUCT_CODE` and
+`ESEWA_SECRET_KEY` when they issue them, and `ESEWA_ENV=live` only when you
+intend to take real money.
+
+**Stripe** — self-service, minutes not days, but it will not settle to a Nepali
+bank account. It is for international cards only; treat it as the fallback it
+is.
+
+**Order that avoids waiting on yourself:** deploy the frontend → apply to both
+gateways with the live URL → keep selling nothing until the keys arrive → set
+sandbox keys and walk a payment → switch `*_ENV=live` last.
+
 ### The structural thing to know
 
 **Only Stripe has subscriptions.** Khalti and eSewa take one payment, once. So:
@@ -270,6 +323,5 @@ turns them into numbers. Two things to decide before then:
 
 - **The frame cap is the spend ceiling.** 24 is the number to change if the
   heavy-user column looks wrong; it is one environment variable.
-- **Renewal reminders.** See above — a lapsed plan currently just stops working.
 - **Live co-editing (FR10).** Still unbuilt. `ROADMAP.md` recommends descoping
   it and amending the PRD rather than leaving the promise unmet.

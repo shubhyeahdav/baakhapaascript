@@ -19,6 +19,11 @@ CREATE TABLE users (
   -- one payment once — so a plan bought through them expires and is extended by
   -- the next payment. Read via payments.effective_tier(), never directly.
   subscription_expires_at TIMESTAMPTZ,
+  -- Which renewal reminders have been sent, keyed by the expiry date they were
+  -- about: {"expiring": "2026-09-19T...", "lapsed": "..."}. Keyed by date and
+  -- not by a boolean so a writer who renews and later lapses again is told
+  -- again — that is a different lapse, and a flag would silence it forever.
+  renewal_notices_json TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -26,6 +31,7 @@ CREATE TABLE users (
 -- ALTER TABLE users ADD COLUMN preferences_json TEXT;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS renewal_notices_json TEXT;
 
 -- genre / tone / target_audience are free text on purpose. The UI suggests
 -- common values but must not constrain them: they feed prompts and retrieval,

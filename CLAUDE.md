@@ -48,6 +48,10 @@ machine). Then:
   leaves the server and to whom, what deletion now removes, and what is still
   open. Rewrite `Privacy_Policy.md` from this, not from the template
 - `ROADMAP.md` — the remaining six weeks and the decisions that block them
+- `PILOT.md` — the five-writer pilot protocol: what only a writer can settle,
+  what to measure rather than ask, and what counts as a failed pilot
+- `LEGAL_REVIEW.md` — what was factually wrong in the Terms and Privacy Policy
+  (fixed), and what still needs a Nepal-qualified lawyer
 - `DEPLOYMENT.md` — **the deploy runbook**: order of operations, the boot checks
   that now enforce production config, and how the three payment gateways work
 - `HANDOVER.md` — latest session test results
@@ -64,7 +68,7 @@ machine). Then:
 > `raw_scripts_TEMP/`, no `D:\AkxyaRup`; this is a single repo at
 > `C:\baakhapaa` on branch `codebase`).
 >
-> Backend tests: **463 across 30 files, all passing** (the Devanagari font gate
+> Backend tests: **480 across 31 files, all passing** (the Devanagari font gate
 > no longer skips — the asset is bundled), `./venv/Scripts/python -m pytest`.
 > Frontend tests: **80 across 7 files**, `npm run test:ci`.
 > **CI runs lint, dependency audit, both suites and the production build** on
@@ -257,9 +261,10 @@ machine). Then:
   needs real Supabase keys. This contradicts PRD US4, which still lists
   real-time collaboration as in scope; that reconciliation is PROJECT_PLAN **E7**
 - **Nothing renews on its own.** Khalti and eSewa have no subscription
-  primitive, so a lapsed plan stops working. `PlanNotice` warns in-app inside
-  the last week and once it lapses; a reminder that reaches someone who has
-  *not* opened the app still needs mail infrastructure that does not exist
+  primitive, so a lapsed plan stops working. `PlanNotice` warns in-app and
+  `renewals.py` mails the writer who has *not* opened the app (plain SMTP, one
+  reminder per expiry date, sends nothing until `SMTP_HOST` is set). What
+  remains is an SMTP account and a cron entry
 - Real API keys / real Supabase — **all verification to date is demo-mode**,
   payments included: the three-gateway flow is verified end to end against
   sandbox/demo paths only, and no real money has moved
