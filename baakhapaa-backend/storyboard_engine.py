@@ -23,6 +23,24 @@ openai_client = None if MOCK_AI else OpenAI(api_key=_api_key)
 # disclosure you owe real users, so it must be a deliberate choice.
 STORYBOARD_PROVIDER = os.getenv("STORYBOARD_PROVIDER", "placeholder").lower()
 
+# ---------------------------------------------------------------------------
+# The image model
+#
+# This called `dall-e-3` at size `1792x1024`. OpenAI shut DALL·E down in the API
+# on 12 May 2026, and that size was DALL·E-only — so against a live key the call
+# failed twice over, and every storyboard in production would have returned
+# nothing. Demo mode hid it completely: the mock branch returns before the API
+# is ever touched, which is exactly the class of bug demo mode cannot catch.
+#
+# `gpt-image-1-mini` is the default because a storyboard frame is a thinking
+# tool, not final art, and the frame cap means a single click can bill 24 of
+# them. Override for better frames at several times the cost.
+IMAGE_MODEL = os.getenv("STORYBOARD_IMAGE_MODEL", "gpt-image-1-mini")
+# The gpt-image family takes 1024x1024, 1024x1536 or 1536x1024. Landscape is
+# the only sensible default for a storyboard.
+IMAGE_SIZE = os.getenv("STORYBOARD_IMAGE_SIZE", "1536x1024")
+IMAGE_QUALITY = os.getenv("STORYBOARD_IMAGE_QUALITY", "low")
+
 if MOCK_AI:
     if STORYBOARD_PROVIDER == "pollinations":
         print("WARNING: No OPENAI_API_KEY. Storyboards use Pollinations "
@@ -177,16 +195,41 @@ def generate_frame(scene_description, shot_type, genre, location="", emotional_b
         # `/png` matters: without an explicit format placehold.co serves SVG,
         # which ReportLab cannot embed — so every demo-mode production
         # package printed "frame image not embedded" on every frame.
-        return f"https://placehold.co/1792x1024/141A29/6366F1/png?text={label}+%28demo%29"
+        return f"https://placehold.co/{IMAGE_SIZE}/141A29/6366F1/png?text={label}+%28demo%29"
 
     try:
         response = openai_client.images.generate(
-            model="dall-e-3", prompt=prompt, size="1792x1024", quality="standard", n=1,
+            model=IMAGE_MODEL, prompt=prompt, size=IMAGE_SIZE, quality=IMAGE_QUALITY, n=1,
         )
-        return response.data[0].url
+        return _image_reference(response.data[0])
     except Exception as e:
-        print(f"DALL-E generation error: {e}")
+        print(f"Storyboard image generation error ({IMAGE_MODEL}): {e}")
         return None
+
+
+def _image_reference(item) -> str | None:
+    """Turn one API result into something `storyboard_frames.image_url` can hold.
+
+    DALL·E returned a hosted URL. The gpt-image models return base64 instead,
+    so the old `response.data[0].url` would now read None on every frame — a
+    board of empty images with no error anywhere.
+
+    A data URI is what makes the base64 usable without new infrastructure, and
+    it fixes a problem the hosted URLs had anyway: those expired after about an
+    hour, which is why a production package exported the next day printed
+    "frame image not embedded" on every frame.
+
+    It is not the right long-term answer. A 1536x1024 PNG is well over a
+    megabyte base64'd, and `MAX_STORYBOARD_FRAMES` allows 24 of them per board —
+    tens of megabytes of image data sitting in Postgres rows. Moving these to
+    Supabase Storage needs a bucket and credentials that do not exist yet; see
+    DEPLOYMENT.md.
+    """
+    url = getattr(item, "url", None)
+    if url:
+        return url
+    b64 = getattr(item, "b64_json", None)
+    return f"data:image/png;base64,{b64}" if b64 else None
 
 
 def generate_storyboard(script_id, scenes, supabase_client, genre="drama"):

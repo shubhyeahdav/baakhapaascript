@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import PlanNotice from "./PlanNotice";
 
 // Shared top navigation for the whole app shell — both the editorial (dashboard,
 // wizard, exports) and utilitarian (editor, storyboard, structure) modes hang
@@ -46,6 +47,11 @@ export default function TopNav({ active = "Projects", right }) {
   const go = (path) => { setMenuOpen(false); navigate(path); };
 
   return (
+    <>
+    {/* Sits above the nav on every page that has one, so a plan about to lapse
+        is seen before the writer starts work rather than when a paid feature
+        suddenly 403s. */}
+    <PlanNotice />
     <header className="flex-none flex items-center gap-9 px-8 md:px-14 pt-6 pb-5">
       <Link to="/dashboard" className="wordmark text-[15px] shrink-0">BAAKHAPAA</Link>
 
@@ -133,5 +139,6 @@ export default function TopNav({ active = "Projects", right }) {
         )}
       </div>
     </header>
+    </>
   );
 }

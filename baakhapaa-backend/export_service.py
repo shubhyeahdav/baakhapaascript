@@ -275,9 +275,29 @@ _SAFE_OPENER = urllib_request.build_opener(_NoRedirects)
 def _fetch_image(url: str, deadline: float):
     """Return an ImageReader for `url`, or None if it cannot be had safely and
     cheaply. Never raises — a missing image is a degraded frame, not a failure."""
-    if not EMBED_STORYBOARD_IMAGES or not url or not url.startswith(("http://", "https://")):
+    if not EMBED_STORYBOARD_IMAGES or not url:
         return None
     if time.monotonic() >= deadline:
+        return None
+
+    # A frame stored inline. The gpt-image models return base64 rather than a
+    # hosted URL, so this is now the normal case for a real board — and unlike
+    # the old expiring DALL·E links, it still embeds a week later. No network,
+    # so no timeout and no host check apply.
+    if url.startswith("data:image/"):
+        try:
+            import base64
+
+            from reportlab.lib.utils import ImageReader
+
+            raw = base64.b64decode(url.split(",", 1)[1])
+            if not raw or len(raw) > MAX_IMAGE_BYTES:
+                return None
+            return ImageReader(io.BytesIO(raw))
+        except Exception:
+            return None
+
+    if not url.startswith(("http://", "https://")):
         return None
     try:
         from urllib.parse import urlparse

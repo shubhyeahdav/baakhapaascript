@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../components/Sidebar";
+import TopNav from "../components/TopNav";
 import { projects, scripts } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
@@ -161,12 +161,18 @@ export default function NewProject() {
     : null;
 
   return (
-    <div className="cine-bg min-h-screen">
-      <Sidebar />
-      <div className="ml-64 px-10 py-9 max-w-2xl animate-fade-up">
-        <div className="mb-8">
-          <p className="text-inkMuted text-xs tracking-[0.2em] uppercase mb-2">Create Project</p>
-          <h1 className="font-display text-4xl text-ink">New Project</h1>
+    // The shell every other page uses. This was the last page left on the old
+    // 256px Sidebar after the switch to TopNav, so walking from the dashboard
+    // into the wizard moved the whole navigation and shifted the content
+    // sideways — the one moment a new user is most likely to think they have
+    // ended up somewhere else.
+    <div className="cine-bg min-h-screen flex flex-col text-ink">
+      <TopNav active="Projects" />
+
+      <main className="flex-1 px-8 md:px-14 pb-14 max-w-3xl animate-fade-up">
+        <div className="py-8">
+          <p className="font-mono text-[11px] tracking-[0.16em] text-inkMuted mb-2">STUDIO</p>
+          <h1 className="font-display text-4xl md:text-5xl text-ink">New Project</h1>
         </div>
 
         <div className="bg-surface border border-borderSoft p-8 rounded-2xl shadow-card">
@@ -386,7 +392,7 @@ export default function NewProject() {
             </button>
           </form>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

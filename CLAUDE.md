@@ -64,9 +64,9 @@ machine). Then:
 > `raw_scripts_TEMP/`, no `D:\AkxyaRup`; this is a single repo at
 > `C:\baakhapaa` on branch `codebase`).
 >
-> Backend tests: **453 across 29 files, all passing** (the Devanagari font gate
+> Backend tests: **463 across 30 files, all passing** (the Devanagari font gate
 > no longer skips — the asset is bundled), `./venv/Scripts/python -m pytest`.
-> Frontend tests: **43 across 4 files**, `npm run test:ci`.
+> Frontend tests: **80 across 7 files**, `npm run test:ci`.
 > **CI runs lint, dependency audit, both suites and the production build** on
 > push and PR (`.github/workflows/ci.yml`), on Linux with
 > `REQUIRE_SHIPPABLE_FONT=true` — the only place the Devanagari font gate is
@@ -252,14 +252,14 @@ machine). Then:
 - ~~Custom user-added scenes UI~~ — **closed 2026-08-20**: the Corkboard's
   "+ New scene" and the Outline's per-act add compose a slugline inline, write
   the row and the scene block together
-- NewProject still uses the old Sidebar — shell split half-applied
 - **Collaboration/presence was REMOVED 2026-08-13** (`CollabBar`, `realtime.js`,
   `@supabase/supabase-js`) — it showed "Solo session" to every user because it
   needs real Supabase keys. This contradicts PRD US4, which still lists
   real-time collaboration as in scope; that reconciliation is PROJECT_PLAN **E7**
 - **Nothing renews on its own.** Khalti and eSewa have no subscription
-  primitive, so a lapsed plan simply stops working with no reminder sent. The
-  renewal notice is the first thing to build once real payments are live
+  primitive, so a lapsed plan stops working. `PlanNotice` warns in-app inside
+  the last week and once it lapses; a reminder that reaches someone who has
+  *not* opened the app still needs mail infrastructure that does not exist
 - Real API keys / real Supabase — **all verification to date is demo-mode**,
   payments included: the three-gateway flow is verified end to end against
   sandbox/demo paths only, and no real money has moved

@@ -224,9 +224,37 @@ change it.
   `Data_Compliance_Checklist.md` are unreviewed templates. `DATA_HANDLING.md` is
   the accurate account of where script text actually goes — rewrite the privacy
   policy from that, not from the template.
-- **Cost per user.** One storyboard is up to 24 billed images. Model a realistic
-  month for a heavy and a light user against NPR pricing before opening signup.
-  If a Pro user costs more than Rs 999, the frame cap moves before launch.
+### Cost per user
+
+Prices checked 2026-08-21. NPR at ~139/USD.
+
+**Images.** `gpt-image-1-mini` at `low` quality, the shipped default, is about
+$0.005–0.01 per frame. `MAX_STORYBOARD_FRAMES` allows 24, so one click of
+"Generate storyboard" costs roughly **$0.12–0.24 (Rs 17–33)**.
+
+| Month | Boards | Image cost | Share of Rs 999 |
+|---|---|---|---|
+| Light user | 2 | Rs 35–66 | 3–7% |
+| Normal user | 6 | Rs 100–200 | 10–20% |
+| Heavy user | 20 | Rs 340–660 | 34–66% |
+
+Switching the model to `gpt-image-1` at `high` quality is roughly 15x that
+(~$0.167/image): a heavy user alone would run past Rs 999. The default is
+deliberately the cheap one — a storyboard frame is a thinking tool, not final
+art — and `STORYBOARD_IMAGE_MODEL` / `STORYBOARD_IMAGE_QUALITY` are the levers.
+
+**Text.** Scene generation and improvement are the other billed path. Both are
+Pro/Studio only, and the free tier's craft layer (linter, patterns, review,
+benchmark) costs nothing per call — it runs in-process with local embeddings.
+
+**What this does not cover:** nobody has watched a real writer for a month, so
+the frequencies above are assumptions, not measurements. The pilot is what
+turns them into numbers. Two things to decide before then:
+
+- **Khalti adds its service charge on top.** A Rs 999 plan bills the customer
+  Rs 1,004.65. Who absorbs that has not been decided.
+- **The frame cap is the spend ceiling.** 24 is the number to change if the
+  heavy-user column looks wrong; it is one environment variable.
 - **Renewal reminders.** See above — a lapsed plan currently just stops working.
 - **Live co-editing (FR10).** Still unbuilt. `ROADMAP.md` recommends descoping
   it and amending the PRD rather than leaving the promise unmet.
