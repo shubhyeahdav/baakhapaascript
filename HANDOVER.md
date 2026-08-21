@@ -1,13 +1,22 @@
-# Handover — 2026-08-13
+# Handover — 2026-08-19
 
-Supersedes the 2026-08-04 handover, which had gone **stale on five items**: it
-still listed rate limiting, the server-side password policy and export tier
-gating as open. All three had shipped. If you read that file, ignore its
-"Issues noticed but NOT fixed" §1, §2 and §4.
+Supersedes the 2026-08-13 handover, which is now **stale on four items**. If you
+read that file, correct it as follows:
 
-**Read `PROJECT_PLAN.md` §4 for the build queue** and
-`RECOMMENDATION_ARCHITECTURE.md` for why the recommendation system is shaped the
-way it is. This file is the narrative of what changed and what will bite you.
+| It said | Actually |
+|---|---|
+| "A1 Devanagari is still the blocker… `assets/` does not exist" | **Closed.** The OFL font is bundled and its test no longer skips |
+| "Frontend has zero tests" | **36 tests across 3 files** |
+| "35 npm vulnerabilities, not triaged" | **Triaged.** 34 were build toolchain; the one that shipped is fixed |
+| "12 files / 120 tests" | **23 files / 364 tests** |
+
+Its §5 (CRA hot-reload websocket) and §6 (NewProject still on the old Sidebar)
+are still true.
+
+**Read `ROADMAP.md` for the build queue** — it replaces `PROJECT_PLAN.md` §4 as
+the live plan — and `DATA_HANDLING.md` before touching anything that stores or
+transmits script text. This file is the narrative of what changed and what will
+bite you.
 
 ---
 
@@ -22,180 +31,187 @@ cd baakhapaa-backend && ./venv/Scripts/python -m uvicorn main:app --port 8000   
 cd baakhapaa-frontend && npm start
 ```
 
-Test login: `test@example.com` / `password` (pro tier).
+Test login: `test@example.com` / `password` (pro tier), and only while
+`DEMO_SEED=true`.
 
-There is also `.claude/launch.json`, so Claude Code can start both servers
-directly by name (`backend`, `frontend`).
+**Every environment variable is now documented in `baakhapaa-backend/.env.example`**
+— 25 of them, previously undocumented anywhere. Read it before deploying;
+several have defaults that are wrong for production (`CORS_ORIGINS`,
+`REQUIRE_SHIPPABLE_FONT`).
 
-**Two environment facts that cost time this session:**
-
-1. **`script_patterns` was empty** in the local DB. Retrieval returned `[]` and
-   looked broken while being perfectly correct. Run
-   `./venv/Scripts/python load_knowledge_base.py` — and then **restart the
-   backend**, because the mock DB caches rows at startup.
-2. **The 1000-script corpus is not on this machine.** No `raw_scripts_TEMP/`, no
-   `D:\AkxyaRup` (D: holds 0.2 GB). CLAUDE.md's two-nested-repo topology
-   describes a *different* machine; here the project lives at `C:\baakhapaa` as a
-   single repo on branch `codebase`. All corpus tooling was therefore written to
-   run elsewhere and verified against a synthetic corpus.
+`script_patterns` had 29 rows in the local DB throughout this session. If
+retrieval returns `[]` it is probably empty again: run
+`./venv/Scripts/python load_knowledge_base.py`, then **restart the backend** —
+the mock DB caches rows at startup.
 
 ---
 
 ## What changed this session
 
-### 1. Codebase refactor — eight duplications collapsed
+Ordered by how much it matters, not chronologically.
 
-| Duplication | Copies | Now |
+### 1. The scene table and the written draft now describe the same story
+
+`scene_sync.py` is new and is the largest structural change. Previously `scenes`
+rows were written once, when a structure suggestion was added, and never updated.
+Three consequences, all now gone:
+
+- a writer who typed their screenplay by hand had **no scene rows**, so
+  "Finalize & Storyboard" led to a page whose only button returned 404
+- a rewritten scene was storyboarded from the **beat description it started as**
+- the editor's index cards came from rows while jump-to-scene counted sluglines
+  in the text, so the two drifted apart as soon as a slugline moved
+
+Rows are matched **by slugline first, position second**, in two passes. Matching
+on position alone re-points every later row the moment a scene is inserted
+mid-draft — and frames hang off rows, so that silently moves somebody's
+storyboard onto the wrong scenes. Rows are updated and appended, **never
+deleted**: a frame FKs to a scene id.
+
+### 2. The deliverables were mostly unreachable
+
+Six things existed as working backend code that nothing called:
+
+| FR | Was | Now |
 |---|---|---|
-| Project ownership check | **5** | `auth.require_project_access()` |
-| `except RuntimeError → 503` | **4** | `scripts.ai_unavailable_as_503()` |
-| `StreamingResponse` download boilerplate | **4** | `export._download()` |
-| Frame → script → 404 → access | **2** | `storyboard.require_frame_access()` |
-| Whitelist + "no valid fields" 400 | **2** | new `updates.apply_whitelist()` |
-| 33/33/34 act arithmetic | **3** | `script_engine._act_split()` |
-| `("pro","studio")` literal | **5** | `auth.PAID_TIERS` / `is_paid_tier()` |
-| Function-body `from database import …` | **6** | hoisted |
+| FR13 | Package had no storyboard; the shot list read `Scene 1 \| Wide Shot` | Real shot list (slugline, cast, beat, action, camera) + embedded frames |
+| FR08 | `camera_notes` written as `""` on every frame ever generated | Derived per frame; deterministic, no API cost |
+| FR09 | Routes shipped with the first storyboard commit, never called | Shot-type override, camera notes, reorder, redraw |
+| FR07 | `review_script()` wired to nothing | `review.py` — timing, character names, act balance; shown before finalizing |
+| FR11 | Diff route existed; UI only restored | Ordered difflib hunks with line numbers; the old diff was **set-based** and reported a moved line as no change |
+| — | No project delete anywhere | Two-step confirm on the dashboard tile |
+| — | `.fdx` built free, unreachable | In the editor toolbar and the Exports page |
 
-**`database.py` imports only `os` and `dotenv` — there was never a circular
-import.** Every deferred import was cargo cult; one in `scripts.py` re-imported a
-name already bound at module level.
+Every export was also titled "Baakhapaa Script" and downloaded as `script.pdf`,
+whatever the project was called.
 
-The ownership check being copy-pasted five times was a *security* shape, not just
-noise — five chances to invert a comparison or return 403 and leak id existence.
+### 3. FR06 Devanagari — the long-standing blocker is closed
 
-**A real bug fell out of it:** `ScriptEditor`'s blob download never called
-`revokeObjectURL`, so every export from the editor leaked its blob for the life
-of the tab. `ExportsPage` had the revoke; the editor didn't. Both now use
-`utils/download.js`.
+`assets/NotoSansDevanagari-Regular.ttf` (SIL OFL) is bundled, with provenance in
+`assets/README.md`. Verified: 128/128 Devanagari codepoints, `FontFile2`
+embedded, the bundled face winning over Nirmala, and 44 Devanagari characters
+extracted back out of a rendered PDF. `tests/test_font_asset.py` **no longer
+skips** — its job flipped from "warn it's missing" to "fail if anyone removes it".
 
-### 2. Measurement layer — the corpus finally has somewhere to go
+### 4. FR12 roles — `membership.py`
 
-`screenplay.statistics()` already promised "the same vocabulary as the corpus
-fingerprints." The measuring tape for a user's draft existed; **the ruler to
-compare against did not**. Now it does:
+Admin / Editor / Viewer, **per project**, not global: a person is usually a
+writer on their own work and a reader on someone else's. The owner is an admin
+implicitly, so no data migration was needed.
 
-- **`fingerprint.py`** — measures one screenplay, building on
-  `screenplay.statistics()` rather than forking it
-- **`benchmark.py`** — fingerprints → percentile verdicts, genre-conditioned
-- **`build_fingerprints.py`** — CLI over a corpus directory
-- **`POST /scripts/benchmark`** — all tiers, gated on draft size
+`require_script_access` / `require_project_access` take a `minimum` that
+**defaults to editor**. That direction is deliberate: forgetting to mark a route
+costs a viewer a read, never grants a write.
 
-```bash
-python build_fingerprints.py path/to/extracted_scripts -o corpus_fingerprints.json
-```
+### 5. Privacy — see `DATA_HANDLING.md`
 
-Organise as `corpus/<genre>/film.txt` for genre cohorts. **Output holds
-measurements only — no screenplay text** — so it is safe to commit even though
-the corpus never is.
+Four real problems, one of which was introduced earlier the same day:
 
-Design rules worth not undoing: percentile rather than pass/fail; **silence is a
-result** (only the outer 10% produce a note); never compare a short to a feature
-(only length-independent ratios); always report `n`, and suppress cohorts under
-12.
+- **Deleting a project did not delete the script.** Postgres cascades; the local
+  mock has no relationships, so the full draft and every version snapshot stayed
+  on disk — in the mode every developer and every test runs in.
+- **No way to delete an account.** `DELETE /auth/me` now erases everything the
+  user owns; projects shared *with* them stay theirs.
+- **A missing `ANTHROPIC_API_KEY` silently rerouted scripts to Groq.** One fumbled
+  key and every draft went to a company the privacy policy does not name. Now
+  requires an explicit `LLM_PROVIDER=groq`.
+- **SSRF in the package export.** `image_url` was client-writable and fetched
+  server-side, so an editor could aim it at cloud metadata or the private
+  network. No longer client-writable; private/loopback refused; redirects not
+  followed.
 
-**Act breaks are deliberately NOT inferred.** Without labels it is guesswork, and
-a confident wrong boundary is worse than none. `scene_length_curve` compares
-shape without the claim.
+Also added: token revocation. JWTs carry a generation number checked per request,
+so `POST /auth/sign-out-everywhere` ends every session and a deleted account's
+token stops authenticating immediately.
 
-### 3. Recommendations — diagnosis before similarity
+### 6. The story craft layer now reaches the model
 
-The old `/scripts/recommendations` queried the pattern library with the last 1500
-characters of raw draft prose. But `rag.pattern_to_text()` embeds each entry's
-**problem**. Querying diagnoses with prose compares two different registers, and
-what survives is surface topic — a chiya pasal scene retrieved entries about tea.
+The Story Bible collected a logline, a dramatic question, a theme, and per
+character a want, a need, a wound and a voice — and **not one field ever reached
+a prompt**. `character_names` was accepted by `generate_scene` and never sent by
+the editor. The craft library grounded `generate_structure` and then vanished at
+exactly the point the writer was writing.
 
-Since every linter rule was derived from a craft entry's `warning_sign`, **a flag
-already names the technique that fixes it.** So:
+All three are wired. The bible is loaded **server-side from `script_id`**, never
+trusted from the client. `improve` grounds diagnosis-first: the linter names
+what is wrong, and that technique leads the prompt.
 
-1. **Exact** — `rag.get_patterns_by_technique()`, no embedding at all
-2. **Semantic** — fills remaining slots, querying with flag *messages* (symptom
-   register) rather than draft prose
-3. **Fallback** — no flags → the original last-1500-chars behaviour
+**The craft linter now reads Nepali** — Devanagari and romanised — for
+on-the-nose dialogue, emotional parentheticals and greetings. It was English-only
+regex in a product that instructs writers to put their dialogue in Nepali, which
+left the differentiator silent on exactly the writing it exists for.
 
-The response now carries `diagnosed[]` and `source` (`"diagnosis"` /
-`"similarity"`), so the UI can say *why*. Verified live:
+Each flag also now carries a **`confidence`** separate from `severity`:
+`mechanical` (a camera cannot photograph a realisation), `convention`
+(professional consensus), `judgement` (a reading). `on_the_nose` was carrying the
+same authority as "this cannot be filmed" while being regex over literal phrases.
 
-```
-source: diagnosis
-  line 3  unfilmable_interiority -> Convert inner state into something the camera can see
-  line 7  on_the_nose            -> Let them fight about the small wrong thing
-  line 6  directed_emotion       -> Put the feeling into a physical thing that changes hands
-```
+### 7. Tooling and CI
 
-`/scripts/lint` also now returns `by_craft_level`, grouping flags the way writers
-manually group notes.
-
-### 4. Storyboard spend hole — closed
-
-**This was live and serious.** `POST /storyboard/generate/{id}` was gated by
-`get_current_user` only — **no tier check** — and the engine looped over *every*
-scene at `dall-e-3` `1792x1024`. A free user with a 40-scene script triggered
-~$3.20 of image generation on one click, repeatable, plus unlimited
-`regenerate_frame`. Pro is NPR 999 ≈ $7.15/month.
-
-Inert in demo mode (placeholders), and it would have gone live the moment a real
-`OPENAI_API_KEY` was added — i.e. during A3.
-
-Now: `require_tier` on generate and regenerate, plus `MAX_STORYBOARD_FRAMES`
-(default 24, env-tunable). The response reports `truncated`. **Viewing and
-editing existing frames stay free** — gate the spend, not the access, so a
-downgraded user still sees the board they paid for.
-
-### 5. Three features removed
-
-| Cut | Why |
-|---|---|
-| **ZenAudio** + `ambientAudio.js` | Ambient focus audio. No research pain point touches it, and it was built while Devanagari export stayed broken. Also removed 72 lines of dead `.zen-audio` CSS. |
-| **CollabBar** + `realtime.js` | `realtimeClient` is null without Supabase keys, so **every user saw "Solo session."** Live co-editing is out of Phase 1. Removing it made `@supabase/supabase-js` unused — dropped from package.json, `npm install` pruned 8 packages. |
-| Command palette | Kept the file, stopped investing. `FREE_PROJECT_LIMIT = 1` means it switches between one project for most users. |
-
-Snapshots of all four deleted files are in the session scratchpad; `CollabBar.jsx`
-and `realtime.js` are also recoverable from git history. **`ZenAudio.jsx` and
-`ambientAudio.js` were untracked — git cannot restore those.**
-
-**This is a PRD change, not just a cleanup.** PRD US4 lists real-time
-collaboration as in scope. Seven docs still describe presence as a feature:
-`PRD.md`, `TRD.md`, `AUDIT_REPORT.md`, `MONTH_1_REPORT.md`, `SESSION_SUMMARY.md`,
-and older sections of `PROJECT_PLAN.md`/`CLAUDE.md`. Decide whether presence is
-deferred or dropped, then reconcile those.
+- `.github/workflows/ci.yml` — lint, dependency audit, both suites, production
+  build. On Linux with `REQUIRE_SHIPPABLE_FONT=true`, which is the **only** place
+  the font gate means anything, since this Windows box always has Nirmala.
+- `ruff.toml` — a narrow, chosen rule set: defects, not style. Ruff's defaults
+  surfaced 117 findings here and ~100 were import ordering and annotation
+  modernisation. Those are a separate pass, in their own commit.
+- `requirements-dev.txt` — ruff, bandit, vulture, pip-audit.
+- `cryptography` and `h2` upgraded against CVEs and pinned.
 
 ---
 
 ## Verified
 
-- **120 backend tests pass** (was 93 at session start), ~24 s, no API keys needed
-- **pyflakes clean** across all backend modules
-- Frontend compiles clean from a **cold start** after the dependency removal
-- Live: ownership 200/404, all four export formats with correct filenames,
-  benchmark gating, diagnosis-driven retrieval, editor loads with zero console
-  errors, Zen mode intact with `zenAudioNodes: 0`
-
-**Test suite is now 12 files / 120 tests** — both older handovers said 37, which
-was stale by more than 3×.
+- **364 backend tests pass** (was 202 at session start), 23 files, ~105 s
+- **36 frontend tests** across 3 files (was 25 across 2)
+- **ruff clean**, **pip-audit clean** (one documented ignore), production build clean
+- Live, against the running server: hand-typed draft → 2 storyboard frames (was
+  404); 5 saves → 1 version row (was 5); viewer 403 on write with the draft
+  provably unchanged; stranger 404; project delete 2 → 1 with no console errors;
+  package PDF containing `Cast: SANJANA` and a real `Camera:` line; Devanagari
+  PDF with the bundled font embedded
+- Browser-verified: react-router v7 upgrade, the panel tab overflow, and caret
+  scrolling at 1280×800
 
 ---
 
 ## Issues noticed but NOT fixed
 
-1. **A1 Devanagari is still the blocker.** Code is done; the font asset is not.
-   `baakhapaa-backend/assets/` **does not exist**. It currently falls back to
-   Microsoft's Nirmala (dev-only). Drop `NotoSansDevanagari-Regular.ttf`
-   (SIL OFL) into `baakhapaa-backend/assets/` before any deploy or Linux hosts
-   render blank boxes. **Add a test asserting the file exists** — the current
-   test covers font *selection*, so A1 passes CI today and still fails in
-   production.
-2. **Frontend has zero tests.** `npm run test:ci` carries `--passWithNoTests`, so
-   it exits green having run nothing. It looks like CI coverage and isn't.
-3. **`rag.py` retrieval quality has no automated test** — deliberate (the suite
-   avoids the embedding model), but it means corpus-quality claims are manual
-   one-offs no test re-checks.
-4. **Nothing has ever run with real keys.** Still the biggest unknown (A3).
-5. **CRA hot-reload websocket fails in the Claude Code browser pane**
-   (`ws://localhost:3000/ws`). Dev-only: edits still recompile server-side, but
-   the browser won't auto-refresh — reload manually. Not caused by any app code.
-6. **NewProject still uses the old Sidebar** while everything else uses TopNav.
-7. **35 npm vulnerabilities** reported at install (10 low, 7 moderate, 18 high).
-   Not triaged; `npm audit fix --force` may break CRA.
+1. **The mock database is the top structural risk.** It is a hand-rolled store
+   with no relationships, constraints or transactions, and **every test runs
+   against it**. It has now produced **three schema-drift bugs**, two of them
+   introduced this session and caught only by reading the schema by hand:
+   `token_version` was added to `users` in code and not to
+   `supabase_schema.sql`, so `sign-out-everywhere` would have 500'd on real
+   Postgres. Green tests cannot catch this class. **Get a real Postgres into CI
+   and adopt a migration tool** — everything else here is tractable; this
+   silently invalidates the safety net.
+2. **Nothing has ever run with real keys.** Still the biggest unknown. `.env`
+   held only `JWT_SECRET` and `DEMO_SEED` at the end of this session.
+3. **No transactions anywhere.** `purge_projects` deletes across seven tables in
+   a loop; a failure halfway orphans rows — in the erasure path, where partial
+   failure is least acceptable.
+4. **The PDF export is not professional screenplay format.** It is **A4, not US
+   Letter**; page breaks orphan a character cue from its dialogue with no
+   `(MORE)` / `(CONT'D)`; `line[:90]` silently truncates long action lines in the
+   deliverable; there are no scene numbers. These are the four things a producer
+   notices before reading a word.
+5. **There is no way to type Nepali in the product.** Onboarding asks for
+   Devanagari in three places and nothing anywhere explains how to enter it. The
+   linter now accepts romanised Nepali, so that path works — but phonetic
+   transliteration in the editor is the highest-value remaining feature for a
+   Nepali-first product.
+6. **No access audit log.** With sharing live, "who read my draft" has no answer.
+7. **Encryption at rest is Supabase's, not ours.** NFR03 claims otherwise.
+   Anyone with database credentials can read every script.
+8. **`ScriptEditor.jsx` is ~1,200 lines** and holds editor state, the AI panel,
+   the review modal, the structure panel and type-ahead.
+9. **No React error boundary.** One thrown render shows a white page with the
+   writer's unsaved draft in it.
+10. **CRA is deprecated**, which is why 33 unfixable advisories remain in
+    `npm audit`. All build toolchain; none ship. Vite migration is a real task.
+11. **`PYSEC-2026-1325` (ecdsa) is ignored by ID in CI.** It does not apply —
+    tokens are signed HS256, so the ECDSA path never runs. **Re-check if
+    `ALGORITHM` in `auth.py` ever changes.**
 
 ---
 
@@ -203,25 +219,40 @@ was stale by more than 3×.
 
 ### Copyright — still the one that matters
 The script corpus must never be committed or published. Fingerprint **output**
-is safe (measurements only, no text) — that distinction is the whole reason
-`build_fingerprints.py` exists in the shape it does.
+is safe (measurements only, no text).
 
-### Installers in the repo root
-~298 MB of `.exe` installers were sitting untracked in the project root
-(VSCode 232 MB, starc 52 MB, comet 14 MB). Now covered by `*.exe` in
-`.gitignore`. Check before committing that nothing else large slipped in.
+### The linter collapses nearby flags
+`_collapse_runs` merges same-rule flags within 3 lines into one. Two on-the-nose
+lines exactly 3 apart produce a single flag reporting it covers 2 lines. This is
+deliberate — five identical flags on one paragraph trains a writer to dismiss the
+panel — but it looks like a missed detection when you are testing by hand.
+
+### The editor's scroll has two layers
+The textarea is a fixed 1056px "page" inside a container that scrolls. On a
+laptop the writer sees ~650px of it, so the caret can be inside the textarea's
+own box while below the container's fold. `scrollCaretIntoView` handles both;
+if you touch it, test at 1280×800, not on a tall monitor.
 
 ### Windows
 Backend without `--reload`; kill orphans with
-`Get-Process python | Stop-Process -Force`. `npm install` can leave an empty
-`node_modules/@supabase` directory behind — harmless.
+`Get-Process python | Stop-Process -Force`. Console output cannot print
+Devanagari (cp1252) — set `PYTHONIOENCODING=utf-8` when debugging Nepali.
 
 ---
 
 ## Suggested next step
 
-`PROJECT_PLAN.md` §4. In order: **A1 font asset** (small, still the only true
-blocker) → **corpus fingerprints** on the machine that has the scripts →
-**A3 real-keys smoke test**, which is now materially cheaper and lower-risk
-because storyboards are gated and can be deferred, so A3 needs only Claude +
-Supabase rather than DALL-E too.
+`ROADMAP.md`, which orders the remaining six weeks so that everything only
+discoverable in production comes first. The short version:
+
+1. **Real Postgres in CI + a migration tool** (issue 1 above) — do this before
+   anything that touches the schema
+2. **A3 real-keys smoke test** — expect breakage in the real-Claude JSON path and
+   in Supabase client behaviour the mock does not reproduce
+3. **Deploy + set `CORS_ORIGINS`, `--proxy-headers`, `REQUIRE_SHIPPABLE_FONT`**
+4. **Payments for Nepal** — Stripe cannot collect from most Nepali cards, which
+   puts the proposal's own open question on the critical path
+
+Two decisions that cannot be resolved by building: whether FR10 live co-editing
+is built or descoped, and whether the tier names are Free/Creator/Pro (the
+proposal) or free/pro/studio (the code).

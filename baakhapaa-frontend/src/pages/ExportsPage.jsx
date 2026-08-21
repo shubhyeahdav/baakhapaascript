@@ -7,6 +7,10 @@ import { useAuth } from "../context/AuthContext";
 
 const FORMATS = [
   { key: "pdf", label: "PDF", ext: "pdf", free: true },
+  // Free on purpose: a writer who cannot get their script into Final Draft,
+  // Celtx or Arc Studio has to retype it, and PDF/Word are both read-only as
+  // far as screenplay structure goes.
+  { key: "fdx", label: "Final Draft", ext: "fdx", free: true },
   { key: "word", label: "Word", ext: "docx", free: false },
   { key: "package", label: "Package", ext: "pdf", free: false },
 ];

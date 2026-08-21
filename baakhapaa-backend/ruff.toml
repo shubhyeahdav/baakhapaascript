@@ -1,0 +1,45 @@
+# Lint configuration.
+#
+# The rule set is chosen, not inherited. Ruff's defaults surface ~117 findings
+# here, and roughly 100 of them are import ordering and PEP-585 annotation
+# modernisation — real preferences, but ones that would produce a 20-file diff
+# with no behavioural change and bury the next genuine bug in the noise.
+#
+# So this enables the families that catch *defects* and leaves the cosmetic
+# families off until someone wants to do that pass deliberately, in its own
+# commit, where the diff can be read.
+
+line-length = 100
+target-version = "py312"
+exclude = ["venv", "__pycache__", "build"]
+
+[lint]
+select = [
+    "F",      # pyflakes: undefined names, unused imports, unreachable code
+    "E9",     # syntax and IO errors only, not whitespace pedantry
+    "B",      # bugbear: mutable defaults, loop-variable capture, silent bugs
+    "RUF013", # implicit Optional — a type that lies about accepting None
+    "RUF015", # needless full-iteration to take one element
+    "RUF059", # unpacked-and-unused: usually a stale refactor, sometimes a bug
+    "S102",   # exec
+    "S307",   # eval
+    "S324",   # weak hash for security purposes
+    "DTZ003", # utcnow(), which is deprecated and ambiguous
+]
+
+ignore = [
+    # Blind `except Exception` is deliberate in this codebase and documented at
+    # each site: a missing storyboard image, an unparseable JSON blob or a font
+    # that will not register must degrade the feature, never fail the request.
+    # The contract is stated in the docstrings ("never raises").
+    "B008",   # FastAPI's Depends() in defaults is the framework's own idiom
+]
+
+[lint.per-file-ignores]
+# Tests deliberately reach into private helpers and re-import modules to check
+# import-time behaviour (see test_privacy's provider-routing tests).
+"tests/*" = ["F811", "S101"]
+
+[lint.flake8-bugbear]
+# FastAPI dependency injection puts callables in argument defaults by design.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header"]

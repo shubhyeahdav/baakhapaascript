@@ -17,6 +17,11 @@ os.environ["RATE_LIMITS_ENABLED"] = "false"  # per-process buckets would leak be
 os.environ["DEMO_SEED"] = "false"            # no known-credential account in tests
 os.environ.pop("SUPABASE_URL", None)         # force the local mock database
 os.environ.pop("SUPABASE_KEY", None)
+# eSewa publishes UAT credentials, so payments default to its real sandbox host.
+# A unit test must not depend on a third party being reachable, so the suite
+# pins the offline simulation instead. Tests that care about the sandbox set
+# this themselves.
+os.environ["PAYMENT_SANDBOX"] = "false"
 # ---------------------------------------------------------------------------
 
 import pytest  # noqa: E402

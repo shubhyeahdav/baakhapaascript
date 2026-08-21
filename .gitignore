@@ -38,3 +38,12 @@ extracted_scripts/
 # so this is a convenience default, not a safety rule.
 corpus_fingerprints.json
 baakhapaa-backend/corpus_fingerprints.json
+
+# Media and stray downloads that landed in the repo root. Same reasoning as the
+# installers above: nothing here is source, and a `git add -A` would sweep them
+# in. The karaoke track is somebody else's recording and must never be pushed.
+*.mp3
+*.mp4
+*.wav
+report-*.pdf
+*.skill

@@ -36,6 +36,11 @@ CHARACTER_RE = re.compile(
 )
 PARENTHETICAL_RE = re.compile(r"^\s*\(.*\)\s*$")
 
+# Heading given to content that appears before the first slugline. Named rather
+# than spelled inline because consumers need to tell a real scene from this one:
+# it is a container for stray text, not a scene anyone can shoot.
+UNTITLED_SCENE = "(untitled opening)"
+
 ELEMENT_TYPES = (
     "scene_heading",
     "action",
@@ -163,11 +168,143 @@ def scenes(text: str) -> List[Scene]:
             result.append(current)
             continue
         if current is None:
-            current = Scene(heading="(untitled opening)", line_number=el.line_number)
+            current = Scene(heading=UNTITLED_SCENE, line_number=el.line_number)
             result.append(current)
         current.elements.append(el)
 
     return result
+
+
+# A slugline splits into a prefix (where we are relative to outdoors), a
+# location, and a time of day: "INT. CHIYA PASAL, PATAN - MORNING".
+_HEADING_RE = re.compile(
+    r"^\s*(?P<prefix>INT\.?/EXT\.?|EXT\.?/INT\.?|INT\.?|EXT\.?|I/E\.?)[\s.]*(?P<body>.*)$",
+    re.IGNORECASE,
+)
+_TIME_SUFFIX_RE = re.compile(r"\s+[-–—]\s*(?P<time>[^-–—]+)\s*$")
+
+
+def heading_parts(heading: str) -> dict:
+    """Split a slugline into where and when.
+
+    Downstream consumers need these separately. An image prompt handed
+    "INT. CHIYA PASAL, PATAN - MORNING" as one opaque string tends to render the
+    words into the frame and loses the time of day as a lighting cue.
+    """
+    m = _HEADING_RE.match(heading or "")
+    prefix = m.group("prefix").upper().rstrip(".") if m else ""
+    body = (m.group("body") if m else (heading or "")).strip()
+
+    time_of_day = ""
+    t = _TIME_SUFFIX_RE.search(body)
+    if t:
+        time_of_day = t.group("time").strip()
+        body = body[: t.start()].strip()
+
+    return {
+        "interior": prefix.startswith("INT") or prefix.startswith("I/E"),
+        "location": body,
+        "time_of_day": time_of_day,
+    }
+
+
+# How much action text travels with a scene summary. Long enough to describe an
+# image, short enough that an image prompt stays about one picture.
+MAX_SUMMARY_CHARS = 400
+
+
+
+# Lines per printed page, blanks included. This is the number the PDF export
+# lays out with (A4, 12pt Courier, 16pt leading, 72pt top margin, break below
+# 60pt), and it lives here rather than there so the editor's page count and the
+# exported PDF's page count cannot drift apart. A writer who is told they are on
+# page 6 and prints a PDF where the scene sits on page 8 has been lied to, and
+# page count is the unit of screen time in this craft.
+PAGE_LINES = 45
+
+
+def page_of(line_number: int) -> int:
+    """1-indexed printed page holding `line_number` (also 1-indexed)."""
+    if line_number < 1:
+        return 1
+    return (line_number - 1) // PAGE_LINES + 1
+
+
+def page_count(text: str) -> int:
+    """Printed pages in a draft. Every line counts, blank ones included —
+    a blank line takes up just as much of a page as a written one."""
+    lines = (text or "").split("\n")
+    # An empty draft is still one (blank) page, not zero.
+    return max(1, page_of(len(lines)))
+
+
+def minutes_for(line_count: int) -> float:
+    """Screen minutes for a run of `line_count` printed lines.
+
+    One page is one minute, so this is just the page fraction. Counting the
+    lines *as printed* — blanks included — is the whole point: a screenplay is
+    mostly white space, and measuring only the typed lines undercounted every
+    runtime in the product by roughly half.
+
+    Two decimals because a short scene is a fraction of a page, and rounding to
+    a whole minute would make every scene in a 12-minute short read as 0 or 1 —
+    which is how the editor's timeline came to show 0M for scenes a writer had
+    actually written.
+    """
+    return round(line_count / PAGE_LINES, 2) if line_count else 0.0
+
+
+def scene_summaries(text: str) -> List[dict]:
+    """One visual summary per *written* scene, in document order.
+
+    Only sluglined scenes are returned, so summary N always corresponds to
+    slugline N — the correspondence the editor's scene index and the storyboard
+    both assume. A stray note above the first slugline would otherwise shift
+    every scene by one.
+
+    Action lines carry the image and dialogue does not, so only action travels
+    here; speaking characters come along separately to say who is in shot.
+    """
+    out = []
+    index = 0
+    all_scenes = scenes(text)
+    total_lines = len((text or "").split("\n"))
+    # A scene occupies everything from its own heading down to the next one.
+    # Measuring by element count instead undercounts by about half, because a
+    # screenplay page is mostly the blank lines between elements — and those
+    # take up just as much of a printed page as the words do.
+    starts = [sc.line_number for sc in all_scenes]
+    spans = {
+        sc.line_number: (starts[i + 1] if i + 1 < len(starts) else total_lines + 1) - sc.line_number
+        for i, sc in enumerate(all_scenes)
+    }
+    for sc in all_scenes:
+        if sc.heading == UNTITLED_SCENE:
+            continue
+        parts = heading_parts(sc.heading)
+        action = " ".join(el.text for el in sc.action_lines).strip()
+        out.append({
+            "index": index,
+            "heading": sc.heading,
+            "location": parts["location"],
+            "time_of_day": parts["time_of_day"],
+            "interior": parts["interior"],
+            "line_number": sc.line_number,
+            # Which printed page this scene opens on — what a writer means by
+            # "the argument on page 7", and what a scene index has to show for
+            # the page number in the corner to be worth anything.
+            "page": page_of(sc.line_number),
+            "characters": sc.speaking_characters,
+            "action": action[:MAX_SUMMARY_CHARS],
+            # How long this scene actually runs, measured off the page. Without
+            # it every draft-derived scene carried a runtime of zero, and the
+            # editor's timeline gave a nine-scene screenplay the same width as
+            # nothing at all.
+            "line_count": spans.get(sc.line_number, len(sc.elements)),
+            "estimated_minutes": minutes_for(spans.get(sc.line_number, len(sc.elements))),
+        })
+        index += 1
+    return out
 
 
 def statistics(text: str) -> dict:
@@ -180,7 +317,6 @@ def statistics(text: str) -> dict:
     """
     els = parse(text)
     scs = scenes(text)
-    total_lines = len([l for l in (text or "").split("\n") if l.strip()])
 
     dialogue = [e for e in els if e.type == "dialogue"]
     action = [e for e in els if e.type == "action"]
@@ -194,7 +330,10 @@ def statistics(text: str) -> dict:
     int_count = sum(1 for s in scs if s.heading.upper().lstrip().startswith("INT"))
     ext_count = sum(1 for s in scs if s.heading.upper().lstrip().startswith("EXT"))
 
-    est_pages = round(total_lines / 55, 2) if total_lines else 0.0
+    # The same page count the editor shows and the PDF prints. This was
+    # non-blank-lines/55 while the editor paginated on all-lines/45, so the
+    # toolbar said "p. 1 / 5" while the Craft panel said 1.98 pages.
+    est_pages = round(len((text or "").split("\n")) / PAGE_LINES, 2)
 
     return {
         "scene_count": len(scs),

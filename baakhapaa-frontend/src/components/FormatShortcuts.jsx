@@ -75,6 +75,21 @@ const startsWith = (candidate, fragment) =>
   candidate.toUpperCase().startsWith(fragment.toUpperCase());
 
 /**
+ * Drop completions that would complete nothing.
+ *
+ * Every branch below filters a vocabulary by "starts with what you typed", and
+ * a word you have finished typing starts with itself — so finishing MORNING
+ * offered you MORNING. That is not merely noise: with one option showing, Enter
+ * applied it, the text did not change, the identical suggestion came straight
+ * back, and Enter was consumed forever. A writer who typed a complete slugline
+ * could not get to the next line at all without pressing Escape first.
+ */
+const completions = (candidates, fragment) => {
+  const typed = (fragment || "").trim().toUpperCase();
+  return candidates.filter((c) => c.trim().toUpperCase() !== typed);
+};
+
+/**
  * What to offer for the line the caret is on.
  * Returns { fragment, options } — `fragment` is the text to replace.
  */
@@ -89,12 +104,12 @@ export function suggestFor(line, caretCol, vocab) {
     if (dash !== -1) {
       // After the dash: time of day.
       const frag = beforeCaret.slice(dash + 3);
-      return { fragment: frag, options: TIMES_OF_DAY.filter((t) => startsWith(t, frag)) };
+      return { fragment: frag, options: completions(TIMES_OF_DAY.filter((t) => startsWith(t, frag)), frag) };
     }
     // Between the prefix and the dash: a location from this draft.
     const frag = beforeCaret.replace(SLUG_RE, "").replace(/^\s+/, "");
     if (!frag) return null;
-    return { fragment: frag, options: vocab.locations.filter((l) => startsWith(l, frag)) };
+    return { fragment: frag, options: completions(vocab.locations.filter((l) => startsWith(l, frag)), frag) };
   }
 
   // --- character cue column ---------------------------------------------
@@ -105,7 +120,7 @@ export function suggestFor(line, caretCol, vocab) {
     if (exact) {
       return { fragment: "", options: CUE_EXTENSIONS };
     }
-    return { fragment: typed, options: vocab.characters.filter((c) => startsWith(c, typed)) };
+    return { fragment: typed, options: completions(vocab.characters.filter((c) => startsWith(c, typed)), typed) };
   }
 
   // --- parenthetical column ---------------------------------------------
@@ -122,7 +137,10 @@ export function suggestFor(line, caretCol, vocab) {
 
   // --- start of a line: slugline prefix or transition --------------------
   if (!typed) return null;
-  const options = [...SLUG_PREFIXES, ...TRANSITIONS].filter((o) => startsWith(o, typed));
+  const options = completions(
+    [...SLUG_PREFIXES, ...TRANSITIONS].filter((o) => startsWith(o, typed)),
+    typed
+  );
   return options.length ? { fragment: typed, options } : null;
 }
 

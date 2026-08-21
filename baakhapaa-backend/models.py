@@ -34,6 +34,9 @@ class UserResponse(BaseModel):
     name: str
     role: str = "editor"
     subscription_tier: str = "free"
+    # NULL for a free plan or a Stripe subscription (Stripe owns the renewal).
+    # Set for Khalti/eSewa, which sell one month at a time.
+    subscription_expires_at: Optional[str] = None
     preferences: Optional[dict] = None
 
 
@@ -224,11 +227,18 @@ class GenerateSceneRequest(BaseModel):
     tone: str
     language: str = "English"
     character_names: List[str] = []
+    # Optional, and the server loads the bible itself from it rather than
+    # trusting the client to send one. The bible is what tells the model what a
+    # character wants versus what they need — the single most useful thing you
+    # can give a scene generator, and it reached no prompt until now.
+    script_id: Optional[str] = None
+
 
 class ImproveSceneRequest(BaseModel):
     scene_text: str
     instruction: str
     language: str = "English"
+    script_id: Optional[str] = None
 
 class SuggestRequest(BaseModel):
     scene_text: str
@@ -245,6 +255,17 @@ class CommentCreate(BaseModel):
 
 class CheckoutRequest(BaseModel):
     tier: str
+    # None means "whichever gateway this deployment has keys for" — see
+    # payments.default_provider(). Named explicitly by the pricing page.
+    provider: Optional[str] = None
+
+
+class VerifyPaymentRequest(BaseModel):
+    provider: str
+    # Whatever the gateway put on the return URL: pidx for Khalti, the base64
+    # `data` blob for eSewa, session_id for Stripe. Passed through untrusted —
+    # it selects a payment to check, it does not assert anything about it.
+    params: dict = {}
 
 class RecommendRequest(BaseModel):
     scene_text: str = ""
@@ -303,6 +324,11 @@ class StoryBible(BaseModel):
         return [loc.strip() for loc in v if loc and loc.strip()]
 
 
+# A structure preview can name a large ensemble; a single scene cannot usefully
+# have one. Cap it so an oversized list can't be posted into a scene row.
+MAX_SCENE_CHARACTERS = 12
+
+
 class AddSceneRequest(BaseModel):
     script_id: str
     title: str
@@ -311,3 +337,52 @@ class AddSceneRequest(BaseModel):
     scene_type: str = "minor"
     time_allocation: float = 0
     order_index: int = 0
+    # Produced per scene by `generate_structure` and, until now, accepted
+    # nowhere — so the storyboard engine read `location`/`emotional_beat` back
+    # out of the row and always found them empty.
+    location: str = ""
+    emotional_beat: str = ""
+    characters: List[str] = []
+
+    @field_validator("characters")
+    @classmethod
+    def _characters(cls, v):
+        return [c.strip() for c in v if c and c.strip()][:MAX_SCENE_CHARACTERS]
+
+
+# --- project members (FR12) -------------------------------------------------
+
+ROLE_VALUES = ("admin", "editor", "viewer")
+
+
+class MemberCreate(BaseModel):
+    email: str
+    role: str = "editor"
+
+    @field_validator("role")
+    @classmethod
+    def _role(cls, v):
+        v = (v or "").strip().lower()
+        if v not in ROLE_VALUES:
+            raise ValueError(f"must be one of: {', '.join(ROLE_VALUES)}")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, v):
+        v = (v or "").strip().lower()
+        if "@" not in v or len(v) < 5:
+            raise ValueError("must be an email address")
+        return v
+
+
+class MemberRoleUpdate(BaseModel):
+    role: str
+
+    @field_validator("role")
+    @classmethod
+    def _role(cls, v):
+        v = (v or "").strip().lower()
+        if v not in ROLE_VALUES:
+            raise ValueError(f"must be one of: {', '.join(ROLE_VALUES)}")
+        return v

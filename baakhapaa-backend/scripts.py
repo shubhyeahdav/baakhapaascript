@@ -1,5 +1,7 @@
 import json
+import os
 from contextlib import contextmanager
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Depends
 from models import (
@@ -7,7 +9,10 @@ from models import (
     ImproveSceneRequest, SuggestRequest, ScriptSave, AddSceneRequest,
     RecommendRequest, StoryBible,
 )
-from database import supabase, get_project_by_id, get_scenes_by_script
+from database import (
+    supabase, get_project_by_id, get_versions_by_script,
+)
+import membership
 from auth import (
     get_current_user, require_script_access, require_project_access,
     require_paid_tier, is_paid_tier,
@@ -15,6 +20,8 @@ from auth import (
 import script_engine
 import linter
 import screenplay
+import scene_sync
+import review
 import fingerprint
 import benchmark
 import rag
@@ -34,7 +41,7 @@ def ai_unavailable_as_503():
     try:
         yield
     except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=503, detail=str(e)) from e
 
 
 @router.post("/generate-structure")
@@ -64,11 +71,23 @@ def generate_structure(req: GenerateStructureRequest, project_id: str, user_id: 
                 req.genre, req.tone, req.duration_minutes, req.language, req.target_audience
             )
 
-    script_result = supabase.table("scripts").insert({
-        "project_id": project_id, "content": "", "status": "draft",
-        "suggestions_json": json.dumps(structure),
-    }).execute()
-    script_id = script_result.data[0]["id"]
+    # One script row per project. Inserting unconditionally meant a second
+    # structure generation created a script that nothing could reach again:
+    # `GET /scripts/project/{id}` returns the FIRST row, so the new one was
+    # orphaned along with any suggestions in it. Updating in place also leaves
+    # `content` alone — regenerating a structure must never discard a draft.
+    existing = supabase.table("scripts").select("*").eq("project_id", project_id).execute()
+    if existing.data:
+        script_id = existing.data[0]["id"]
+        supabase.table("scripts").update(
+            {"suggestions_json": json.dumps(structure)}
+        ).eq("id", script_id).execute()
+    else:
+        script_result = supabase.table("scripts").insert({
+            "project_id": project_id, "content": "", "status": "draft",
+            "suggestions_json": json.dumps(structure),
+        }).execute()
+        script_id = script_result.data[0]["id"]
 
     return {"script_id": script_id, "structure": structure}
 
@@ -85,6 +104,14 @@ def add_scene(req: AddSceneRequest, user_id: str = Depends(get_current_user)):
         "description": req.description,
         "time_allocation": req.time_allocation,
         "order_index": req.order_index,
+        # The structure generator produces all three of these per scene, and
+        # every one of them used to be dropped here — while the storyboard
+        # engine read `location` and `emotional_beat` back out and therefore
+        # always got "". A frame prompt with no place, no cast and no mood is
+        # the whole reason early boards looked generic.
+        "location": req.location,
+        "emotional_beat": req.emotional_beat,
+        "characters_json": json.dumps(req.characters),
     }).execute()
     return result.data[0]
 
@@ -222,19 +249,79 @@ def benchmark_draft(req: RecommendRequest, user_id: str = Depends(get_current_us
     }
 
 
+def _bible_for(script_id, user_id) -> dict:
+    """The story bible for a script the caller may write to, or {}.
+
+    Loaded server-side from the id rather than accepted from the client: the
+    bible is the writer's own material and the server already has it, so there
+    is no reason to let a request carry a forged one.
+    """
+    if not script_id:
+        return {}
+    return _read_bible(require_script_access(script_id, user_id))
+
+
+def _craft_for(query: str, genre: str, tone: str, scene_text: str = "") -> list:
+    """Craft patterns to ground a generation, diagnosis first.
+
+    Same order of preference as `/recommendations`, and for the same reason: if
+    the linter can already name what is wrong with this scene, the technique
+    that fixes it beats anything embedding distance will find. Only when nothing
+    is flagged does this fall back to semantic search on the instruction.
+
+    The craft library used to ground `generate_structure` alone — so it shaped
+    the outline and then vanished at exactly the point the writer was actually
+    writing.
+    """
+    patterns = []
+    if scene_text:
+        flags = linter.lint(scene_text)
+        ranked = sorted(flags, key=lambda f: {"high": 0, "medium": 1, "low": 2}.get(f["severity"], 3))
+        patterns = rag.get_patterns_by_technique([f["technique"] for f in ranked])[:2]
+
+    if len(patterns) < 2:
+        already = {p["technique"] for p in patterns}
+        for p in script_engine.retrieve_relevant_patterns(genre, tone, query or "writing a scene", top_k=3):
+            if p["technique"] not in already:
+                patterns.append(p)
+                already.add(p["technique"])
+            if len(patterns) == 2:
+                break
+    return patterns
+
+
 @router.post("/generate-scene")
 def generate_scene(req: GenerateSceneRequest, user_id: str = Depends(require_paid_tier)):
+    bible = _bible_for(req.script_id, user_id)
+    patterns = _craft_for(req.scene_description, req.genre, req.tone)
     with ai_unavailable_as_503():
         text = script_engine.generate_scene(
-            req.scene_description, req.genre, req.tone, req.language, req.character_names
+            req.scene_description, req.genre, req.tone, req.language, req.character_names,
+            bible=bible, patterns=patterns,
         )
     return {"scene_text": text}
 
 
 @router.post("/improve")
 def improve(req: ImproveSceneRequest, user_id: str = Depends(require_paid_tier)):
+    bible = _bible_for(req.script_id, user_id)
+    # The scene itself is the best source of what to fix, so lint it and let the
+    # flagged technique lead. "Make this less on-the-nose" then arrives with the
+    # craft entry that answers exactly that, worked example included.
+    project = {}
+    if req.script_id:
+        script = require_script_access(req.script_id, user_id)
+        project = get_project_by_id(script.get("project_id")) or {}
+    patterns = _craft_for(
+        req.instruction,
+        project.get("genre") or "Drama",
+        project.get("tone") or "Emotional",
+        scene_text=req.scene_text,
+    )
     with ai_unavailable_as_503():
-        text = script_engine.improve_scene(req.scene_text, req.instruction, req.language)
+        text = script_engine.improve_scene(
+            req.scene_text, req.instruction, req.language, bible=bible, patterns=patterns,
+        )
     return {"improved_text": text}
 
 
@@ -249,6 +336,7 @@ def suggest(req: SuggestRequest, user_id: str = Depends(require_paid_tier)):
 def get_script_for_project(project_id: str, user_id: str = Depends(get_current_user)):
     """Return the project's script, creating an empty one if none exists yet
     (lets the dashboard open any project directly in the editor)."""
+    # Editor: this creates a row when none exists, which a viewer must not do.
     require_project_access(project_id, user_id)
 
     existing = supabase.table("scripts").select("*").eq("project_id", project_id).execute()
@@ -263,8 +351,13 @@ def get_script_for_project(project_id: str, user_id: str = Depends(get_current_u
 
 @router.get("/{script_id}")
 def get_script(script_id: str, user_id: str = Depends(get_current_user)):
-    script = require_script_access(script_id, user_id)
-    scenes = get_scenes_by_script(script_id)
+    script = require_script_access(script_id, user_id, minimum=membership.VIEWER)
+    # Reconcile on load, not only on save. Sync ran on save, on storyboard and
+    # on review — so a writer who opened a script they had typed by hand met an
+    # empty scene index, a dead timeline and an empty corkboard, and the only
+    # way to populate them was to make an edit. Everything downstream of the
+    # scene rows was invisible until the draft was touched.
+    scenes = scene_sync.sync_from_draft(script_id, script.get("content") or "")
     # Embed the parent project so the editor can title itself and drive AI
     # calls from the project's real genre/tone instead of guessing.
     project = get_project_by_id(script.get("project_id")) or {}
@@ -291,6 +384,13 @@ def get_script(script_id: str, user_id: str = Depends(get_current_user)):
             "hook_type": project.get("hook_type"),
             "short_form_category": project.get("short_form_category"),
         },
+        # Pagination, so the editor can tell a writer where they are. Computed
+        # with the same rule the PDF export lays out with, which is the only
+        # reason "page 6" can mean one thing across the product.
+        "pagination": {
+            "page_lines": screenplay.PAGE_LINES,
+            "page_count": screenplay.page_count(script.get("content") or ""),
+        },
     }
 
 
@@ -309,7 +409,7 @@ def _read_bible(script: dict) -> dict:
 
 @router.get("/{script_id}/bible")
 def get_bible(script_id: str, user_id: str = Depends(get_current_user)):
-    return _read_bible(require_script_access(script_id, user_id))
+    return _read_bible(require_script_access(script_id, user_id, minimum=membership.VIEWER))
 
 
 @router.put("/{script_id}/bible")
@@ -323,21 +423,112 @@ def save_bible(script_id: str, bible: StoryBible, user_id: str = Depends(get_cur
     return bible.model_dump()
 
 
+# One auto-save snapshot per window, rather than one per typing pause.
+#
+# The editor saves a few seconds after the last keystroke, and every save used
+# to insert a version row holding the entire previous draft. A morning's writing
+# therefore produced dozens of rows all labelled "Auto save" — so version
+# history became unreadable exactly as it started to matter, and storage grew by
+# a full copy of the script per pause. A window preserves the useful property
+# (the state at the start of each window is recoverable) at a fraction of the
+# rows.
+AUTOSAVE_SNAPSHOT_WINDOW_SECONDS = int(os.getenv("AUTOSAVE_SNAPSHOT_WINDOW_SECONDS", "300"))
+AUTOSAVE_LABEL = "Auto save"
+
+
+def _age_seconds(created_at) -> float:
+    """Seconds since an ISO timestamp.
+
+    Handles both storage modes: the local store writes a naive local timestamp,
+    real Supabase an aware one. Anything unparseable reads as ancient, so a
+    surprise timestamp format costs an extra snapshot rather than silently
+    dropping the writer's history.
+    """
+    if not created_at:
+        return float("inf")
+    try:
+        ts = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
+    except ValueError:
+        return float("inf")
+    now = datetime.now(timezone.utc) if ts.tzinfo else datetime.now()
+    return (now - ts).total_seconds()
+
+
+def _should_snapshot(script: dict, new_content: str) -> bool:
+    """Whether this save deserves a version row."""
+    previous = script.get("content") or ""
+    if previous == (new_content or ""):
+        return False  # nothing changed — the snapshot would record no edit
+    if not previous.strip():
+        return False  # first real save; the prior state is an empty page
+
+    versions = get_versions_by_script(script["id"])
+    if not versions:
+        return True
+    latest = versions[0]
+    # A manual save or a restore is a real boundary in the writer's own terms,
+    # so never coalesce across one.
+    if latest.get("label") != AUTOSAVE_LABEL:
+        return True
+    return _age_seconds(latest.get("created_at")) >= AUTOSAVE_SNAPSHOT_WINDOW_SECONDS
+
+
 @router.put("/{script_id}")
 def save_script(script_id: str, data: ScriptSave, user_id: str = Depends(get_current_user)):
     script = require_script_access(script_id, user_id)
 
-    supabase.table("versions").insert({
-        "script_id": script_id, "user_id": user_id,
-        "content": script["content"], "label": "Auto save",
-    }).execute()
+    if _should_snapshot(script, data.content):
+        supabase.table("versions").insert({
+            "script_id": script_id, "user_id": user_id,
+            "content": script["content"], "label": AUTOSAVE_LABEL,
+        }).execute()
 
     result = supabase.table("scripts").update({"content": data.content}).eq("id", script_id).execute()
-    return result.data[0]
+
+    # Keep the scene rows in step with the page. The editor's index cards read
+    # these rows while its jump-to-scene counts sluglines in the text, so left to
+    # drift, clicking card 3 lands you in scene 4. Returned with the save so the
+    # editor can refresh the cards without a second round trip.
+    scenes = scene_sync.sync_from_draft(script_id, data.content or "")
+    return {
+        **result.data[0],
+        "scenes": scenes,
+        # The page count moves as the draft grows, so it rides back with the
+        # save rather than making the editor ask again to redraw its rules.
+        "pagination": {
+            "page_lines": screenplay.PAGE_LINES,
+            "page_count": screenplay.page_count(data.content or ""),
+        },
+    }
+
+
+def _review_for(script: dict) -> dict:
+    """Run the pre-finalization checks against a script row."""
+    scenes = scene_sync.sync_from_draft(script["id"], script.get("content") or "")
+    project = get_project_by_id(script.get("project_id")) or {}
+    return review.review(script.get("content") or "", scenes, project)
+
+
+@router.get("/{script_id}/review")
+def review_script(script_id: str, user_id: str = Depends(get_current_user)):
+    """Timing, character-name consistency and act balance (proposal FR07).
+
+    Deterministic and free, like `/lint` — so the editor can show it while the
+    writer is still working rather than only at the moment they finalize.
+    """
+    return _review_for(require_script_access(script_id, user_id, minimum=membership.VIEWER))
 
 
 @router.post("/{script_id}/finalize")
 def finalize_script(script_id: str, user_id: str = Depends(get_current_user)):
-    require_script_access(script_id, user_id)
+    """Finalize, and return what the review found.
+
+    FR07 puts a review "before finalization". It does not block: a writer may
+    finalize a script this tool disagrees with. What it must not do is let them
+    do it without being told — which is what happened for as long as
+    `review_script()` sat in `script_engine` wired to nothing.
+    """
+    script = require_script_access(script_id, user_id)
+    verdict = _review_for(script)
     result = supabase.table("scripts").update({"status": "finalized"}).eq("id", script_id).execute()
-    return result.data[0]
+    return {**result.data[0], "review": verdict}

@@ -6,9 +6,10 @@ which is why A1 has been passing CI for weeks while still rendering blank
 boxes on a Linux host: the local dev machine resolves the fallback to
 Windows' Nirmala, and CI never notices the shipped asset is missing.
 
-These tests assert the deployable artefact exists, not just that the code
-would use it. The first is skipped rather than failed so the suite stays green
-on a dev box; the second is the one that must not be skipped before deploy.
+These tests assert the deployable artefact exists, not just that the code would
+use it — which is why A1 passed CI for weeks while still rendering blank boxes
+on a Linux host: this machine resolved the fallback to Windows' Nirmala, and
+nothing noticed the shipped asset was missing.
 """
 import os
 
@@ -41,16 +42,14 @@ def test_a_devanagari_font_resolves_at_all():
     )
 
 
-@pytest.mark.skipif(
-    os.getenv("REQUIRE_SHIPPABLE_FONT") != "true",
-    reason="dev machines resolve Nirmala; set REQUIRE_SHIPPABLE_FONT=true in CI/deploy",
-)
 def test_a_redistributable_font_is_bundled():
-    """The deploy gate.
+    """The deploy gate — no longer skippable, because the asset now exists.
 
-    Nirmala is a Microsoft font — present on this Windows box, absent from
-    every Linux host, and not ours to redistribute. Only a bundled SIL OFL
-    face makes the export work in production.
+    Nirmala is a Microsoft font: present on this Windows box, absent from every
+    Linux host, and not ours to redistribute. Only a bundled SIL OFL face makes
+    the export work in production. Noto Sans Devanagari was added on 2026-08-18,
+    so this test's job has flipped from "warn that it is missing" to "fail if
+    anyone removes it".
     """
     assert any(os.path.exists(p) for p in SHIPPABLE), (
         "No redistributable Devanagari font in assets/. Nirmala is dev-only.\n"

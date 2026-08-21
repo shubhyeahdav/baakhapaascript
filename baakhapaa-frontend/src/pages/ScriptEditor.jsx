@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { scripts, exportApi } from "../services/api";
-import { downloadBlob } from "../utils/download";
+import { downloadBlob, safeFilename } from "../utils/download";
 import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
 import CraftPanel from "../components/CraftPanel";
 import FormatShortcuts, { harvestVocabulary, suggestFor } from "../components/FormatShortcuts";
 import StoryBible from "../components/StoryBible";
+import { enterText } from "../utils/screenplayFormat";
 
 // What the shortcuts dropdown lists. Kept beside the editor rather than in
 // FormatShortcuts so the reference and the engine can't silently disagree
@@ -26,6 +27,9 @@ const SHORTCUT_HINTS = [
 import StructureTimeline from "../components/StructureTimeline";
 import ShortFormTimeline from "../components/ShortFormTimeline";
 import CompactTimeline from "../components/CompactTimeline";
+import Corkboard from "../components/Corkboard";
+import OutlineView from "../components/OutlineView";
+import PageBreaks from "../components/PageBreaks";
 
 // One-click focuses for pattern recommendations. The pattern library is
 // indexed by the PROBLEM a technique solves, so each chip just names that
@@ -40,9 +44,38 @@ const FOCUSES = [
 ];
 import { useAuth } from "../context/AuthContext";
 
+// What each paid mode actually does. A free user pressing "Execute AI Action"
+// used to get `Error: AI generation requires a Pro or Studio plan` in the
+// response box — a refusal styled as a failure, with nothing to act on. If the
+// tab is going to be visible, it should describe the feature and offer the plan.
+const PAID_MODES = {
+  generate: "Write a full scene from a description — correctly formatted, in your project's language.",
+  improve: "Rewrite the scene you're on against an instruction, keeping the characters and the beat.",
+  suggest: "Three different ways this scene could continue, read from what you've written so far.",
+};
+
+function UpgradePrompt({ mode, onUpgrade }) {
+  return (
+    <div className="rounded-xl border border-gold/25 bg-goldDim/40 p-4 mb-4">
+      <div className="font-mono text-[9.5px] uppercase tracking-wider text-gold mb-1.5">
+        Pro / Studio
+      </div>
+      <p className="text-[12.5px] text-inkSoft leading-snug mb-3">{PAID_MODES[mode]}</p>
+      <button onClick={onUpgrade} className="btn-gold w-full text-xs py-2">
+        See plans
+      </button>
+      <p className="text-[11px] text-inkMuted mt-2.5 leading-snug">
+        Your free plan already includes the Patterns tab and the Craft checks —
+        both read the analysed script library, so neither costs a paid model call.
+      </p>
+    </div>
+  );
+}
+
 export default function ScriptEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [script, setScript] = useState(null);
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
@@ -68,9 +101,26 @@ export default function ScriptEditor() {
   const [bible, setBible] = useState(null);
   const [focus, setFocus] = useState("scene");
   const [openPattern, setOpenPattern] = useState(null);
+  // FR07 review, held open until the writer decides what to do about it.
+  const [review, setReview] = useState(null);
+  const [reviewing, setReviewing] = useState(false);
+  // Which line the caret sits on, 1-indexed to match the Notes tab and the
+  // linter's line numbers. Kept here because the textarea is the only thing
+  // that knows it.
+  const [caretLine, setCaretLine] = useState(0);
 
   const { user } = useAuth();
   const isFree = !["pro", "studio"].includes(user?.subscription_tier);
+  // Set when the server refuses a generation the client thought was allowed —
+  // a tier can change under a session that stays open for hours.
+  const [serverLocked, setServerLocked] = useState(false);
+  const aiLocked = isFree || serverLocked;
+
+  // The wizard sends the writer here when the project was created but its
+  // structure suggestion never came back. Silently opening an editor with an
+  // empty Structure panel would leave them wondering what happened.
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
+  const structureFailed = searchParams.get("structure_failed") === "1" && !noticeDismissed;
 
   // Free plan's AI feature is RAG pattern recommendations — make it the
   // default tab so free users land on something that works for them.
@@ -158,6 +208,24 @@ export default function ScriptEditor() {
   // instead of assuming 25px, which drifts as soon as the font or zoom
   // changes. In zen mode the caret is centred (typewriter scrolling) so the
   // writer's eye stays in one place.
+  /**
+   * Keep the caret visible.
+   *
+   * Two things were wrong here, and together they meant the page did not follow
+   * you down the script:
+   *
+   * 1. It was only ever called in zen mode. Enter and Tab both `preventDefault()`
+   *    and insert programmatically, which skips the browser's own "keep the
+   *    caret in view" behaviour — so in normal mode nothing scrolled at all and
+   *    the caret walked off the bottom of the page.
+   * 2. The non-centred branch parked the caret four lines from the top on every
+   *    call, whether or not it was already visible. That yanks the page on
+   *    keystrokes that needed no scrolling.
+   *
+   * Centred (zen) is typewriter scrolling and stays as it was. Otherwise this is
+   * scroll-if-needed: do nothing while the caret is comfortably on screen, and
+   * when it isn't, move the smallest amount that brings it back with a margin.
+   */
   const scrollCaretIntoView = useCallback((centre = false) => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -168,10 +236,47 @@ export default function ScriptEditor() {
     const padTop = parseFloat(cs.paddingTop) || 0;
     const line = ta.value.slice(0, ta.selectionStart).split("\n").length - 1;
     const caretY = padTop + line * lineHeight;
-    const target = centre
-      ? caretY - ta.clientHeight / 2
-      : caretY - lineHeight * 4;
-    ta.scrollTop = Math.max(0, target);
+
+    // Keep a couple of lines of breathing room at each edge, so the caret never
+    // stops flush against a boundary.
+    const margin = lineHeight * 2;
+
+    // 1. The textarea's own scroll. It is a fixed-height "page", so this only
+    //    engages once the draft is longer than that page box.
+    if (ta.scrollHeight > ta.clientHeight) {
+      if (centre) {
+        ta.scrollTop = Math.max(0, caretY - ta.clientHeight / 2);
+      } else if (caretY - margin < ta.scrollTop) {
+        ta.scrollTop = Math.max(0, caretY - margin);
+      } else if (caretY + lineHeight + margin > ta.scrollTop + ta.clientHeight) {
+        ta.scrollTop = caretY + lineHeight + margin - ta.clientHeight;
+      }
+    }
+
+    // 2. The container, which is what the writer actually looks through.
+    //
+    //    This is the one that was missing. The page is 1056px tall and the
+    //    window onto it is more like 650px on a laptop, so from roughly line 26
+    //    the caret sits inside the textarea's own box — nothing for it to
+    //    scroll — while being hundreds of pixels below the visible fold. The
+    //    browser only follows a caret out of the *textarea*, never out of an
+    //    ancestor, so typing simply walked off the bottom of the screen.
+    //
+    //    Worked in viewport coordinates and applied as a delta, which stays
+    //    correct whatever padding or zoom the page happens to have.
+    const container = ta.parentElement;
+    if (!container || container.scrollHeight <= container.clientHeight) return;
+
+    const caretOnScreen = ta.getBoundingClientRect().top + caretY - ta.scrollTop;
+    const box = container.getBoundingClientRect();
+
+    if (centre) {
+      container.scrollTop += caretOnScreen - (box.top + box.height / 2);
+    } else if (caretOnScreen - margin < box.top) {
+      container.scrollTop += caretOnScreen - margin - box.top;
+    } else if (caretOnScreen + lineHeight + margin > box.bottom) {
+      container.scrollTop += caretOnScreen + lineHeight + margin - box.bottom;
+    }
   }, []);
 
   // Jump the editor to a scene: find the Nth slugline and put the caret there.
@@ -189,6 +294,16 @@ export default function ScriptEditor() {
 
   const [showStructure, setShowStructure] = useState(false);
   const [addingScene, setAddingScene] = useState(null);
+
+  // Script / Corkboard / Outline, the way Final Draft and Arc Studio split it.
+  // All three read the same scene rows, which is only possible because the rows
+  // are now reconciled from the draft on load rather than on save alone.
+  const [view, setView] = useState("script");
+  // Page rules are drawn from the server's own PAGE_LINES so the editor and the
+  // PDF export cannot disagree about what page a scene is on.
+  const [pagination, setPagination] = useState({ page_lines: 45, page_count: 1 });
+  const [pageScroll, setPageScroll] = useState(0);
+  const [caretPage, setCaretPage] = useState(1);
 
   // Zen mode: Esc leaves. Without a keyboard exit the only way out is a button
   // that zen mode itself has just hidden most of the context around.
@@ -226,6 +341,7 @@ export default function ScriptEditor() {
         // Arrives with the script so the type-ahead has character names
         // before the first keystroke, not after a second round trip.
         setBible(res.data.bible || null);
+        if (res.data.pagination) setPagination(res.data.pagination);
         // Open the structure preview by default when the script has AI
         // suggestions but no scenes added yet (fresh from the wizard).
         if (res.data.suggestions_json && (res.data.scenes || []).length === 0) {
@@ -234,6 +350,19 @@ export default function ScriptEditor() {
       })
       .catch((err) => setLoadError(err.response?.data?.detail || "Could not load this script."));
   }, [id]);
+
+  // A scene's length as the writer would state it. `draft_json.minutes` is what
+  // is on the page; `time_allocation` is what was planned for it.
+  const sceneRuntime = (scene) => {
+    let d = {};
+    try {
+      d = typeof scene.draft_json === "string" ? JSON.parse(scene.draft_json) : (scene.draft_json || {});
+    } catch { d = {}; }
+    const v = Number(d.minutes) || Number(scene.time_allocation) || 0;
+    if (v === 0) return "—";
+    const m = Math.floor(v);
+    return `${m}:${String(Math.round((v - m) * 60)).padStart(2, "0")}`;
+  };
 
   // AI suggestion set (persisted on the script row) + which are already added.
   const suggestions = React.useMemo(() => {
@@ -315,6 +444,12 @@ export default function ScriptEditor() {
         scene_type: scene.scene_type || "minor",
         time_allocation: scene.time_allocation || 0,
         order_index: orderIndex,
+        // The structure generator produced these; sending them is what lets a
+        // storyboard frame know where the scene is, who is in it and how it
+        // feels before a word of it has been written.
+        location: scene.location || "",
+        emotional_beat: scene.emotional_beat || "",
+        characters: scene.characters || [],
       });
 
       const nextScenes = [...(script?.scenes || []), res.data].sort(
@@ -339,10 +474,107 @@ export default function ScriptEditor() {
     }
   };
 
+  // Which printed page the caret is on. Same rule as the rules drawn on the
+  // page and as the PDF export, so all three agree.
+  const updateCaretPage = (ta) => {
+    if (!ta) return;
+    const before = ta.value.slice(0, ta.selectionStart);
+    setCaretPage(Math.floor(before.split("\n").length / (pagination.page_lines || 45)) + 1);
+  };
+
+  /**
+   * Move a scene by dragging its card — by moving the scene IN THE SCRIPT.
+   *
+   * The draft is the authority: `scene_sync` derives every row's order from
+   * document position, so reordering rows on their own would be undone by the
+   * next save. Moving the text is the only reorder that survives, and it is
+   * also what the writer means.
+   */
+  const moveScene = (from, to) => {
+    const text = textareaRef.current?.value ?? content;
+    const starts = sluglinePositions(text);
+    if (from >= starts.length || from === to) return;
+
+    const head = text.slice(0, starts[0]);
+    const blocks = starts.map((pos, i) =>
+      text.slice(pos, i + 1 < starts.length ? starts[i + 1] : text.length)
+    );
+    const [moved] = blocks.splice(from, 1);
+    blocks.splice(Math.min(to, blocks.length), 0, moved);
+
+    const next = head + blocks.join("");
+    // Whole-document rewrite, so this goes through state rather than
+    // execCommand — a reorder is not a keystroke and does not belong on the
+    // typing undo stack.
+    setContent(next);
+    setActiveScene(Math.min(to, blocks.length - 1));
+    scripts
+      .save(id, next)
+      .then((res) => {
+        if (res?.data?.scenes) setScript((prev) => ({ ...prev, scenes: res.data.scenes }));
+        if (res?.data?.pagination) setPagination(res.data.pagination);
+      })
+      .catch(() => {});
+  };
+
+  /**
+   * A scene the writer invented, rather than one the AI proposed.
+   *
+   * `POST /scripts/add-scene` has accepted these since the first structure
+   * commit and nothing ever called it that way, so every scene in the product
+   * had to originate from a generated suggestion.
+   */
+  const addCustomScene = async (actNumber = 1, heading = "") => {
+    // The slugline is composed inline in the view that asked for it. This used
+    // `window.prompt`, which some embedded browsers refuse outright — and which
+    // is the wrong way to ask a screenwriter for a scene heading regardless.
+    if (!heading || !heading.trim()) return;
+
+    const title = heading.trim().toUpperCase();
+    setAddingScene("custom");
+    try {
+      const orderIndex = (script?.scenes || []).length;
+      const res = await scripts.addScene({
+        script_id: id,
+        title,
+        description: "",
+        act_number: actNumber,
+        scene_type: "minor",
+        time_allocation: 0,
+        order_index: orderIndex,
+        location: title.replace(/^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s*/i, "").split(" - ")[0],
+        emotional_beat: "",
+        characters: [],
+      });
+
+      // Write it into the page too. A card that says a scene exists while the
+      // script stays blank is the drift this whole sync layer exists to stop.
+      const text = textareaRef.current?.value ?? content;
+      const at = text.length;
+      const block = `${text.endsWith("\n") || !text ? "" : "\n\n"}${title}\n\n`;
+      insertAtPosition(at, block);
+
+      setScript((prev) => ({ ...prev, scenes: [...(prev?.scenes || []), res.data] }));
+      setActiveScene(orderIndex);
+      setView("script");
+    } catch (err) {
+      alert(err.response?.data?.detail || "Could not add this scene.");
+    } finally {
+      setAddingScene(null);
+    }
+  };
+
   const saveContent = useCallback(async () => {
     setSaving(true);
     try {
-      await scripts.save(id, content);
+      const res = await scripts.save(id, content);
+      // The server reconciles the scene rows with the draft on every save and
+      // returns them, so the index cards refresh from this same round trip
+      // instead of going stale until the page is reloaded.
+      if (res?.data?.scenes) {
+        setScript((prev) => (prev ? { ...prev, scenes: res.data.scenes } : prev));
+      }
+      if (res?.data?.pagination) setPagination(res.data.pagination);
     } catch (err) {
       console.error("Auto-save failed:", err.response?.data?.detail || err.message);
     } finally {
@@ -356,6 +588,20 @@ export default function ScriptEditor() {
     }, 15000); // Save every 15s instead of 30s for higher reliability
     return () => clearTimeout(timer);
   }, [content, saveContent]);
+
+  // Ctrl/Cmd+S. Autosave already runs, but "save my work" is a reflex a writer
+  // should never have to suppress — and without this the browser's own Save
+  // Page dialog opened over the draft, which is the opposite of reassuring.
+  useEffect(() => {
+    const onSave = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        saveContent();
+      }
+    };
+    window.addEventListener("keydown", onSave);
+    return () => window.removeEventListener("keydown", onSave);
+  }, [saveContent]);
 
   // AI calls follow the project's own genre/tone/language rather than guessing.
   const proj = script?.project || {};
@@ -403,44 +649,112 @@ export default function ScriptEditor() {
     setAiLoading(true);
     try {
       if (aiMode === "generate") {
+        // `script_id` is what lets the server load the story bible and ground
+        // the prompt in it. Without it the model never learns what a character
+        // wants, needs, or sounds like — all of which the writer already typed
+        // into the Story tab.
         const res = await scripts.generateScene({
-          scene_description: instruction, genre, tone, language,
+          scene_description: instruction, genre, tone, language, script_id: id,
         });
         setAiResponse(res.data.scene_text);
       } else if (aiMode === "improve") {
-        const res = await scripts.improve({ scene_text: content, instruction, language });
+        const res = await scripts.improve({
+          scene_text: content, instruction, language, script_id: id,
+        });
         setAiResponse(res.data.improved_text);
       } else {
         const res = await scripts.suggest({ scene_text: content, genre, tone });
         setAiResponse(res.data.suggestions.join("\n\n---\n\n"));
       }
     } catch (err) {
-      setAiResponse("Error: " + (err.response?.data?.detail || "AI request failed"));
+      if (err.response?.status === 403) {
+        // Show the offer rather than leaving a refusal in the response box.
+        setAiResponse("");
+        setServerLocked(true);
+      } else {
+        setAiResponse("Error: " + (err.response?.data?.detail || "AI request failed"));
+      }
     } finally {
       setAiLoading(false);
     }
   };
 
+  /**
+   * Put the accepted text where the caret is, through the browser's editing
+   * pipeline.
+   *
+   * Two bugs in one line before this: appending to the end of the draft dropped
+   * a scene written for act 1 after act 3, and `setContent` replaced the whole
+   * textarea value, which discards the native undo stack — the exact failure
+   * `replaceRange` exists to avoid (see its comment).
+   */
   const acceptAI = () => {
-    setContent((prev) => prev + "\n\n" + aiResponse);
+    const ta = textareaRef.current;
+    const value = ta?.value ?? content;
+    const at = ta ? ta.selectionStart : value.length;
+    // Land as its own block, but don't stack blank lines if one is already there.
+    const gap = at > 0 && !value.slice(0, at).endsWith("\n\n") ? "\n\n" : "";
+    const text = `${gap}${aiResponse.trim()}\n`;
+
+    if (ta) {
+      replaceRange(at, at, text);
+      const caret = at + text.length;
+      requestAnimationFrame(() => {
+        ta.setSelectionRange(caret, caret);
+        scrollCaretIntoView(zenMode);
+      });
+    } else {
+      setContent(value.slice(0, at) + text + value.slice(at));
+    }
     setAiResponse("");
     setInstruction("");
   };
 
+  /**
+   * Finalize, with the review in front of it (proposal FR07).
+   *
+   * The review runs first and reports what it found — near-duplicate character
+   * names, scenes far off their allotted time, an act out of balance. It does
+   * not block: a writer may finalize a script this tool disagrees with. What it
+   * must not do is let them do it without being shown, which is what happened
+   * while the reviewer sat in `script_engine` wired to nothing.
+   */
   const handleFinalize = async () => {
+    setReviewing(true);
     try {
       await saveContent();
+      const res = await scripts.review(id);
+      if ((res.data.findings || []).length > 0) {
+        setReview(res.data);
+        return;
+      }
+      await confirmFinalize();
+    } catch (err) {
+      alert(err.response?.data?.detail || "Could not review the script.");
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  const confirmFinalize = async () => {
+    try {
       await scripts.finalize(id);
+      setReview(null);
       navigate(`/projects/${id}/storyboard`);
     } catch (err) {
       alert(err.response?.data?.detail || "Could not finalize the script.");
     }
   };
 
+  const EXPORT_EXT = { pdf: "pdf", word: "docx", fdx: "fdx", package: "pdf" };
+
   const handleExport = async (type) => {
     try {
       const res = await exportApi[type](id);
-      downloadBlob(res.data, `script.${type === "word" ? "docx" : "pdf"}`);
+      // Name the file after the project. Every export used to land as
+      // `script.pdf`, so three projects produced three files a writer had to
+      // open to tell apart — and the browser silently renamed the collisions.
+      downloadBlob(res.data, `${safeFilename(proj.title || "script")}.${EXPORT_EXT[type]}`);
     } catch (err) {
       alert(err.response?.data?.detail || "Export failed.");
     }
@@ -455,10 +769,21 @@ export default function ScriptEditor() {
     // and indent-cycling is what you want on a line you haven't typed on yet.
     const open = suggest && !dismissed;
     if (open) {
-      if (e.key === "Tab" || (e.key === "Enter" && suggest.options.length === 1)) {
+      // Tab completes. Enter never does.
+      //
+      // Enter used to take the completion whenever exactly one was showing,
+      // which cost a writer the one key they cannot do without: finishing a
+      // slugline offered the word already typed, Enter "applied" it, nothing
+      // changed, the same suggestion returned, and the line break never
+      // happened. The strip has always said Tab; now that is the whole truth.
+      if (e.key === "Tab") {
         e.preventDefault();
         applySuggestion(suggestIndex);
         return;
+      }
+      if (e.key === "Enter") {
+        // Fall through to the newline, and get the strip out of the way.
+        setDismissed(true);
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -508,6 +833,7 @@ export default function ScriptEditor() {
       requestAnimationFrame(() => {
         const newCursorPos = lineStart + newLeadingSpaces + lineContent.length;
         e.target.setSelectionRange(newCursorPos, newCursorPos);
+        scrollCaretIntoView(zenMode);
       });
     } else if (e.key === "Enter") {
       const { selectionStart, value } = e.target;
@@ -516,30 +842,22 @@ export default function ScriptEditor() {
       const leadingSpaces = currentLine.match(/^ */)[0].length;
       const trimmed = currentLine.trim();
       
-      let nextLeadingSpaces = 0;
-      if (trimmed.startsWith("INT.") || trimmed.startsWith("EXT.")) {
-        nextLeadingSpaces = 0; 
-      }
-      else if (leadingSpaces === 22 || (trimmed === trimmed.toUpperCase() && trimmed.length > 0 && isNaN(trimmed))) {
-        nextLeadingSpaces = 10; // Under Character -> indent Dialogue
-      }
-      else if (leadingSpaces === 15 || (trimmed.startsWith("(") && trimmed.endsWith(")") )) {
-        nextLeadingSpaces = 10; // Under Parenthetical -> indent Dialogue
-      }
-      else if (leadingSpaces === 10) {
-        nextLeadingSpaces = 0;  // Under Dialogue -> go back to Action
-      } else {
-        nextLeadingSpaces = leadingSpaces; // Keep same indent
-      }
-      
+      // What the next line should be, in screenplay terms. The rule lives in
+      // utils/screenplayFormat so it can be tested — it runs on every line a
+      // writer types, and inline here it shipped inserting a bare newline
+      // everywhere, which is not screenplay format at all.
+      const atLineEnd = selectionStart === value.length || value[selectionStart] === "\n";
+
       e.preventDefault();
-      const insertText = "\n" + " ".repeat(nextLeadingSpaces);
+      const insertText = enterText(currentLine, atLineEnd);
       replaceRange(selectionStart, selectionStart, insertText);
 
       requestAnimationFrame(() => {
         const newCursorPos = selectionStart + insertText.length;
         e.target.setSelectionRange(newCursorPos, newCursorPos);
-        if (zenMode) scrollCaretIntoView(true);
+        // Every mode, not just zen: Enter is preventDefault-ed and inserted
+        // programmatically, so the browser will not follow the caret for us.
+        scrollCaretIntoView(zenMode);
       });
     }
   };
@@ -569,6 +887,18 @@ export default function ScriptEditor() {
         </div>
         <div className="flex gap-3 items-center">
           <span className="text-[11px] font-semibold text-inkMuted uppercase tracking-wider mr-2">{saving ? "Saving..." : "Synced"}</span>
+          {/* Where the writer is, in the unit their craft actually uses. A
+              screenplay note is "cut ten pages", never "cut some words" — and
+              until now the editor could not answer "what page am I on" at all.
+              Same page numbering as the exported PDF. */}
+          {view === "script" && (
+            <span
+              className="text-[11px] font-mono text-inkMuted mr-3 tabular-nums"
+              title="Page under the caret / pages in the draft — matches the PDF export"
+            >
+              p. {Math.min(caretPage, pagination.page_count)} / {pagination.page_count}
+            </span>
+          )}
           {/* Shortcut reference. A dropdown rather than a standing panel:
               you need it while learning the letters and never again, so it
               shouldn't hold editor width permanently. */}
@@ -618,6 +948,31 @@ export default function ScriptEditor() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           </button>
           <div className="h-4 w-px bg-borderSoft mx-1" />
+          {/* Script / Corkboard / Outline. One workspace, three readings of the
+              same scene rows — the pattern Final Draft, Arc Studio and
+              StudioBinder all settled on, because restructuring and writing are
+              different jobs and a single view can only be good at one. */}
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            {[
+              { key: "script", label: "Script" },
+              { key: "corkboard", label: "Corkboard" },
+              { key: "outline", label: "Outline" },
+            ].map((v) => (
+              <button
+                key={v.key}
+                onClick={() => setView(v.key)}
+                aria-pressed={view === v.key}
+                className={`text-xs py-1.5 px-3 transition ${
+                  view === v.key
+                    ? "bg-goldDim text-gold"
+                    : "text-inkMuted hover:text-ink hover:bg-elevated/50"
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+          <div className="h-4 w-px bg-borderSoft mx-1" />
           {suggestions && (
             <button
               onClick={() => setShowStructure((s) => !s)}
@@ -634,9 +989,83 @@ export default function ScriptEditor() {
           <button onClick={() => handleExport("pdf")} className="btn-ghost text-xs py-1.5 px-3">
             Export PDF
           </button>
-          <button onClick={handleFinalize} className="btn-gold text-xs py-1.5 px-3.5">Finalize & Storyboard</button>
+          {/* Final Draft sits beside PDF because it is the one export another
+              screenwriting tool can actually open. It was built free and wired
+              to nothing, so until now the only way out of here was read-only. */}
+          <button onClick={() => handleExport("fdx")} className="btn-ghost text-xs py-1.5 px-3" title="Final Draft (.fdx)">
+            .fdx
+          </button>
+          <button onClick={handleFinalize} disabled={reviewing} className="btn-gold text-xs py-1.5 px-3.5">
+            {reviewing ? "Reviewing…" : "Finalize & Storyboard"}
+          </button>
         </div>
       </header>
+
+      {/* FR07: what the review found, before finalizing. Reports, never blocks. */}
+      {review && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6">
+          <div className="bg-surface border border-borderSoft rounded-2xl shadow-card max-w-lg w-full max-h-[80vh] flex flex-col">
+            <div className="p-5 border-b border-borderSoft">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-gold mb-1.5">
+                Script review
+              </p>
+              <h2 className="font-display text-xl text-ink">
+                {review.counts?.high > 0
+                  ? "Worth a look before you finalize"
+                  : "A few things to consider"}
+              </h2>
+              <p className="text-[12px] text-inkMuted mt-1.5 leading-snug">
+                Timing, character names and act balance. These are checks, not
+                rules — finalize anyway if you disagree.
+              </p>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-3 flex-1">
+              {(review.findings || []).map((f, i) => (
+                <div key={`${f.rule}-${i}`} className="flex gap-3">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
+                      f.severity === "high" ? "bg-red-400"
+                        : f.severity === "medium" ? "bg-amber-400" : "bg-sky-400"
+                    }`}
+                  />
+                  <div>
+                    <p className="text-[13px] text-ink leading-snug">{f.message}</p>
+                    {f.detail && (
+                      <p className="text-[11.5px] text-inkMuted leading-snug mt-1">{f.detail}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-5 border-t border-borderSoft flex gap-2">
+              <button onClick={() => setReview(null)} className="btn-ghost text-xs py-2 px-4 flex-1">
+                Keep writing
+              </button>
+              <button onClick={confirmFinalize} className="btn-gold text-xs py-2 px-4 flex-1">
+                Finalize anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {structureFailed && (
+        <div className="bg-amber-400/10 border-b border-amber-400/25 px-6 py-2.5 flex items-start gap-3 shrink-0">
+          <p className="text-[12px] text-amber-200 leading-snug flex-1">
+            The project was created, but its structure suggestion didn't come
+            back. Everything else works — the Structure panel stays empty until a
+            structure is generated, and you can start writing now.
+          </p>
+          <button
+            onClick={() => setNoticeDismissed(true)}
+            className="text-[11px] text-amber-200/70 hover:text-amber-100 shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Structure zone. Expanded: the full preview (act bar + suggestion
           cards you can add from). Minimized: the compact 2b timeline
@@ -666,8 +1095,10 @@ export default function ScriptEditor() {
       )}
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Scene list */}
-        {!zenMode && (
+        {/* Scene rail. Hidden in Corkboard and Outline — both are a fuller
+            version of exactly this list, and keeping the rail beside them cost
+            256px to say the same thing twice. */}
+        {!zenMode && view === "script" && (
           <aside className="w-64 bg-surface border-r border-border overflow-y-auto p-4 shrink-0 animate-fade-up">
             <div className="text-[10px] font-bold text-inkMuted uppercase tracking-wider mb-4">Scene Index Cards</div>
             {script.scenes?.map((scene, i) => (
@@ -687,28 +1118,85 @@ export default function ScriptEditor() {
                   <span className={scene.scene_type === "major" ? "text-skyAccent bg-skyDim px-2 py-0.5 rounded" : "text-inkMuted bg-borderSoft px-2 py-0.5 rounded"}>
                     {scene.scene_type}
                   </span>
-                  <span className="text-inkMuted">{scene.time_allocation}m</span>
+                  {/* Written runtime, measured off the page, falling back to
+                      the planned allocation. Reading `time_allocation` alone
+                      printed "0m" on every scene of a hand-typed screenplay,
+                      because nothing had ever allocated those scenes anything. */}
+                  <span className="text-inkMuted font-mono normal-case">{sceneRuntime(scene)}</span>
                 </div>
               </button>
             ))}
           </aside>
         )}
 
-        {/* Editor */}
+        {/* Workspace: one of three views over the same scene rows. */}
         <div className="flex-1 flex flex-col min-w-0">
-          <div className={`flex-1 screenplay-container min-h-0 ${zenMode ? "zen-container" : ""}`}>
+          {view === "corkboard" && (
+            <Corkboard
+              scenes={script.scenes || []}
+              activeScene={activeScene}
+              onOpen={(i) => { setView("script"); requestAnimationFrame(() => goToScene(i)); }}
+              onMove={moveScene}
+              onAdd={addCustomScene}
+              adding={addingScene}
+            />
+          )}
+
+          {view === "outline" && (
+            <OutlineView
+              scenes={script.scenes || []}
+              suggestions={suggestions}
+              activeScene={activeScene}
+              onOpen={(i) => { setView("script"); requestAnimationFrame(() => goToScene(i)); }}
+              onAdd={addCustomScene}
+              adding={addingScene}
+            />
+          )}
+
+          <div
+            className={`flex-1 screenplay-container min-h-0 relative ${zenMode ? "zen-container" : ""}`}
+            /* Inline, not Tailwind's `hidden`: `.screenplay-container` sets
+               `display:flex` in index.css and wins on source order, so the
+               utility class left the page rendering underneath the corkboard.
+               Hidden rather than unmounted, so switching views does not throw
+               away the caret position or the textarea's native undo stack. */
+            style={{ display: view === "script" ? undefined : "none" }}
+          >
             {zenMode && <div className="zen-hint">Esc to leave focus mode</div>}
-            <textarea
+            {/* The page and its rules share one positioned box. The rules were
+                first drawn over the whole container, which does not scroll —
+                the textarea does — so they sat at a fixed offset and never
+                moved with the text. */}
+            <div className="relative w-full max-w-[816px] flex">
+              {!zenMode && pageTheme === "light" && (
+                <PageBreaks
+                  textareaRef={textareaRef}
+                  content={content}
+                  pageLines={pagination.page_lines}
+                  scrollTop={pageScroll}
+                />
+              )}
+              <textarea
               ref={textareaRef}
               className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} resize-none`}
               placeholder="Type Scene Headings starting with INT. or EXT., and press TAB to format characters, parentheticals, and dialogue..."
               value={content}
-              onChange={(e) => { setContent(e.target.value); setDismissed(false); trackCaret(e); }}
+              onChange={(e) => {
+                setContent(e.target.value);
+                setDismissed(false);
+                trackCaret(e);
+                // Ordinary typing needs this as much as Enter does: the caret
+                // leaves the container's visible window long before it leaves
+                // the textarea, and the browser only follows it out of the latter.
+                scrollCaretIntoView(zenMode);
+              }}
               onKeyDown={handleKeyDown}
-              onClick={trackCaret}
-              onKeyUp={trackCaret}
+              onClick={(e) => { trackCaret(e); updateCaretPage(e.currentTarget); }}
+              onKeyUp={(e) => { trackCaret(e); updateCaretPage(e.currentTarget); }}
               onBlur={() => setSuggest(null)}
-            />
+              onScroll={(e) => setPageScroll(e.currentTarget.scrollTop)}
+              />
+            </div>
           </div>
 
           {/* Type-ahead strip. Hidden in zen mode — the point of focus mode is
@@ -727,8 +1215,13 @@ export default function ScriptEditor() {
 
         {/* AI Assistant */}
         {!zenMode && (
-          <aside className="w-80 bg-surface border-l border-border p-5 overflow-y-auto shrink-0 animate-fade-up flex flex-col">
-            <div className="flex gap-2 mb-4">
+          <aside className="w-80 bg-surface border-l border-border p-5 overflow-y-auto overflow-x-hidden shrink-0 animate-fade-up flex flex-col">
+            {/* Five tabs in a 320px panel. At px-3/gap-2 the row needed 323px of
+                a 279px content box, which made the whole aside scroll sideways
+                and pushed its right edge past the viewport — the tab label was
+                visibly clipped mid-word. Tighter padding and `min-w-0` let
+                flex-1 actually shrink the buttons instead of overflowing. */}
+            <div className="flex gap-1 mb-4">
               {[
                 { key: "ai", label: "AI" },
                 { key: "story", label: "Story" },
@@ -739,7 +1232,7 @@ export default function ScriptEditor() {
                 <button
                   key={t.key}
                   onClick={() => setPanelTab(t.key)}
-                  className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-lg flex-1 transition duration-200 border ${
+                  className={`text-[10.5px] font-semibold uppercase tracking-wide px-1.5 py-1.5 rounded-lg flex-1 min-w-0 transition duration-200 border ${
                     panelTab === t.key ? "bg-goldDim text-gold border-gold/30" : "text-inkMuted hover:text-ink border-transparent"
                   }`}
                 >
@@ -762,7 +1255,7 @@ export default function ScriptEditor() {
               <VersionHistory scriptId={id} onRestore={(restored) => setContent(restored)} />
             )}
 
-            {panelTab === "comments" && <CommentThreads scriptId={id} />}
+            {panelTab === "comments" && <CommentThreads scriptId={id} caretLine={caretLine} />}
 
             {panelTab === "ai" && (
             <>
@@ -771,14 +1264,14 @@ export default function ScriptEditor() {
                 <button
                   key={mode}
                   onClick={() => setAiMode(mode)}
-                  title={isFree && mode !== "patterns" ? "Pro / Studio feature" : undefined}
+                  title={aiLocked && mode !== "patterns" ? "Pro / Studio feature" : undefined}
                   className={`text-xs pb-2.5 font-semibold capitalize flex-1 border-b-2 transition duration-200 ${
                     aiMode === mode
                       ? "border-gold text-gold"
                       : "border-transparent text-inkMuted hover:text-ink"
                   }`}
                 >
-                  {mode}{isFree && mode !== "patterns" ? " ✦" : ""}
+                  {mode}{aiLocked && mode !== "patterns" ? " ✦" : ""}
                 </button>
               ))}
             </div>
@@ -833,6 +1326,8 @@ export default function ScriptEditor() {
                   </div>
                 )}
               </>
+            ) : aiLocked ? (
+              <UpgradePrompt mode={aiMode} onUpgrade={() => navigate("/pricing")} />
             ) : (
               <>
                 <textarea

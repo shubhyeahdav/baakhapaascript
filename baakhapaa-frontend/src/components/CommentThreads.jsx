@@ -3,13 +3,24 @@ import { comments as commentsApi } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { userLabel, formatTime } from "../utils/format";
 
-export default function CommentThreads({ scriptId }) {
+/**
+ * Notes on a script.
+ *
+ * `caretLine` is the line the writer's cursor is on in the editor. Typing a
+ * line number by hand was the old way, and it is the kind of field people get
+ * wrong or skip — a note anchored to line 0 is a note nobody can find again.
+ */
+export default function CommentThreads({ scriptId, caretLine }) {
   const { user } = useAuth();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [draft, setDraft] = useState("");
   const [lineNumber, setLineNumber] = useState("");
+  // Follow the caret until the writer types a line themselves, so the common
+  // case ("note about the line I am looking at") needs no input at all.
+  const [pinned, setPinned] = useState(false);
+  const effectiveLine = pinned ? (parseInt(lineNumber, 10) || 0) : (caretLine || 0);
   const [posting, setPosting] = useState(false);
 
   const load = useCallback(() => {
@@ -17,11 +28,10 @@ export default function CommentThreads({ scriptId }) {
     commentsApi
       .getAll(scriptId)
       .then((res) => {
-        // Oldest first so the thread reads top-to-bottom
-        const sorted = [...res.data].sort(
-          (a, b) => new Date(a.created_at) - new Date(b.created_at)
-        );
-        setList(sorted);
+        // The server orders these: anchored notes in page order, un-anchored
+        // last, each group oldest first. Re-sorting here by time only would
+        // scatter the line anchors back out of page order.
+        setList(res.data);
         setError("");
       })
       .catch((err) => setError(err.response?.data?.detail || "Could not load comments"))
@@ -35,9 +45,10 @@ export default function CommentThreads({ scriptId }) {
     if (!draft.trim()) return;
     setPosting(true);
     try {
-      await commentsApi.add(scriptId, draft.trim(), parseInt(lineNumber, 10) || 0);
+      await commentsApi.add(scriptId, draft.trim(), effectiveLine);
       setDraft("");
       setLineNumber("");
+      setPinned(false);
       load();
     } catch (err) {
       setError(err.response?.data?.detail || "Could not post comment");
@@ -107,19 +118,29 @@ export default function CommentThreads({ scriptId }) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
         />
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <input
             type="number"
             min="0"
+            aria-label="Line number"
             className="field w-24 text-sm"
-            placeholder="Line #"
-            value={lineNumber}
-            onChange={(e) => setLineNumber(e.target.value)}
+            placeholder={caretLine ? `L${caretLine}` : "Line #"}
+            value={pinned ? lineNumber : ""}
+            onChange={(e) => { setPinned(true); setLineNumber(e.target.value); }}
           />
           <button type="submit" disabled={posting || !draft.trim()} className="btn-gold text-sm flex-1 py-2">
             {posting ? "Posting..." : "Post Comment"}
           </button>
         </div>
+        {/* Say where the note will land. A note whose anchor is a surprise is
+            a note that ends up on the wrong line. */}
+        <p className="text-[11px] text-inkMuted mt-2 leading-snug">
+          {pinned && lineNumber
+            ? <>Pinned to line {lineNumber}. <button type="button" onClick={() => { setPinned(false); setLineNumber(""); }} className="text-gold hover:underline">follow my cursor</button></>
+            : caretLine
+              ? `Will attach to line ${caretLine}, where your cursor is.`
+              : "Put your cursor in the script to attach this to a line."}
+        </p>
       </form>
     </div>
   );

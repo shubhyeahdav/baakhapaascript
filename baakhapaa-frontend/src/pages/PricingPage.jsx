@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { subscription } from "../services/api";
@@ -43,7 +43,7 @@ const TIERS = [
     price: "Rs. 2,499",
     period: "per month",
     tagline: "For production teams",
-    cta: "Contact Us",
+    cta: "Go Studio",
     highlight: false,
     features: [
       "Everything in Pro",
@@ -64,10 +64,62 @@ function Check() {
   );
 }
 
+// "Sandbox" and "simulated" are genuinely different things and the difference
+// is worth showing: a sandbox payment goes to the real gateway, on its real test
+// host, and proves the integration works. A simulated one never leaves our own
+// server. Calling both "test mode" is how an unexercised integration looks fine
+// right up until launch day.
+const MODE_NOTE = {
+  sandbox: "Sandbox — real gateway, no real money",
+  demo: "Simulated — no gateway contacted",
+};
+// A provider in demo also sends a `hint` saying what it would take to reach the
+// real gateway. Without it, "simulated" reads as broken rather than unconfigured.
+
+/**
+ * eSewa has no API that creates a checkout session. It takes a signed browser
+ * form POST, and the signature covers the form values — so the browser has to
+ * be the thing that submits them. Building and submitting a hidden form is the
+ * documented integration, not a workaround.
+ */
+function submitEsewaForm({ action, fields }) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = action;
+  Object.entries(fields).forEach(([name, value]) => {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  });
+  document.body.appendChild(form);
+  form.submit();
+}
+
 export default function PricingPage() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [loadingTier, setLoadingTier] = useState(null);
+  const [providers, setProviders] = useState([]);
+  const [provider, setProvider] = useState(null);
+
+  // Which gateways this deployment can actually take money through. Asked of
+  // the server rather than hardcoded, because the answer differs between the
+  // demo build, a Nepal deploy and one selling abroad.
+  useEffect(() => {
+    subscription
+      .providers()
+      .then((res) => {
+        setProviders(res.data.providers || []);
+        setProvider(res.data.default);
+      })
+      .catch(() => {
+        // A pricing page that can't reach the API should still read as a
+        // pricing page. Checkout will report the real error when clicked.
+        setProviders([]);
+      });
+  }, []);
 
   const handleCta = async (tier) => {
     // Free tier just sends the user into the app.
@@ -75,15 +127,18 @@ export default function PricingPage() {
       navigate(isAuthenticated ? "/dashboard" : "/register");
       return;
     }
-    // Paid tiers require an account first, then a Stripe Checkout session.
+    // Paid tiers require an account first, then a gateway session.
     if (!isAuthenticated) {
       navigate("/register");
       return;
     }
     setLoadingTier(tier);
     try {
-      const res = await subscription.checkout(tier);
-      // Redirect to Stripe Checkout (or, in demo mode, the simulated success URL).
+      const res = await subscription.checkout(tier, provider);
+      if (res.data.kind === "form_post") {
+        submitEsewaForm(res.data);
+        return; // the browser is navigating away
+      }
       window.location.href = res.data.url;
     } catch (err) {
       alert(err.response?.data?.detail || "Could not start checkout. Please try again.");
@@ -115,6 +170,37 @@ export default function PricingPage() {
           Start free. Upgrade when your production does.
         </p>
       </div>
+
+      {/* Payment method. Shown only when there is a choice to make — one
+          configured gateway is not a decision worth asking a writer for. */}
+      {isAuthenticated && providers.length > 1 && (
+        <div className="max-w-5xl mx-auto mb-10 animate-fade-up">
+          <p className="text-inkMuted text-xs tracking-[0.18em] uppercase mb-3 text-center">
+            Pay with
+          </p>
+          <div className="flex flex-wrap justify-center gap-2.5">
+            {providers.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => setProvider(p.key)}
+                aria-pressed={provider === p.key}
+                title={p.description}
+                className={`px-4 py-2.5 rounded-xl border text-sm text-left transition ${
+                  provider === p.key
+                    ? "bg-elevated border-gold/50 text-ink"
+                    : "bg-surface border-borderSoft text-inkMuted hover:text-ink"
+                }`}
+              >
+                <span className="block">{p.name}</span>
+                <span className="block text-[11px] text-inkMuted mt-0.5">
+                  {p.hint || MODE_NOTE[p.mode] || p.description}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tiers */}
       <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-5 animate-fade-up">
@@ -161,9 +247,12 @@ export default function PricingPage() {
         ))}
       </div>
 
-      <p className="text-center text-inkMuted text-xs mt-10">
-        Prices in Nepali Rupees. Secure checkout via Stripe. Running in test mode
-        until live payment keys are configured.
+      <p className="text-center text-inkMuted text-xs mt-10 max-w-lg mx-auto">
+        Prices in Nepali Rupees, billed one month at a time — Khalti and eSewa
+        take a single payment rather than a standing subscription, so nothing
+        renews on its own and nothing is charged without you returning here.
+        {providers.length > 0 && providers.every((p) => p.mode !== "live") &&
+          " No live payment keys are configured, so nothing here can charge you."}
       </p>
     </div>
   );

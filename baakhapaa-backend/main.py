@@ -1,11 +1,10 @@
-import os
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
 import auth
+import deploy_checks
 import projects
 import scripts
 import storyboard
@@ -21,11 +20,17 @@ app = FastAPI(title="Baakhapaa API", version="1.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Refuses the boot when APP_ENV=production and something documented-but-unset
+# would be wrong in production (CORS, DEMO_SEED, SQLite, the Devanagari font).
+# Prints and continues otherwise, so local development is unaffected.
+deploy_checks.run()
+
 # Production: set CORS_ORIGINS to a comma-separated allowlist, e.g.
 #   CORS_ORIGINS=https://baakhapaa.com,https://www.baakhapaa.com
 # Falling back to the localhost regex in production would let any page served
 # from a localhost port on a victim's machine call the API with credentials.
-_cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+# (Unset in production is now a boot failure, not a silent fallback.)
+_cors_origins = deploy_checks.cors_origins()
 
 if _cors_origins:
     app.add_middleware(

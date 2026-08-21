@@ -21,7 +21,7 @@ Design rules:
 import json
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import fingerprint
 
@@ -31,7 +31,7 @@ CORPUS_PATH = os.getenv("CORPUS_FINGERPRINTS", "corpus_fingerprints.json")
 _corpus_cache = None
 
 
-def load_corpus(path: str = None) -> List[dict]:
+def load_corpus(path: Optional[str] = None) -> List[dict]:
     """Load corpus fingerprints, cached. Missing file is not an error — the
     product works without a corpus, it just cannot benchmark yet."""
     global _corpus_cache

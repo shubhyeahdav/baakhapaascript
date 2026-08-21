@@ -1,0 +1,10 @@
+# --proxy-headers is not optional behind Railway/Render/Fly. slowapi keys rate
+# limits on request.client.host, which behind a proxy is the proxy's IP — so
+# without it every user on earth shares one 5/minute login bucket, and the first
+# person to mistype a password locks out the rest.
+#
+# --forwarded-allow-ips is the other half: uvicorn ignores X-Forwarded-For unless
+# the immediate peer is trusted. '*' is correct only because the platform is the
+# only thing that can reach this port; on a host where that is not true, name the
+# proxy's IP instead.
+web: uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'

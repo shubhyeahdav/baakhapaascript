@@ -5,6 +5,15 @@ python-dotenv
 anthropic
 openai
 python-jose[cryptography]
+# Pinned against known CVEs found by pip-audit on 2026-08-19 (PYSEC-2026-3552,
+# PYSEC-2026-3628). Both arrive transitively — jose pulls cryptography, httpx
+# pulls h2 — so nothing here requests them directly and nothing would have
+# upgraded them on its own.
+cryptography>=50.0.0
+h2>=4.4.1
+# NOTE: `ecdsa` (via python-jose) carries PYSEC-2026-1325 with no fix released.
+# It does not apply to us: tokens are signed HS256 (HMAC), so the ECDSA code
+# path is never executed. Re-check if ALGORITHM in auth.py ever changes.
 passlib[bcrypt]
 bcrypt==4.0.1  # passlib 1.7.x is incompatible with bcrypt >= 4.1
 reportlab
@@ -13,5 +22,5 @@ stripe
 fastembed  # local ONNX embeddings for RAG pattern retrieval (no API key needed)
 slowapi  # per-IP rate limiting on the credential endpoints
 pytest  # test suite: ./venv/Scripts/python -m pytest
-httpx  # required by fastapi.testclient
-pypdf  # corpus tooling only (extract_corpus_text.py) — not used at runtime
+httpx  # payment gateway calls (khalti.py, esewa.py) + fastapi.testclient
+pypdf  # corpus tooling (extract_corpus_text.py) + reading exported PDFs in tests

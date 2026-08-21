@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 
 /**
  * Regression cover for the class of bug that removing the format guide caused:
@@ -27,14 +27,21 @@ const SCRIPT = {
   project: { title: "Tehro", genre: "Drama", tone: "Emotional", language: "Bilingual", format: "short" },
 };
 
+// `mock`-prefixed so babel-plugin-jest-hoist allows the factories to close over
+// them; both are read at render time, not when the factory runs.
+const mockNavigate = jest.fn();
+let mockQuery = {};
+let mockTier = "pro";
+
 jest.mock("react-router-dom", () => ({
   useParams: () => ({ id: "script-1" }),
-  useNavigate: () => jest.fn(),
+  useNavigate: () => mockNavigate,
+  useSearchParams: () => [{ get: (key) => mockQuery[key] ?? null }],
   Link: ({ children, ...p }) => <a {...p}>{children}</a>,
 }));
 
 jest.mock("../context/AuthContext", () => ({
-  useAuth: () => ({ user: { subscription_tier: "pro", preferences: {} } }),
+  useAuth: () => ({ user: { subscription_tier: mockTier, preferences: {} } }),
 }));
 
 jest.mock("../services/api", () => ({
@@ -82,6 +89,8 @@ describe("ScriptEditor", () => {
   let errors;
   beforeEach(() => {
     stubApi();
+    mockQuery = {};
+    mockTier = "pro";
     errors = [];
     jest.spyOn(console, "error").mockImplementation((...a) => errors.push(a.join(" ")));
   });
@@ -150,5 +159,89 @@ describe("ScriptEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: /shortcuts/i }));
 
     expect(screen.getByText(/Type the letter/i)).toBeInTheDocument();
+  });
+
+  it("shows a notice when the wizard could not generate a structure", async () => {
+    mockQuery = { structure_failed: "1" };
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    expect(screen.getByText(/structure suggestion didn't come back/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /dismiss/i }));
+    expect(screen.queryByText(/structure suggestion didn't come back/i)).not.toBeInTheDocument();
+  });
+
+  it("refreshes the scene cards from what a save returns", async () => {
+    // The server reconciles scene rows with the draft on save. If the editor
+    // ignored the response, the index cards described a draft two edits old.
+    jest.useFakeTimers();
+    scripts.save.mockResolvedValue({
+      data: { id: "script-1", scenes: [{ id: "s1", title: "Morning at the Pasal", scene_type: "major", time_allocation: 3 }] },
+    });
+    try {
+      render(<ScriptEditor />);
+      await waitFor(() => expect(editor()).toBeInTheDocument());
+
+      fireEvent.change(editor(), { target: { value: "INT. PASAL - DAY\n\nSteam rises.\n" } });
+      await act(async () => { jest.advanceTimersByTime(16000); });
+
+      expect(scripts.save).toHaveBeenCalled();
+      await waitFor(() =>
+        expect(screen.getByText("Morning at the Pasal")).toBeInTheDocument()
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("inserts an accepted AI scene at the caret, not at the end", async () => {
+    // Appending put a scene written for act 1 after act 3.
+    scripts.generateScene.mockResolvedValue({
+      data: { scene_text: "INT. ROOFTOP - DUSK\n\nInserted here." },
+    });
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    fireEvent.change(editor(), { target: { value: "ACT ONE\n\nACT THREE\n" } });
+    editor().setSelectionRange(9, 9); // start of the "ACT THREE" line
+
+    fireEvent.click(screen.getByRole("button", { name: /^generate/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Describe the scene action/i), {
+      target: { value: "a rooftop scene" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /execute ai action/i }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /accept/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /accept/i }));
+
+    await waitFor(() => expect(editor().value).toMatch(/ROOFTOP/));
+    const value = editor().value;
+    expect(value.indexOf("ROOFTOP")).toBeLessThan(value.indexOf("ACT THREE"));
+  });
+
+  describe("on the free plan", () => {
+    beforeEach(() => { mockTier = "free"; });
+
+    it("offers the plan instead of a dead Execute button", async () => {
+      render(<ScriptEditor />);
+      await waitFor(() => expect(editor()).toBeInTheDocument());
+
+      // Free lands on Patterns; the paid tabs are still reachable to read about.
+      fireEvent.click(screen.getByRole("button", { name: /^generate/i }));
+
+      expect(screen.getByRole("button", { name: /see plans/i })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /execute ai action/i })).not.toBeInTheDocument();
+    });
+
+    it("routes to pricing from the offer", async () => {
+      render(<ScriptEditor />);
+      await waitFor(() => expect(editor()).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole("button", { name: /^improve/i }));
+      fireEvent.click(screen.getByRole("button", { name: /see plans/i }));
+
+      expect(mockNavigate).toHaveBeenCalledWith("/pricing");
+    });
   });
 });

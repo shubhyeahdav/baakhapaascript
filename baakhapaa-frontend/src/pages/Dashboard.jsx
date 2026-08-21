@@ -37,25 +37,30 @@ function relTime(iso) {
 }
 
 // A single poster tile in the bento grid.
-function ProjectTile({ project, span, big, onOpen, opening }) {
+//
+// The tile is a div rather than a button because it now holds a second control:
+// a button cannot legally contain another button, and the delete affordance has
+// to sit on top of the open target rather than inside it.
+function ProjectTile({ project, span, big, onOpen, opening, onDelete, deleting, confirming, onConfirm, onCancel }) {
   return (
-    <button
-      onClick={() => onOpen(project.id)}
-      disabled={opening}
+    <div
       style={{ background: poster(project.genre) }}
-      className={`group relative overflow-hidden rounded-2xl border border-borderSoft text-left flex flex-col justify-end
-                  hover:border-gold/40 transition-colors disabled:opacity-60 ${span}`}
+      className={`group relative overflow-hidden rounded-2xl border border-borderSoft
+                  hover:border-gold/40 transition-colors ${deleting ? "opacity-50" : ""} ${span}`}
     >
+      <button
+        onClick={() => onOpen(project.id)}
+        disabled={opening || deleting}
+        aria-label={`Open ${project.title}`}
+        className="absolute inset-0 w-full h-full text-left flex flex-col justify-end disabled:opacity-60"
+      >
       {/* ghost genre wordmark */}
       <span className="pointer-events-none absolute top-4 left-5 font-display text-ink/[0.07] group-hover:text-gold/15 transition-colors"
         style={{ fontSize: big ? 64 : 34, lineHeight: 1 }}>
         {project.genre}
       </span>
-      <span className="absolute top-4 right-4 text-[10px] uppercase tracking-wider text-inkSoft border border-border rounded-full px-2.5 py-0.5 backdrop-blur-sm">
-        {statusLabel[project.status] || project.status}
-      </span>
 
-      <div className="relative p-5 bg-gradient-to-t from-black/50 to-transparent">
+      <div className="relative w-full p-5 bg-gradient-to-t from-black/50 to-transparent">
         <h3 className={`font-display text-ink group-hover:text-gold transition-colors truncate ${big ? "text-3xl mb-2" : "text-lg mb-1"}`}>
           {project.title}
         </h3>
@@ -72,7 +77,46 @@ function ProjectTile({ project, span, big, onOpen, opening }) {
           </span>
         )}
       </div>
-    </button>
+      </button>
+
+      {/* Status + delete, above the open target.
+          Deleting a project takes its script, scenes, storyboard frames and
+          version history with it, so it confirms in place rather than firing on
+          a single click near the corner of a tile someone meant to open. */}
+      <div className="absolute top-4 right-4 flex items-center gap-1.5">
+        {!confirming && (
+          <span className="text-[10px] uppercase tracking-wider text-inkSoft border border-border rounded-full px-2.5 py-0.5 backdrop-blur-sm">
+            {statusLabel[project.status] || project.status}
+          </span>
+        )}
+        {confirming ? (
+          <>
+            <button
+              onClick={() => onDelete(project)}
+              disabled={deleting}
+              className="text-[10px] uppercase tracking-wider rounded-full px-2.5 py-0.5 border border-red-400/40 bg-red-500/20 text-red-200 hover:bg-red-500/30 backdrop-blur-sm"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+            <button
+              onClick={onCancel}
+              className="text-[10px] uppercase tracking-wider rounded-full px-2.5 py-0.5 border border-border text-inkSoft hover:text-ink backdrop-blur-sm"
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={onConfirm}
+            title={`Delete ${project.title}`}
+            aria-label={`Delete ${project.title}`}
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition rounded-full p-1.5 border border-border text-inkMuted hover:text-red-300 hover:border-red-400/40 backdrop-blur-sm"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -89,6 +133,9 @@ export default function Dashboard() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [opening, setOpening] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [confirming, setConfirming] = useState(null);
+  const [error, setError] = useState("");
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -112,6 +159,29 @@ export default function Dashboard() {
     }
   };
 
+  /**
+   * Delete a project.
+   *
+   * `DELETE /projects/{id}` has existed since the first CRUD pass and nothing
+   * ever called it. On the free plan that mattered more than it looks: the
+   * allowance is one project, so a writer whose first attempt was a false start
+   * had no way to begin a second one — the tool was a single use until they
+   * paid, which is not what the free tier is for.
+   */
+  const remove = async (project) => {
+    setDeleting(project.id);
+    setError("");
+    try {
+      await projects.delete(project.id);
+      setList((prev) => prev.filter((p) => p.id !== project.id));
+      setConfirming(null);
+    } catch (err) {
+      setError(err.response?.data?.detail || `Could not delete "${project.title}".`);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const sorted = [...list].sort(
     (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
   );
@@ -124,6 +194,15 @@ export default function Dashboard() {
   return (
     <div className="cine-bg min-h-screen flex flex-col text-ink">
       <TopNav active="Projects" />
+
+      {error && (
+        <div className="mx-8 md:mx-14 mt-4 rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-2.5 flex items-start gap-3">
+          <p className="text-[12px] text-red-300 leading-snug flex-1">{error}</p>
+          <button onClick={() => setError("")} className="text-[11px] text-red-300/70 hover:text-red-200 shrink-0">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <main className="flex-1 px-8 md:px-14 pb-14">
         {/* Heading */}
@@ -167,6 +246,10 @@ export default function Dashboard() {
             <ProjectTile
               project={sorted[0]} big span="col-span-2 row-span-2"
               onOpen={open} opening={opening === sorted[0].id}
+              onDelete={remove} deleting={deleting === sorted[0].id}
+              confirming={confirming === sorted[0].id}
+              onConfirm={() => setConfirming(sorted[0].id)}
+              onCancel={() => setConfirming(null)}
             />
 
             {/* Two stat tiles beside the hero */}
@@ -181,6 +264,11 @@ export default function Dashboard() {
                 span={i % 3 === 2 ? "col-span-2" : "col-span-1"}
                 onOpen={open}
                 opening={opening === p.id}
+                onDelete={remove}
+                deleting={deleting === p.id}
+                confirming={confirming === p.id}
+                onConfirm={() => setConfirming(p.id)}
+                onCancel={() => setConfirming(null)}
               />
             ))}
 

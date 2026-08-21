@@ -20,34 +20,72 @@ import screenplay
 
 # Rule -> the `technique` field of the craft entry that fixes it. Retrieval
 # uses this to attach how_to_apply / worked_example / warning_sign to a flag.
+#
+# --- on languages ----------------------------------------------------------
+#
+# These rules were English-only, which made the craft layer — the thing that
+# distinguishes this product — silent on exactly the writing it exists for. The
+# tool instructs writers to put dialogue in Nepali and action in English, so
+# every dialogue-level rule (on-the-nose, directed emotion, greetings) was
+# checking a language the dialogue was never going to be in.
+#
+# Both scripts are covered: Devanagari for writers typing Nepali directly, and
+# romanised Nepali for the way people actually type on a phone keyboard. Action
+# lines stay English-first because that is the documented house style, but the
+# Nepali interiority verbs are here too for anyone writing action in Nepali.
+
+# "he thinks", "she realises" — inner states the camera cannot photograph.
 INTERIORITY_VERBS = re.compile(
     r"\b(thinks?|thinking|realis(?:e|es|ed)|realiz(?:e|es|ed)|remembers?|"
-    r"feels?|feeling|wonders?|knows?|understands?|decides?|hopes?)\b",
+    r"feels?|feeling|wonders?|knows?|understands?|decides?|hopes?)\b"
+    # Nepali: सोच् (think), महसुस (feel), सम्झ (remember), थाहा (know),
+    # बुझ् (understand), चाहन् (want), निर्णय (decide), आशा (hope)
+    r"|(सोच्|महसुस|सम्झ|थाहा|बुझ्|चाहन्|निर्णय|आशा)"
+    r"|\b(sochcha|sochdai|sochyo|mahasus|samjhyo|samjhanchha|thaha chha|"
+    r"bujhchha|chahanchha)\b",
     re.IGNORECASE,
 )
 
+# A parenthetical that tells the actor how to feel, instead of giving them
+# something to do.
 DIRECTED_EMOTION = re.compile(
     r"\((tearfully|sadly|angrily|happily|emotionally|meaningfully|knowingly|"
     r"lovingly|bitterly|coldly|warmly)\)|\b(looks?|stares?|gazes?)\s+at\s+\w+\s+"
-    r"(meaningfully|knowingly|longingly|sadly)\b",
+    r"(meaningfully|knowingly|longingly|sadly)\b"
+    # Nepali parentheticals: रुँदै (crying), रिसाएर (angrily), दुःखी (sad),
+    # खुशी (happy), हाँस्दै (laughing), मुस्कुराउँदै (smiling), भावुक (emotional)
+    r"|\((रुँदै|रुदै|रिसाएर|रिसाउँदै|दुःखी|दुखी|खुशी|खुसी|हाँस्दै|"
+    r"मुस्कुराउँदै|भावुक|मायाले)\)"
+    r"|\((rudai|risaera|risaudai|dukhi|khusi|hasdai|muskuraudai|bhaabuk)\)",
     re.IGNORECASE,
 )
 
+# Dialogue that states the real grievance out loud instead of circling it.
 ON_THE_NOSE = re.compile(
     r"\b(you never (supported|understood|listened|cared|believed)|"
     r"you always|i feel like you|my dreams?|you don'?t (understand|care) (about )?me|"
-    r"after everything i('| ha)ve done)\b",
+    r"after everything i('| ha)ve done)\b"
+    # Nepali: तिमीले कहिल्यै (you never), मेरो सपना (my dream),
+    # तिमीलाई थाहा छैन (you don't know), बुझ्दैनौ (you don't understand),
+    # मैले तिम्रो लागि (everything I did for you)
+    r"|(तिमीले कहिल्यै|तपाईंले कहिल्यै|मेरो सपना|मेरा सपना|"
+    r"तिमीलाई थाहा छैन|बुझ्दैनौ|बुझ्नुहुन्न|मैले तिम्रो लागि|"
+    r"तिमीले मलाई कहिल्यै)"
+    r"|\b(timile kahilyai|mero sapana|mero sapna|timilai thaha chhaina|"
+    r"bujhdainau|maile timro lagi)\b",
     re.IGNORECASE,
 )
 
 GREETINGS = re.compile(
     r"^\s*(hi|hello|hey|namaste|namaskar|good (morning|evening|afternoon)|"
-    r"how are you|k cha|kasto cha)\b[\s,.!?]*$",
+    r"how are you|k cha|kasto cha)\b[\s,.!?]*$"
+    r"|^\s*(नमस्ते|नमस्कार|के छ|कस्तो छ|कसरी हुनुहुन्छ|सन्चै)[\s,.!?।]*$",
     re.IGNORECASE,
 )
 
 FAREWELLS = re.compile(
-    r"^\s*(bye|goodbye|see you|see ya|take care|good night|pheri bhetaula)\b[\s,.!?]*$",
+    r"^\s*(bye|goodbye|see you|see ya|take care|good night|pheri bhetaula)\b[\s,.!?]*$"
+    r"|^\s*(बिदा|फेरि भेटौँला|फेरि भेटौला|जान्छु|राम्रोसँग बस्नु|शुभ रात्री)[\s,.!?।]*$",
     re.IGNORECASE,
 )
 
@@ -56,10 +94,44 @@ MAX_DIALOGUE_LINES = 5    # a speech nobody interrupts
 MIN_SCENES_FOR_PRIVACY = 3
 
 
+# How certain a rule is, which is NOT the same question as how much it matters.
+#
+# Writing is subjective, and a craft linter that ignores that gets switched off
+# by exactly the writers worth keeping. But not every note is equally arguable,
+# and the honest move is to say which kind each one is:
+#
+#   mechanical  A property of the medium, not an opinion. A camera cannot
+#               photograph a realisation. Nobody sensible disagrees.
+#   convention  Professional consensus, near-universal in practice. A writer may
+#               break it knowingly; most breaks are accidents.
+#   judgement   A reading. The rule spotted a shape that is often a problem and
+#               is sometimes the point. Argue with it freely.
+#
+# `severity` stayed as it was — it answers "if this IS a problem, how much does
+# it cost?". Conflating the two is what made `on_the_nose`, the most contestable
+# rule here, carry the same authority as "this cannot be filmed".
+MECHANICAL, CONVENTION, JUDGEMENT = "mechanical", "convention", "judgement"
+
+_RULE_CONFIDENCE = {
+    "unfilmable_interiority": MECHANICAL,
+    "directed_emotion": CONVENTION,
+    "action_block_too_long": CONVENTION,
+    "dialogue_slab": CONVENTION,
+    "on_the_nose": JUDGEMENT,
+    "greeting_scene_open": JUDGEMENT,
+    "farewell_scene_close": JUDGEMENT,
+    "every_line_closed": JUDGEMENT,
+    "consecutive_two_handers": JUDGEMENT,
+}
+
+
 def _flag(rule, severity, line, message, technique, scene=None):
     return {
         "rule": rule,
-        "severity": severity,          # high | medium | low
+        "severity": severity,          # high | medium | low — what it costs
+        # How arguable the note is. A writer deserves to know the difference
+        # between "the camera cannot show this" and "I read this as on the nose".
+        "confidence": _RULE_CONFIDENCE.get(rule, JUDGEMENT),
         "line": line,
         "message": message,
         "technique": technique,        # matches knowledge_base.json `technique`

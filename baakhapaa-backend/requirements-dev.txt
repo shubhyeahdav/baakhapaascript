@@ -1,0 +1,12 @@
+# Development and CI tooling. Deliberately separate from requirements.txt:
+# none of this ships to production, and every package here is one more thing a
+# deploy would have to build.
+#
+#   ruff       lint + dead code    python -m ruff check . --exclude venv
+#   bandit     security patterns   python -m bandit -r . -x ./venv,./tests
+#   vulture    unreachable code    python -m vulture . --exclude venv
+#   pip-audit  dependency CVEs     python -m pip_audit
+ruff
+bandit
+vulture
+pip-audit

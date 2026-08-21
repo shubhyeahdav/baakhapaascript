@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models import ProjectCreate
-from database import supabase
+from models import ProjectCreate, MemberCreate, MemberRoleUpdate
+from database import supabase, purge_projects
+import membership
 from auth import get_current_user, is_paid_tier, require_project_access
 from updates import apply_whitelist
 
@@ -51,19 +52,38 @@ def create_project(project: ProjectCreate, user_id: str = Depends(get_current_us
 
 @router.get("/")
 def list_projects(user_id: str = Depends(get_current_user)):
-    result = (
+    """Projects the caller owns, plus every project shared with them.
+
+    Each carries `your_role`, so the dashboard can show a viewer a read-only
+    tile instead of controls that will 403 when pressed.
+    """
+    owned = (
         supabase.table("projects")
         .select("*")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
         .execute()
-    )
-    return result.data
+    ).data or []
+    projects = [{**p, "your_role": membership.ADMIN, "owner": True} for p in owned]
+
+    seen = {p["id"] for p in owned}
+    memberships = (
+        supabase.table("project_members").select("*").eq("user_id", user_id).execute()
+    ).data or []
+    for row in memberships:
+        if row.get("project_id") in seen:
+            continue
+        shared = supabase.table("projects").select("*").eq("id", row["project_id"]).execute().data
+        if shared:
+            projects.append({**shared[0], "your_role": row.get("role"), "owner": False})
+
+    return sorted(projects, key=lambda p: p.get("created_at") or "", reverse=True)
 
 
 @router.get("/{project_id}")
 def get_project(project_id: str, user_id: str = Depends(get_current_user)):
-    return require_project_access(project_id, user_id)
+    project = require_project_access(project_id, user_id, minimum=membership.VIEWER)
+    return {**project, "your_role": membership.role_for(project, user_id)}
 
 
 # Only these project fields may be changed from the client (never id/user_id)
@@ -84,6 +104,49 @@ def update_project(project_id: str, updates: dict, user_id: str = Depends(get_cu
 
 @router.delete("/{project_id}")
 def delete_project(project_id: str, user_id: str = Depends(get_current_user)):
-    require_project_access(project_id, user_id)
-    supabase.table("projects").delete().eq("id", project_id).execute()
+    # Admin only: deleting takes the script, scenes, board and history with it.
+    require_project_access(project_id, user_id, minimum=membership.ADMIN)
+    # Delete the CONTENT, not just the row. Postgres cascades via the schema's
+    # foreign keys; the local mock has no relationships, so deleting only the
+    # project row left the whole script and every version snapshot behind.
+    removed = purge_projects([project_id])
+    return {"success": True, "removed": removed}
+
+
+# --- members (FR12) ---------------------------------------------------------
+#
+# Roles only mean something once a project can be shared, so these routes are
+# the other half of `membership.py`. Reading the member list needs viewer —
+# knowing who else is on a script you are working on is not privileged — while
+# every change to it needs admin.
+
+
+@router.get("/{project_id}/members")
+def list_members(project_id: str, user_id: str = Depends(get_current_user)):
+    project = require_project_access(project_id, user_id, minimum=membership.VIEWER)
+    return {
+        "members": membership.list_members(project),
+        "your_role": membership.role_for(project, user_id),
+        "roles": list(membership.ROLES),
+    }
+
+
+@router.post("/{project_id}/members")
+def add_member(project_id: str, req: MemberCreate, user_id: str = Depends(get_current_user)):
+    project = require_project_access(project_id, user_id, minimum=membership.ADMIN)
+    return membership.add_member(project, req.email, req.role)
+
+
+@router.put("/{project_id}/members/{member_user_id}")
+def set_member_role(project_id: str, member_user_id: str, req: MemberRoleUpdate,
+                    user_id: str = Depends(get_current_user)):
+    project = require_project_access(project_id, user_id, minimum=membership.ADMIN)
+    return membership.set_role(project, member_user_id, req.role)
+
+
+@router.delete("/{project_id}/members/{member_user_id}")
+def remove_member(project_id: str, member_user_id: str,
+                  user_id: str = Depends(get_current_user)):
+    project = require_project_access(project_id, user_id, minimum=membership.ADMIN)
+    membership.remove_member(project, member_user_id)
     return {"success": True}

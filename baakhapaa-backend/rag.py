@@ -98,7 +98,19 @@ def get_patterns_by_technique(names) -> list:
 
 
 def _cosine(a, b):
-    dot = sum(x * y for x, y in zip(a, b))
+    """Cosine similarity, or 0.0 for vectors that cannot be compared.
+
+    The length guard is load-bearing. `zip` stops at the shorter sequence, so a
+    stored embedding of the wrong dimensionality — a partially written blob, or
+    a row left behind by a different embedding model — would have its dot
+    product computed over the overlap while both magnitudes were computed over
+    the full vectors. The result is not an error: it is a plausible-looking
+    score that can sort to the top and put the wrong craft pattern in front of a
+    writer. Refusing to score it is the honest answer.
+    """
+    if len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     na = sum(x * x for x in a) ** 0.5
     nb = sum(x * x for x in b) ** 0.5
     return dot / (na * nb) if na and nb else 0.0

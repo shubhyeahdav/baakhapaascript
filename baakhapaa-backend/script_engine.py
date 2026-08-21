@@ -19,14 +19,29 @@ def _usable(key):
 _api_key = os.getenv("ANTHROPIC_API_KEY")
 _groq_key = os.getenv("GROQ_API_KEY")
 
-# Provider precedence: Claude if configured, else Groq (free tier, no card),
-# else canned demo content. Groq is a development convenience — it is
-# OpenAI-compatible so it costs no new dependency, but it is NOT the product's
-# model and does not substitute for the A3 real-Claude smoke test.
-if _usable(_api_key):
-    PROVIDER = "anthropic"
-elif _usable(_groq_key):
+# Which company receives our users' unpublished screenplays.
+#
+# This used to fall through to Groq automatically whenever ANTHROPIC_API_KEY was
+# missing. That is a one-typo privacy incident: a deploy with a fumbled Anthropic
+# key would keep working, silently, while sending every writer's draft to a
+# different provider than the one named in the privacy policy — and the only
+# signal was a line in the startup log nobody reads.
+#
+# Routing user content to a third party is now an explicit decision:
+# LLM_PROVIDER=groq has to be set on purpose. Anything else falls back to canned
+# demo content, which sends nothing anywhere.
+_requested = (os.getenv("LLM_PROVIDER") or "").strip().lower()
+
+if _requested == "groq":
+    if not _usable(_groq_key):
+        raise RuntimeError("LLM_PROVIDER=groq but GROQ_API_KEY is missing or a placeholder.")
     PROVIDER = "groq"
+elif _requested in ("anthropic", "claude"):
+    if not _usable(_api_key):
+        raise RuntimeError("LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY is missing or a placeholder.")
+    PROVIDER = "anthropic"
+elif _usable(_api_key):
+    PROVIDER = "anthropic"
 else:
     PROVIDER = "mock"
 
@@ -47,8 +62,9 @@ if PROVIDER == "groq":
 if PROVIDER == "mock":
     print("WARNING: Running with Mock AI (no ANTHROPIC_API_KEY set).")
 elif PROVIDER == "groq":
-    print(f"WARNING: No ANTHROPIC_API_KEY — using Groq ({GROQ_MODEL}). "
-          "Development only; the product ships on Claude.")
+    print(f"WARNING: LLM_PROVIDER=groq — user script text is being sent to Groq "
+          f"({GROQ_MODEL}), not Anthropic. Development only; the product ships on "
+          "Claude, and the privacy policy must name whoever actually receives it.")
 
 BAAKHAPAA_STYLE = """You are writing for Baakhapaa, a Nepali storytelling platform for young audiences.
 Style: emotional, authentic, youth focused.
@@ -142,7 +158,7 @@ def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> s
             )
             return resp.choices[0].message.content or ""
         except Exception as e:
-            raise RuntimeError(f"Groq API error: {str(e)}")
+            raise RuntimeError(f"Groq API error: {str(e)}") from e
 
     try:
         message = client.messages.create(
@@ -155,7 +171,7 @@ def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> s
         # thinking block comes first and content[0].text would raise.
         return next((b.text for b in message.content if b.type == "text"), "")
     except Exception as e:
-        raise RuntimeError(f"Claude API error: {str(e)}")
+        raise RuntimeError(f"Claude API error: {str(e)}") from e
 
 
 # Back-compat alias from when Claude was the only provider. Call sites all use
@@ -428,35 +444,104 @@ Respond ONLY with valid JSON in this exact format, no other text:
     return _extract_json(raw)
 
 
-def generate_scene(scene_description, genre, tone, language, character_names, act_number=1):
+def format_bible_for_prompt(bible) -> str:
+    """The story bible as prompt context.
+
+    The editor has always collected a logline, a dramatic question, a theme, and
+    per character a want, a need, a wound and a voice — and none of it ever
+    reached a model. A writer filled in the most useful thing you can possibly
+    give a generator (what this person wants versus what would actually help
+    them, and how they sound) and it was dropped on the floor.
+
+    Want and need are stated as a pair on purpose: a scene plays when the
+    character pursues the want and the need goes unmet, and saying so in the
+    prompt is the difference between dialogue that argues and dialogue that
+    explains.
+    """
+    if not bible:
+        return ""
+
+    lines = []
+    if bible.get("logline"):
+        lines.append(f"Logline: {bible['logline']}")
+    if bible.get("dramatic_question"):
+        lines.append(f"The question the story is asking: {bible['dramatic_question']}")
+    if bible.get("theme"):
+        lines.append(f"Theme (never state it aloud in dialogue): {bible['theme']}")
+
+    for c in (bible.get("characters") or []):
+        name = (c.get("name") or "").strip()
+        if not name:
+            continue
+        bits = []
+        if c.get("age"):
+            bits.append(f"age {c['age']}")
+        if c.get("want"):
+            bits.append(f"wants {c['want']}")
+        if c.get("need"):
+            bits.append(f"actually needs {c['need']}")
+        if c.get("wound"):
+            bits.append(f"carries {c['wound']}")
+        if c.get("voice"):
+            bits.append(f"speaks: {c['voice']}")
+        if bits:
+            lines.append(f"{name.upper()} — " + "; ".join(bits))
+
+    if bible.get("notes"):
+        lines.append(f"Notes: {bible['notes']}")
+
+    if not lines:
+        return ""
+    return "\nWhat this story already knows about itself:\n" + "\n".join(lines) + "\n"
+
+
+def _format_language_rule(language: str) -> str:
+    if (language or "").lower() in ("nepali", "bilingual"):
+        return "- Dialogue in Nepali (Devanagari script), action lines in English"
+    return ""
+
+
+def generate_scene(scene_description, genre, tone, language, character_names,
+                   act_number=1, bible=None, patterns=None):
     if MOCK_AI:
         return _DEMO_SCENE
+
+    # Character names come from the bible when the caller did not name any —
+    # the editor never sent this field, so it was always "characters as needed".
+    if not character_names and bible:
+        character_names = [
+            (c.get("name") or "").strip()
+            for c in (bible.get("characters") or [])
+            if (c.get("name") or "").strip()
+        ]
     chars = ", ".join(character_names) if character_names else "characters as needed"
+
     prompt = f"""Write a full screenplay scene.
 Genre: {genre} | Tone: {tone} | Language: {language} | Act: {act_number}
 Characters: {chars}
 Scene description: {scene_description}
-
+{format_bible_for_prompt(bible)}{format_patterns_for_prompt(patterns)}
 Format correctly:
 - INT./EXT. LOCATION - DAY/NIGHT as scene heading (uppercase)
 - Action lines in plain text
 - CHARACTER NAME centered/uppercase above dialogue
 - Dialogue below character name
-{"- Dialogue in Nepali Devanagari script, action lines in English" if language.lower() in ["nepali", "bilingual"] else ""}"""
+{_format_language_rule(language)}"""
 
     return _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=2000)
 
 
-def improve_scene(scene_text, instruction, language="English"):
+def improve_scene(scene_text, instruction, language="English", bible=None, patterns=None):
     if MOCK_AI:
         return scene_text.rstrip() + "\n\n[Demo mode: showing your scene unchanged. Add a real ANTHROPIC_API_KEY to .env for AI rewrites following: \"" + instruction + "\"]"
+
     prompt = f"""Here is a screenplay scene:
 
 {scene_text}
 
 Instruction: {instruction}
 Language: {language}
-
+{format_bible_for_prompt(bible)}{format_patterns_for_prompt(patterns)}
 Rewrite the scene following the instruction exactly. Keep the same characters, location, and core story beat. Return only the rewritten scene."""
 
     return _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=2000)
@@ -483,20 +568,3 @@ Respond ONLY with valid JSON: {{"suggestions": ["option 1", "option 2", "option 
         return _extract_json(raw).get("suggestions", [])
     except RuntimeError:
         return [raw]
-
-
-def review_script(script_content):
-    if MOCK_AI:
-        return []
-    prompt = f"""Review this screenplay for issues:
-
-{script_content}
-
-Check for: character name inconsistencies, missing scene headings, unfinished dialogue, act balance.
-Respond ONLY with valid JSON: {{"issues": [{{"line": 0, "issue": "string", "severity": "high/medium/low"}}]}}"""
-
-    raw = _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=1000)
-    try:
-        return _extract_json(raw).get("issues", [])
-    except RuntimeError:
-        return []

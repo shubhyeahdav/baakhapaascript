@@ -1,0 +1,95 @@
+# Continuous integration.
+#
+# Until 2026-08-19 nothing ran either suite automatically — hundreds of tests
+# that only executed when someone remembered to. The Devanagari font gate is the
+# clearest case for this: `REQUIRE_SHIPPABLE_FONT` is exactly the kind of check
+# that has to be enforced by a machine, because the failure it prevents (Nepali
+# rendering as blank boxes on Linux) is invisible on the Windows box this is
+# developed on.
+
+name: CI
+
+on:
+  push:
+    branches: [codebase, main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      # A real value, because auth.py refuses to boot without one.
+      JWT_SECRET: ci-secret-------------------------------------------
+      # The point of running on Linux: no Nirmala to fall back to, so this
+      # fails if the bundled OFL font is ever removed.
+      REQUIRE_SHIPPABLE_FONT: "true"
+      DEMO_SEED: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: baakhapaa-backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: baakhapaa-backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint
+        working-directory: baakhapaa-backend
+        # The rule set is narrow and chosen (see ruff.toml): defects, not style.
+        # A failure here should always mean something is actually wrong.
+        run: python -m ruff check .
+
+      - name: Dependency audit
+        working-directory: baakhapaa-backend
+        # PYSEC-2026-1325 (ecdsa, via python-jose) has no released fix and does
+        # not apply: tokens are signed HS256, so the ECDSA path never executes.
+        # Ignoring it deliberately keeps this gate meaningful instead of
+        # permanently red — re-check if ALGORITHM in auth.py ever changes.
+        run: python -m pip_audit --ignore-vuln PYSEC-2026-1325 --progress-spinner off
+
+      - name: Tests
+        working-directory: baakhapaa-backend
+        run: python -m pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: baakhapaa-frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: baakhapaa-frontend
+        run: npm ci
+
+      - name: Tests
+        working-directory: baakhapaa-frontend
+        run: npm run test:ci
+
+      # CI=true makes CRA treat warnings as errors, which catches an unused
+      # import or a broken hook rule before it reaches a deploy.
+      - name: Build
+        working-directory: baakhapaa-frontend
+        env:
+          CI: "true"
+        run: npm run build
+
+      - name: Dependency audit (informational)
+        working-directory: baakhapaa-frontend
+        # Deliberately non-blocking. Every remaining advisory is inside
+        # react-scripts' build toolchain (webpack-dev-server, jest, svgo) — none
+        # of it is in the shipped bundle, and none of it is fixable without
+        # migrating off Create React App, which is its own piece of work.
+        # Failing the build on it would train everyone to ignore this step.
+        continue-on-error: true
+        run: npm audit --audit-level=moderate

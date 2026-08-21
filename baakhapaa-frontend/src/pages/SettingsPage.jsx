@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import TopNav from "../components/TopNav";
-import { projects } from "../services/api";
+import TeamPanel from "../components/TeamPanel";
+import { projects, auth as authApi } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
 const TABS = ["Account", "Team Members", "API Usage"];
@@ -17,6 +18,24 @@ function Row({ label, value }) {
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
+  const [deleting, setDeleting] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    setBusy(true);
+    setDeleteError("");
+    try {
+      await authApi.deleteAccount(confirmEmail.trim());
+      // The account is gone, so the token points at nobody. Clear it locally
+      // rather than leaving the app to discover that on the next request.
+      logout();
+    } catch (err) {
+      setDeleteError(err.response?.data?.detail || "Could not delete the account.");
+      setBusy(false);
+    }
+  };
   const navigate = useNavigate();
   // ?tab=team lets the Team nav item deep-link straight to the right tab.
   const [params] = useSearchParams();
@@ -108,33 +127,65 @@ export default function SettingsPage() {
                 Sign out
               </button>
             </div>
+
+            {/* Erasure.
+                A screenwriting tool holds unproduced work. "Stop storing my
+                script" has to be something a writer can do themselves, not a
+                support request — and it has to be hard enough to reach that it
+                never happens by accident. */}
+            <div className="mt-12 rounded-2xl border border-red-400/25 bg-red-400/[0.04] p-5">
+              <h3 className="text-ink font-display text-lg mb-1">Delete this account</h3>
+              <p className="text-[13px] text-inkMuted leading-snug mb-4 max-w-lg">
+                Every project you own goes with it — drafts, version history,
+                storyboards and comments. Projects other people shared with you stay
+                theirs. This cannot be undone.
+              </p>
+
+              {!deleting ? (
+                <button
+                  onClick={() => setDeleting(true)}
+                  className="text-[13px] px-4 py-2 rounded-xl border border-red-400/40 text-red-300 hover:bg-red-500/10 transition"
+                >
+                  Delete account
+                </button>
+              ) : (
+                <div className="max-w-md">
+                  <label className="block text-[12.5px] text-inkSoft mb-2">
+                    Type <strong className="text-ink">{user?.email}</strong> to confirm
+                  </label>
+                  <input
+                    type="email"
+                    aria-label="Confirm your email"
+                    value={confirmEmail}
+                    onChange={(e) => setConfirmEmail(e.target.value)}
+                    placeholder={user?.email}
+                    className="field w-full mb-3"
+                  />
+                  {deleteError && (
+                    <p className="text-[12.5px] text-red-300 mb-3">{deleteError}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleDeleteAccount}
+                      disabled={busy || confirmEmail.trim().toLowerCase() !== (user?.email || "").toLowerCase()}
+                      className="text-[13px] px-4 py-2 rounded-xl border border-red-400/40 bg-red-500/15 text-red-200 hover:bg-red-500/25 disabled:opacity-40 transition"
+                    >
+                      {busy ? "Deleting…" : "Delete everything"}
+                    </button>
+                    <button
+                      onClick={() => { setDeleting(false); setConfirmEmail(""); setDeleteError(""); }}
+                      className="btn-ghost text-[13px]"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {tab === "Team Members" && (
-          <div className="animate-fade-up">
-            <div className="flex items-baseline justify-between py-4 border-b border-borderSoft">
-              <div>
-                <div className="text-[14px] text-ink">{user?.name} <span className="text-inkMuted">(you)</span></div>
-                <div className="text-[12px] text-inkMuted">{user?.email}</div>
-              </div>
-              <span className="font-mono text-[10px] uppercase tracking-wider text-inkSoft">Owner</span>
-            </div>
-            <div className="mt-8 border border-dashed border-border rounded-2xl p-8 text-center">
-              <p className="text-ink font-display text-lg mb-2">Invite your team</p>
-              <p className="text-inkMuted text-sm max-w-sm mx-auto mb-5">
-                Shared workspaces with up to 10 members come with the Studio plan.
-                Team invites aren't available yet.
-              </p>
-              <button
-                onClick={() => navigate("/pricing")}
-                className="btn-ghost text-sm"
-              >
-                View Studio plan
-              </button>
-            </div>
-          </div>
-        )}
+        {tab === "Team Members" && <TeamPanel />}
 
         {tab === "API Usage" && (
           <div className="animate-fade-up">

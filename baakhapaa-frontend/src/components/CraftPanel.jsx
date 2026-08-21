@@ -12,6 +12,17 @@ import { scripts } from "../services/api";
  * the sentence is wrong.
  */
 
+// How arguable a note is, which the writer deserves to see. Severity says what
+// a problem costs; confidence says how sure the rule is that it IS one.
+// "The camera cannot show this" and "I read this as on the nose" should not
+// arrive wearing the same authority — writing is subjective, and a tool that
+// pretends otherwise gets switched off by the writers worth keeping.
+const CONFIDENCE = {
+  mechanical: { label: "can't be filmed", cls: "text-red-300/80 border-red-400/25" },
+  convention: { label: "convention", cls: "text-amber-300/80 border-amber-400/25" },
+  judgement: { label: "a reading", cls: "text-inkMuted border-borderSoft" },
+};
+
 const SEVERITY = {
   high: { dot: "bg-red-400", label: "text-red-300" },
   medium: { dot: "bg-amber-400", label: "text-amber-300" },
@@ -80,6 +91,21 @@ function Flags({ byLevel, counts }) {
                       <span className="font-mono text-[10px] text-gold/80 mr-1.5">L{f.line}</span>
                       {f.message}
                     </p>
+                    {CONFIDENCE[f.confidence] && (
+                      <span
+                        className={`inline-block mt-1 text-[9.5px] font-mono uppercase tracking-wider
+                                    px-1.5 py-0.5 rounded border ${CONFIDENCE[f.confidence].cls}`}
+                        title={
+                          f.confidence === "mechanical"
+                            ? "A property of the medium, not an opinion."
+                            : f.confidence === "convention"
+                              ? "Professional consensus. Break it knowingly."
+                              : "The rule spotted a shape that is often a problem and is sometimes the point."
+                        }
+                      >
+                        {CONFIDENCE[f.confidence].label}
+                      </span>
+                    )}
                     {f.technique && (
                       <p className="text-[11px] text-gold/70 mt-1 leading-snug">
                         → {f.technique}

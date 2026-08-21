@@ -248,5 +248,92 @@ def get_frame_script_id(frame_id: str):
 
 
 def check_user_subscription(user_id: str) -> str:
-    user = get_user_by_id(user_id)
-    return user.get("subscription_tier", "free") if user else "free"
+    # Deferred import: payments reads this module at import time.
+    import payments
+    return payments.effective_tier(get_user_by_id(user_id))
+
+
+# ---------------------------------------------------------------------------
+# Erasure
+#
+# Real Postgres cascades these deletes through the foreign keys in
+# supabase_schema.sql. The local mock does not — it stores rows as flat JSON with
+# no notion of a relationship — so "delete this project" left the full script,
+# every version snapshot and every comment sitting in the database. A writer
+# deleting a draft they regret has every right to expect it gone, and the
+# demo/dev path is where that promise was quietly false.
+#
+# These helpers make deletion mean the same thing in both modes, and give the
+# account-deletion route one place to do its work.
+# ---------------------------------------------------------------------------
+
+
+def _delete_where(table: str, field: str, values) -> int:
+    values = [v for v in values if v]
+    if not values:
+        return 0
+    rows = supabase.table(table).select("*").in_(field, values).execute().data or []
+    for row in rows:
+        supabase.table(table).delete().eq("id", row["id"]).execute()
+    return len(rows)
+
+
+def purge_projects(project_ids) -> dict:
+    """Delete projects and everything hanging off them. Returns what went."""
+    project_ids = [p for p in project_ids if p]
+    if not project_ids:
+        return {}
+
+    scripts = supabase.table("scripts").select("*").in_(
+        "project_id", project_ids
+    ).execute().data or []
+    script_ids = [s["id"] for s in scripts]
+
+    scenes = supabase.table("scenes").select("*").in_(
+        "script_id", script_ids
+    ).execute().data if script_ids else []
+    scene_ids = [s["id"] for s in (scenes or [])]
+
+    removed = {
+        "storyboard_frames": _delete_where("storyboard_frames", "scene_id", scene_ids),
+        "scenes": _delete_where("scenes", "script_id", script_ids),
+        "versions": _delete_where("versions", "script_id", script_ids),
+        "comments": _delete_where("comments", "script_id", script_ids),
+        "scripts": _delete_where("scripts", "project_id", project_ids),
+        "project_members": _delete_where("project_members", "project_id", project_ids),
+        "projects": _delete_where("projects", "id", project_ids),
+    }
+    return {k: v for k, v in removed.items() if v}
+
+
+def purge_user(user_id: str) -> dict:
+    """Erase an account and everything it owns.
+
+    Projects shared *with* this user belong to someone else and are not touched;
+    only their membership goes.
+    """
+    owned = supabase.table("projects").select("*").eq("user_id", user_id).execute().data or []
+    removed = purge_projects([p["id"] for p in owned])
+
+    memberships = supabase.table("project_members").select("*").eq(
+        "user_id", user_id
+    ).execute().data or []
+    removed["project_members"] = removed.get("project_members", 0) + _delete_where(
+        "project_members", "id", [m["id"] for m in memberships]
+    )
+
+    # Comments the user left on other people's scripts are theirs to take too.
+    theirs = supabase.table("comments").select("*").eq("user_id", user_id).execute().data or []
+    removed["comments"] = removed.get("comments", 0) + _delete_where(
+        "comments", "id", [c["id"] for c in theirs]
+    )
+
+    # Payment receipts. Real Postgres cascades these from the users FK; the mock
+    # has no notion of one, so without this an erased account leaves its billing
+    # history behind in demo mode and not in production — the worst kind of
+    # difference, because the safe-looking environment is the leaky one.
+    theirs = supabase.table("payments").select("*").eq("user_id", user_id).execute().data or []
+    removed["payments"] = _delete_where("payments", "id", [p["id"] for p in theirs])
+
+    removed["users"] = _delete_where("users", "id", [user_id])
+    return {k: v for k, v in removed.items() if v}

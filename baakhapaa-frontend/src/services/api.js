@@ -28,6 +28,10 @@ export const auth = {
   login: (email, password) => instance.post("/auth/login", { email, password }),
   register: (email, password, name) => instance.post("/auth/register", { email, password, name }),
   getMe: () => instance.get("/auth/me"),
+  // Erasure. Every project, draft, snapshot and board this account owns.
+  // The email is retyped as confirmation because there is no undo.
+  deleteAccount: (confirmEmail) =>
+    instance.delete("/auth/me", { params: { confirm_email: confirmEmail } }),
   setPreferences: (prefs) => instance.put("/auth/preferences", prefs),
 };
 
@@ -36,6 +40,13 @@ export const projects = {
   getById: (id) => instance.get(`/projects/${id}`),
   create: (data) => instance.post("/projects/", data),
   delete: (id) => instance.delete(`/projects/${id}`),
+  // FR12 roles. Per project, not global: a person is usually a writer on their
+  // own work and a reader on someone else's, which one global role cannot say.
+  members: (id) => instance.get(`/projects/${id}/members`),
+  addMember: (id, email, role) => instance.post(`/projects/${id}/members`, { email, role }),
+  setMemberRole: (id, userId, role) =>
+    instance.put(`/projects/${id}/members/${userId}`, { role }),
+  removeMember: (id, userId) => instance.delete(`/projects/${id}/members/${userId}`),
 };
 
 export const scripts = {
@@ -46,6 +57,9 @@ export const scripts = {
   bible: (id) => instance.get(`/scripts/${id}/bible`),
   saveBible: (id, bible) => instance.put(`/scripts/${id}/bible`, bible),
   finalize: (id) => instance.post(`/scripts/${id}/finalize`),
+  // Proposal FR07: timing, character-name consistency and act balance.
+  // Deterministic and free, so it can run before every finalize.
+  review: (id) => instance.get(`/scripts/${id}/review`),
   generateStructure: (data, projectId) =>
     instance.post(`/scripts/generate-structure?project_id=${projectId}`, data),
   addScene: (data) => instance.post("/scripts/add-scene", data),
@@ -64,11 +78,27 @@ export const scripts = {
 export const storyboard = {
   generate: (scriptId) => instance.post(`/storyboard/generate/${scriptId}`),
   getAll: (scriptId) => instance.get(`/storyboard/${scriptId}`),
+  // FR09 frame controls. The routes existed from the first storyboard commit
+  // and nothing ever called them, so shot type, camera notes and frame order
+  // were fixed at whatever generation happened to pick.
+  shotTypes: () => instance.get("/storyboard/shot-types"),
+  update: (frameId, patch) => instance.put(`/storyboard/${frameId}`, patch),
+  regenerate: (frameId, { shotType, description } = {}) =>
+    instance.post(`/storyboard/regenerate/${frameId}`, null, {
+      params: { shot_type: shotType || "", description: description || "" },
+    }),
 };
 
 export const versions = {
   getAll: (scriptId) => instance.get(`/versions/${scriptId}`),
   restore: (versionId) => instance.post(`/versions/${versionId}/restore`),
+  // FR11's other half. The route existed from the first version commit and the
+  // UI only ever restored, so "diff view between any two versions" was a promise
+  // with no way to reach it.
+  diff: (olderId, newerId) =>
+    instance.get("/versions/diff/compare", {
+      params: { version_id_a: olderId, version_id_b: newerId },
+    }),
 };
 
 export const comments = {
@@ -89,12 +119,23 @@ export const learn = {
 };
 
 export const subscription = {
-  checkout: (tier) => instance.post("/subscription/checkout", { tier }),
+  // Which gateways this deployment can actually take money through. Stripe
+  // declines most Nepali cards, so the pricing page cannot assume one.
+  providers: () => instance.get("/subscription/providers"),
+  checkout: (tier, provider) => instance.post("/subscription/checkout", { tier, provider }),
+  // `params` is whatever the gateway put on the return URL. The server treats
+  // it as a lookup key and confirms the payment with the gateway itself.
+  verify: (provider, params) => instance.post("/subscription/verify", { provider, params }),
+  payments: () => instance.get("/subscription/payments"),
 };
 
 export const exportApi = {
   pdf: (id) => instance.get(`/export/script/pdf/${id}`, { responseType: "blob" }),
   word: (id) => instance.get(`/export/script/word/${id}`, { responseType: "blob" }),
+  // Final Draft. The format every other screenwriting tool reads, deliberately
+  // free — and unreachable from the UI since the day it was written, which made
+  // "hand it to a production team" a PDF-only promise.
+  fdx: (id) => instance.get(`/export/script/fdx/${id}`, { responseType: "blob" }),
   package: (id) => instance.get(`/export/package/${id}`, { responseType: "blob" }),
 };
 

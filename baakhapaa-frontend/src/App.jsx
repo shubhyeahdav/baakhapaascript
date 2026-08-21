@@ -12,6 +12,7 @@ import NewProject from "./pages/NewProject";
 import ScriptEditor from "./pages/ScriptEditor";
 import StoryboardView from "./pages/StoryboardView";
 import PricingPage from "./pages/PricingPage";
+import PaymentReturn from "./pages/PaymentReturn";
 import SettingsPage from "./pages/SettingsPage";
 import StoryboardsPage from "./pages/StoryboardsPage";
 import ExportsPage from "./pages/ExportsPage";
@@ -20,12 +21,25 @@ import LearnPage from "./pages/LearnPage";
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      {/* No `future` prop: those were the v6 opt-ins for v7 behaviour, and on
+          react-router-dom 7 they are simply the defaults. Kept here as a note
+          because the flags being present in v6 is what made this upgrade a
+          non-event — the app was already running v7 semantics. */}
+      <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          {/* Every gateway redirects here. The provider is in the PATH, not a
+              query parameter: each gateway appends its own query string to the
+              URL we hand it, and eSewa's docs do not say what it does when one
+              is already there. Protected, because verifying a payment has to
+              happen as the account that opened it. */}
+          <Route path="/payment/return/:provider" element={<ProtectedRoute><PaymentReturn /></ProtectedRoute>} />
+          {/* The older query-parameter form, kept so a payment already in
+              flight at deploy time still lands somewhere that works. */}
+          <Route path="/payment/return" element={<ProtectedRoute><PaymentReturn /></ProtectedRoute>} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/projects/new" element={<ProtectedRoute><NewProject /></ProtectedRoute>} />

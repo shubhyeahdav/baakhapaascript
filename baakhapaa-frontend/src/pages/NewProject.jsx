@@ -129,8 +129,19 @@ export default function NewProject() {
       const payload = { ...form, duration_minutes: parseInt(form.duration_minutes, 10) || 1 };
       const projectRes = await projects.create(payload);
       const projectId = projectRes.data.id;
-      const structureRes = await scripts.generateStructure(payload, projectId);
-      navigate(`/projects/${structureRes.data.script_id}/editor`);
+
+      // Creating the project and generating its structure are two calls, and the
+      // second one talks to a model. If it fails, the project already exists —
+      // and on the free plan it has just consumed the one-project allowance, so
+      // sending the writer back to a form that now answers 402 would strand
+      // them. Open the project instead; a structure can be generated later.
+      try {
+        const structureRes = await scripts.generateStructure(payload, projectId);
+        navigate(`/projects/${structureRes.data.script_id}/editor`);
+      } catch (structureErr) {
+        const script = await scripts.getByProject(projectId);
+        navigate(`/projects/${script.data.id}/editor?structure_failed=1`);
+      }
     } catch (err) {
       const detail = err.response?.data?.detail;
       setError(

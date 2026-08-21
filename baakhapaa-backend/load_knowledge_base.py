@@ -60,7 +60,7 @@ def main():
     print("Embedding (first run downloads the model, ~130 MB cached)...")
     vectors = rag.embed_texts([rag.pattern_to_text(e) for e in good])
 
-    for entry, vec in zip(good, vectors):
+    for entry, vec in zip(good, vectors, strict=True):
         supabase.table(rag.TABLE).delete().eq("title_ref", entry["title_ref"]).execute()
         supabase.table(rag.TABLE).insert({
             **{k: entry[k] for k in REQUIRED},
