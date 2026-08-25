@@ -17,7 +17,7 @@ export default function StructureTimeline({ structure, addedKeys, onAdd, adding 
   );
 
   return (
-    <div className="shrink-0 border-b border-border bg-surface/60 px-5 pt-4 pb-5 overflow-y-auto max-h-[45%]">
+    <div className="shrink-0 border-b border-border bg-surface/60 px-5 pt-4 pb-5 overflow-y-auto max-h-[38%]">
       <div className="flex items-baseline justify-between mb-3">
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-inkMuted">
           Suggested Structure — {pending} pending
@@ -52,14 +52,30 @@ export default function StructureTimeline({ structure, addedKeys, onAdd, adding 
             {(act.scenes || []).map((scene, idx) => {
               const key = `${act.act_number}:${scene.title}`;
               const isAdded = addedKeys.has(key);
+              // An added suggestion has done its job. Leaving it at full
+              // height — description, type badge and all — meant the panel
+              // stayed as tall at the end of the work as at the start, when
+              // the opposite is what should happen: this should get out of the
+              // way as the script gets written.
+              if (isAdded) {
+                return (
+                  <div
+                    key={key}
+                    className="flex items-baseline gap-2 rounded-lg border border-borderSoft bg-bgDeep/40 px-3 py-1.5 mb-1.5"
+                  >
+                    <span className="text-[11px] text-emerald-400 shrink-0">✓</span>
+                    <span className="text-[12px] text-inkMuted truncate">{scene.title}</span>
+                    <span className="font-mono text-[10px] text-inkMuted ml-auto shrink-0">
+                      {scene.time_allocation}m
+                    </span>
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={key}
-                  className={`rounded-lg border p-3 mb-2 transition ${
-                    isAdded
-                      ? "border-borderSoft bg-bgDeep/40 opacity-60"
-                      : "border-border bg-surface hover:border-gold/40"
-                  }`}
+                  className="rounded-lg border p-3 mb-2 transition border-border bg-surface hover:border-gold/40"
                 >
                   <div className="flex items-baseline justify-between gap-2 mb-1">
                     <span className="text-[13px] font-semibold text-ink truncate">
@@ -78,17 +94,13 @@ export default function StructureTimeline({ structure, addedKeys, onAdd, adding 
                     }`}>
                       {scene.scene_type}
                     </span>
-                    {isAdded ? (
-                      <span className="text-[11px] text-emerald-400">✓ Added</span>
-                    ) : (
-                      <button
-                        onClick={() => onAdd(scene, act.act_number, idx)}
-                        disabled={adding === key}
-                        className="text-[11px] font-semibold text-gold border border-gold/30 rounded-full px-2.5 py-0.5 hover:bg-goldDim transition disabled:opacity-50"
-                      >
-                        {adding === key ? "Adding…" : "+ Add Scene"}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => onAdd(scene, act.act_number, idx)}
+                      disabled={adding === key}
+                      className="text-[11px] font-semibold text-gold border border-gold/30 rounded-full px-2.5 py-0.5 hover:bg-goldDim transition disabled:opacity-50"
+                    >
+                      {adding === key ? "Adding…" : "+ Add Scene"}
+                    </button>
                   </div>
                 </div>
               );
