@@ -333,6 +333,10 @@ def purge_projects(project_ids) -> dict:
     # carries a purge_projects() function to call over RPC once there is a real
     # database to install it in.
     steps = (
+        # The access log goes with the script. A record of who used to read a
+        # deleted project is exactly the kind of thing an erasure is supposed
+        # to remove.
+        ("access_log", "script_id", script_ids),
         ("storyboard_frames", "scene_id", scene_ids),
         ("scenes", "script_id", script_ids),
         ("versions", "script_id", script_ids),

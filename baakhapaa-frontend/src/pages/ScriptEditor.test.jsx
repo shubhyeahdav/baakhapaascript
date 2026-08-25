@@ -48,6 +48,7 @@ jest.mock("../services/api", () => ({
   scripts: {
     getById: jest.fn(), save: jest.fn(), saveBible: jest.fn(),
     lint: jest.fn(), benchmark: jest.fn(), recommendations: jest.fn(),
+    coverage: jest.fn(), accessLog: jest.fn(),
     addScene: jest.fn(), generateScene: jest.fn(), improve: jest.fn(),
     suggest: jest.fn(), finalize: jest.fn(),
   },
@@ -56,6 +57,8 @@ jest.mock("../services/api", () => ({
   // tab throws on open — which is exactly what this suite is here to catch.
   versions: { getAll: jest.fn(), restore: jest.fn(), diff: jest.fn() },
   comments: { getAll: jest.fn(), add: jest.fn(), remove: jest.fn() },
+  // AccessLog and CoveragePanel both mount under History/Craft.
+  scriptsExtra: {},
   learn: { forRule: jest.fn() },
 }));
 
@@ -85,6 +88,8 @@ function stubApi() {
   versions.getAll.mockResolvedValue({ data: [] });
   comments.getAll.mockResolvedValue({ data: [] });
   learn.forRule.mockRejectedValue(new Error("no lesson"));
+  scripts.accessLog.mockRejectedValue(new Error("not an admin"));
+  scripts.coverage.mockResolvedValue({ data: {} });
 }
 
 const editor = () => screen.getByPlaceholderText(/Type Scene Headings/i);

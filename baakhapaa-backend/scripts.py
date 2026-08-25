@@ -28,6 +28,7 @@ import rag
 import lessons
 import script_import
 import coverage as coverage_report
+import audit
 
 router = APIRouter(prefix="/scripts", tags=["scripts"])
 
@@ -354,6 +355,11 @@ def get_script_for_project(project_id: str, user_id: str = Depends(get_current_u
 @router.get("/{script_id}")
 def get_script(script_id: str, user_id: str = Depends(get_current_user)):
     script = require_script_access(script_id, user_id, minimum=membership.VIEWER)
+    # With sharing live, an unpublished screenplay can be opened by other
+    # people and the writer had no way to find out. Owner reads are not events,
+    # so this is silent for the person who wrote it.
+    project_owner = (get_project_by_id(script.get("project_id")) or {}).get("user_id")
+    audit.record(script_id, user_id, audit.OPENED, owner_id=project_owner)
     # Reconcile on load, not only on save. Sync ran on save, on storyboard and
     # on review — so a writer who opened a script they had typed by hand met an
     # empty scene index, a dead timeline and an empty corkboard, and the only
@@ -548,6 +554,11 @@ async def import_script(
     result = supabase.table("scripts").update({"content": content}).eq("id", script_id).execute()
     scenes = scene_sync.sync_from_draft(script_id, content)
 
+    # Replacing somebody else's draft is the loudest thing a collaborator can
+    # do to a script, so it is logged even though the snapshot already exists.
+    project_owner = (get_project_by_id(script.get("project_id")) or {}).get("user_id")
+    audit.record(script_id, user_id, audit.IMPORTED, owner_id=project_owner)
+
     return {
         **result.data[0],
         "scenes": scenes,
@@ -580,6 +591,19 @@ def script_coverage(script_id: str, user_id: str = Depends(get_current_user)):
     scenes = scene_sync.sync_from_draft(script_id, text)
     project = get_project_by_id(script.get("project_id")) or {}
     return coverage_report.coverage(text, scenes, project, _read_bible(script))
+
+
+@router.get("/{script_id}/access")
+def script_access_log(script_id: str, user_id: str = Depends(get_current_user)):
+    """Who has been in this script.
+
+    Admin only, and that is the whole point: a log of who read a draft is
+    itself sensitive, and showing every collaborator who else has been looking
+    would turn a safeguard into surveillance. The person entitled to it is the
+    one whose work is being read.
+    """
+    require_script_access(script_id, user_id, minimum=membership.ADMIN)
+    return {"entries": audit.history(script_id)}
 
 
 def _review_for(script: dict) -> dict:

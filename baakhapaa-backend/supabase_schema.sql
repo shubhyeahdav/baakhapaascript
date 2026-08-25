@@ -246,3 +246,16 @@ BEGIN
   DELETE FROM projects        WHERE id         = ANY(project_ids);
 END;
 $$ LANGUAGE plpgsql;
+
+-- Who has opened, exported or replaced a script. Holds who and when, never
+-- what: no draft text, no scene names, nothing about the content of a visit.
+-- Deleted with the project, so erasing a project leaves behind no record of
+-- who used to look at it.
+CREATE TABLE access_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  script_id UUID REFERENCES scripts(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  action TEXT NOT NULL,  -- opened | exported | imported
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX access_log_script_idx ON access_log (script_id, created_at DESC);

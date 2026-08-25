@@ -6,6 +6,7 @@ import re
 from database import get_frames_by_script, get_scenes_by_script, get_project_by_id
 import membership
 from auth import get_current_user, require_script_access, require_tier
+import audit
 import export_service
 
 router = APIRouter(prefix="/export", tags=["export"])
@@ -43,6 +44,10 @@ def _download(data: bytes, media_type: str, filename: str) -> StreamingResponse:
 def export_pdf(script_id: str, user_id: str = Depends(get_current_user)):
     # Exports are reads: a viewer is exactly the person who needs the PDF.
     script = require_script_access(script_id, user_id, minimum=membership.VIEWER)
+    # Taking a copy out of the product is the event a writer most wants to
+    # know about, and the one that leaves no other trace.
+    audit.record(script_id, user_id, audit.EXPORTED,
+                 owner_id=(get_project_by_id(script.get("project_id")) or {}).get("user_id"))
     title = _script_title(script)
     pdf_bytes = export_service.export_script_pdf(script["content"] or "", title)
     return _download(pdf_bytes, "application/pdf", _filename(title, "pdf"))
@@ -54,6 +59,10 @@ def export_word(script_id: str, user_id: str = Depends(get_current_user)):
     # enforced in the UI only, so a direct GET returned the file to free users.
     require_tier(user_id, "Word export")
     script = require_script_access(script_id, user_id, minimum=membership.VIEWER)
+    # Taking a copy out of the product is the event a writer most wants to
+    # know about, and the one that leaves no other trace.
+    audit.record(script_id, user_id, audit.EXPORTED,
+                 owner_id=(get_project_by_id(script.get("project_id")) or {}).get("user_id"))
     title = _script_title(script)
     docx_bytes = export_service.export_script_word(script["content"] or "", title)
     return _download(docx_bytes, DOCX_MEDIA_TYPE, _filename(title, "docx"))
@@ -65,6 +74,10 @@ def export_fdx(script_id: str, user_id: str = Depends(get_current_user)):
     premium feature — a writer who cannot get their work out of the tool
     will not start using it."""
     script = require_script_access(script_id, user_id, minimum=membership.VIEWER)
+    # Taking a copy out of the product is the event a writer most wants to
+    # know about, and the one that leaves no other trace.
+    audit.record(script_id, user_id, audit.EXPORTED,
+                 owner_id=(get_project_by_id(script.get("project_id")) or {}).get("user_id"))
     title = _script_title(script)
     fdx_bytes = export_service.export_script_fdx(script["content"] or "", title)
     return _download(fdx_bytes, "application/xml", _filename(title, "fdx"))
@@ -74,6 +87,10 @@ def export_fdx(script_id: str, user_id: str = Depends(get_current_user)):
 def export_package(script_id: str, user_id: str = Depends(get_current_user)):
     require_tier(user_id, "The production package export")
     script = require_script_access(script_id, user_id, minimum=membership.VIEWER)
+    # Taking a copy out of the product is the event a writer most wants to
+    # know about, and the one that leaves no other trace.
+    audit.record(script_id, user_id, audit.EXPORTED,
+                 owner_id=(get_project_by_id(script.get("project_id")) or {}).get("user_id"))
     title = _script_title(script)
     # Scenes travel with the frames: a frame knows its shot type and image, and
     # the scene knows where it is, who is in it and what happens. A shot list

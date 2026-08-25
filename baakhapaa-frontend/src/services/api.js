@@ -76,6 +76,9 @@ export const scripts = {
   // The reader's report: premise, runtime, structure, craft and shape in one
   // document. Free on every tier — every number in it is measured, not generated.
   coverage: (id) => instance.get(`/scripts/${id}/coverage`),
+  // Who has opened, exported or replaced this script. Admin only — a log of
+  // who read a draft is itself sensitive.
+  accessLog: (id) => instance.get(`/scripts/${id}/access`),
   generateStructure: (data, projectId) =>
     instance.post(`/scripts/generate-structure?project_id=${projectId}`, data),
   addScene: (data) => instance.post("/scripts/add-scene", data),

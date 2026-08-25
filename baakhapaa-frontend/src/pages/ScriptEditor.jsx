@@ -10,6 +10,7 @@ import ToolbarMenu from "../components/ToolbarMenu";
 import GuidePanel from "../components/GuidePanel";
 import ImportScript from "../components/ImportScript";
 import CoveragePanel from "../components/CoveragePanel";
+import AccessLog from "../components/AccessLog";
 import { enterText } from "../utils/screenplayFormat";
 import { saveRescue, clearRescue } from "../utils/draftRescue";
 import { transliterateWord, WORD_PATTERN, DANDA } from "../utils/nepaliTransliterate";
@@ -1432,6 +1433,11 @@ export default function ScriptEditor() {
                 <VersionHistory scriptId={id} onRestore={(restored) => setContent(restored)} />
                 <div className="border-t border-borderSoft pt-5">
                   <CommentThreads scriptId={id} caretLine={caretLine} />
+                </div>
+                {/* Versions answer what changed; this answers who was here.
+                    Renders nothing for anyone but a project admin. */}
+                <div className="border-t border-borderSoft pt-5">
+                  <AccessLog scriptId={id} />
                 </div>
               </div>
             )}
