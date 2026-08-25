@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { checkPassword, passwordRequirementSentence } from "../utils/password";
 import { authErrorMessage } from "../utils/apiError";
 import PasswordField from "../components/PasswordField";
+import { useT } from "../i18n";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 
 /**
@@ -63,6 +64,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const t = useT();
 
   const pw = checkPassword(form.password);
   const confirmTouched = form.confirm.length > 0;
@@ -144,7 +146,7 @@ export default function RegisterPage() {
             <span className="wordmark text-base">BAAKHAPAA</span>
           </div>
 
-          <h2 className="font-display text-3xl text-ink mb-1">Create Account</h2>
+          <h2 className="font-display text-3xl text-ink mb-1">{t("Create Account")}</h2>
           <p className="text-inkMuted text-sm mb-8">Start your screenwriting journey today</p>
 
           {error && (
@@ -165,7 +167,7 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="field-label" htmlFor="name">
-                Full Name
+                {t("Full Name")}
               </label>
               <input
                 id="name"
@@ -182,7 +184,7 @@ export default function RegisterPage() {
 
             <div>
               <label className="field-label" htmlFor="email">
-                Email
+                {t("Email")}
               </label>
               <input
                 id="email"
@@ -238,14 +240,14 @@ export default function RegisterPage() {
                 can be recovered from. It is disabled only while a request is
                 actually in flight, which is what stops a double sign-up. */}
             <button type="submit" disabled={loading} className="btn-gold w-full mt-2">
-              {loading ? "Creating Account…" : "Create Account"}
+              {loading ? "…" : t("Create Account")}
             </button>
           </form>
 
           <p className="text-center text-inkMuted text-sm mt-8">
-            Already have an account?{" "}
+            {t("Already have an account?")}{" "}
             <Link to="/login" className="text-gold hover:text-goldBright transition">
-              Sign In
+              {t("Sign In")}
             </Link>
           </p>
         </div>

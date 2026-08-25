@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import PlanNotice from "./PlanNotice";
+import { useT, useLanguage, LANGUAGES } from "../i18n";
 
 // Shared top navigation for the whole app shell — both the editorial (dashboard,
 // wizard, exports) and utilitarian (editor, storyboard, structure) modes hang
@@ -20,6 +21,8 @@ import PlanNotice from "./PlanNotice";
 export default function TopNav({ active = "Projects", right }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const t = useT();
+  const { lang, setLang } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -40,6 +43,9 @@ export default function TopNav({ active = "Projects", right }) {
     };
   }, [menuOpen]);
 
+  // `label` stays English because `active` is matched against it; only the
+  // rendered text is translated. Matching on a translated string would break
+  // the highlight the moment somebody switched language.
   const items = [
     { label: "Projects", to: "/dashboard" },
     { label: "Learn", to: "/learn" },
@@ -68,7 +74,7 @@ export default function TopNav({ active = "Projects", right }) {
               ? "text-ink border-b border-gold"
               : "text-inkMuted hover:text-inkSoft"
           }`;
-          return <Link key={it.label} to={it.to} className={cls}>{it.label}</Link>;
+          return <Link key={it.label} to={it.to} className={cls}>{t(it.label)}</Link>;
         })}
       </nav>
 
@@ -80,13 +86,13 @@ export default function TopNav({ active = "Projects", right }) {
               className="text-[12.5px] text-inkMuted hover:text-inkSoft transition-colors"
               title="Search — ⌘K"
             >
-              ⌘K Search
+              ⌘K {t("Search")}
             </button>
             <button
               onClick={() => navigate("/projects/new")}
               className="text-[13px] font-semibold text-bgDeep bg-ink hover:bg-gold px-[18px] py-2 rounded-full transition-colors"
             >
-              New project
+              {t("New project")}
             </button>
 
             {/* Account menu — a single click opens the dropdown, it no longer
@@ -116,26 +122,46 @@ export default function TopNav({ active = "Projects", right }) {
                       {(user?.subscription_tier || "free")} plan
                     </div>
                   </div>
+                  {/* Language sits above the destinations because it changes
+                      what they are called. A writer hunting for it is hunting
+                      for the word in their own script, so the Nepali option is
+                      labelled नेपाली rather than "Nepali". */}
+                  <div className="flex gap-1 px-3 py-2.5 border-b border-borderSoft">
+                    {LANGUAGES.map((l) => (
+                      <button
+                        key={l.code}
+                        onClick={() => setLang(l.code)}
+                        aria-pressed={lang === l.code}
+                        className={`flex-1 text-[12px] py-1 rounded-md transition ${
+                          lang === l.code
+                            ? "bg-goldDim text-gold"
+                            : "text-inkMuted hover:text-ink"
+                        }`}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
                   <button
                     role="menuitem"
                     onClick={() => go("/settings")}
                     className="w-full text-left px-4 py-2.5 text-[13px] text-inkSoft hover:bg-white/[0.03] hover:text-ink transition-colors"
                   >
-                    Settings
+                    {t("Settings")}
                   </button>
                   <button
                     role="menuitem"
                     onClick={() => go("/pricing")}
                     className="w-full text-left px-4 py-2.5 text-[13px] text-inkSoft hover:bg-white/[0.03] hover:text-ink transition-colors"
                   >
-                    Pricing & plan
+                    {t("Pricing & plan")}
                   </button>
                   <button
                     role="menuitem"
                     onClick={() => { setMenuOpen(false); logout(); }}
                     className="w-full text-left px-4 py-2.5 text-[13px] text-red-400 hover:bg-red-500/10 transition-colors border-t border-borderSoft"
                   >
-                    Sign out
+                    {t("Sign out")}
                   </button>
                 </div>
               )}

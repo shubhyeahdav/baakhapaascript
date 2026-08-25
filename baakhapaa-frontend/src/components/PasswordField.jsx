@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useT } from "../i18n";
 
 /**
  * A password input the user can read back.
@@ -26,6 +27,7 @@ export default function PasswordField({
   children,
 }) {
   const [visible, setVisible] = useState(false);
+  const t = useT();
 
   return (
     <div>
@@ -55,7 +57,7 @@ export default function PasswordField({
           aria-label={visible ? "Hide password" : "Show password"}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] uppercase tracking-wider text-inkMuted hover:text-gold transition-colors"
         >
-          {visible ? "Hide" : "Show"}
+          {visible ? t("Hide") : t("Show")}
         </button>
       </div>
       {children}

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { authErrorMessage } from "../utils/apiError";
 import PasswordField from "../components/PasswordField";
+import { useT } from "../i18n";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 
 export default function LoginPage() {
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const t = useT();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,8 +84,8 @@ export default function LoginPage() {
             <span className="wordmark text-base">BAAKHAPAA</span>
           </div>
 
-          <h2 className="font-display text-3xl text-ink mb-1">Welcome back</h2>
-          <p className="text-inkMuted text-sm mb-8">Sign in to your studio</p>
+          <h2 className="font-display text-3xl text-ink mb-1">{t("Welcome back")}</h2>
+          <p className="text-inkMuted text-sm mb-8">{t("Sign in to your studio")}</p>
 
           {/* role="alert" so a screen reader announces the failure. Without it
               the only signal that sign-in failed was a colour change. */}
@@ -108,7 +110,7 @@ export default function LoginPage() {
                   clicking it does not focus the field and a screen reader
                   reaches an unnamed input. */}
               <label className="field-label" htmlFor="email">
-                Email
+                {t("Email")}
               </label>
               <input
                 id="email"
@@ -143,14 +145,14 @@ export default function LoginPage() {
             />
 
             <button type="submit" disabled={loading} className="btn-gold w-full">
-              {loading ? "Signing in…" : "Sign In"}
+              {loading ? "…" : t("Sign In")}
             </button>
           </form>
 
           <p className="text-center text-inkMuted text-sm mt-8">
-            No account?{" "}
+            {t("No account?")}{" "}
             <Link to="/register" className="text-gold hover:text-goldBright transition">
-              Create one
+              {t("Create one")}
             </Link>
           </p>
         </div>

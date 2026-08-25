@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { LanguageProvider } from "./i18n";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 import CommandPalette from "./components/CommandPalette";
@@ -26,6 +27,7 @@ export default function App() {
     // Without this a render error unmounts the tree to a white page, taking
     // the writer's unsaved draft with it.
     <ErrorBoundary>
+      <LanguageProvider>
       <AuthProvider>
         {/* No `future` prop: those were the v6 opt-ins for v7 behaviour, and on
             react-router-dom 7 they are simply the defaults. Kept here as a note
@@ -60,6 +62,7 @@ export default function App() {
           <CommandPalette />
         </BrowserRouter>
       </AuthProvider>
+      </LanguageProvider>
     </ErrorBoundary>
   );
 }
