@@ -13,19 +13,19 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
  * would fail with an error naming nothing.
  */
 
-const mockNavigate = jest.fn();
+const mockNavigate = vi.fn();
 
-jest.mock("react-router-dom", () => ({
+vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
   Link: ({ children, ...p }) => <a {...p}>{children}</a>,
 }));
 
-jest.mock("../context/AuthContext", () => ({
+vi.mock("../context/AuthContext", () => ({
   useAuth: () => ({ isAuthenticated: true }),
 }));
 
-jest.mock("../services/api", () => ({
-  subscription: { providers: jest.fn(), checkout: jest.fn() },
+vi.mock("../services/api", () => ({
+  subscription: { providers: vi.fn(), checkout: vi.fn() },
 }));
 
 // eslint-disable-next-line import/first
@@ -45,7 +45,7 @@ const ALL_THREE = {
 };
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   subscription.providers.mockResolvedValue(ALL_THREE);
 });
 
@@ -103,7 +103,7 @@ test("a form_post response is submitted as a form, not followed as a URL", async
       fields: { total_amount: "999.00", transaction_uuid: "BKP-abc", signature: "sig" },
     },
   });
-  const submit = jest.fn();
+  const submit = vi.fn();
   // eslint-disable-next-line no-undef
   HTMLFormElement.prototype.submit = submit;
 

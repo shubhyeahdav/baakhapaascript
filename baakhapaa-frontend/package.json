@@ -6,30 +6,28 @@
     "axios": "^1.6.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^7.18.2",
-    "react-scripts": "5.0.1"
+    "react-router-dom": "^7.18.2"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "test:ci": "react-scripts test --watchAll=false"
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ci": "vitest run"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^14.3.1",
     "@testing-library/user-event": "^14.6.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "autoprefixer": "^10.4.17",
+    "jsdom": "^30.0.1",
     "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1"
+    "tailwindcss": "^3.4.1",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead"
-    ],
-    "development": [
-      "last 1 chrome version"
-    ]
-  }
+  "type": "module"
 }

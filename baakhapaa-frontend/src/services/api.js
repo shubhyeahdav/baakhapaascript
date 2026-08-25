@@ -1,6 +1,15 @@
 import axios from "axios";
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+// Vite exposes env through import.meta.env and requires the VITE_ prefix.
+// REACT_APP_API_URL is still read so an existing .env keeps working rather
+// than silently falling back to localhost against a deployed backend.
+// Optional-chained: `import.meta.env` is injected by Vite and is absent when
+// this module is loaded by anything else, and an undefined lookup there takes
+// down every page that imports the API client.
+const API_URL =
+  import.meta.env?.VITE_API_URL ||
+  import.meta.env?.REACT_APP_API_URL ||
+  "http://localhost:8000";
 
 const instance = axios.create({ baseURL: API_URL });
 

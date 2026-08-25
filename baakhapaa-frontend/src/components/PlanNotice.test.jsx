@@ -11,14 +11,14 @@ import { render, screen } from "@testing-library/react";
  * warning those users would be wrong.
  */
 
-jest.mock("react-router-dom", () => ({
+vi.mock("react-router-dom", () => ({
   // react-router renders `to` as `href`; the mock has to do the same or the
   // link assertion below tests the mock rather than the component.
   Link: ({ children, to, ...p }) => <a href={to} {...p}>{children}</a>,
 }));
 
 const mockUser = { current: null };
-jest.mock("../context/AuthContext", () => ({
+vi.mock("../context/AuthContext", () => ({
   useAuth: () => ({ user: mockUser.current }),
 }));
 

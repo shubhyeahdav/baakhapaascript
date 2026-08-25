@@ -3,8 +3,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ImportScript from "./ImportScript";
 import { scripts } from "../services/api";
 
-jest.mock("../services/api", () => ({
-  scripts: { importFile: jest.fn() },
+vi.mock("../services/api", () => ({
+  scripts: { importFile: vi.fn() },
 }));
 
 const file = (name, text = "INT. A - DAY") =>
@@ -15,7 +15,7 @@ const pick = (f) => {
   fireEvent.change(input, { target: { files: [f] } });
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => vi.clearAllMocks());
 
 test("a chosen file is sent to the server", async () => {
   scripts.importFile.mockResolvedValue({
@@ -29,7 +29,7 @@ test("a chosen file is sent to the server", async () => {
 });
 
 test("the imported draft is handed back to the editor", async () => {
-  const onImported = jest.fn();
+  const onImported = vi.fn();
   scripts.importFile.mockResolvedValue({
     data: { content: "INT. A - DAY", imported: { source: "PDF", scenes: 5, replaced: false } },
   });

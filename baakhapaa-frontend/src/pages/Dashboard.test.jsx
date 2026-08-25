@@ -16,26 +16,28 @@ const PROJECTS = [
   { id: "p2", title: "Second Story", genre: "Thriller", language: "Nepali", duration_minutes: 22, status: "draft", created_at: "2026-08-17T09:00:00" },
 ];
 
-const mockNavigate = jest.fn();
+const mockNavigate = vi.fn();
 
-jest.mock("react-router-dom", () => ({
+vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
   Link: ({ children, ...p }) => <a {...p}>{children}</a>,
 }));
 
-jest.mock("../context/AuthContext", () => ({
+vi.mock("../context/AuthContext", () => ({
   useAuth: () => ({ user: { name: "Board", subscription_tier: "pro" } }),
 }));
 
-jest.mock("../components/TopNav", () => () => <nav />);
+// Vitest wants the factory to return the module, not the default export.
+// Jest inferred that; being explicit is the more honest shape anyway.
+vi.mock("../components/TopNav", () => ({ default: () => <nav /> }));
 
-jest.mock("../services/api", () => ({
-  projects: { getAll: jest.fn(), delete: jest.fn() },
-  scripts: { getByProject: jest.fn() },
+vi.mock("../services/api", () => ({
+  projects: { getAll: vi.fn(), delete: vi.fn() },
+  scripts: { getByProject: vi.fn() },
 }));
 
 // eslint-disable-next-line import/first
-import { projects } from "../services/api";
+import { projects, scripts } from "../services/api";
 // eslint-disable-next-line import/first
 import Dashboard from "./Dashboard";
 
@@ -96,7 +98,6 @@ describe("Dashboard project delete", () => {
   });
 
   it("opening a project still works with the delete control present", async () => {
-    const { scripts } = require("../services/api");
     scripts.getByProject.mockResolvedValue({ data: { id: "s1" } });
     await tiles();
 

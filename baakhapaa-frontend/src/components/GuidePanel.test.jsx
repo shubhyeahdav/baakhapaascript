@@ -67,7 +67,7 @@ test("it advances by itself once the step is satisfied", async () => {
 });
 
 test("an example can be put in the script but is never written for you", () => {
-  const onInsert = jest.fn();
+  const onInsert = vi.fn();
   render(<GuidePanel content="" onInsert={onInsert} />);
   fireEvent.click(screen.getByText("Write your first scene"));
 

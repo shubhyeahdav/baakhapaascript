@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import CoveragePanel from "./CoveragePanel";
 import { scripts } from "../services/api";
 
-jest.mock("../services/api", () => ({ scripts: { coverage: jest.fn() } }));
+vi.mock("../services/api", () => ({ scripts: { coverage: vi.fn() } }));
 
 const REPORT = {
   title: "Chiya Pasal",
@@ -18,7 +18,7 @@ const REPORT = {
   no_verdict: "This is a measurement, not a judgement.",
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => vi.clearAllMocks());
 
 test("it does not run until asked", () => {
   // A report that reappears on every open reads as a score that keeps

@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import AccessLog from "./AccessLog";
 import { scripts } from "../services/api";
 
-jest.mock("../services/api", () => ({ scripts: { accessLog: jest.fn() } }));
+vi.mock("../services/api", () => ({ scripts: { accessLog: vi.fn() } }));
 
 const entry = (over = {}) => ({
   action: "opened",
@@ -13,7 +13,7 @@ const entry = (over = {}) => ({
   ...over,
 });
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => vi.clearAllMocks());
 
 test("it names who was here and what they did", async () => {
   scripts.accessLog.mockResolvedValue({ data: { entries: [entry()] } });

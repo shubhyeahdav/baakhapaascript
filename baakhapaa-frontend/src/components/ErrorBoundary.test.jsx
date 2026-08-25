@@ -17,7 +17,7 @@ let consoleError;
 beforeEach(() => {
   window.localStorage.clear();
   // React logs the caught error itself; silence it so a passing run is readable.
-  consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+  consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 });
 afterEach(() => consoleError.mockRestore());
 
@@ -62,7 +62,7 @@ test("says so plainly when there is no draft to recover", () => {
 });
 
 test("copying the recovered draft puts the real text on the clipboard", async () => {
-  const writeText = jest.fn().mockResolvedValue(undefined);
+  const writeText = vi.fn().mockResolvedValue(undefined);
   Object.assign(navigator, { clipboard: { writeText } });
   saveRescue("7", "FADE IN:");
 

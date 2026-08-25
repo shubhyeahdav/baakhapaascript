@@ -84,12 +84,11 @@ jobs:
           CI: "true"
         run: npm run build
 
-      - name: Dependency audit (informational)
+      - name: Dependency audit
         working-directory: baakhapaa-frontend
-        # Deliberately non-blocking. Every remaining advisory is inside
-        # react-scripts' build toolchain (webpack-dev-server, jest, svgo) — none
-        # of it is in the shipped bundle, and none of it is fixable without
-        # migrating off Create React App, which is its own piece of work.
-        # Failing the build on it would train everyone to ignore this step.
-        continue-on-error: true
+        # This step used to be non-blocking, because it reported 33 advisories
+        # that all lived inside react-scripts' build toolchain and none of
+        # which shipped — and a check nobody can act on trains everyone to
+        # ignore it. Vite replaced react-scripts and the count is zero, so the
+        # step can fail the build again and mean something when it does.
         run: npm audit --audit-level=moderate

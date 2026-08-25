@@ -32,7 +32,7 @@ test("clearing removes the mirror once the server has the draft", () => {
 });
 
 test("a full or disabled localStorage does not break the editor", () => {
-  const setItem = jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+  const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
     throw new Error("QuotaExceededError");
   });
   expect(() => saveRescue("1", "text")).not.toThrow();

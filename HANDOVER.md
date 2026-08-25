@@ -207,8 +207,11 @@ same authority as "this cannot be filmed" while being regex over literal phrases
    the review modal, the structure panel and type-ahead.
 9. **No React error boundary.** One thrown render shows a white page with the
    writer's unsaved draft in it.
-10. **CRA is deprecated**, which is why 33 unfixable advisories remain in
-    `npm audit`. All build toolchain; none ship. Vite migration is a real task.
+10. ~~**CRA is deprecated**, which is why 33 unfixable advisories remain in
+    `npm audit`~~ — **closed 2026-08-25.** Vite replaced react-scripts and
+    `npm audit` reports **0 vulnerabilities**, so CI's audit step is blocking
+    again rather than informational. Jest moved to Vitest with all tests
+    passing; `npm start` and `npm run build` are unchanged.
 11. **`PYSEC-2026-1325` (ecdsa) is ignored by ID in CI.** It does not apply —
     tokens are signed HS256, so the ECDSA path never runs. **Re-check if
     `ALGORITHM` in `auth.py` ever changes.**

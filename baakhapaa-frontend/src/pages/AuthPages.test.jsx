@@ -9,19 +9,19 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 let mockLogin, mockRegister, mockGoogle, mockNavigate;
 
-jest.mock("react-router-dom", () => ({
+vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
   Link: ({ children, ...p }) => <a {...p}>{children}</a>,
 }));
 
-jest.mock("../context/AuthContext", () => ({
+vi.mock("../context/AuthContext", () => ({
   useAuth: () => ({ login: mockLogin, register: mockRegister, loginWithGoogle: mockGoogle }),
 }));
 
 // GoogleSignInButton asks the server which sign-in methods exist. Without this
 // jsdom attempts a real request and the suite fills with CORS noise.
-jest.mock("../services/api", () => ({
-  auth: { providers: jest.fn() },
+vi.mock("../services/api", () => ({
+  auth: { providers: vi.fn() },
 }));
 
 // eslint-disable-next-line import/first
@@ -32,10 +32,10 @@ import LoginPage from "./LoginPage";
 import RegisterPage from "./RegisterPage";
 
 beforeEach(() => {
-  mockLogin = jest.fn().mockResolvedValue({});
-  mockRegister = jest.fn().mockResolvedValue({});
-  mockGoogle = jest.fn().mockResolvedValue({});
-  mockNavigate = jest.fn();
+  mockLogin = vi.fn().mockResolvedValue({});
+  mockRegister = vi.fn().mockResolvedValue({});
+  mockGoogle = vi.fn().mockResolvedValue({});
+  mockNavigate = vi.fn();
   // Default: this deployment has no Google client id, which is the demo-mode
   // state the whole product runs in by default.
   auth.providers.mockResolvedValue({ data: { password: true, google: false } });

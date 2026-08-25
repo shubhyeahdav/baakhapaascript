@@ -29,37 +29,37 @@ const SCRIPT = {
 
 // `mock`-prefixed so babel-plugin-jest-hoist allows the factories to close over
 // them; both are read at render time, not when the factory runs.
-const mockNavigate = jest.fn();
+const mockNavigate = vi.fn();
 let mockQuery = {};
 let mockTier = "pro";
 
-jest.mock("react-router-dom", () => ({
+vi.mock("react-router-dom", () => ({
   useParams: () => ({ id: "script-1" }),
   useNavigate: () => mockNavigate,
   useSearchParams: () => [{ get: (key) => mockQuery[key] ?? null }],
   Link: ({ children, ...p }) => <a {...p}>{children}</a>,
 }));
 
-jest.mock("../context/AuthContext", () => ({
+vi.mock("../context/AuthContext", () => ({
   useAuth: () => ({ user: { subscription_tier: mockTier, preferences: {} } }),
 }));
 
-jest.mock("../services/api", () => ({
+vi.mock("../services/api", () => ({
   scripts: {
-    getById: jest.fn(), save: jest.fn(), saveBible: jest.fn(),
-    lint: jest.fn(), benchmark: jest.fn(), recommendations: jest.fn(),
-    coverage: jest.fn(), accessLog: jest.fn(),
-    addScene: jest.fn(), generateScene: jest.fn(), improve: jest.fn(),
-    suggest: jest.fn(), finalize: jest.fn(),
+    getById: vi.fn(), save: vi.fn(), saveBible: vi.fn(),
+    lint: vi.fn(), benchmark: vi.fn(), recommendations: vi.fn(),
+    coverage: vi.fn(), accessLog: vi.fn(),
+    addScene: vi.fn(), generateScene: vi.fn(), improve: vi.fn(),
+    suggest: vi.fn(), finalize: vi.fn(),
   },
-  exportApi: { pdf: jest.fn(), word: jest.fn(), package: jest.fn() },
+  exportApi: { pdf: vi.fn(), word: vi.fn(), package: vi.fn() },
   // The History tab mounts both of these, so the mock has to carry them or the
   // tab throws on open — which is exactly what this suite is here to catch.
-  versions: { getAll: jest.fn(), restore: jest.fn(), diff: jest.fn() },
-  comments: { getAll: jest.fn(), add: jest.fn(), remove: jest.fn() },
+  versions: { getAll: vi.fn(), restore: vi.fn(), diff: vi.fn() },
+  comments: { getAll: vi.fn(), add: vi.fn(), remove: vi.fn() },
   // AccessLog and CoveragePanel both mount under History/Craft.
   scriptsExtra: {},
-  learn: { forRule: jest.fn() },
+  learn: { forRule: vi.fn() },
 }));
 
 // eslint-disable-next-line import/first
@@ -83,7 +83,7 @@ function stubApi() {
     data: { patterns: [], diagnosed: [], source: "similarity" },
   });
   // Both mount under the History tab. CRA's jest config sets resetMocks, so an
-  // implementation given in the jest.mock factory is gone by the first test —
+  // implementation given in the vi.mock factory is gone by the first test —
   // these have to be stubbed per test, not once.
   versions.getAll.mockResolvedValue({ data: [] });
   comments.getAll.mockResolvedValue({ data: [] });
@@ -108,7 +108,7 @@ describe("ScriptEditor", () => {
     mockQuery = {};
     mockTier = "pro";
     errors = [];
-    jest.spyOn(console, "error").mockImplementation((...a) => errors.push(a.join(" ")));
+    vi.spyOn(console, "error").mockImplementation((...a) => errors.push(a.join(" ")));
   });
 
   it("loads the script without throwing", async () => {
@@ -209,23 +209,30 @@ describe("ScriptEditor", () => {
   it("refreshes the scene cards from what a save returns", async () => {
     // The server reconciles scene rows with the draft on save. If the editor
     // ignored the response, the index cards described a draft two edits old.
-    jest.useFakeTimers();
     scripts.save.mockResolvedValue({
       data: { id: "script-1", scenes: [{ id: "s1", title: "Morning at the Pasal", scene_type: "major", time_allocation: 3 }] },
     });
     try {
+      // Mount on the real clock. `waitFor` schedules its retries with
+      // setTimeout, so under a frozen clock it never runs a second attempt and
+      // hangs until the test times out.
       render(<ScriptEditor />);
       await waitFor(() => expect(editor()).toBeInTheDocument());
 
+      // Freeze it only to jump the 15s autosave, and fake only the two
+      // functions that interval uses — faking queueMicrotask as well would
+      // stall the `await` inside `act`.
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
       fireEvent.change(editor(), { target: { value: "INT. PASAL - DAY\n\nSteam rises.\n" } });
-      await act(async () => { jest.advanceTimersByTime(16000); });
+      await act(async () => { vi.advanceTimersByTime(16000); });
+      vi.useRealTimers();
 
       expect(scripts.save).toHaveBeenCalled();
       await waitFor(() =>
         expect(screen.getByText("Morning at the Pasal")).toBeInTheDocument()
       );
     } finally {
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
 

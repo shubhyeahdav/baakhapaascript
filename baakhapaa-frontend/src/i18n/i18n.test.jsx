@@ -62,7 +62,7 @@ test("a Nepali browser opens in Nepali without anyone finding a setting", () => 
 });
 
 test("a disabled localStorage does not break the app", () => {
-  const getItem = jest.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+  const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
     throw new Error("blocked");
   });
   expect(() => show()).not.toThrow();

@@ -8,20 +8,22 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
  */
 
 let mockNavigate;
-jest.mock("react-router-dom", () => ({
+vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
   Link: ({ children, ...p }) => <a {...p}>{children}</a>,
 }));
 
-jest.mock("../context/AuthContext", () => ({
+vi.mock("../context/AuthContext", () => ({
   useAuth: () => ({ user: { name: "Mira", preferences: { genre: "Drama", tone: "Emotional", language: "Nepali" } } }),
 }));
 
-jest.mock("../components/TopNav", () => () => <nav />);
+// Vitest wants the factory to return the module, not the default export.
+// Jest inferred that; being explicit is the more honest shape anyway.
+vi.mock("../components/TopNav", () => ({ default: () => <nav /> }));
 
-jest.mock("../services/api", () => ({
-  projects: { create: jest.fn() },
-  scripts: { generateStructure: jest.fn(), getByProject: jest.fn() },
+vi.mock("../services/api", () => ({
+  projects: { create: vi.fn() },
+  scripts: { generateStructure: vi.fn(), getByProject: vi.fn() },
 }));
 
 // eslint-disable-next-line import/first
@@ -30,7 +32,7 @@ import { projects, scripts } from "../services/api";
 import NewProject from "./NewProject";
 
 beforeEach(() => {
-  mockNavigate = jest.fn();
+  mockNavigate = vi.fn();
   projects.create.mockResolvedValue({ data: { id: "p1" } });
   scripts.generateStructure.mockResolvedValue({ data: { script_id: "s1" } });
   scripts.getByProject.mockResolvedValue({ data: { id: "s1" } });
