@@ -3,7 +3,7 @@ import os
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, File, UploadFile
 from models import (
     GenerateStructureRequest, GenerateSceneRequest,
     ImproveSceneRequest, SuggestRequest, ScriptSave, AddSceneRequest,
@@ -26,6 +26,7 @@ import fingerprint
 import benchmark
 import rag
 import lessons
+import script_import
 
 router = APIRouter(prefix="/scripts", tags=["scripts"])
 
@@ -498,6 +499,66 @@ def save_script(script_id: str, data: ScriptSave, user_id: str = Depends(get_cur
         "pagination": {
             "page_lines": screenplay.PAGE_LINES,
             "page_count": screenplay.page_count(data.content or ""),
+        },
+    }
+
+
+@router.post("/{script_id}/import")
+async def import_script(
+    script_id: str,
+    file: UploadFile = File(...),
+    replace: bool = True,
+    user_id: str = Depends(get_current_user),
+):
+    """Bring an existing screenplay in from .fdx, Fountain, plain text or PDF.
+
+    There was no way to do this at all, and it gated the things this product is
+    actually good at: a writer arriving with a finished script had to retype it
+    before the linter, the benchmark or the structural review would say a word
+    about it.
+
+    `replace` because that is what importing means to almost everyone. Appending
+    is offered for the case of assembling a feature out of separately written
+    sequences, which is a real workflow and a rare one.
+
+    The previous draft is snapshotted first, unconditionally. Import is the most
+    destructive action in the product — it overwrites everything — and the undo
+    for it has to exist before the overwrite, not after somebody asks for it.
+    """
+    script = require_script_access(script_id, user_id)
+
+    data = await file.read()
+    try:
+        imported = script_import.import_screenplay(file.filename or "", data)
+    except script_import.ImportError_ as exc:
+        # 422: the request was well-formed, the file was not usable. The message
+        # is written for the writer, not for a log.
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+    existing = script.get("content") or ""
+    content = imported["content"] if replace else (existing + "\n\n" + imported["content"])
+
+    if existing.strip():
+        supabase.table("versions").insert({
+            "script_id": script_id, "user_id": user_id,
+            "content": existing, "label": "Before import",
+        }).execute()
+
+    result = supabase.table("scripts").update({"content": content}).eq("id", script_id).execute()
+    scenes = scene_sync.sync_from_draft(script_id, content)
+
+    return {
+        **result.data[0],
+        "scenes": scenes,
+        "imported": {
+            "source": imported["source"],
+            "scenes": imported["scenes"],
+            "characters": imported["characters"],
+            "replaced": bool(existing.strip()) and replace,
+        },
+        "pagination": {
+            "page_lines": screenplay.PAGE_LINES,
+            "page_count": screenplay.page_count(content),
         },
     }
 

@@ -25,3 +25,5 @@ pytest  # test suite: ./venv/Scripts/python -m pytest
 httpx  # payment gateway calls (khalti.py, esewa.py) + fastapi.testclient
 pypdf  # corpus tooling (extract_corpus_text.py) + reading exported PDFs in tests
 google-auth  # verifies Google Identity Services ID tokens (signature, audience, issuer)
+defusedxml  # parses UNTRUSTED .fdx uploads — stock ElementTree resolves external entities (bandit B405)
+python-multipart  # multipart/form-data, for script import uploads
