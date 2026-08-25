@@ -247,3 +247,48 @@ def test_import_requires_access_to_the_script(client, make_user, make_script):
         headers=stranger["headers"],
     )
     assert res.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Television and camera elements
+# ---------------------------------------------------------------------------
+TV_SCRIPT = """ACT ONE
+
+INT. NEWSROOM - DAY
+
+ANGLE ON the clock.
+
+MONTAGE - PRERANA LEARNS THE JOB
+
+END MONTAGE
+
+SANJANA
+We go live in five.
+
+END OF ACT ONE
+"""
+
+
+def test_a_television_script_exports_without_crashing():
+    """`_FDX_TYPE[el.type]` was a direct index, so the first act break in a
+    script took out the whole .fdx download with a KeyError."""
+    fdx = export_service.export_script_fdx(TV_SCRIPT, "Pilot")
+    assert b"Scene Heading" in fdx
+
+
+def test_act_breaks_shots_and_montages_survive_a_round_trip():
+    fdx = export_service.export_script_fdx(TV_SCRIPT, "Pilot")
+    back = script_import.import_screenplay("pilot.fdx", fdx)["content"]
+    types = [e.type for e in screenplay.parse(back)]
+    assert "act_break" in types
+    assert "shot" in types
+    assert "montage" in types
+
+
+def test_an_act_break_is_not_read_as_a_character():
+    """ACT TWO is capitals on its own line, which is exactly the shape of a
+    cue — so untested it became a speaker and ate the line beneath it."""
+    types = {e.text: e.type for e in screenplay.parse(TV_SCRIPT)}
+    assert types["ACT ONE"] == "act_break"
+    assert types["END OF ACT ONE"] == "act_break"
+    assert types["SANJANA"] == "character"

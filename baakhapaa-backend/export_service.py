@@ -242,7 +242,18 @@ _FDX_TYPE = {
     "parenthetical": "Parenthetical",
     "dialogue": "Dialogue",
     "transition": "Transition",
+    # Final Draft has a Shot type; it has nothing for a montage marker or a
+    # television act break, which are conventionally written as action and
+    # read correctly by every tool when they are.
+    "shot": "Shot",
+    "montage": "Action",
+    "act_break": "Action",
 }
+
+# Anything the parser learns to recognise later still has to export. A KeyError
+# here would take out the whole .fdx download over one unfamiliar line, and
+# Action is always a safe home for a line whose type is not known.
+_FDX_FALLBACK = "Action"
 
 
 def export_script_fdx(script_content: str, title: str = "Untitled") -> bytes:
@@ -266,7 +277,7 @@ def export_script_fdx(script_content: str, title: str = "Untitled") -> bytes:
     content = ET.SubElement(doc, "Content")
 
     for el in screenplay.parse(script_content):
-        para = ET.SubElement(content, "Paragraph", {"Type": _FDX_TYPE[el.type]})
+        para = ET.SubElement(content, "Paragraph", {"Type": _FDX_TYPE.get(el.type, _FDX_FALLBACK)})
         ET.SubElement(para, "Text").text = el.text
 
     title_page = ET.SubElement(doc, "TitlePage")

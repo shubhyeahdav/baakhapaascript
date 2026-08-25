@@ -38,6 +38,34 @@ CHARACTER_RE = re.compile(
 )
 PARENTHETICAL_RE = re.compile(r"^\s*\(.*\)\s*$")
 
+# A shot is a camera instruction standing where action would stand. Written in
+# capitals like a cue, which is why it has to be matched BEFORE the cue test:
+# `ANGLE ON THE DOOR` otherwise parses as a character called ANGLE ON THE DOOR
+# and puts the line beneath it in their mouth.
+SHOT_RE = re.compile(
+    r"^\s*(ANGLE ON|CLOSE ON|CLOSE UP|EXTREME CLOSE UP|WIDE ON|WIDE SHOT|"
+    r"POV|REVERSE ANGLE|INSERT|BACK TO SCENE|AERIAL SHOT|TRACKING SHOT|"
+    r"PAN TO|TILT (UP|DOWN)|PUSH IN|PULL BACK)\b",
+    re.IGNORECASE,
+)
+
+# A montage opens a run of images that is not a scene and does not want a
+# slugline per shot. Both spellings are standard and so is the END that closes
+# them, without which everything after the montage stays inside it.
+MONTAGE_RE = re.compile(
+    r"^\s*(END (OF )?)?(MONTAGE|SERIES OF SHOTS)\b.*$",
+    re.IGNORECASE,
+)
+
+# Television structure. A feature has none of these; an episode is unwritable
+# without them, and until now they parsed as character cues — so `ACT TWO`
+# became a speaker and the scene heading under it became their dialogue.
+ACT_BREAK_RE = re.compile(
+    r"^\s*(COLD OPEN|TEASER|TAG|"
+    r"(END OF )?ACT\s+(ONE|TWO|THREE|FOUR|FIVE|SIX|[IVX]+|\d+))\b\.?\s*$",
+    re.IGNORECASE,
+)
+
 # Heading given to content that appears before the first slugline. Named rather
 # than spelled inline because consumers need to tell a real scene from this one:
 # it is a container for stray text, not a scene anyone can shoot.
@@ -50,6 +78,11 @@ ELEMENT_TYPES = (
     "parenthetical",
     "dialogue",
     "transition",
+    # Added later than the first six, and each for a format the product
+    # otherwise could not hold:
+    "shot",       # ANGLE ON, CLOSE ON — a director's instruction, not action
+    "montage",    # MONTAGE / SERIES OF SHOTS and their END
+    "act_break",  # ACT ONE, END OF ACT TWO, COLD OPEN, TAG — television
 )
 
 
@@ -135,6 +168,25 @@ def parse(text: str) -> List[Element]:
 
         if TRANSITION_RE.match(raw):
             elements.append(Element("transition", stripped, line_number))
+            in_dialogue, current_speaker = False, None
+            continue
+
+        # These three go before the character-cue test, not after it. All of
+        # them are written in capitals on their own line, which is exactly the
+        # shape of a cue — so tested later they would each become a speaker and
+        # swallow the line beneath them as dialogue.
+        if ACT_BREAK_RE.match(raw):
+            elements.append(Element("act_break", stripped, line_number))
+            in_dialogue, current_speaker = False, None
+            continue
+
+        if MONTAGE_RE.match(raw):
+            elements.append(Element("montage", stripped, line_number))
+            in_dialogue, current_speaker = False, None
+            continue
+
+        if SHOT_RE.match(raw):
+            elements.append(Element("shot", stripped, line_number))
             in_dialogue, current_speaker = False, None
             continue
 

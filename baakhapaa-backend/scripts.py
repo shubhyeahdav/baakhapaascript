@@ -27,6 +27,7 @@ import benchmark
 import rag
 import lessons
 import script_import
+import coverage as coverage_report
 
 router = APIRouter(prefix="/scripts", tags=["scripts"])
 
@@ -561,6 +562,24 @@ async def import_script(
             "page_count": screenplay.page_count(content),
         },
     }
+
+
+@router.get("/{script_id}/coverage")
+def script_coverage(script_id: str, user_id: str = Depends(get_current_user)):
+    """The reader's report on a draft.
+
+    Free on every tier and costs no AI call, because every number in it is
+    measured rather than generated. That is what lets it run on a half-written
+    draft and say the same thing twice about the same script.
+
+    A viewer can read it — coverage is what you hand someone to get notes, and
+    refusing it to the person giving the notes would be backwards.
+    """
+    script = require_script_access(script_id, user_id, minimum="viewer")
+    text = script.get("content") or ""
+    scenes = scene_sync.sync_from_draft(script_id, text)
+    project = get_project_by_id(script.get("project_id")) or {}
+    return coverage_report.coverage(text, scenes, project, _read_bible(script))
 
 
 def _review_for(script: dict) -> dict:

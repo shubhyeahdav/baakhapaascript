@@ -51,6 +51,7 @@ _FROM_FDX = {
     "Parenthetical": "parenthetical",
     "Dialogue": "dialogue",
     "Transition": "transition",
+    "Shot": "shot",
 }
 
 # Indent, in spaces, for each element when rendered back to the editor's plain
@@ -63,6 +64,9 @@ _INDENT = {
     "parenthetical": 16,
     "dialogue": 10,
     "transition": 0,
+    "shot": 0,
+    "montage": 0,
+    "act_break": 0,
 }
 
 SLUG_RE = re.compile(r"^\s*(INT|EXT|I/E)[.\s/]", re.IGNORECASE | re.MULTILINE)
