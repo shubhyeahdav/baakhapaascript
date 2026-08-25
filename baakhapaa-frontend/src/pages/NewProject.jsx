@@ -50,8 +50,12 @@ const SHORT_FORM_CATEGORIES = [
 function ComboField({ label, value, options, onChange, placeholder, listId }) {
   return (
     <div>
-      <label className="field-label">{label}</label>
+      <label className="field-label" htmlFor={`${listId}-input`}>
+        {label}
+      </label>
       <input
+        id={`${listId}-input`}
+        name={listId}
         className="field"
         list={listId}
         value={value}
@@ -178,10 +182,15 @@ export default function NewProject() {
         <div className="bg-surface border border-borderSoft p-8 rounded-2xl shadow-card">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="field-label">Project Title</label>
+              <label className="field-label" htmlFor="project-title">
+                Project Title
+              </label>
               <input
+                id="project-title"
+                name="title"
                 placeholder="e.g. Seto Bagh"
                 className="field"
+                autoFocus
                 value={form.title}
                 onChange={(e) => set({ title: e.target.value })}
                 maxLength={200}
@@ -211,175 +220,193 @@ export default function NewProject() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Everything below is already answered — genre and tone come from
+                onboarding, runtime from the format, language from the account.
+                Asking a writer to confirm seven decisions before they can type
+                a word is a wall at the widest part of the funnel, and every one
+                of these is editable later in Project Setup. So: closed by
+                default, one click away, and nothing is hidden that does not
+                already have a real answer behind it. */}
+            <details className="group rounded-xl border border-borderSoft bg-surface/40">
+              <summary className="cursor-pointer list-none px-4 py-3 flex items-center gap-2 text-sm text-inkSoft hover:text-ink">
+                <span className="text-inkMuted transition-transform group-open:rotate-90">›</span>
+                Details
+                <span className="ml-auto text-[11px] text-inkMuted font-mono">
+                  {form.genre} · {form.tone} · {form.language}
+                </span>
+              </summary>
+              <div className="px-4 pb-4 pt-1 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <ComboField
+                  label="Genre" listId="genre-options" options={GENRES}
+                  value={form.genre} onChange={(v) => set({ genre: v })}
+                  placeholder="Pick one or type your own"
+                />
+                <ComboField
+                  label="Tone" listId="tone-options" options={TONES}
+                  value={form.tone} onChange={(v) => set({ tone: v })}
+                  placeholder="Pick one or type your own"
+                />
+              </div>
+
               <ComboField
-                label="Genre" listId="genre-options" options={GENRES}
-                value={form.genre} onChange={(v) => set({ genre: v })}
+                label="Target Audience" listId="audience-options" options={AUDIENCES}
+                value={form.target_audience} onChange={(v) => set({ target_audience: v })}
                 placeholder="Pick one or type your own"
               />
-              <ComboField
-                label="Tone" listId="tone-options" options={TONES}
-                value={form.tone} onChange={(v) => set({ tone: v })}
-                placeholder="Pick one or type your own"
-              />
-            </div>
 
-            <ComboField
-              label="Target Audience" listId="audience-options" options={AUDIENCES}
-              value={form.target_audience} onChange={(v) => set({ target_audience: v })}
-              placeholder="Pick one or type your own"
-            />
+              {isShortForm ? (
+                <>
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-xs font-semibold uppercase tracking-wider text-inkMuted">
+                        Runtime
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number" min="5" max={HARD_MAX_SECONDS}
+                          value={form.duration_seconds}
+                          onChange={(e) => setSeconds(e.target.value)}
+                          className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-sm text-gold font-semibold text-right"
+                          aria-label="Runtime in seconds"
+                        />
+                        <span className="text-sm text-inkMuted">sec</span>
+                      </div>
+                    </div>
+                    <input
+                      type="range" min="5" max="90"
+                      value={Math.min(form.duration_seconds || 5, 90)}
+                      className="custom-slider w-full my-2"
+                      onChange={(e) => setSeconds(e.target.value)}
+                    />
+                    <p className="text-[11px] text-inkMuted">
+                      The hook gets the first 3 seconds regardless of total length —
+                      that's the window where a viewer decides to stay.
+                    </p>
+                  </div>
 
-            {isShortForm ? (
-              <>
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-inkMuted">
-                      Runtime
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number" min="5" max={HARD_MAX_SECONDS}
-                        value={form.duration_seconds}
-                        onChange={(e) => setSeconds(e.target.value)}
-                        className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-sm text-gold font-semibold text-right"
-                        aria-label="Runtime in seconds"
-                      />
-                      <span className="text-sm text-inkMuted">sec</span>
+                  <div>
+                    <label className="field-label mb-2">Category</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {SHORT_FORM_CATEGORIES.map((c) => (
+                        <button
+                          type="button" key={c.key}
+                          onClick={() => set({ short_form_category: c.key })}
+                          className={`px-3 py-2 rounded-xl text-sm font-semibold border transition ${
+                            form.short_form_category === c.key
+                              ? "bg-goldDim border-gold text-gold"
+                              : "bg-surface border-border text-inkMuted hover:text-ink"
+                          }`}
+                        >
+                          {c.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  <input
-                    type="range" min="5" max="90"
-                    value={Math.min(form.duration_seconds || 5, 90)}
-                    className="custom-slider w-full my-2"
-                    onChange={(e) => setSeconds(e.target.value)}
-                  />
-                  <p className="text-[11px] text-inkMuted">
-                    The hook gets the first 3 seconds regardless of total length —
-                    that's the window where a viewer decides to stay.
-                  </p>
-                </div>
 
-                <div>
-                  <label className="field-label mb-2">Category</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {SHORT_FORM_CATEGORIES.map((c) => (
-                      <button
-                        type="button" key={c.key}
-                        onClick={() => set({ short_form_category: c.key })}
-                        className={`px-3 py-2 rounded-xl text-sm font-semibold border transition ${
-                          form.short_form_category === c.key
-                            ? "bg-goldDim border-gold text-gold"
-                            : "bg-surface border-border text-inkMuted hover:text-ink"
-                        }`}
-                      >
-                        {c.label}
-                      </button>
-                    ))}
+                  <div>
+                    <label className="field-label mb-2">Hook</label>
+                    <p className="text-[11px] text-inkMuted mb-2 -mt-1">
+                      Pick one and commit. A hook trying to be two things is doing neither.
+                    </p>
+                    <div className="space-y-1.5">
+                      {HOOK_TYPES.map((h) => (
+                        <button
+                          type="button" key={h.key}
+                          onClick={() => set({ hook_type: h.key })}
+                          className={`w-full px-3 py-2 rounded-xl text-left border transition ${
+                            form.hook_type === h.key
+                              ? "bg-goldDim border-gold text-gold"
+                              : "bg-surface border-border text-inkMuted hover:text-ink"
+                          }`}
+                        >
+                          <span className="block text-[13px] font-semibold">{h.label}</span>
+                          <span className="block text-[11px] opacity-70 leading-tight">{h.blurb}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-
-                <div>
-                  <label className="field-label mb-2">Hook</label>
-                  <p className="text-[11px] text-inkMuted mb-2 -mt-1">
-                    Pick one and commit. A hook trying to be two things is doing neither.
-                  </p>
-                  <div className="space-y-1.5">
-                    {HOOK_TYPES.map((h) => (
-                      <button
-                        type="button" key={h.key}
-                        onClick={() => set({ hook_type: h.key })}
-                        className={`w-full px-3 py-2 rounded-xl text-left border transition ${
-                          form.hook_type === h.key
-                            ? "bg-goldDim border-gold text-gold"
-                            : "bg-surface border-border text-inkMuted hover:text-ink"
-                        }`}
-                      >
-                        <span className="block text-[13px] font-semibold">{h.label}</span>
-                        <span className="block text-[11px] opacity-70 leading-tight">{h.blurb}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : (
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-inkMuted">
-                  {isSeries ? "Runtime per episode" : "Runtime"}
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max={HARD_MAX_MINUTES}
-                    value={form.duration_minutes}
-                    onChange={(e) => setDuration(e.target.value)}
-                    className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-sm text-gold font-semibold text-right"
-                    aria-label={isSeries ? "Minutes per episode" : "Runtime in minutes"}
-                  />
-                  <span className="text-sm text-inkMuted">min</span>
-                </div>
-              </div>
-              {/* The slider covers the format's usual span for quick tuning; the
-                  number field above it goes all the way to the real ceiling, so
-                  a 3-hour epic is typeable even though dragging there is not. */}
-              <input
-                type="range"
-                min="1"
-                max={activeFormat.max}
-                value={Math.min(form.duration_minutes || 1, activeFormat.max)}
-                className="custom-slider w-full my-2"
-                onChange={(e) => setDuration(e.target.value)}
-              />
-              <p className="text-[11px] text-inkMuted">
-                Typical {activeFormat.label.toLowerCase()}: {activeFormat.typical} min.
-                Type any value up to {HARD_MAX_MINUTES}.
-              </p>
-            </div>
-            )}
-
-            {isSeries && (
+                </>
+              ) : (
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-inkMuted">
-                    Episodes
+                    {isSeries ? "Runtime per episode" : "Runtime"}
                   </label>
-                  <span className="text-sm text-inkMuted">
-                    Season total <span className="text-gold font-semibold">{totalRuntime} min</span>
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max={HARD_MAX_MINUTES}
+                      value={form.duration_minutes}
+                      onChange={(e) => setDuration(e.target.value)}
+                      className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-sm text-gold font-semibold text-right"
+                      aria-label={isSeries ? "Minutes per episode" : "Runtime in minutes"}
+                    />
+                    <span className="text-sm text-inkMuted">min</span>
+                  </div>
                 </div>
+                {/* The slider covers the format's usual span for quick tuning; the
+                    number field above it goes all the way to the real ceiling, so
+                    a 3-hour epic is typeable even though dragging there is not. */}
                 <input
-                  type="number"
+                  type="range"
                   min="1"
-                  max="200"
-                  value={form.episode_count}
-                  onChange={(e) => set({ episode_count: e.target.value })}
-                  className="field"
-                  aria-label="Number of episodes"
+                  max={activeFormat.max}
+                  value={Math.min(form.duration_minutes || 1, activeFormat.max)}
+                  className="custom-slider w-full my-2"
+                  onChange={(e) => setDuration(e.target.value)}
                 />
+                <p className="text-[11px] text-inkMuted">
+                  Typical {activeFormat.label.toLowerCase()}: {activeFormat.typical} min.
+                  Type any value up to {HARD_MAX_MINUTES}.
+                </p>
               </div>
-            )}
+              )}
 
-            <div>
-              <label className="field-label mb-3">Language</label>
-              <div className="flex gap-2">
-                {["English", "Nepali", "Bilingual"].map((lang) => (
-                  <button
-                    type="button"
-                    key={lang}
-                    onClick={() => set({ language: lang })}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition flex-1 border ${
-                      form.language === lang
-                        ? "bg-goldDim border-gold text-gold"
-                        : "bg-surface border-border text-inkMuted hover:text-ink hover:border-border/30"
-                    }`}
-                  >
-                    {lang}
-                  </button>
-                ))}
+              {isSeries && (
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-inkMuted">
+                      Episodes
+                    </label>
+                    <span className="text-sm text-inkMuted">
+                      Season total <span className="text-gold font-semibold">{totalRuntime} min</span>
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="200"
+                    value={form.episode_count}
+                    onChange={(e) => set({ episode_count: e.target.value })}
+                    className="field"
+                    aria-label="Number of episodes"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="field-label mb-3">Language</label>
+                <div className="flex gap-2">
+                  {["English", "Nepali", "Bilingual"].map((lang) => (
+                    <button
+                      type="button"
+                      key={lang}
+                      onClick={() => set({ language: lang })}
+                      className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition flex-1 border ${
+                        form.language === lang
+                          ? "bg-goldDim border-gold text-gold"
+                          : "bg-surface border-border text-inkMuted hover:text-ink hover:border-border/30"
+                      }`}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+              </div>
+            </details>
 
             {error && (
               <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">

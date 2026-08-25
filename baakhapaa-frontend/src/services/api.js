@@ -73,6 +73,9 @@ export const scripts = {
   // Proposal FR07: timing, character-name consistency and act balance.
   // Deterministic and free, so it can run before every finalize.
   review: (id) => instance.get(`/scripts/${id}/review`),
+  // The reader's report: premise, runtime, structure, craft and shape in one
+  // document. Free on every tier — every number in it is measured, not generated.
+  coverage: (id) => instance.get(`/scripts/${id}/coverage`),
   generateStructure: (data, projectId) =>
     instance.post(`/scripts/generate-structure?project_id=${projectId}`, data),
   addScene: (data) => instance.post("/scripts/add-scene", data),

@@ -9,6 +9,7 @@ import FormatShortcuts, { harvestVocabulary, suggestFor } from "../components/Fo
 import ToolbarMenu from "../components/ToolbarMenu";
 import GuidePanel from "../components/GuidePanel";
 import ImportScript from "../components/ImportScript";
+import CoveragePanel from "../components/CoveragePanel";
 import { enterText } from "../utils/screenplayFormat";
 import { saveRescue, clearRescue } from "../utils/draftRescue";
 import { transliterateWord, WORD_PATTERN, DANDA } from "../utils/nepaliTransliterate";
@@ -1410,7 +1411,18 @@ export default function ScriptEditor() {
             )}
 
             {panelTab === "craft" && (
-              <CraftPanel content={content} genre={genre} tone={tone} />
+              <>
+                <CraftPanel content={content} genre={genre} tone={tone} />
+                {/* Coverage is the Craft tab's question asked about the whole
+                    draft rather than the line under the caret, so it belongs
+                    here rather than earning a fifth tab. */}
+                <div className="border-t border-borderSoft pt-5 mt-6">
+                  <p className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-2">
+                    Coverage
+                  </p>
+                  <CoveragePanel scriptId={id} />
+                </div>
+              </>
             )}
 
             {/* Versions and comments are one question — what happened to this
