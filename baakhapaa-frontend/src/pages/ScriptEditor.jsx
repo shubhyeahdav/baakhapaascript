@@ -11,6 +11,8 @@ import GuidePanel from "../components/GuidePanel";
 import ImportScript from "../components/ImportScript";
 import CoveragePanel from "../components/CoveragePanel";
 import AccessLog from "../components/AccessLog";
+import ReviewModal from "../components/ReviewModal";
+import SceneRail from "../components/SceneRail";
 import { enterText } from "../utils/screenplayFormat";
 import { saveRescue, clearRescue } from "../utils/draftRescue";
 import { transliterateWord, WORD_PATTERN, DANDA } from "../utils/nepaliTransliterate";
@@ -366,17 +368,6 @@ export default function ScriptEditor() {
 
   // A scene's length as the writer would state it. `draft_json.minutes` is what
   // is on the page; `time_allocation` is what was planned for it.
-  const sceneRuntime = (scene) => {
-    let d = {};
-    try {
-      d = typeof scene.draft_json === "string" ? JSON.parse(scene.draft_json) : (scene.draft_json || {});
-    } catch { d = {}; }
-    const v = Number(d.minutes) || Number(scene.time_allocation) || 0;
-    if (v === 0) return "—";
-    const m = Math.floor(v);
-    return `${m}:${String(Math.round((v - m) * 60)).padStart(2, "0")}`;
-  };
-
   // AI suggestion set (persisted on the script row) + which are already added.
   const suggestions = React.useMemo(() => {
     try { return script?.suggestions_json ? JSON.parse(script.suggestions_json) : null; }
@@ -1151,54 +1142,11 @@ export default function ScriptEditor() {
       </header>
 
       {/* FR07: what the review found, before finalizing. Reports, never blocks. */}
-      {review && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6">
-          <div className="bg-surface border border-borderSoft rounded-2xl shadow-card max-w-lg w-full max-h-[80vh] flex flex-col">
-            <div className="p-5 border-b border-borderSoft">
-              <p className="font-mono text-[10px] uppercase tracking-wider text-gold mb-1.5">
-                Script review
-              </p>
-              <h2 className="font-display text-xl text-ink">
-                {review.counts?.high > 0
-                  ? "Worth a look before you finalize"
-                  : "A few things to consider"}
-              </h2>
-              <p className="text-[12px] text-inkMuted mt-1.5 leading-snug">
-                Timing, character names and act balance. These are checks, not
-                rules — finalize anyway if you disagree.
-              </p>
-            </div>
-
-            <div className="p-5 overflow-y-auto space-y-3 flex-1">
-              {(review.findings || []).map((f, i) => (
-                <div key={`${f.rule}-${i}`} className="flex gap-3">
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
-                      f.severity === "high" ? "bg-red-400"
-                        : f.severity === "medium" ? "bg-amber-400" : "bg-sky-400"
-                    }`}
-                  />
-                  <div>
-                    <p className="text-[13px] text-ink leading-snug">{f.message}</p>
-                    {f.detail && (
-                      <p className="text-[11.5px] text-inkMuted leading-snug mt-1">{f.detail}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="p-5 border-t border-borderSoft flex gap-2">
-              <button onClick={() => setReview(null)} className="btn-ghost text-xs py-2 px-4 flex-1">
-                Keep writing
-              </button>
-              <button onClick={confirmFinalize} className="btn-gold text-xs py-2 px-4 flex-1">
-                Finalize anyway
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ReviewModal
+        review={review}
+        onKeepWriting={() => setReview(null)}
+        onFinalizeAnyway={confirmFinalize}
+      />
 
       {structureFailed && (
         <div className="bg-amber-400/10 border-b border-amber-400/25 px-6 py-2.5 flex items-start gap-3 shrink-0">
@@ -1248,34 +1196,11 @@ export default function ScriptEditor() {
             version of exactly this list, and keeping the rail beside them cost
             256px to say the same thing twice. */}
         {!zenMode && view === "script" && (
-          <aside className="w-64 bg-surface border-r border-border overflow-y-auto p-4 shrink-0 animate-fade-up">
-            <div className="text-[10px] font-bold text-inkMuted uppercase tracking-wider mb-4">Scene Index Cards</div>
-            {script.scenes?.map((scene, i) => (
-              <button
-                key={scene.id}
-                onClick={() => goToScene(i)}
-                title="Jump to this scene"
-                className={`w-full text-left p-3 mb-2 rounded-xl border transition duration-200 ${
-                  activeScene === i
-                    ? "border-gold/50 bg-goldDim"
-                    : "border-borderSoft bg-surface/50 hover:border-gold/30 hover:bg-elevated/40"
-                }`}
-              >
-                <div className="text-[10px] font-mono text-gold mb-1 uppercase tracking-wider">Scene {i + 1}</div>
-                <div className="text-ink font-semibold text-sm truncate mb-2">{scene.title}</div>
-                <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider">
-                  <span className={scene.scene_type === "major" ? "text-skyAccent bg-skyDim px-2 py-0.5 rounded" : "text-inkMuted bg-borderSoft px-2 py-0.5 rounded"}>
-                    {scene.scene_type}
-                  </span>
-                  {/* Written runtime, measured off the page, falling back to
-                      the planned allocation. Reading `time_allocation` alone
-                      printed "0m" on every scene of a hand-typed screenplay,
-                      because nothing had ever allocated those scenes anything. */}
-                  <span className="text-inkMuted font-mono normal-case">{sceneRuntime(scene)}</span>
-                </div>
-              </button>
-            ))}
-          </aside>
+          <SceneRail
+            scenes={script.scenes}
+            activeScene={activeScene}
+            onSceneClick={goToScene}
+          />
         )}
 
         {/* Workspace: one of three views over the same scene rows. */}
