@@ -1,0 +1,610 @@
+<title>UGC Hook Board — 126 proven short-form ad openings</title>
+
+<style>
+:root{
+  --ground:#0B0F19; --surface:#141A29; --raised:#1E2538;
+  --line:rgba(148,163,184,.14); --line-firm:rgba(148,163,184,.26);
+  --ink:#F8FAFC; --soft:#E2E8F0; --muted:#94A3B8; --faint:#64748B;
+  --accent:#6366F1; --accent-bright:#818CF8; --accent-dim:rgba(99,102,241,.14);
+  --sky:#38BDF8;
+  --proven:#34D399; --proven-dim:rgba(52,211,153,.13);
+  --thin:#FBBF24; --thin-dim:rgba(251,191,36,.13);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+
+  --serif:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --ui:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono","Cascadia Mono","Roboto Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme:light){
+  :root{
+    --ground:#F6F7FA; --surface:#FFFFFF; --raised:#EEF1F6;
+    --line:rgba(71,85,105,.15); --line-firm:rgba(71,85,105,.28);
+    --ink:#0F172A; --soft:#334155; --muted:#64748B; --faint:#94A3B8;
+    --accent:#4F46E5; --accent-bright:#4338CA; --accent-dim:rgba(79,70,229,.09);
+    --sky:#0284C7;
+    --proven:#059669; --proven-dim:rgba(5,150,105,.11);
+    --thin:#B45309; --thin-dim:rgba(180,83,9,.11);
+    --shadow:0 1px 2px rgba(15,23,42,.05),0 8px 24px -14px rgba(15,23,42,.22);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B0F19; --surface:#141A29; --raised:#1E2538;
+  --line:rgba(148,163,184,.14); --line-firm:rgba(148,163,184,.26);
+  --ink:#F8FAFC; --soft:#E2E8F0; --muted:#94A3B8; --faint:#64748B;
+  --accent:#6366F1; --accent-bright:#818CF8; --accent-dim:rgba(99,102,241,.14);
+  --sky:#38BDF8;
+  --proven:#34D399; --proven-dim:rgba(52,211,153,.13);
+  --thin:#FBBF24; --thin-dim:rgba(251,191,36,.13);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+}
+:root[data-theme="light"]{
+  --ground:#F6F7FA; --surface:#FFFFFF; --raised:#EEF1F6;
+  --line:rgba(71,85,105,.15); --line-firm:rgba(71,85,105,.28);
+  --ink:#0F172A; --soft:#334155; --muted:#64748B; --faint:#94A3B8;
+  --accent:#4F46E5; --accent-bright:#4338CA; --accent-dim:rgba(79,70,229,.09);
+  --sky:#0284C7;
+  --proven:#059669; --proven-dim:rgba(5,150,105,.11);
+  --thin:#B45309; --thin-dim:rgba(180,83,9,.11);
+  --shadow:0 1px 2px rgba(15,23,42,.05),0 8px 24px -14px rgba(15,23,42,.22);
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--ui); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent-bright);}
+:where(button,input,select,summary,a):focus-visible{
+  outline:2px solid var(--accent-bright); outline-offset:2px; border-radius:3px;
+}
+
+/* ---------- masthead ---------- */
+.masthead{
+  border-bottom:1px solid var(--line); background:var(--surface);
+  padding:26px 30px 22px;
+}
+.masthead-in{max-width:1360px; margin:0 auto; display:flex; flex-wrap:wrap;
+  gap:20px 34px; align-items:flex-end; justify-content:space-between;}
+.eyebrow{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.15em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 9px;
+}
+.masthead h1{
+  font-family:var(--serif); font-weight:600; font-size:clamp(27px,3.4vw,40px);
+  line-height:1.1; letter-spacing:-.015em; margin:0; text-wrap:balance;
+}
+.masthead h1 em{font-style:italic; color:var(--accent-bright);}
+.standfirst{
+  margin:11px 0 0; max-width:60ch; color:var(--soft); font-size:14.5px; line-height:1.6;
+}
+.readout{display:flex; gap:26px; flex-wrap:wrap;}
+.readout div{display:flex; flex-direction:column; gap:2px;}
+.readout b{
+  font-family:var(--mono); font-size:23px; font-weight:600;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em; line-height:1;
+}
+.readout span{
+  font-family:var(--mono); font-size:10px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--muted);
+}
+
+/* ---------- shell ---------- */
+.shell{
+  max-width:1360px; margin:0 auto; padding:26px 30px 72px;
+  display:grid; grid-template-columns:280px minmax(0,1fr); gap:30px; align-items:start;
+}
+.rail{position:sticky; top:20px; display:flex; flex-direction:column; gap:18px;}
+
+.panel{
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:10px; padding:16px;
+}
+.panel > h2{
+  font-family:var(--mono); font-size:10px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--muted);
+  margin:0 0 12px; font-weight:600;
+}
+
+/* mode switch */
+.modes{display:grid; grid-template-columns:1fr 1fr; gap:5px;
+  background:var(--raised); padding:4px; border-radius:8px;}
+.mode{
+  appearance:none; border:0; background:transparent; cursor:pointer;
+  color:var(--muted); font-family:var(--ui); font-size:12.5px; font-weight:600;
+  padding:8px 6px; border-radius:5px; transition:background .15s,color .15s;
+}
+.mode[aria-pressed="true"]{background:var(--accent); color:#fff;}
+.mode:hover:not([aria-pressed="true"]){color:var(--ink);}
+.mode-note{margin:10px 0 0; font-size:12px; color:var(--muted); line-height:1.5;}
+
+/* slot input */
+.slot-field{display:flex; flex-direction:column; gap:7px;}
+.slot-field label{font-size:12.5px; color:var(--soft); font-weight:600;}
+.slot-field input{
+  font-family:var(--mono); font-size:13.5px; color:var(--ink);
+  background:var(--ground); border:1px solid var(--line-firm);
+  border-radius:7px; padding:10px 11px; width:100%;
+}
+.slot-field input::placeholder{color:var(--faint);}
+.slot-field input:focus{border-color:var(--accent); outline:none;
+  box-shadow:0 0 0 3px var(--accent-dim);}
+.slot-hint{margin:8px 0 0; font-size:11.5px; color:var(--muted); line-height:1.5;}
+
+/* filter chips */
+.chips{display:flex; flex-wrap:wrap; gap:6px;}
+.chip{
+  appearance:none; cursor:pointer; font-family:var(--ui); font-size:12px;
+  padding:5px 10px; border-radius:20px; font-weight:500;
+  background:var(--raised); color:var(--soft); border:1px solid transparent;
+  transition:background .14s,color .14s,border-color .14s;
+}
+.chip:hover{border-color:var(--line-firm);}
+.chip[aria-pressed="true"]{background:var(--accent-dim); color:var(--accent-bright);
+  border-color:var(--accent);}
+.field-row{display:flex; flex-direction:column; gap:9px;}
+.field-row + .field-row{margin-top:15px; padding-top:15px; border-top:1px solid var(--line);}
+.field-row > h3{
+  font-family:var(--mono); font-size:10px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--muted); margin:0; font-weight:600;
+}
+select{
+  font-family:var(--ui); font-size:12.5px; color:var(--ink); width:100%;
+  background:var(--ground); border:1px solid var(--line-firm);
+  border-radius:7px; padding:8px 9px;
+}
+.toggle-line{display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--soft);}
+.toggle-line input{accent-color:var(--accent); width:15px; height:15px;}
+.reset{
+  appearance:none; background:transparent; border:1px solid var(--line-firm);
+  color:var(--muted); font-family:var(--ui); font-size:12px; cursor:pointer;
+  padding:8px; border-radius:7px; width:100%; transition:color .14s,border-color .14s;
+}
+.reset:hover{color:var(--ink); border-color:var(--muted);}
+
+/* ---------- results ---------- */
+.results-head{
+  display:flex; justify-content:space-between; align-items:baseline;
+  gap:16px; flex-wrap:wrap; margin:0 0 14px;
+}
+.count{font-family:var(--mono); font-size:12px; color:var(--muted);
+  font-variant-numeric:tabular-nums;}
+.count b{color:var(--ink);}
+.cards{display:flex; flex-direction:column; gap:11px;}
+
+.card{
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:10px; padding:16px 18px; box-shadow:var(--shadow);
+  display:grid; gap:13px;
+}
+.card:hover{border-color:var(--line-firm);}
+.card-top{display:flex; justify-content:space-between; gap:16px; align-items:flex-start;}
+.tmpl{
+  font-family:var(--mono); font-size:16px; line-height:1.45; font-weight:500;
+  letter-spacing:-.01em; color:var(--ink); margin:0; overflow-wrap:anywhere;
+}
+.tmpl .fill{
+  color:var(--accent-bright); background:var(--accent-dim);
+  padding:1px 6px; border-radius:4px; font-style:normal;
+}
+.tmpl .fill.empty{color:var(--faint); background:transparent;
+  border:1px dashed var(--line-firm); padding:0 6px;}
+
+.badges{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+.badge{
+  font-family:var(--mono); font-size:10px; letter-spacing:.07em; text-transform:uppercase;
+  padding:3px 7px; border-radius:4px; font-weight:600; white-space:nowrap;
+}
+.badge.angle{background:var(--accent-dim); color:var(--accent-bright);}
+.badge.proven{background:var(--proven-dim); color:var(--proven);}
+.badge.thin{background:var(--thin-dim); color:var(--thin);}
+
+.metrics{
+  display:flex; gap:20px; flex-wrap:wrap; align-items:center;
+  padding-top:12px; border-top:1px solid var(--line);
+}
+.metric{display:flex; flex-direction:column; gap:1px;}
+.metric b{
+  font-family:var(--mono); font-size:14px; font-weight:600;
+  font-variant-numeric:tabular-nums; letter-spacing:-.01em;
+}
+.metric span{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--muted);
+}
+.metric.lift b{color:var(--sky);}
+
+/* effort meter — encodes state in form, not just number */
+.effort{display:flex; flex-direction:column; gap:4px;}
+.bars{display:flex; gap:2.5px; align-items:flex-end; height:14px;}
+.bars i{width:5px; border-radius:1px; background:var(--line-firm);}
+.bars i:nth-child(1){height:5px;} .bars i:nth-child(2){height:8px;}
+.bars i:nth-child(3){height:11px;} .bars i:nth-child(4){height:14px;}
+.bars i.on{background:var(--accent);}
+
+.verticals{display:flex; gap:5px; flex-wrap:wrap;}
+.vert{
+  font-size:11px; color:var(--muted); background:var(--raised);
+  padding:2.5px 8px; border-radius:4px; white-space:nowrap;
+}
+.actions{display:flex; gap:8px; margin-left:auto; align-items:center;}
+.copy{
+  appearance:none; cursor:pointer; font-family:var(--ui); font-size:12px; font-weight:600;
+  background:var(--raised); color:var(--soft); border:1px solid var(--line-firm);
+  padding:6px 12px; border-radius:6px; transition:background .14s,color .14s;
+}
+.copy:hover{background:var(--accent); color:#fff; border-color:var(--accent);}
+.copy.done{background:var(--proven-dim); color:var(--proven); border-color:var(--proven);}
+
+details.evidence{margin:0;}
+details.evidence summary{
+  cursor:pointer; font-family:var(--mono); font-size:10.5px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); list-style:none; padding:2px 0;
+}
+details.evidence summary::-webkit-details-marker{display:none;}
+details.evidence summary::before{content:"› "; color:var(--faint);}
+details.evidence[open] summary::before{content:"⌄ ";}
+details.evidence summary:hover{color:var(--soft);}
+.ev-body{
+  margin-top:9px; padding:11px 13px; background:var(--ground);
+  border:1px solid var(--line); border-radius:7px;
+}
+.ev-quote{
+  font-family:var(--mono); font-size:12.5px; line-height:1.55; color:var(--soft);
+  margin:0 0 8px; overflow-wrap:anywhere;
+}
+.ev-meta{
+  font-family:var(--mono); font-size:10.5px; color:var(--muted);
+  display:flex; gap:14px; flex-wrap:wrap; font-variant-numeric:tabular-nums;
+}
+
+.empty-state{
+  padding:44px 20px; text-align:center; color:var(--muted);
+  border:1px dashed var(--line-firm); border-radius:10px; font-size:14px;
+}
+
+/* ---------- caveat ---------- */
+.caveat{
+  max-width:1360px; margin:0 auto; padding:0 30px 56px;
+}
+.caveat-in{
+  border:1px solid var(--line); border-left:2px solid var(--thin);
+  background:var(--surface); border-radius:8px; padding:18px 22px;
+}
+.caveat h2{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--thin); margin:0 0 10px; font-weight:600;
+}
+.caveat ul{margin:0; padding-left:19px; display:grid; gap:7px;}
+.caveat li{font-size:13px; color:var(--soft); line-height:1.6; max-width:82ch;}
+.caveat b{color:var(--ink); font-weight:600;}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr; padding:20px 18px 56px; gap:20px;}
+  .rail{position:static;}
+  .masthead{padding:22px 18px 18px;}
+  .caveat{padding:0 18px 44px;}
+  .card-top{flex-direction:column; gap:10px;}
+  .metrics{gap:14px;}
+  .actions{margin-left:0;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important; animation:none !important;}
+}
+</style>
+
+<header class="masthead">
+  <div class="masthead-in">
+    <div>
+      <p class="eyebrow">Baakhapaa · short-form research</p>
+      <h1>The hook board — <em>126 openings</em> that earned their place</h1>
+      <p class="standfirst">
+        Mined from 46,605 TikTok posts by 923 brand and app accounts, filtered down to
+        8,285 clean hooks, then reduced to the opening patterns that recur across
+        <strong>at least three different creators</strong> — the line between a real
+        pattern and one brand's house voice. Ranked for briefing UGC creators, or
+        switch to general use.
+      </p>
+    </div>
+    <div class="readout">
+      <div><b id="stat-n">126</b><span>Templates</span></div>
+      <div><b id="stat-solid">33</b><span>Well-evidenced</span></div>
+      <div><b>8,285</b><span>Source hooks</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="panel">
+      <h2>Use case</h2>
+      <div class="modes" role="group" aria-label="Use case">
+        <button class="mode" id="mode-ugc" aria-pressed="true">UGC ads</button>
+        <button class="mode" id="mode-all" aria-pressed="false">General</button>
+      </div>
+      <p class="mode-note" id="mode-note"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Fill the slot</h2>
+      <div class="slot-field">
+        <label for="slot">Your product, service or topic</label>
+        <input id="slot" type="text" placeholder="e.g. a budgeting app" autocomplete="off" />
+      </div>
+      <p class="slot-hint">Every template below fills in live. Copy the ones that read
+        like something a person would actually say.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Filters</h2>
+      <div class="field-row">
+        <h3>Angle</h3>
+        <div class="chips" id="f-angle"></div>
+      </div>
+      <div class="field-row">
+        <h3>Shoot format</h3>
+        <div class="chips" id="f-format"></div>
+      </div>
+      <div class="field-row">
+        <h3>Effort ceiling</h3>
+        <div class="chips" id="f-effort"></div>
+      </div>
+      <div class="field-row">
+        <h3>Vertical</h3>
+        <select id="f-vertical"><option value="">Any vertical</option></select>
+      </div>
+      <div class="field-row">
+        <label class="toggle-line">
+          <input type="checkbox" id="f-solid" />
+          Well-evidenced only (10+ uses)
+        </label>
+      </div>
+      <div class="field-row">
+        <button class="reset" id="reset">Clear filters</button>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="results-head">
+      <p class="count"><b id="count">126</b> templates</p>
+      <select id="sort" aria-label="Sort by" style="width:auto;">
+        <option value="adFit">Sort — best for UGC ads</option>
+        <option value="usability">Sort — overall usability</option>
+        <option value="medianOm">Sort — strongest lift</option>
+        <option value="creators">Sort — most independently proven</option>
+        <option value="medianViews">Sort — highest median views</option>
+      </select>
+    </div>
+    <div class="cards" id="cards"></div>
+  </main>
+</div>
+
+<section class="caveat">
+  <div class="caveat-in">
+    <h2>Read this before you brief anything</h2>
+    <ul>
+      <li><b>These are winners with no losers.</b> Every source hook beat its own
+        creator's baseline — the median by about 4×. You can see what working hooks
+        look like; you <b>cannot</b> conclude one angle beats another, because the
+        failures were never sampled.</li>
+      <li><b>Lift is creator-relative, not raw views.</b> The lift figure is views ÷
+        that creator's own baseline, so a big account gets no free credit. That is the
+        one thing this data does better than every published "average views by hook
+        type" study.</li>
+      <li><b>Direct-sell angles are thinly evidenced here.</b> Only 5 templates each
+        survive for the sell and proof angles. The corpus skews to curiosity and
+        relatability, so treat the sell rows as leads.</li>
+      <li><b>Anything marked "indicative" has under 10 uses.</b> Those rank high on
+        lift precisely because small samples swing. Sort by independent creators when
+        you need to be sure.</li>
+      <li><b>The source runs to January 2025</b> — roughly 19 months old. Hook patterns
+        decay as they saturate, and the data already shows the most common angles
+        performing worst. Read these as proven structures, not current trends.</li>
+      <li><b>Shoot format is inferred from wording. No video was watched.</b> A "how to"
+        line is assumed to need a screen demo; verify before you build a brief on it.</li>
+      <li><b>English-dominant, with no Nepali or Hindi coverage at all</b> — the gap
+        that matters most for Baakhapaa, and one this source cannot fill.</li>
+    </ul>
+  </div>
+</section>
+
+<script id="payload" type="application/json">__DATA__</script>
+<script>
+(function(){
+  "use strict";
+  var DATA = JSON.parse(document.getElementById("payload").textContent);
+  var ALL = DATA.templates;
+
+  var FORMAT_LABEL = {
+    TEXT_ON_BROLL:"Text on b-roll", TALKING_HEAD:"Talking head",
+    SKIT_OR_POV:"Skit / POV", SCREEN_DEMO:"Screen demo", TRANSFORMATION:"Before / after"
+  };
+  var MODE_NOTE = {
+    ugc:"Ranked for briefing a creator on a paid brand ad — weighted toward angles that convert and formats a creator can shoot cheaply.",
+    all:"Ranked on raw usability — performance, reusability and how cheap it is to make, with no advertising weighting."
+  };
+
+  var state = {mode:"ugc", sort:"adFit", slot:"",
+               angles:new Set(), formats:new Set(), effort:null, vertical:"", solidOnly:false};
+
+  var el = {
+    cards:document.getElementById("cards"), count:document.getElementById("count"),
+    sort:document.getElementById("sort"), slot:document.getElementById("slot"),
+    note:document.getElementById("mode-note"), vertical:document.getElementById("f-vertical"),
+    solid:document.getElementById("f-solid"), statN:document.getElementById("stat-n"),
+    statSolid:document.getElementById("stat-solid")
+  };
+
+  function uniq(arr){ return Array.from(new Set(arr)); }
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function fmtViews(n){
+    if(n >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,"") + "M";
+    if(n >= 1e3) return Math.round(n/1e3) + "k";
+    return String(n);
+  }
+
+  /* ---- build filter controls from the data itself ---- */
+  function chipGroup(node, values, key, labelFn){
+    node.innerHTML = "";
+    values.forEach(function(v){
+      var b = document.createElement("button");
+      b.className = "chip"; b.type = "button";
+      b.textContent = labelFn ? labelFn(v) : v;
+      b.setAttribute("aria-pressed","false");
+      b.addEventListener("click", function(){
+        var set = state[key];
+        if(set.has(v)){ set.delete(v); b.setAttribute("aria-pressed","false"); }
+        else { set.add(v); b.setAttribute("aria-pressed","true"); }
+        render();
+      });
+      node.appendChild(b);
+    });
+  }
+  chipGroup(document.getElementById("f-angle"), uniq(ALL.map(function(t){return t.angle;})).sort(), "angles");
+  chipGroup(document.getElementById("f-format"),
+            uniq(ALL.map(function(t){return t.production;})),
+            "formats", function(v){ return FORMAT_LABEL[v] || v; });
+
+  (function(){
+    var node = document.getElementById("f-effort");
+    [1,2,3,4].forEach(function(lvl){
+      var b = document.createElement("button");
+      b.className = "chip"; b.type = "button";
+      b.textContent = lvl === 4 ? "Any" : "≤ " + lvl;
+      b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", function(){
+        state.effort = (state.effort === lvl) ? null : lvl;
+        Array.prototype.forEach.call(node.children, function(c, i){
+          c.setAttribute("aria-pressed", state.effort === i+1 ? "true" : "false");
+        });
+        render();
+      });
+      node.appendChild(b);
+    });
+  })();
+
+  uniq(ALL.reduce(function(acc,t){
+    return acc.concat(t.verticals.map(function(v){return v.name;})); },[])).sort()
+    .forEach(function(v){
+      var o = document.createElement("option"); o.value = v; o.textContent = v;
+      el.vertical.appendChild(o);
+    });
+
+  /* ---- filtering + sorting ---- */
+  function visible(){
+    return ALL.filter(function(t){
+      if(state.angles.size && !state.angles.has(t.angle)) return false;
+      if(state.formats.size && !state.formats.has(t.production)) return false;
+      if(state.effort && t.effort > state.effort) return false;
+      if(state.solidOnly && t.confidence !== "solid") return false;
+      if(state.vertical && !t.verticals.some(function(v){return v.name === state.vertical;})) return false;
+      return true;
+    }).sort(function(a,b){ return b[state.sort] - a[state.sort]; });
+  }
+
+  /* ---- card ---- */
+  function card(t){
+    var slot = state.slot.trim();
+    var filled = slot
+      ? '<span class="fill">' + esc(slot) + '</span>'
+      : '<span class="fill empty">your topic</span>';
+    var head = esc(t.template.replace(/\s*\[\.\.\.\]$/,""));
+    var confBadge = t.confidence === "solid"
+      ? '<span class="badge proven">' + t.instances + ' uses</span>'
+      : '<span class="badge thin">indicative · ' + t.instances + '</span>';
+    var score = state.mode === "ugc" ? t.adFit : t.usability;
+    var scoreLabel = state.mode === "ugc" ? "Ad fit" : "Usability";
+
+    var bars = "";
+    for(var i=1;i<=4;i++) bars += '<i class="' + (i <= t.effort ? "on" : "") + '"></i>';
+
+    var verts = t.verticals.map(function(v){
+      return '<span class="vert">' + esc(v.name) + '</span>'; }).join("");
+
+    var d = document.createElement("article");
+    d.className = "card";
+    d.innerHTML =
+      '<div class="card-top">' +
+        '<p class="tmpl">' + head + " " + filled + '</p>' +
+        '<div class="badges"><span class="badge angle">' + esc(t.angle) + '</span>' + confBadge + '</div>' +
+      '</div>' +
+      '<div class="verticals">' + verts + '</div>' +
+      '<div class="metrics">' +
+        '<div class="metric"><b>' + score.toFixed(0) + '</b><span>' + scoreLabel + '</span></div>' +
+        '<div class="metric lift"><b>' + t.medianOm.toFixed(1) + '×</b><span>Median lift</span></div>' +
+        '<div class="metric"><b>' + fmtViews(t.medianViews) + '</b><span>Median views</span></div>' +
+        '<div class="metric"><b>' + t.creators + '</b><span>Creators</span></div>' +
+        '<div class="metric effort"><div class="bars">' + bars + '</div>' +
+          '<span>' + esc(FORMAT_LABEL[t.production] || t.production) + '</span></div>' +
+        '<div class="actions"><button class="copy" type="button">Copy</button></div>' +
+      '</div>' +
+      '<details class="evidence"><summary>Seen in the wild</summary>' +
+        '<div class="ev-body">' +
+          '<p class="ev-quote">' + esc(t.example.text) + '</p>' +
+          '<div class="ev-meta">' +
+            '<span>' + t.example.om.toFixed(1) + '× lift</span>' +
+            '<span>' + fmtViews(t.example.views) + ' views</span>' +
+            '<a href="' + esc(t.example.url) + '" target="_blank" rel="noopener noreferrer">Original post</a>' +
+          '</div>' +
+        '</div>' +
+      '</details>';
+
+    d.querySelector(".copy").addEventListener("click", function(e){
+      var btn = e.currentTarget;
+      var text = t.template.replace(/\[\.\.\.\]/, slot || "…");
+      navigator.clipboard.writeText(text).then(function(){
+        btn.textContent = "Copied"; btn.classList.add("done");
+        setTimeout(function(){ btn.textContent = "Copy"; btn.classList.remove("done"); }, 1400);
+      });
+    });
+    return d;
+  }
+
+  function render(){
+    var list = visible();
+    el.cards.innerHTML = "";
+    el.count.textContent = list.length;
+    if(!list.length){
+      var e = document.createElement("div");
+      e.className = "empty-state";
+      e.textContent = "No templates match those filters. Try widening the effort ceiling or clearing the vertical.";
+      el.cards.appendChild(e);
+      return;
+    }
+    var frag = document.createDocumentFragment();
+    list.forEach(function(t){ frag.appendChild(card(t)); });
+    el.cards.appendChild(frag);
+  }
+
+  /* ---- wiring ---- */
+  function setMode(m){
+    state.mode = m;
+    document.getElementById("mode-ugc").setAttribute("aria-pressed", m === "ugc" ? "true" : "false");
+    document.getElementById("mode-all").setAttribute("aria-pressed", m === "all" ? "true" : "false");
+    el.note.textContent = MODE_NOTE[m];
+    state.sort = (m === "ugc") ? "adFit" : "usability";
+    el.sort.value = state.sort;
+    render();
+  }
+  document.getElementById("mode-ugc").addEventListener("click", function(){ setMode("ugc"); });
+  document.getElementById("mode-all").addEventListener("click", function(){ setMode("all"); });
+
+  el.sort.addEventListener("change", function(){ state.sort = el.sort.value; render(); });
+  el.slot.addEventListener("input", function(){ state.slot = el.slot.value; render(); });
+  el.vertical.addEventListener("change", function(){ state.vertical = el.vertical.value; render(); });
+  el.solid.addEventListener("change", function(){ state.solidOnly = el.solid.checked; render(); });
+  document.getElementById("reset").addEventListener("click", function(){
+    state.angles.clear(); state.formats.clear();
+    state.effort = null; state.vertical = ""; state.solidOnly = false;
+    document.querySelectorAll(".chip").forEach(function(c){ c.setAttribute("aria-pressed","false"); });
+    el.vertical.value = ""; el.solid.checked = false;
+    render();
+  });
+
+  el.statN.textContent = ALL.length;
+  el.statSolid.textContent = ALL.filter(function(t){ return t.confidence === "solid"; }).length;
+  setMode("ugc");
+})();
+</script>

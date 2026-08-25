@@ -135,3 +135,100 @@ def test_login_is_rate_limited(client, make_user):
         limiter.reset()
 
     assert 429 in codes, f"no request was rate limited: {codes}"
+
+
+# ---------------------------------------------------------------------------
+# The address has to survive the trip from sign-up to sign-in
+#
+# Lookup is an exact string match, so case and whitespace were significant: a
+# writer who registered as `Mira@studio.com` and later typed `mira@studio.com`
+# got "Invalid email or password" for their own account. Phone keyboards
+# capitalise the first letter by default, which aimed this squarely at the
+# users least equipped to work out what happened — and the same gap let one
+# address hold two accounts, because the duplicate check is that same match.
+# ---------------------------------------------------------------------------
+def test_login_ignores_the_capitalisation_used_at_sign_up(client):
+    email = _unique_email()
+    reg = client.post(
+        "/auth/register",
+        json={"email": email, "password": GOOD_PASSWORD, "name": "Mira Rai"},
+    )
+    assert reg.status_code == 200
+
+    r = client.post(
+        "/auth/login",
+        json={"email": email.upper(), "password": GOOD_PASSWORD},
+    )
+    assert r.status_code == 200, "a capitalised address must reach the same account"
+    assert r.json()["user"]["email"] == email.lower()
+
+
+def test_login_ignores_surrounding_whitespace(client):
+    """Pasted addresses and phone autocomplete both carry trailing spaces."""
+    email = _unique_email()
+    client.post(
+        "/auth/register",
+        json={"email": email, "password": GOOD_PASSWORD, "name": "Mira"},
+    )
+
+    r = client.post(
+        "/auth/login",
+        json={"email": f"  {email}  ", "password": GOOD_PASSWORD},
+    )
+    assert r.status_code == 200
+
+
+def test_the_same_address_cannot_register_twice_under_different_casing(client):
+    email = _unique_email()
+    first = client.post(
+        "/auth/register",
+        json={"email": email, "password": GOOD_PASSWORD, "name": "Mira"},
+    )
+    assert first.status_code == 200
+
+    second = client.post(
+        "/auth/register",
+        json={"email": email.upper(), "password": GOOD_PASSWORD, "name": "Someone Else"},
+    )
+    assert second.status_code == 400
+    assert "already registered" in second.json()["detail"].lower()
+
+
+def test_the_stored_address_is_the_normalised_one(client):
+    email = _unique_email()
+    r = client.post(
+        "/auth/register",
+        json={"email": f"  {email.upper()} ", "password": GOOD_PASSWORD, "name": "Mira"},
+    )
+    assert r.status_code == 200
+    assert r.json()["email"] == email.lower()
+
+
+@pytest.mark.parametrize("bad", ["not-an-email", "missing@domain", "@nolocal.com", "two@@at.com", ""])
+def test_register_rejects_an_address_that_cannot_receive_mail(client, bad):
+    """`email` was a bare `str`, so the API accepted anything the browser's
+    own type="email" check happened not to see."""
+    r = client.post(
+        "/auth/register",
+        json={"email": bad, "password": GOOD_PASSWORD, "name": "Mira"},
+    )
+    assert r.status_code == 422
+
+
+def test_register_rejects_a_blank_name(client):
+    """A whitespace-only name reached the database and then rendered as an
+    empty account menu."""
+    r = client.post(
+        "/auth/register",
+        json={"email": _unique_email(), "password": GOOD_PASSWORD, "name": "   "},
+    )
+    assert r.status_code == 422
+
+
+def test_a_name_keeps_its_internal_spacing_but_loses_the_edges(client):
+    r = client.post(
+        "/auth/register",
+        json={"email": _unique_email(), "password": GOOD_PASSWORD, "name": "  Mira  Rai  "},
+    )
+    assert r.status_code == 200
+    assert r.json()["name"] == "Mira  Rai"

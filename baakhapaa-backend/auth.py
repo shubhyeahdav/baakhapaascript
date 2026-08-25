@@ -8,13 +8,15 @@ from passlib.context import CryptContext
 from dotenv import load_dotenv
 
 from models import (
-    UserCreate, UserLogin, UserResponse, UserPreferences, password_policy_errors,
+    UserCreate, UserLogin, UserResponse, UserPreferences, GoogleCredential,
+    password_policy_errors,
 )
 from database import (
-    supabase, get_user_by_email, get_user_by_id, get_script_owner, get_project_by_id,
-    purge_user,
+    supabase, get_user_by_email, get_user_by_google_sub, get_user_by_id,
+    get_script_owner, get_project_by_id, purge_user,
 )
 from rate_limit import limiter, LOGIN_LIMIT, REGISTER_LIMIT
+import google_auth
 
 load_dotenv()
 
@@ -233,8 +235,109 @@ def login(request: Request, credentials: UserLogin):
         pwd_context.verify(credentials.password, _timing_equalizer_hash())
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
+    # A Google-only account has no hash to verify against. Say so plainly: this
+    # is the one case where naming the account's sign-in method is more use than
+    # it is risk, because the person is already holding the right address and
+    # is otherwise stuck guessing a password that was never set.
+    if not user.get("password_hash"):
+        pwd_context.verify(credentials.password, _timing_equalizer_hash())
+        raise HTTPException(
+            status_code=401,
+            detail="This account signs in with Google. Use the Google button instead.",
+        )
+
     if not pwd_context.verify(credentials.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    return {
+        "token": create_token(user["id"], user["email"], token_version(user)),
+        "user": _user_response(user),
+    }
+
+
+@router.get("/providers")
+def auth_providers():
+    """Which sign-in methods this deployment can actually offer.
+
+    Asked before the sign-in page draws its buttons, the same way the pricing
+    page asks which payment gateways are live. A Google button that fails on
+    click because nobody set GOOGLE_CLIENT_ID is worse than no button.
+
+    The client id is returned with it. That is not a leak: in the ID-token flow
+    the Web client id is published in the page by design — it names the
+    application to Google, and the secret half never leaves the console. Serving
+    it from here rather than baking it into the frontend build keeps one source
+    of truth, so a deployment cannot end up with a frontend pointing at one
+    Google project and a backend verifying tokens against another.
+    """
+    return {
+        "password": True,
+        "google": google_auth.is_configured(),
+        "google_client_id": google_auth.GOOGLE_CLIENT_ID or None,
+    }
+
+
+@router.post("/google")
+@limiter.limit(LOGIN_LIMIT)
+def google_sign_in(request: Request, body: GoogleCredential):
+    """Sign in or sign up with a verified Google ID token.
+
+    One route for both, because from the user's side there is no difference —
+    they press the same button whether or not we have seen them before, and
+    asking them to know which is asking them to remember something about our
+    database.
+
+    Matching order is deliberate: `google_sub` first, then email. The sub is
+    Google's stable identifier and the email is not — a user who changes their
+    address at Google must still land in their own account rather than have a
+    second one created under the new address.
+    """
+    if not google_auth.is_configured():
+        raise HTTPException(
+            status_code=503, detail="Google sign-in is not available on this server."
+        )
+
+    try:
+        claims = google_auth.verify_id_token(body.credential)
+    except google_auth.GoogleAuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from None
+
+    user = get_user_by_google_sub(claims["sub"]) or get_user_by_email(claims["email"])
+
+    if user:
+        updates = {}
+        # First Google sign-in on an account that was opened with a password.
+        # Linking rather than refusing is safe *only* because the token was
+        # verified and its email_verified claim was true, which is checked in
+        # google_auth: an unverified address must never attach itself to an
+        # account that already exists.
+        if not user.get("google_sub"):
+            updates["google_sub"] = claims["sub"]
+        # Google is now authoritative for this address, so follow a change made
+        # there rather than leaving the two out of step.
+        if user.get("email") != claims["email"]:
+            updates["email"] = claims["email"]
+        if updates:
+            supabase.table("users").update(updates).eq("id", user["id"]).execute()
+            user = {**user, **updates}
+    else:
+        try:
+            result = supabase.table("users").insert({
+                "email": claims["email"],
+                "name": claims["name"],
+                # No password. Not an unusable placeholder hash: NULL is the
+                # honest representation, and /auth/login reads it directly.
+                "password_hash": None,
+                "auth_provider": "google",
+                "google_sub": claims["sub"],
+                "role": "editor",
+                "subscription_tier": "free",
+            }).execute()
+        except Exception:
+            raise HTTPException(
+                status_code=400, detail="Could not create account. Try again."
+            ) from None
+        user = result.data[0]
 
     return {
         "token": create_token(user["id"], user["email"], token_version(user)),

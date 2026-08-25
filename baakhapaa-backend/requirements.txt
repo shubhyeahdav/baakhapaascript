@@ -24,3 +24,4 @@ slowapi  # per-IP rate limiting on the credential endpoints
 pytest  # test suite: ./venv/Scripts/python -m pytest
 httpx  # payment gateway calls (khalti.py, esewa.py) + fastapi.testclient
 pypdf  # corpus tooling (extract_corpus_text.py) + reading exported PDFs in tests
+google-auth  # verifies Google Identity Services ID tokens (signature, audience, issuer)

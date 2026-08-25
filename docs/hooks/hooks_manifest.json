@@ -1,0 +1,62 @@
+{
+  "source": {
+    "dataset": "benxh/tiktok-hooks-finetune",
+    "url": "https://huggingface.co/datasets/benxh/tiktok-hooks-finetune",
+    "license": "MIT",
+    "file": "sharegpt_conversations.parquet",
+    "size_bytes": 36150270
+  },
+  "curated_at": "2026-08-05",
+  "rows_raw": 46605,
+  "rows_curated": 8285,
+  "rows_curated_en": 7484,
+  "score_field": "om = outlier_multiplier = views / creator baseline views (creator-relative, NOT raw views)",
+  "critical_findings": [
+    "text_hook is OCR-extracted on-screen text from the opening frame, NOT an authored hook field. ~half of raw rows are UI chrome, brand wordmarks, OCR-failure strings or fragments.",
+    "Winners-only corpus: 99% of raw rows have om>=1.36, median 3.98x. No control group — cannot support causal \"archetype X beats Y\" claims.",
+    "outlier_multiplier is creator-relative but its exact baseline is not reconstructable from the shipped columns (best fit views/creator_min at ratio 1.51, tight IQR).",
+    "Content is 923 brand/app-marketing accounts under an app-store category taxonomy, not general organic creators.",
+    "Upload dates 2019-09-30 to 2025-01-26; ~19 months stale at curation date.",
+    "Archetype labels are regex-derived and not human-validated."
+  ],
+  "archetype_counts": {
+    "question": 2508,
+    "pov_realism": 1202,
+    "demonstration": 698,
+    "listicle": 685,
+    "quote_dialogue": 646,
+    "outcome_proof": 509,
+    "reveal_tease": 449,
+    "direct_address": 367,
+    "imperative": 293,
+    "shock_statement": 220,
+    "comparative": 114,
+    "product_showcase": 112,
+    "invitation": 111,
+    "curiosity_gap": 86,
+    "story_teaser": 75,
+    "benefit_promise": 56,
+    "problem_solution": 51,
+    "authority": 38,
+    "relatable_identity": 34,
+    "warning_mistake": 17,
+    "contrarian": 14
+  },
+  "lang_counts": {
+    "en": 7484,
+    "fr": 138,
+    "es": 121,
+    "pt": 61,
+    "la": 55,
+    "it": 48,
+    "de": 47,
+    "zh": 36,
+    "pl": 32,
+    "ja": 31,
+    "nl": 20,
+    "id": 20,
+    "tr": 13,
+    "ko": 12,
+    "ro": 12
+  }
+}

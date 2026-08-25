@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { scripts } from "../services/api";
+import { scripts, learn } from "../services/api";
 
 /**
  * The free tier's craft feedback: deterministic lint flags plus a corpus
@@ -10,6 +9,14 @@ import { scripts } from "../services/api";
  * to run continuously, but feedback that reshuffles while you type reads as
  * noise — and a writer mid-sentence is the worst possible moment to tell them
  * the sentence is wrong.
+ *
+ * This panel is also the *only* place the product teaches while you write. A
+ * flag used to end in a link to the course, which answered "why is this wrong"
+ * by throwing the writer out of their draft and onto another screen — and the
+ * draft is the entire context that made the answer make sense. The explanation
+ * now opens in place. The fourteen-lesson course stays where it belongs, on its
+ * own page, as a thing you sit down to do rather than a thing you fall into
+ * mid-scene.
  */
 
 // How arguable a note is, which the writer deserves to see. Severity says what
@@ -39,6 +46,79 @@ const LEVEL_LABEL = {
   image: "Image",
   other: "Other",
 };
+
+/**
+ * The craft point behind one flag, opened in place.
+ *
+ * Fetched from `/learn/for-rule/{rule}` — the same lesson the course teaches,
+ * so there is one explanation of a technique in the product rather than two
+ * that drift. Only the concept is shown: the exercise and its grading belong
+ * to the course, where the writer has chosen to be taught rather than being
+ * interrupted while writing.
+ */
+function WhyThis({ rule }) {
+  const [open, setOpen] = useState(false);
+  const [lesson, setLesson] = useState(null);
+  const [state, setState] = useState("idle");
+
+  const toggle = async () => {
+    if (open) return setOpen(false);
+    setOpen(true);
+    if (lesson || state === "loading") return;
+    setState("loading");
+    try {
+      const res = await learn.forRule(rule);
+      setLesson(res.data);
+      setState("done");
+    } catch {
+      // No lesson covers every rule, and that is not an error worth a red box.
+      setState("none");
+    }
+  };
+
+  return (
+    <div className="mt-1.5">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="text-[10.5px] text-inkMuted hover:text-gold transition-colors underline decoration-dotted underline-offset-2"
+      >
+        {open ? "Hide" : "Why this matters"}
+      </button>
+
+      {open && (
+        <div className="mt-1.5 rounded-lg border border-borderSoft bg-bgDeep/40 p-2.5">
+          {state === "loading" && (
+            <p className="text-[11px] text-inkMuted">Loading…</p>
+          )}
+          {state === "none" && (
+            <p className="text-[11px] text-inkMuted leading-snug">
+              No written lesson for this one yet — the note above is the whole
+              of it.
+            </p>
+          )}
+          {lesson && (
+            <>
+              <p className="text-[11px] text-gold/80 font-semibold mb-1 leading-snug">
+                {lesson.technique}
+              </p>
+              <p className="text-[11.5px] text-inkSoft leading-relaxed">
+                {lesson.concept}
+              </p>
+              {lesson.corpus_proof && (
+                <p className="text-[10.5px] text-inkMuted mt-1.5 leading-snug italic">
+                  {lesson.corpus_proof}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function Flags({ byLevel, counts }) {
   const levels = Object.keys(byLevel || {});
@@ -111,15 +191,8 @@ function Flags({ byLevel, counts }) {
                         → {f.technique}
                       </p>
                     )}
-                    {/* A flag should be a way into the course, not a dead end. */}
-                    {f.lesson_id && (
-                      <Link
-                        to={`/learn?lesson=${f.lesson_id}`}
-                        className="inline-block text-[10.5px] text-inkMuted hover:text-gold mt-1.5 transition-colors underline decoration-dotted underline-offset-2"
-                      >
-                        Learn this
-                      </Link>
-                    )}
+                    {/* Teaches here, in the draft that raised it. */}
+                    {f.rule && <WhyThis rule={f.rule} />}
                   </div>
                 </div>
               </div>

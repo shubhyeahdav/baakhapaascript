@@ -178,7 +178,27 @@ else:
 
 
 def get_user_by_email(email: str):
+    """Look up by address. Callers must pass a normalised one.
+
+    This is an exact string match, which is why `models.normalise_email` exists
+    and why every route that accepts an address runs it first: without that,
+    `Mira@studio.com` and `mira@studio.com` are two different accounts here, and
+    a writer who capitalised at sign-up is locked out at login.
+    """
     result = supabase.table("users").select("*").eq("email", email).execute()
+    return result.data[0] if result.data else None
+
+
+def get_user_by_google_sub(sub: str):
+    """Look up by Google's `sub` claim.
+
+    Tried before the email, because `sub` is stable and never reused while the
+    address is neither: a user who changes their email at Google must land in
+    the account they already have, not a new one.
+    """
+    if not sub:
+        return None
+    result = supabase.table("users").select("*").eq("google_sub", sub).execute()
     return result.data[0] if result.data else None
 
 

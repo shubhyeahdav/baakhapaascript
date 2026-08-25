@@ -51,7 +51,7 @@ export default function ExportsPage() {
 
   return (
     <div className="cine-bg min-h-screen flex flex-col text-ink">
-      <TopNav active="Exports" />
+      <TopNav active="Projects" />
 
       <main className="flex-1 px-8 md:px-14 pb-14">
         <div className="py-8">

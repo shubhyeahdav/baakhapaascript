@@ -6,8 +6,8 @@ import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
 import CraftPanel from "../components/CraftPanel";
 import FormatShortcuts, { harvestVocabulary, suggestFor } from "../components/FormatShortcuts";
-import StoryBible from "../components/StoryBible";
 import { enterText } from "../utils/screenplayFormat";
+import { saveRescue, clearRescue } from "../utils/draftRescue";
 
 // What the shortcuts dropdown lists. Kept beside the editor rather than in
 // FormatShortcuts so the reference and the engine can't silently disagree
@@ -575,11 +575,23 @@ export default function ScriptEditor() {
         setScript((prev) => (prev ? { ...prev, scenes: res.data.scenes } : prev));
       }
       if (res?.data?.pagination) setPagination(res.data.pagination);
+      // The server has it now, so the local rescue copy has nothing left to
+      // rescue. Dropped rather than left behind: a stale copy that outlives the
+      // draft it mirrors is the thing that eventually overwrites good work.
+      clearRescue(id);
     } catch (err) {
       console.error("Auto-save failed:", err.response?.data?.detail || err.message);
     } finally {
       setSaving(false);
     }
+  }, [id, content]);
+
+  // Mirror the draft locally as it is typed. Autosave runs every 15s and a
+  // render can throw at any point inside that window; without this, everything
+  // typed since the last round trip dies with the component. `ErrorBoundary`
+  // reads this back out and offers it to the writer.
+  useEffect(() => {
+    if (content) saveRescue(id, content);
   }, [id, content]);
 
   useEffect(() => {
@@ -884,6 +896,16 @@ export default function ScriptEditor() {
         </button>
         <div className="font-display font-medium text-ink text-[15px] flex items-center gap-2">
           <span className="opacity-45 text-sm font-sans">Workspace /</span> {script.project?.title || "Untitled"}
+          {/* The story bible moved out of the writing panel to its own screen.
+              This is the way back to it, from the one place a writer is when
+              they realise the character's want was wrong. */}
+          <button
+            onClick={() => navigate(`/projects/${id}/setup`)}
+            className="ml-1 text-[11px] font-sans text-inkMuted hover:text-gold border border-border hover:border-gold/40 rounded-full px-2.5 py-0.5 transition"
+            title="Story bible and project format"
+          >
+            Setup
+          </button>
         </div>
         <div className="flex gap-3 items-center">
           <span className="text-[11px] font-semibold text-inkMuted uppercase tracking-wider mr-2">{saving ? "Saving..." : "Synced"}</span>
@@ -1216,23 +1238,25 @@ export default function ScriptEditor() {
         {/* AI Assistant */}
         {!zenMode && (
           <aside className="w-80 bg-surface border-l border-border p-5 overflow-y-auto overflow-x-hidden shrink-0 animate-fade-up flex flex-col">
-            {/* Five tabs in a 320px panel. At px-3/gap-2 the row needed 323px of
-                a 279px content box, which made the whole aside scroll sideways
-                and pushed its right edge past the viewport — the tab label was
-                visibly clipped mid-word. Tighter padding and `min-w-0` let
-                flex-1 actually shrink the buttons instead of overflowing. */}
+            {/* Three tabs, and they answer three different questions: write
+                this for me, tell me what is wrong with it, show me what changed.
+                There were five. "Story" was setup rather than feedback and moved
+                to the project setup screen; "Versions" and "Notes" are both the
+                document's history and now share one tab. Five 10.5px labels in a
+                320px panel had already forced the padding down until the row
+                still overflowed and clipped a label mid-word — the cramping was
+                the symptom, the wrong grouping was the cause. */}
             <div className="flex gap-1 mb-4">
               {[
-                { key: "ai", label: "AI" },
-                { key: "story", label: "Story" },
+                { key: "ai", label: "Assist" },
                 { key: "craft", label: "Craft" },
-                { key: "versions", label: "Versions" },
-                { key: "comments", label: "Notes" },
+                { key: "history", label: "History" },
               ].map((t) => (
                 <button
                   key={t.key}
                   onClick={() => setPanelTab(t.key)}
-                  className={`text-[10.5px] font-semibold uppercase tracking-wide px-1.5 py-1.5 rounded-lg flex-1 min-w-0 transition duration-200 border ${
+                  aria-pressed={panelTab === t.key}
+                  className={`text-[11px] font-semibold uppercase tracking-wide px-2 py-1.5 rounded-lg flex-1 min-w-0 transition duration-200 border ${
                     panelTab === t.key ? "bg-goldDim text-gold border-gold/30" : "text-inkMuted hover:text-ink border-transparent"
                   }`}
                 >
@@ -1243,19 +1267,20 @@ export default function ScriptEditor() {
 
             {/* Remounts on open so it re-reads the current draft rather than
                 showing a check from three edits ago. */}
-            {panelTab === "story" && (
-              <StoryBible scriptId={id} initial={bible} onChange={setBible} />
-            )}
-
             {panelTab === "craft" && (
               <CraftPanel content={content} genre={genre} tone={tone} />
             )}
 
-            {panelTab === "versions" && (
-              <VersionHistory scriptId={id} onRestore={(restored) => setContent(restored)} />
+            {/* Versions and comments are one question — what happened to this
+                document — asked about the machine's record and about people. */}
+            {panelTab === "history" && (
+              <div className="space-y-6">
+                <VersionHistory scriptId={id} onRestore={(restored) => setContent(restored)} />
+                <div className="border-t border-borderSoft pt-5">
+                  <CommentThreads scriptId={id} caretLine={caretLine} />
+                </div>
+              </div>
             )}
-
-            {panelTab === "comments" && <CommentThreads scriptId={id} caretLine={caretLine} />}
 
             {panelTab === "ai" && (
             <>

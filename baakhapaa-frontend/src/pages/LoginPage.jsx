@@ -2,13 +2,15 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { authErrorMessage } from "../utils/apiError";
+import PasswordField from "../components/PasswordField";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -16,13 +18,21 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      // Sent normalised so what reaches the API is what the account is stored
+      // under, whatever a phone keyboard capitalised on the way in.
+      await login(email.trim().toLowerCase(), password);
       navigate("/dashboard");
     } catch (err) {
       setError(authErrorMessage(err, "Login failed. Please try again."));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogle = async (credential) => {
+    setError("");
+    await loginWithGoogle(credential);
+    navigate("/dashboard");
   };
 
   return (
@@ -75,35 +85,63 @@ export default function LoginPage() {
           <h2 className="font-display text-3xl text-ink mb-1">Welcome back</h2>
           <p className="text-inkMuted text-sm mb-8">Sign in to your studio</p>
 
+          {/* role="alert" so a screen reader announces the failure. Without it
+              the only signal that sign-in failed was a colour change. */}
           {error && (
-            <div className="mb-5 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
+            <div
+              role="alert"
+              className="mb-5 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3"
+            >
               {error}
             </div>
           )}
 
+          <GoogleSignInButton
+            onSuccess={handleGoogle}
+            onError={setError}
+            text="signin_with"
+          />
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="field-label">Email</label>
+              {/* htmlFor/id: without the pair, the label is decoration —
+                  clicking it does not focus the field and a screen reader
+                  reaches an unnamed input. */}
+              <label className="field-label" htmlFor="email">
+                Email
+              </label>
               <input
+                id="email"
+                name="email"
                 type="email"
                 placeholder="you@studio.com"
                 className="field"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                // `username` is the token password managers actually look for
+                // when pairing an address with a saved credential.
+                autoComplete="username"
+                // Phone keyboards capitalise and autocorrect by default, which
+                // is how an address gets typed differently from how it was
+                // registered.
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
+                inputMode="email"
+                autoFocus
                 required
               />
             </div>
-            <div>
-              <label className="field-label">Password</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                className="field"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
+
+            <PasswordField
+              id="current-password"
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              placeholder="Your password"
+              autoComplete="current-password"
+            />
+
             <button type="submit" disabled={loading} className="btn-gold w-full">
               {loading ? "Signing in…" : "Sign In"}
             </button>

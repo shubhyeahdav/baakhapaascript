@@ -1,4 +1,5 @@
 import io
+import math
 import os
 import textwrap
 import time
@@ -6,7 +7,7 @@ import urllib.request as urllib_request
 from datetime import datetime
 from typing import Optional
 
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -111,31 +112,124 @@ def _font_for(line: str) -> str:
     return BODY_FONT if (DEVANAGARI_READY and _has_devanagari(line)) else "Courier"
 
 
+# ---------------------------------------------------------------------------
+# Screenplay page layout
+#
+# US Letter, not A4: a screenplay is a US Letter document everywhere in the
+# world that buys one, and this printed A4 with every line starting at 1.25"
+# and hard-cut at 90 characters -- which on a 595pt page ran a third of every
+# long action line off the right edge of the paper before the cut even applied.
+#
+# The row model lives in `screenplay.layout_rows()` so the page the writer is
+# told they are on and the page this prints are the same page.
+# ---------------------------------------------------------------------------
+PAGE_W, PAGE_H = letter
+TOP_MARGIN = 72.0
+BOTTOM_MARGIN = 72.0
+FONT_SIZE = 12
+# 45 rows between one-inch margins. Derived rather than chosen, so the geometry
+# and `screenplay.PAGE_LINES` cannot drift apart.
+LEADING = (PAGE_H - TOP_MARGIN - BOTTOM_MARGIN) / screenplay.PAGE_LINES
+
+# Left edge of each element, in points from the page edge. The standard
+# screenplay measures: action at 1.5", dialogue at 2.5", parenthetical at 3.1",
+# character cue at 3.7". Every line used to be drawn flush at 1.25", which is
+# the difference between a screenplay and a text file with a title page.
+INDENT = {
+    "scene_heading": 108.0,
+    "action": 108.0,
+    "character": 266.0,
+    "parenthetical": 223.0,
+    "dialogue": 180.0,
+    "transition": 108.0,
+    "blank": 108.0,
+}
+
+
+def _draw_screenplay_pages(c, script_content: str) -> int:
+    """Draw the screenplay, one printed page per sheet. Returns pages drawn.
+
+    Assumes the caller has already put a fresh page under the pen, and leaves
+    the last page open for the caller to close.
+    """
+    rows = screenplay.layout_rows(script_content) or [
+        screenplay.Row("", "blank", None, 1)
+    ]
+
+    # Scene numbers, in both margins beside the slugline. A production script
+    # without them cannot be broken down, scheduled or shot-listed by anyone.
+    scene_number = {}
+    seen = 0
+    for row in rows:
+        if row.type == "scene_heading" and not row.continued:
+            seen += 1
+            scene_number[row.source_line] = seen
+
+    per_page = screenplay.PAGE_LINES
+    pages = max(1, math.ceil(len(rows) / per_page))
+
+    for page_index in range(pages):
+        chunk = rows[page_index * per_page:(page_index + 1) * per_page]
+
+        # Page number, top right, the printed convention. Page one carries none.
+        if page_index:
+            c.setFont("Courier", FONT_SIZE)
+            c.drawRightString(PAGE_W - 72, PAGE_H - 50, f"{page_index + 1}.")
+
+        # A page that opens mid-speech repeats the cue as SPEAKER (CONT'D).
+        # Drawn in the top margin rather than as a row, because taking a row
+        # would push the page count away from the one the editor shows.
+        first = chunk[0]
+        prev = rows[page_index * per_page - 1] if page_index else None
+        speaker = None
+        if first.type in ("dialogue", "parenthetical") and first.character:
+            speaker = first.character
+        elif prev is not None and prev.type == "character":
+            speaker = prev.text
+        if page_index and speaker:
+            c.setFont(_font_for(speaker), FONT_SIZE)
+            c.drawString(INDENT["character"], PAGE_H - TOP_MARGIN + LEADING,
+                         f"{speaker} (CONT'D)")
+
+        y = PAGE_H - TOP_MARGIN
+        for row in chunk:
+            if row.text:
+                c.setFont(_font_for(row.text), FONT_SIZE)
+                if row.type == "scene_heading" and not row.continued:
+                    number = scene_number.get(row.source_line)
+                    if number:
+                        c.drawString(INDENT["scene_heading"] - 36, y, str(number))
+                        c.drawString(PAGE_W - 72 + 12, y, str(number))
+                c.drawString(INDENT.get(row.type, INDENT["action"]), y, row.text)
+            y -= LEADING
+
+        # (MORE) under the last row when the speech continues overleaf.
+        last = chunk[-1]
+        following = rows[(page_index + 1) * per_page] if (page_index + 1) * per_page < len(rows) else None
+        if following is not None:
+            carries = (
+                (following.type in ("dialogue", "parenthetical") and following.character)
+                or last.type == "character"
+            )
+            if carries:
+                c.setFont("Courier", FONT_SIZE)
+                c.drawString(INDENT["dialogue"], y, "(MORE)")
+
+        if page_index < pages - 1:
+            c.showPage()
+
+    return pages
+
+
 def export_script_pdf(script_content: str, title: str = "Untitled") -> bytes:
     buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
+    c = canvas.Canvas(buffer, pagesize=letter)
 
     c.setFont(BOLD_FONT if _has_devanagari(title) else "Courier-Bold", 16)
-    c.drawCentredString(width / 2, height - 100, title)
+    c.drawCentredString(PAGE_W / 2, PAGE_H - 100, title)
     c.showPage()
 
-    y = height - 72
-    page_num = 1
-    # Break on a line count rather than on the y-geometry, so this agrees
-    # exactly with `screenplay.page_of()` — which is the page number the editor
-    # shows the writer. PAGE_LINES is derived from this same layout; the two
-    # must not be free to drift, or "page 6" means two different things.
-    for i, line in enumerate(script_content.split("\n")):
-        if i and i % screenplay.PAGE_LINES == 0:
-            c.drawRightString(width - 40, 30, str(page_num))
-            c.showPage()
-            y = height - 72
-            page_num += 1
-        c.setFont(_font_for(line), 12)
-        c.drawString(90, y, line[:90])
-        y -= 16
-    c.drawRightString(width - 40, 30, str(page_num))
+    _draw_screenplay_pages(c, script_content)
     c.save()
     buffer.seek(0)
     return buffer.read()
@@ -364,8 +458,8 @@ def _wrap(text: str, width: int) -> list:
 def export_production_package(script_content: str, frames: list, title: str = "Untitled",
                               scenes: Optional[list] = None) -> bytes:
     buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
     rows = _shot_rows(frames, scenes)
 
     def new_page(heading=None):
@@ -400,13 +494,13 @@ def export_production_package(script_content: str, frames: list, title: str = "U
     )
 
     # --- screenplay --------------------------------------------------------
-    y = new_page()
-    for line in (script_content or "").split("\n"):
-        if y < 60:
-            y = new_page()
-        c.setFont(_font_for(line), 12)
-        c.drawString(90, y, line[:90])
-        y -= 16
+    # The same layout the standalone PDF export uses. It had its own copy of
+    # this loop, breaking pages on y-geometry rather than on the row count, so
+    # the screenplay inside a production package paginated differently from the
+    # screenplay the writer had just exported -- and truncated at 90 characters
+    # in exactly the same way.
+    c.showPage()
+    _draw_screenplay_pages(c, script_content)
 
     # --- shot list ---------------------------------------------------------
     # The document a crew actually carries. One block per shot, so a long

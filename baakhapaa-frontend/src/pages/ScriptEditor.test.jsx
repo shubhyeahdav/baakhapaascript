@@ -52,10 +52,15 @@ jest.mock("../services/api", () => ({
     suggest: jest.fn(), finalize: jest.fn(),
   },
   exportApi: { pdf: jest.fn(), word: jest.fn(), package: jest.fn() },
+  // The History tab mounts both of these, so the mock has to carry them or the
+  // tab throws on open — which is exactly what this suite is here to catch.
+  versions: { getAll: jest.fn(), restore: jest.fn(), diff: jest.fn() },
+  comments: { getAll: jest.fn(), add: jest.fn(), remove: jest.fn() },
+  learn: { forRule: jest.fn() },
 }));
 
 // eslint-disable-next-line import/first
-import { scripts } from "../services/api";
+import { scripts, versions, comments, learn } from "../services/api";
 // eslint-disable-next-line import/first
 import ScriptEditor from "./ScriptEditor";
 
@@ -74,6 +79,12 @@ function stubApi() {
   scripts.recommendations.mockResolvedValue({
     data: { patterns: [], diagnosed: [], source: "similarity" },
   });
+  // Both mount under the History tab. CRA's jest config sets resetMocks, so an
+  // implementation given in the jest.mock factory is gone by the first test —
+  // these have to be stubbed per test, not once.
+  versions.getAll.mockResolvedValue({ data: [] });
+  comments.getAll.mockResolvedValue({ data: [] });
+  learn.forRule.mockRejectedValue(new Error("no lesson"));
 }
 
 const editor = () => screen.getByPlaceholderText(/Type Scene Headings/i);
@@ -137,18 +148,36 @@ describe("ScriptEditor", () => {
     render(<ScriptEditor />);
     await waitFor(() => expect(editor()).toBeInTheDocument());
 
-    for (const label of ["AI", "Story", "Craft", "Versions", "Notes"]) {
+    for (const label of ["Assist", "Craft", "History"]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
   });
 
-  it("opens the Story tab without throwing", async () => {
+  it("no longer carries the story bible or a separate versions tab", async () => {
+    // The bible is setup, not feedback, and moved to /projects/:id/setup. The
+    // panel beside a draft should hold only what helps with the line being
+    // written right now.
     render(<ScriptEditor />);
     await waitFor(() => expect(editor()).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole("button", { name: "Story" }));
+    for (const gone of ["Story", "Versions", "Notes"]) {
+      expect(screen.queryByRole("button", { name: gone })).not.toBeInTheDocument();
+    }
+  });
 
-    await waitFor(() => expect(screen.getByDisplayValue("PRERANA")).toBeInTheDocument());
+  it("offers a way back to project setup", async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    expect(screen.getByRole("button", { name: /setup/i })).toBeInTheDocument();
+  });
+
+  it("opens the History tab without throwing", async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "History" }));
+
     expect(errors.join("\n")).not.toMatch(/is not defined|is not a function/);
   });
 

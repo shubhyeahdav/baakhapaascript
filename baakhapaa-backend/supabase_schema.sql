@@ -1,8 +1,34 @@
+-- MIGRATION (run once, before deploying Google sign-in):
+--   ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+--   ALTER TABLE users ADD COLUMN auth_provider TEXT NOT NULL DEFAULT 'password';
+--   ALTER TABLE users ADD COLUMN google_sub TEXT UNIQUE;
+-- Existing rows keep their password and read as 'password' accounts, so this
+-- downgrades nobody.
+
+-- MIGRATION (run once, before deploying the email-normalisation change):
+-- addresses were stored as typed, so the same person could hold two accounts
+-- under different casing and a capitalised sign-up could not log back in.
+--   UPDATE users SET email = lower(trim(email));
+-- If that raises a unique violation, two rows are the same address; merge or
+-- delete the duplicate first. A case-insensitive index keeps it that way:
+--   CREATE UNIQUE INDEX users_email_lower_idx ON users (lower(email));
+
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
-  password_hash TEXT NOT NULL,
+  -- NULL for an account that only ever signs in through Google. It has no
+  -- password, and inventing an unusable placeholder hash would make "does this
+  -- account have a password" a question you answer by pattern-matching a
+  -- string. /auth/login refuses an account with no hash and says why.
+  password_hash TEXT,
+  -- How the account was opened: 'password' or 'google'. Recorded for the
+  -- message a user gets when they try the wrong door, not for access control.
+  auth_provider TEXT NOT NULL DEFAULT 'password',
+  -- Google's `sub` claim: stable and never reused, unlike the email, which a
+  -- user can change at Google. Matched before the email so a changed address
+  -- still opens the same account.
+  google_sub TEXT UNIQUE,
   role TEXT DEFAULT 'editor',
   subscription_tier TEXT DEFAULT 'free',
   -- Onboarding answers as JSON: experience, format, language, genre, tone.

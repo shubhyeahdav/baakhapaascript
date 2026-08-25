@@ -19,14 +19,66 @@ def password_policy_errors(password: str) -> List[str]:
     return [label for label, test in PASSWORD_RULES if not test(password or "")]
 
 
-class UserCreate(BaseModel):
+# An address has to survive the round trip from the sign-up form to the login
+# form. Everything else here is a consequence of that one requirement.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def normalise_email(value: str) -> str:
+    """Fold an address to the single form the account is stored under.
+
+    Case and surrounding whitespace were significant, and that locked people out
+    of their own accounts: registering as `Mira@studio.com` and later typing
+    `mira@studio.com` returned "Invalid email or password", because the lookup
+    is an exact string match. Phone keyboards capitalise the first letter by
+    default, so this fired on the writers least able to diagnose it — and the
+    same gap let one address register twice under different casing, since the
+    duplicate check is that same exact match.
+
+    Lowercasing the whole address is the pragmatic choice. The local part is
+    formally case-sensitive per RFC 5321, but no mainstream provider treats it
+    that way, and honouring the letter of the spec here would mean choosing
+    correctness nobody wants over accounts people can actually log back into.
+    """
+    return (value or "").strip().lower()
+
+
+class _EmailMixin(BaseModel):
     email: str
+
+    @field_validator("email")
+    @classmethod
+    def _clean_email(cls, v: str) -> str:
+        v = normalise_email(v)
+        if not _EMAIL_RE.match(v):
+            raise ValueError("Enter a valid email address.")
+        return v
+
+
+class UserCreate(_EmailMixin):
     password: str
     name: str
 
-class UserLogin(BaseModel):
-    email: str
+    @field_validator("name")
+    @classmethod
+    def _clean_name(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("Enter your name.")
+        return v
+
+
+class UserLogin(_EmailMixin):
     password: str
+
+
+class GoogleCredential(BaseModel):
+    """The ID token minted by Google Identity Services in the browser.
+
+    Carries an email and a name, and none of it is trusted here — the token is
+    signature-checked in `google_auth` before a single claim is read.
+    """
+    credential: str
 
 class UserResponse(BaseModel):
     id: str

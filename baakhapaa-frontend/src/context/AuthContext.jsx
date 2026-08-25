@@ -32,6 +32,16 @@ export function AuthProvider({ children }) {
     return login(email, password);
   };
 
+  // One call for both sign-up and sign-in: from the user's side there is no
+  // difference, and the server decides whether this Google account is new,
+  // already known, or belongs to an existing password account.
+  const loginWithGoogle = async (credential) => {
+    const res = await auth.google(credential);
+    localStorage.setItem("token", res.data.token);
+    setUser(res.data.user);
+    return res.data.user;
+  };
+
   const logout = () => {
     localStorage.removeItem("token");
     setUser(null);
@@ -47,7 +57,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, isAuthenticated: !!user, login, register, logout, refreshUser }}
+      value={{ user, isLoading, isAuthenticated: !!user, login, register, loginWithGoogle, logout, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

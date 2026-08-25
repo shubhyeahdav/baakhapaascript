@@ -28,6 +28,12 @@ export const auth = {
   login: (email, password) => instance.post("/auth/login", { email, password }),
   register: (email, password, name) => instance.post("/auth/register", { email, password, name }),
   getMe: () => instance.get("/auth/me"),
+  // Which sign-in methods this deployment can actually offer, asked before
+  // the page draws its buttons — the same contract as subscription.providers.
+  providers: () => instance.get("/auth/providers"),
+  // The ID token minted by Google Identity Services in the browser. Verified
+  // server-side; nothing in it is trusted here.
+  google: (credential) => instance.post("/auth/google", { credential }),
   // Erasure. Every project, draft, snapshot and board this account owns.
   // The email is retyped as confirmation because there is no undo.
   deleteAccount: (confirmEmail) =>

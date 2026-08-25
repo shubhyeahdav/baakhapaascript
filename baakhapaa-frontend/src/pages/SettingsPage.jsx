@@ -69,7 +69,7 @@ export default function SettingsPage() {
   return (
     <div className="cine-bg min-h-screen flex flex-col text-ink">
       {/* Highlight Team in the bar when arriving via the Team nav item. */}
-      <TopNav active={tab === "Team Members" ? "Team" : "Projects"} />
+      <TopNav active="Settings" />
 
       <main className="flex-1 px-8 md:px-14 pb-14 max-w-3xl">
         <div className="py-8">

@@ -1,0 +1,33 @@
+{
+  "derived_from": "hooks_curated.csv (8,285 rows)",
+  "built": "2026-08-05",
+  "axes": {
+    "intent": "TEACH | SELL | RELATE | PROVOKE | PROVE | ENTERTAIN — the job the video does",
+    "production": "TEXT_ON_BROLL | TALKING_HEAD | SKIT_OR_POV | SCREEN_DEMO | TRANSFORMATION",
+    "funnel": "REACH | NURTURE | CONVERT",
+    "effort": "1 (cheapest) to 4 (most setup)"
+  },
+  "usability_score": "0.55*om_percentile + 0.25*is_template + 0.20*(1-effort_normalised)",
+  "template_rule": "opening stem with >=5 instances across >=3 distinct creators",
+  "templates_mined": 126,
+  "intent_counts": {
+    "PROVOKE": 3240,
+    "RELATE": 1931,
+    "TEACH": 1461,
+    "ENTERTAIN": 662,
+    "PROVE": 643,
+    "SELL": 348
+  },
+  "production_counts": {
+    "TEXT_ON_BROLL": 3966,
+    "SKIT_OR_POV": 1640,
+    "TALKING_HEAD": 1494,
+    "SCREEN_DEMO": 1153,
+    "TRANSFORMATION": 32
+  },
+  "caveats": [
+    "Usability score is a design choice, not a measurement. Weights are editorial; re-weight for your users.",
+    "Inherits every limit of the source corpus: winners-only, no control group, ~19mo stale, brand/app-marketing skew, no Nepali/Hindi.",
+    "intent/production are rule-derived from text only — no video was watched. production is an inference from wording."
+  ]
+}

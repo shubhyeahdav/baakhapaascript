@@ -7,7 +7,14 @@ import PlanNotice from "./PlanNotice";
 // wizard, exports) and utilitarian (editor, storyboard, structure) modes hang
 // off this one bar. Gold is reserved for the active section only.
 //
-// `active` is one of: "Projects" | "Storyboards" | "Team" | "Exports".
+// Three destinations, not five. Storyboards and Exports were global indexes of
+// things that only exist inside a project, so they asked the writer to hold a
+// second, flatter mental model of their own work alongside the real one; both
+// are still routable, and both are reached from the project they belong to.
+// "Team" was a nav item pointing at a Settings tab. What is left is the way a
+// writer actually thinks: the work, the course, and the account.
+//
+// `active` is one of: "Projects" | "Learn" | "Settings".
 // `right` optionally overrides the right-hand region (utilitarian screens pass
 // their own dense toolbar); by default it shows the ⌘K hint + New project + avatar.
 export default function TopNav({ active = "Projects", right }) {
@@ -36,9 +43,7 @@ export default function TopNav({ active = "Projects", right }) {
   const items = [
     { label: "Projects", to: "/dashboard" },
     { label: "Learn", to: "/learn" },
-    { label: "Storyboards", to: "/storyboards" },
-    { label: "Team", to: "/settings?tab=teammembers" },
-    { label: "Exports", to: "/exports" },
+    { label: "Settings", to: "/settings" },
   ];
 
   const initials = (user?.name || "?")

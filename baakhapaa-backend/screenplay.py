@@ -17,7 +17,9 @@ The editor stores plain text, and writers indent inconsistently, so
 classification leans on shape (caps, punctuation, position) rather than on
 column counts alone.
 """
+import math
 import re
+import textwrap
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -214,28 +216,112 @@ MAX_SUMMARY_CHARS = 400
 
 
 
-# Lines per printed page, blanks included. This is the number the PDF export
-# lays out with (A4, 12pt Courier, 16pt leading, 72pt top margin, break below
-# 60pt), and it lives here rather than there so the editor's page count and the
-# exported PDF's page count cannot drift apart. A writer who is told they are on
-# page 6 and prints a PDF where the scene sits on page 8 has been lied to, and
-# page count is the unit of screen time in this craft.
+# ---------------------------------------------------------------------------
+# The printed page
+#
+# One definition, here, because three consumers need it and each used to keep
+# its own: the editor's page rules, the runtime measurement, and the PDF export.
+# A writer told they are on page 6 who prints a PDF where that scene sits on
+# page 8 has been lied to by their own tool, and the page is the unit of screen
+# time in this craft.
+# ---------------------------------------------------------------------------
+
+# Rows per printed page, blanks included.
+#
+# NOT raised to the ~55 of a professionally formatted page, though it should be:
+# `corpus_fingerprints.json` holds `estimated_pages`, `median_scene_pages` and
+# `scene_length_curve` for 798 films measured at 45, `benchmark.py` reports a
+# writer's draft as percentiles against them, and the corpus text needed to
+# recompute those is not in this repo. Moving this number without rebuilding the
+# corpus would put the draft and the library on two different scales and then
+# report the difference back as a finding about the writing. Rebuild, then
+# calibrate.
 PAGE_LINES = 45
 
+# Characters per row, per element. Screenplay format gives dialogue a much
+# narrower column than action, so measuring both at the action width undercounts
+# how many rows a dialogue-heavy page really takes. Standard measures at 12pt
+# Courier, which is 10 characters to the inch: action 6", dialogue 3.5".
+LINE_CHARS = 60
+ELEMENT_WIDTH = {
+    "scene_heading": 60,
+    "action": 60,
+    "character": 35,
+    "parenthetical": 27,
+    "dialogue": 35,
+    "transition": 60,
+}
 
-def page_of(line_number: int) -> int:
-    """1-indexed printed page holding `line_number` (also 1-indexed)."""
+
+@dataclass
+class Row:
+    """One printed row -- what actually lands on the page.
+
+    A source line is not a row. The editor is a plain textarea, so a writer
+    types an action paragraph as a single very long line; printed, it occupies
+    four. Counting source lines told that writer their four pages were one, and
+    told the PDF to run the other three off the right edge of the paper.
+    """
+    text: str
+    type: str  # element type, or "blank"
+    character: Optional[str]
+    source_line: int  # 1-indexed, matches the editor's gutter
+    continued: bool = False  # a wrapped continuation of the row above
+
+
+def wrap_element(text: str, width: int) -> List[str]:
+    """Break one element to its column measure. Never drops characters --
+    the export used to truncate at a fixed 90, silently, in the deliverable."""
+    if not text:
+        return [""]
+    return textwrap.wrap(
+        text, width=max(1, width), break_long_words=True, break_on_hyphens=False
+    ) or [""]
+
+
+def layout_rows(text: str) -> List[Row]:
+    """The draft as printed rows, in order.
+
+    Everything that counts pages goes through here, so the answer is the same
+    whether the editor, the statistics panel or the PDF is the one asking.
+    """
+    lines = (text or "").split("\n")
+    by_line = {el.line_number: el for el in parse(text)}
+    rows: List[Row] = []
+    for i, _raw in enumerate(lines, start=1):
+        el = by_line.get(i)
+        if el is None:
+            # A blank line takes up just as much of a printed page as a written
+            # one, and a screenplay is mostly blank lines.
+            rows.append(Row("", "blank", None, i))
+            continue
+        width = ELEMENT_WIDTH.get(el.type, LINE_CHARS)
+        for j, piece in enumerate(wrap_element(el.text, width)):
+            rows.append(Row(piece, el.type, el.character, i, j > 0))
+    return rows
+
+
+def page_of(line_number: int, text: str = "") -> int:
+    """1-indexed printed page holding source line `line_number`.
+
+    `text` is optional only because a caller sometimes holds a line number and
+    no draft; without it this cannot know how many rows a long line wraps to and
+    assumes one row per line. Pass the text wherever you have it.
+    """
     if line_number < 1:
         return 1
-    return (line_number - 1) // PAGE_LINES + 1
+    if not text:
+        return (line_number - 1) // PAGE_LINES + 1
+    for index, row in enumerate(layout_rows(text)):
+        if row.source_line == line_number:
+            return index // PAGE_LINES + 1
+    return page_count(text)
 
 
 def page_count(text: str) -> int:
-    """Printed pages in a draft. Every line counts, blank ones included —
-    a blank line takes up just as much of a page as a written one."""
-    lines = (text or "").split("\n")
+    """Printed pages in a draft."""
     # An empty draft is still one (blank) page, not zero.
-    return max(1, page_of(len(lines)))
+    return max(1, math.ceil(len(layout_rows(text)) / PAGE_LINES))
 
 
 def minutes_for(line_count: int) -> float:
@@ -268,14 +354,25 @@ def scene_summaries(text: str) -> List[dict]:
     out = []
     index = 0
     all_scenes = scenes(text)
-    total_lines = len((text or "").split("\n"))
+    # Measured in printed rows, so a scene written as three long unbroken
+    # paragraphs is not reported as three lines of screen time.
+    rows = layout_rows(text)
+    total_rows = len(rows)
+    first_row = {}
+    for _i, _row in enumerate(rows):
+        first_row.setdefault(_row.source_line, _i)
+
+    def _start_row(line_number):
+        return first_row.get(line_number, total_rows)
     # A scene occupies everything from its own heading down to the next one.
     # Measuring by element count instead undercounts by about half, because a
     # screenplay page is mostly the blank lines between elements — and those
     # take up just as much of a printed page as the words do.
     starts = [sc.line_number for sc in all_scenes]
     spans = {
-        sc.line_number: (starts[i + 1] if i + 1 < len(starts) else total_lines + 1) - sc.line_number
+        sc.line_number: (
+            _start_row(starts[i + 1]) if i + 1 < len(starts) else total_rows
+        ) - _start_row(sc.line_number)
         for i, sc in enumerate(all_scenes)
     }
     for sc in all_scenes:
@@ -293,7 +390,7 @@ def scene_summaries(text: str) -> List[dict]:
             # Which printed page this scene opens on — what a writer means by
             # "the argument on page 7", and what a scene index has to show for
             # the page number in the corner to be worth anything.
-            "page": page_of(sc.line_number),
+            "page": _start_row(sc.line_number) // PAGE_LINES + 1,
             "characters": sc.speaking_characters,
             "action": action[:MAX_SUMMARY_CHARS],
             # How long this scene actually runs, measured off the page. Without
@@ -332,8 +429,9 @@ def statistics(text: str) -> dict:
 
     # The same page count the editor shows and the PDF prints. This was
     # non-blank-lines/55 while the editor paginated on all-lines/45, so the
-    # toolbar said "p. 1 / 5" while the Craft panel said 1.98 pages.
-    est_pages = round(len((text or "").split("\n")) / PAGE_LINES, 2)
+    # toolbar said "p. 1 / 5" while the Craft panel said 1.98 pages. It now
+    # counts printed rows, so a long unwrapped paragraph costs what it costs.
+    est_pages = round(len(layout_rows(text)) / PAGE_LINES, 2)
 
     return {
         "scene_count": len(scs),

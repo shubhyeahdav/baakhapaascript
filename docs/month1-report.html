@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Baakhapaa Month 1 Progress Report</title>
+<style>
+  @page { size: Letter; margin: 1in; }
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.4;
+    color: #000;
+    margin: 0;
+    text-align: left;
+  }
+
+  h1 { font-size: 21pt; margin: 0 0 3pt 0; }
+  .subtitle { font-size: 11pt; color: #222; margin: 0 0 2pt 0; }
+  .meta { font-size: 9.5pt; color: #444; margin: 0 0 14pt 0; }
+
+  h2 { font-size: 13.5pt; margin: 14pt 0 5pt 0; }
+  h3 { font-size: 11pt; margin: 10pt 0 3pt 0; }
+  p  { margin: 0 0 7pt 0; }
+
+  /* ---- line and page breaking ---- */
+  h1, h2, h3 { break-after: avoid-page; page-break-after: avoid; }
+  h2, h3 { break-inside: avoid; page-break-inside: avoid; }
+  p { orphans: 3; widows: 3; }
+  .block { break-inside: avoid; page-break-inside: avoid; }
+  table { break-inside: avoid; page-break-inside: avoid; }
+  tr, td, th { break-inside: avoid; page-break-inside: avoid; }
+  figure { break-inside: avoid; page-break-inside: avoid; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 7pt 0 9pt 0;
+    font-size: 9pt;
+  }
+  th {
+    background: #000;
+    color: #fff;
+    text-align: left;
+    padding: 5pt 7pt;
+    border: .5pt solid #000;
+  }
+  td {
+    padding: 5pt 7pt;
+    border: .5pt solid #999;
+    vertical-align: top;
+  }
+  tbody tr:nth-child(even) td { background: #F0F0F0; }
+  .nowrap { white-space: nowrap; }
+
+  figure { margin: 9pt 0 11pt 0; }
+  figure img {
+    display: block;
+    width: 100%;
+    border: .5pt solid #888;
+  }
+  figcaption {
+    font-size: 8.5pt;
+    color: #444;
+    margin-top: 3pt;
+  }
+  figcaption b { color: #000; }
+
+  .footer {
+    margin-top: 20pt;
+    font-size: 8.5pt;
+    color: #555;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<h1>Month 1 progress report</h1>
+<p class="subtitle">Baakhapaa: AI-powered pre-production intelligence system</p>
+<p class="meta">Weeks 1 to 4 of 12 &nbsp;&middot;&nbsp; Prepared for Baakhapaa &nbsp;&middot;&nbsp; Reference: proposal &sect;8</p>
+
+<p>All four Month 1 deliverables work. Five modules scheduled for Months 2 and 3 are built
+as well, and the script generator gained one capability the proposal never mentioned:
+semantic retrieval over a library of analysed story structures. Every screenshot in this
+report was captured from the running system.</p>
+
+<h2>1. Month 1 deliverables</h2>
+
+<table>
+  <thead>
+    <tr><th style="width:7%">Wk</th><th style="width:25%">Build focus</th><th style="width:53%">Deliverable</th><th style="width:15%">Status</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td>Project setup</td><td>Project structure, database schema, user authentication working</td><td class="nowrap">Done</td></tr>
+    <tr><td>2</td><td>Script editor UI</td><td>Screenplay editor interface built and styled in browser</td><td class="nowrap">Done</td></tr>
+    <tr><td>3</td><td>AI script generation</td><td>Genre input, three act structure, scene time allocation working</td><td class="nowrap">Done</td></tr>
+    <tr><td>4</td><td>AI assistance mode</td><td>Generation, improvement, and suggestion modes live. Bilingual output working.</td><td class="nowrap">Done</td></tr>
+  </tbody>
+</table>
+
+<div class="block">
+<h3>Week 1: Project setup</h3>
+<p>FastAPI backend: 17 modules, 34 routes. React 18 frontend with Tailwind: 22 components
+and pages. Eight tables cover User, Project, Script, Scene, StoryboardFrame, Version,
+Comment and Subscription. Registration, bcrypt hashing, JWT issuance and protected routes
+all work.</p>
+</div>
+
+<figure>
+  <img src="screenshots/02-dashboard.png" alt="Project dashboard">
+  <figcaption><b>Figure 1.</b> Dashboard after sign in. Projects, counts and entry points to
+  storyboards, team and exports. Reaching this screen exercises the whole auth path:
+  registration, login, JWT issuance and a protected route.</figcaption>
+</figure>
+
+<div class="block">
+<h3>Week 2: Script editor UI</h3>
+<p>The editor renders screenplay format in a fixed-pitch column, with a structure timeline
+beside it and scene cards that jump to their place in the script.</p>
+</div>
+
+<div class="block">
+<h3>Week 3: AI script generation</h3>
+<p>Genre, tone, audience, duration and language are set before writing starts. The engine
+returns a three-act frame split 33/33/34 percent, then divides each act into major
+turning-point scenes and minor transitional ones. Each scene carries its own minute
+allocation, cast, location and emotional beat. Structure arrives as a preview; scenes
+enter the script one at a time, as the writer accepts them.</p>
+</div>
+
+<figure>
+  <img src="screenshots/03-new-project.png" alt="New project setup form">
+  <figcaption><b>Figure 2.</b> The parameters captured before any writing begins: genre,
+  tone, target audience, a duration slider, and a language choice of English, Nepali or
+  bilingual. These five inputs drive structure generation.</figcaption>
+</figure>
+
+<div class="block">
+<h3>Week 4: AI assistance mode</h3>
+<p>The writer can generate a scene from a one-line brief, select any passage for a
+rewrite, shortening or translation, or ask for continuations. Dialogue comes out in Nepali
+Devanagari and action lines in English, shaped by a house-voice prompt rather than generic
+screenplay English.</p>
+</div>
+
+<figure>
+  <img src="screenshots/04-script-editor.png" alt="Script editor with structure panel and AI writer">
+  <figcaption><b>Figure 3.</b> The editor with everything from Weeks 2 to 4 in one view.
+  Across the top, the three acts at 33/33/34 percent with per-scene minute allocations and
+  major or minor tags; scenes already accepted are marked Added, the rest still offer Add
+  Scene. Left, the scene index cards. Centre, the screenplay column holding bilingual
+  dialogue. Right, the AI Writer panel with its Patterns, Generate, Improve and Suggest
+  modes.</figcaption>
+</figure>
+
+<h2>2. Work beyond Month 1 scope</h2>
+
+<div class="block">
+<h3>2.1 Retrieval-augmented structure</h3>
+<p>Not in the proposal. Each request is embedded locally with a 384-dimension model and
+matched by cosine similarity against 15 analysed story patterns, so a sports underdog
+brief can pull structure from a boxing drama despite sharing no genre tag. A pgvector
+migration is ready for when the library outgrows in-memory ranking. Free-tier users get
+the same structural guidance without spending an API call, which is the Patterns mode
+visible in Figure 3.</p>
+</div>
+
+<h3>2.2 Modules pulled forward</h3>
+<table>
+  <thead>
+    <tr><th style="width:30%">Module</th><th style="width:70%">Delivered in Month 1</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Storyboard engine and UI</td><td>Six shot types assigned by scene position and act, frame grid, per-frame regeneration</td></tr>
+    <tr><td>Collaboration</td><td>Inline comment threads, collaboration presence bar</td></tr>
+    <tr><td>Version history</td><td>Auto-snapshot on save, restore points, diff between any two versions</td></tr>
+    <tr><td>Export system</td><td>PDF, Word, and a combined production package</td></tr>
+    <tr><td>Subscription system</td><td>Free, Pro and Studio tiers with checkout, webhooks and paid-tier gating on AI routes</td></tr>
+  </tbody>
+</table>
+
+<figure>
+  <img src="screenshots/05-storyboard.png" alt="Storyboard frame grid">
+  <figcaption><b>Figure 4.</b> Storyboard frames generated from the finalized script, one
+  per scene, each tagged with the shot type the engine assigned from scene position and
+  act. Frames read "(demo)" because no image API key is configured; with a live key the
+  same slots carry rendered artwork.</figcaption>
+</figure>
+
+<figure>
+  <img src="screenshots/06-pricing.png" alt="Subscription tiers">
+  <figcaption><b>Figure 5.</b> The three subscription tiers: Free, Pro at Rs 999 per month
+  and Studio at Rs 2,499. Checkout runs through Stripe in test mode until live payment keys
+  are set.</figcaption>
+</figure>
+
+<div class="block">
+<h3>2.3 Other work</h3>
+<p>A security audit closed what it found: ownership checks on every route touching a
+script, and field whitelists on updates so a client cannot write columns it was never
+offered. There is also a command palette, a settings page, a pricing page, and a demo mode
+running the whole system on local SQLite with mocked AI, so the platform can be reviewed
+without provisioning an API key.</p>
+</div>
+
+<div class="block">
+<h2>3. Verification status</h2>
+<p>Everything above has been run end to end in demo mode, which is how the screenshots
+were produced. None of it has been tested against live Claude, DALL&middot;E or Supabase
+credentials. That is the first task of next phase, along with tuning tier limits and
+fixing Devanagari rendering in PDF export, which currently falls back to a font that
+cannot draw the script.</p>
+</div>
+
+<div class="footer">Baakhapaa Month 1 progress report</div>
+
+</body>
+</html>
