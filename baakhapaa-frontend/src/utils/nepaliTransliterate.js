@@ -70,7 +70,6 @@ const MARKS = [
 
 /** Devanagari sentence punctuation. `|` is the ITRANS convention for it. */
 export const DANDA = "।";
-export const DOUBLE_DANDA = "॥";
 
 /**
  * What counts as one romanised word.

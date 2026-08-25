@@ -954,33 +954,41 @@ export default function ScriptEditor() {
   return (
     <div className="h-screen bg-bg flex flex-col overflow-hidden text-ink">
       {/* Toolbar */}
-      <header className="h-14 bg-surface border-b border-border flex items-center justify-between px-6 shrink-0 relative z-20">
-        <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1.5 text-inkMuted hover:text-ink transition duration-200 text-sm">
+      <header className="h-14 bg-surface border-b border-border flex items-center gap-4 px-6 shrink-0 relative z-20">
+        <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1.5 shrink-0 text-inkMuted hover:text-ink transition duration-200 text-sm">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
           Back
         </button>
-        <div className="font-display font-medium text-ink text-[15px] flex items-center gap-2">
-          <span className="opacity-45 text-sm font-sans">Workspace /</span> {script.project?.title || "Untitled"}
+        {/* The only region allowed to shrink, because a truncated title still
+            identifies the project while a truncated control is just broken.
+            "Workspace /" used to sit in front of it — a label that told a
+            writer nothing they could not see, costing width that the view
+            switcher then had to give up, which is why "Outline" was rendering
+            as "Outl". */}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-display font-medium text-ink text-[15px] truncate">
+            {script.project?.title || "Untitled"}
+          </span>
           {/* The story bible moved out of the writing panel to its own screen.
               This is the way back to it, from the one place a writer is when
               they realise the character's want was wrong. */}
           <button
             onClick={() => navigate(`/projects/${id}/setup`)}
-            className="ml-1 text-[11px] font-sans text-inkMuted hover:text-gold border border-border hover:border-gold/40 rounded-full px-2.5 py-0.5 transition"
+            className="shrink-0 text-[11px] font-sans text-inkMuted hover:text-gold border border-border hover:border-gold/40 rounded-full px-2.5 py-0.5 transition"
             title="Story bible and project format"
           >
             Setup
           </button>
         </div>
-        <div className="flex gap-3 items-center">
-          <span className="text-[11px] font-semibold text-inkMuted uppercase tracking-wider mr-2">{saving ? "Saving..." : "Synced"}</span>
+        <div className="flex gap-3 items-center ml-auto shrink-0">
+          <span className="text-[11px] font-semibold text-inkMuted uppercase tracking-wider whitespace-nowrap">{saving ? "Saving..." : "Synced"}</span>
           {/* Where the writer is, in the unit their craft actually uses. A
               screenplay note is "cut ten pages", never "cut some words" — and
               until now the editor could not answer "what page am I on" at all.
               Same page numbering as the exported PDF. */}
           {view === "script" && (
             <span
-              className="text-[11px] font-mono text-inkMuted mr-3 tabular-nums"
+              className="text-[11px] font-mono text-inkMuted tabular-nums whitespace-nowrap"
               title="Page under the caret / pages in the draft — matches the PDF export"
             >
               p. {Math.min(caretPage, pagination.page_count)} / {pagination.page_count}
@@ -994,7 +1002,7 @@ export default function ScriptEditor() {
               onClick={() => setShowShortcuts((v) => !v)}
               title="Format shortcuts"
               className={`px-2.5 py-2 rounded-lg border transition duration-200 font-mono text-[11px] ${
-                showShortcuts ? "bg-goldDim border-gold text-gold" : "bg-bg border-border text-inkMuted hover:text-ink"
+                showShortcuts ? "bg-goldDim border-gold text-gold" : "bg-bg border-border text-inkMuted hover:text-ink whitespace-nowrap"
               }`}
             >
               ⌨ shortcuts
@@ -1024,7 +1032,7 @@ export default function ScriptEditor() {
           {/* Nepali phonetic input. Labelled in both scripts rather than with
               an icon, because the thing it switches between IS the two scripts
               — a glyph would need explaining and these explain themselves. */}
-          <div className="flex rounded-lg border border-border overflow-hidden" role="group" aria-label="Typing script">
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0" role="group" aria-label="Typing script">
             {[
               { on: false, label: "A", title: "Type in English" },
               { on: true, label: "अ", title: "Type Nepali phonetically — write ‘namaste’, get नमस्ते" },
@@ -1053,7 +1061,7 @@ export default function ScriptEditor() {
               same scene rows — the pattern Final Draft, Arc Studio and
               StudioBinder all settled on, because restructuring and writing are
               different jobs and a single view can only be good at one. */}
-          <div className="flex rounded-lg border border-border overflow-hidden">
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
             {[
               { key: "script", label: "Script" },
               { key: "corkboard", label: "Corkboard" },
@@ -1122,7 +1130,7 @@ export default function ScriptEditor() {
               },
             ]}
           />
-          <button onClick={handleFinalize} disabled={reviewing} className="btn-gold text-xs py-1.5 px-3.5">
+          <button onClick={handleFinalize} disabled={reviewing} className="btn-gold text-xs py-1.5 px-3.5 whitespace-nowrap">
             {reviewing ? "Reviewing…" : "Finalize & Storyboard"}
           </button>
         </div>

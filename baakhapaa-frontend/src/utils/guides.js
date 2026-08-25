@@ -22,8 +22,6 @@
 
 const SLUGLINE = /^\s*(INT|EXT|I\/E)[.\s]/im;
 const CHARACTER_CUE = /^\s*[A-Z][A-Z0-9 .'\-]{1,38}\s*(\(.*\))?\s*$/m;
-const PARENTHETICAL = /^\s*\(.+\)\s*$/m;
-const TRANSITION = /^\s*(CUT TO:|FADE (IN|OUT)\.?:?|DISSOLVE TO:)/im;
 const DEVANAGARI = /[ऀ-ॿ]/;
 
 const countSluglines = (text) => (text.match(/^\s*(INT|EXT|I\/E)[.\s]/gim) || []).length;
@@ -471,8 +469,6 @@ export const GUIDES = [
 ];
 
 export const GUIDE_GROUPS = ["Start here", "The page", "Craft", "Short-form", "Finishing"];
-
-export const guideById = (id) => GUIDES.find((g) => g.id === id) || null;
 
 /** How many of a guide's checkable steps the draft already satisfies. */
 export function guideProgress(guide, text) {
