@@ -98,7 +98,12 @@ def message(kind: str, user: dict, expires: datetime.datetime) -> tuple[str, str
             "— Baakhapaa\n"
         )
 
-    days = max(1, (expires - _now()).days)
+    # Rounded, not truncated. `timedelta.days` floors, so an expiry three days
+    # out that this code reads a fraction of a second later is 2 days,
+    # 23:59:59.99 — and the writer is told their plan ends in 2 days when it
+    # ends in 3. The reminder mail exists to be trusted about exactly this, and
+    # a person reading it thinks in whole days, not floors.
+    days = max(1, round((expires - _now()).total_seconds() / 86400))
     return (
         f"Your Baakhapaa plan ends in {days} day{'s' if days != 1 else ''}",
         f"Hi {name},\n\n"

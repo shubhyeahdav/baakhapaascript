@@ -10,12 +10,18 @@ AI-powered pre-production system for screenwriting and storyboarding.
 ## Conventions
 - All secrets (Anthropic key, OpenAI key, Supabase URL/key, JWT secret) live in `.env` files — never hardcode keys. Backend: `baakhapaa-backend/.env`. Frontend: `baakhapaa-frontend/.env`.
 - Every backend endpoint that calls an external AI API wraps the call in try/except and raises `HTTPException(status_code=503, ...)` on failure — AI providers are unreliable, and callers need a clean error instead of a stack trace.
-- Dark theme (cool indigo/slate; defined in `tailwind.config.js` + `index.css`).
-  Tokens are aliased to legacy "gold*" names for compatibility — `gold` now = indigo `#6366F1`.
-  - bg `#0B0F19`, surface `#141A29`, elevated `#1E2538`, border `rgba(148,163,184,0.12)`
-  - accent/`gold` `#6366F1` (bright `#818CF8`), `skyAccent` `#38BDF8`
-  - text: `ink #F8FAFC`, `inkSoft #E2E8F0`, `inkMuted #94A3B8`
-  - Fonts: `Fraunces` (display serif), `Inter` (UI), `Courier New` (screenplay editor only)
+- Dark theme (**warm near-black + true gold**; defined in `tailwind.config.js`
+  + `index.css`). This section described a cool indigo/slate palette until
+  2026-08-25, which had not been true since the turn-2 retheme — and the
+  Current State section below had been describing the real one all along, so
+  the file contradicted itself.
+  - bg `#0B0B0A`, bgDeep `#080807`, surface `#141311`, elevated `#191813`,
+    border `rgba(255,255,255,0.08)`
+  - `gold` `#D4A843` (bright `#E4BE64`, hover `#C79A35`). `accent` and
+    `skyAccent` are aliases of the same gold — the token names survive from the
+    indigo system so components did not need editing
+  - text: `ink #EDEAE3`, `inkSoft #9B968A`, `inkMuted #7E7A6F`
+  - Fonts: `Spectral` (display serif), `Mukta` (UI), `Courier Prime` (screenplay editor only)
 
 ## Running Locally
 
@@ -68,9 +74,9 @@ machine). Then:
 > `raw_scripts_TEMP/`, no `D:\AkxyaRup`; this is a single repo at
 > `C:\baakhapaa` on branch `codebase`).
 >
-> Backend tests: **480 across 31 files, all passing** (the Devanagari font gate
+> Backend tests: **536 across 32 files, all passing** (the Devanagari font gate
 > no longer skips — the asset is bundled), `./venv/Scripts/python -m pytest`.
-> Frontend tests: **80 across 7 files**, `npm run test:ci`.
+> Frontend tests: **181 across 15 files**, `npm run test:ci`.
 > **CI runs lint, dependency audit, both suites and the production build** on
 > push and PR (`.github/workflows/ci.yml`), on Linux with
 > `REQUIRE_SHIPPABLE_FONT=true` — the only place the Devanagari font gate is

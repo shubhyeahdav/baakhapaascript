@@ -161,8 +161,8 @@ same authority as "this cannot be filmed" while being regex over literal phrases
 
 ## Verified
 
-- **364 backend tests pass** (was 202 at session start), 23 files, ~105 s
-- **36 frontend tests** across 3 files (was 25 across 2)
+- **536 backend tests pass** across 32 files (364 when this file was written)
+- **181 frontend tests** across 15 files (36 when this file was written)
 - **ruff clean**, **pip-audit clean** (one documented ignore), production build clean
 - Live, against the running server: hand-typed draft → 2 storyboard frames (was
   404); 5 saves → 1 version row (was 5); viewer 403 on write with the draft

@@ -8,6 +8,7 @@ import CraftPanel from "../components/CraftPanel";
 import FormatShortcuts, { harvestVocabulary, suggestFor } from "../components/FormatShortcuts";
 import ToolbarMenu from "../components/ToolbarMenu";
 import GuidePanel from "../components/GuidePanel";
+import ImportScript from "../components/ImportScript";
 import { enterText } from "../utils/screenplayFormat";
 import { saveRescue, clearRescue } from "../utils/draftRescue";
 import { transliterateWord, WORD_PATTERN, DANDA } from "../utils/nepaliTransliterate";
@@ -1099,6 +1100,17 @@ export default function ScriptEditor() {
               only reachable from a different page entirely, and naming them
               in a list says what each is FOR — which "Export PDF" beside
               ".fdx" never did. */}
+          {/* Beside Export, because "get a script out" and "get a script in"
+              are the same question asked in two directions. */}
+          <ImportScript
+            scriptId={id}
+            onImported={(data) => {
+              setContent(data.content || "");
+              if (data.scenes) setScript((prev) => (prev ? { ...prev, scenes: data.scenes } : prev));
+              if (data.pagination) setPagination(data.pagination);
+            }}
+          />
+
           <ToolbarMenu
             label="Export"
             title="Download this script"

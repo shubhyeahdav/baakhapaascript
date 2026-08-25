@@ -215,3 +215,34 @@ CREATE TABLE payments (
 );
 CREATE INDEX idx_payments_user ON payments(user_id);
 CREATE INDEX idx_payments_reference ON payments(reference);
+
+-- ---------------------------------------------------------------------------
+-- Atomic project deletion.
+--
+-- database.purge_projects() walks seven tables one REST call at a time, because
+-- the Supabase client has no transaction. It deletes children before parents so
+-- that a failure half way leaves an erasure to finish rather than storyboard
+-- frames pointing at scenes that no longer exist — but it is still not atomic,
+-- and this is the erasure path, where partial failure is least acceptable.
+--
+-- Install this and call it over RPC instead. Then the whole delete is one
+-- transaction and either all of it happens or none of it does.
+--
+--   supabase.rpc("purge_projects", {"project_ids": [...]}).execute()
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION purge_projects(project_ids UUID[])
+RETURNS VOID AS $$
+BEGIN
+  DELETE FROM storyboard_frames WHERE scene_id IN (
+    SELECT s.id FROM scenes s
+    JOIN scripts sc ON sc.id = s.script_id
+    WHERE sc.project_id = ANY(project_ids)
+  );
+  DELETE FROM scenes   WHERE script_id IN (SELECT id FROM scripts WHERE project_id = ANY(project_ids));
+  DELETE FROM versions WHERE script_id IN (SELECT id FROM scripts WHERE project_id = ANY(project_ids));
+  DELETE FROM comments WHERE script_id IN (SELECT id FROM scripts WHERE project_id = ANY(project_ids));
+  DELETE FROM scripts         WHERE project_id = ANY(project_ids);
+  DELETE FROM project_members WHERE project_id = ANY(project_ids);
+  DELETE FROM projects        WHERE id         = ANY(project_ids);
+END;
+$$ LANGUAGE plpgsql;

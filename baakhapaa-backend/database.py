@@ -314,15 +314,44 @@ def purge_projects(project_ids) -> dict:
     ).execute().data if script_ids else []
     scene_ids = [s["id"] for s in (scenes or [])]
 
-    removed = {
-        "storyboard_frames": _delete_where("storyboard_frames", "scene_id", scene_ids),
-        "scenes": _delete_where("scenes", "script_id", script_ids),
-        "versions": _delete_where("versions", "script_id", script_ids),
-        "comments": _delete_where("comments", "script_id", script_ids),
-        "scripts": _delete_where("scripts", "project_id", project_ids),
-        "project_members": _delete_where("project_members", "project_id", project_ids),
-        "projects": _delete_where("projects", "id", project_ids),
-    }
+    # Children before parents, and that order is load-bearing rather than
+    # tidy. There is no transaction available here — the Supabase REST client
+    # issues one statement per call — so this WILL sometimes stop half way,
+    # and the only question is what it leaves behind when it does.
+    #
+    # Deleting children first means a failure leaves a project that still owns
+    # fewer things than it did. Deleting parents first would leave storyboard
+    # frames pointing at scenes that no longer exist. The first is an erasure
+    # to finish; the second is corruption to clean up by hand.
+    #
+    # Every step is scoped by an explicit list of ids, so re-running after a
+    # failure is idempotent: the rows already gone match nothing and cost
+    # nothing. Retrying is the recovery, which is why the error names the step
+    # that stopped.
+    #
+    # Real atomicity needs Postgres, not this client. `supabase_schema.sql`
+    # carries a purge_projects() function to call over RPC once there is a real
+    # database to install it in.
+    steps = (
+        ("storyboard_frames", "scene_id", scene_ids),
+        ("scenes", "script_id", script_ids),
+        ("versions", "script_id", script_ids),
+        ("comments", "script_id", script_ids),
+        ("scripts", "project_id", project_ids),
+        ("project_members", "project_id", project_ids),
+        ("projects", "id", project_ids),
+    )
+
+    removed = {}
+    for table, field, ids in steps:
+        try:
+            removed[table] = _delete_where(table, field, ids)
+        except Exception as exc:
+            raise RuntimeError(
+                f"Deletion stopped at {table}. Everything before it is gone and "
+                f"nothing is left dangling; run the same delete again to finish."
+            ) from exc
+
     return {k: v for k, v in removed.items() if v}
 
 

@@ -151,3 +151,18 @@ def test_a_dry_run_sends_nothing(monkeypatch, client, make_user):
     tally = renewals.run(dry_run=True)
     assert tally[renewals.BEFORE] >= 1
     assert sent == []
+
+
+def test_the_countdown_rounds_rather_than_floors():
+    """`timedelta.days` truncates. An expiry three days out, read a fraction of
+    a second later, is 2 days 23:59:59.99 — and floor turns that into "2 days".
+    The mail exists to be trusted about exactly this number, and a person
+    reading it thinks in whole days."""
+    user = _user()
+    almost_three = (
+        datetime.datetime.now(datetime.timezone.utc)
+        + datetime.timedelta(days=3)
+        - datetime.timedelta(milliseconds=50)
+    )
+    subject, _body = renewals.message(renewals.BEFORE, user, almost_three)
+    assert "ends in 3 days" in subject

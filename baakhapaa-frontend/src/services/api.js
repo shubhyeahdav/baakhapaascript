@@ -59,6 +59,13 @@ export const scripts = {
   getById: (id) => instance.get(`/scripts/${id}`),
   getByProject: (projectId) => instance.get(`/scripts/project/${projectId}`),
   save: (id, content) => instance.put(`/scripts/${id}`, { content }),
+  // Bring in an existing screenplay: .fdx, Fountain, plain text or PDF. The
+  // server snapshots the current draft before overwriting it.
+  importFile: (id, file, replace = true) => {
+    const body = new FormData();
+    body.append("file", file);
+    return instance.post(`/scripts/${id}/import?replace=${replace}`, body);
+  },
   // Story bible — character sheets, logline, theme, locations.
   bible: (id) => instance.get(`/scripts/${id}/bible`),
   saveBible: (id, bible) => instance.put(`/scripts/${id}/bible`, bible),
