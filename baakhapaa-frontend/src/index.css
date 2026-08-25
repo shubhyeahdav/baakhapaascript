@@ -28,7 +28,10 @@ html, body {
 @layer components {
   /* Wordmark — flat ivory, no gradient text */
   .wordmark {
-    font-family: 'Spectral', Georgia, serif;
+    /* Mukta after Spectral: Spectral has no Devanagari, and without a
+       named fallback that covers it a Nepali heading renders in whatever
+       font the operating system picks. */
+    font-family: 'Spectral', 'Mukta', Georgia, serif;
     font-weight: 600;
     letter-spacing: 0.22em;
     color: #EDEAE3;
@@ -137,6 +140,22 @@ html, body {
   padding: 0;
   background-color: #0B0B0A;
   position: relative;
+}
+
+/* On a phone the page's own margins are the problem. 4rem/5rem of padding
+   leaves about 215px of text on a 375px screen, which is a column too narrow
+   to write a slugline in. The page keeps its proportions and gives up its
+   generous margins, because the margins are the part a writer does not read. */
+@media (max-width: 767px) {
+  .screenplay-page {
+    padding: 1.5rem 1.25rem;
+    min-height: 60vh;
+    font-size: 14px;
+    box-shadow: none;
+  }
+  .screenplay-page.zen-page {
+    padding: 20vh 1.25rem;
+  }
 }
 
 .screenplay-page.zen-page {

@@ -16,6 +16,7 @@ import SceneRail from "../components/SceneRail";
 import { enterText } from "../utils/screenplayFormat";
 import { saveRescue, clearRescue } from "../utils/draftRescue";
 import { transliterateWord, WORD_PATTERN, DANDA } from "../utils/nepaliTransliterate";
+import { useT } from "../i18n";
 
 // What the shortcuts dropdown lists. Kept beside the editor rather than in
 // FormatShortcuts so the reference and the engine can't silently disagree
@@ -83,6 +84,7 @@ function UpgradePrompt({ mode, onUpgrade }) {
 export default function ScriptEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const t = useT();
   const [searchParams] = useSearchParams();
   const [script, setScript] = useState(null);
   const [content, setContent] = useState("");
@@ -96,6 +98,10 @@ export default function ScriptEditor() {
   // of the writer, not of the draft — someone who writes in Nepali writes in
   // Nepali tomorrow too, and having to switch it back on every morning is the
   // kind of friction that gets a feature abandoned.
+  // On a phone the assist panel cannot hold 320px of permanent width beside a
+  // 375px page, so below `lg` it becomes a sheet the writer summons. Above it,
+  // nothing changes and this is ignored.
+  const [panelOpen, setPanelOpen] = useState(false);
   const [nepaliMode, setNepaliMode] = useState(
     () => window.localStorage.getItem("baakhapaa:nepali") === "on"
   );
@@ -948,7 +954,10 @@ export default function ScriptEditor() {
   return (
     <div className="h-screen bg-bg flex flex-col overflow-hidden text-ink">
       {/* Toolbar */}
-      <header className="h-14 bg-surface border-b border-border flex items-center gap-4 px-6 shrink-0 relative z-20">
+      {/* Scrolls sideways on a phone rather than wrapping. A wrapped toolbar
+          silently eats the page height it is sitting above, and there is not
+          enough of that on a 375px screen to give any away. */}
+      <header className="h-14 bg-surface border-b border-border flex items-center gap-4 px-4 md:px-6 shrink-0 relative z-20 overflow-x-auto lg:overflow-visible">
         <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1.5 shrink-0 text-inkMuted hover:text-ink transition duration-200 text-sm">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
           Back
@@ -1135,6 +1144,19 @@ export default function ScriptEditor() {
               },
             ]}
           />
+          {/* Only below lg. Above it the panel is always there and a button to
+              open it would do nothing. */}
+          <button
+            onClick={() => setPanelOpen(true)}
+            aria-label="Open the assist panel"
+            title={t("Assist")}
+            className="lg:hidden text-xs py-1.5 px-2.5 rounded-lg border border-border text-inkMuted whitespace-nowrap shrink-0"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 6h16M4 12h10M4 18h13" />
+            </svg>
+          </button>
+
           <button onClick={handleFinalize} disabled={reviewing} className="btn-gold text-xs py-1.5 px-3.5 whitespace-nowrap">
             {reviewing ? "Reviewing…" : "Finalize & Storyboard"}
           </button>
@@ -1287,9 +1309,25 @@ export default function ScriptEditor() {
         {/* Format guide — sits between the page and the assistant so the
             example column lines up beside what you are typing. */}
 
-        {/* AI Assistant */}
+        {/* AI Assistant. A column on a laptop; a sheet over the page on a
+            phone, because 320px of permanent panel beside a 375px screen
+            leaves nothing to write on. */}
         {!zenMode && (
-          <aside className="w-80 bg-surface border-l border-border p-5 overflow-y-auto overflow-x-hidden shrink-0 animate-fade-up flex flex-col">
+          <>
+          {panelOpen && (
+            <button
+              type="button"
+              aria-label="Close panel"
+              onClick={() => setPanelOpen(false)}
+              className="lg:hidden fixed inset-0 z-30 bg-black/50"
+            />
+          )}
+          <aside
+            className={`bg-surface border-l border-border p-5 overflow-y-auto overflow-x-hidden shrink-0 animate-fade-up flex flex-col
+              lg:static lg:z-auto lg:w-80 lg:translate-x-0
+              fixed inset-y-0 right-0 z-40 w-[85vw] max-w-sm transition-transform
+              ${panelOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}`}
+          >
             {/* Three tabs, and they answer three different questions: write
                 this for me, tell me what is wrong with it, show me what changed.
                 There were five. "Story" was setup rather than feedback and moved
@@ -1541,6 +1579,7 @@ export default function ScriptEditor() {
             </>
             )}
           </aside>
+          </>
         )}
       </div>
     </div>

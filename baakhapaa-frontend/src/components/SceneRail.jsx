@@ -39,8 +39,11 @@ function sceneRuntime(scene) {
 }
 
 export default function SceneRail({ scenes, activeScene, onSceneClick }) {
+  // Hidden on a phone. 256px of index cards beside a 375px screen leaves no
+  // page left to write on, and the Corkboard is this same list in a form that
+  // suits a small screen far better.
   return (
-      <aside className="w-64 bg-surface border-r border-border overflow-y-auto p-4 shrink-0 animate-fade-up">
+    <aside className="hidden lg:block w-64 bg-surface border-r border-border overflow-y-auto p-4 shrink-0 animate-fade-up">
         <div className="text-[10px] font-bold text-inkMuted uppercase tracking-wider mb-4">Scene Index Cards</div>
         {scenes?.map((scene, i) => (
           <button

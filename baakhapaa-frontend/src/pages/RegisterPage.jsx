@@ -205,7 +205,7 @@ export default function RegisterPage() {
 
             <PasswordField
               id="new-password"
-              label="Password"
+              label={t("Password")}
               value={form.password}
               onChange={(v) => setForm({ ...form, password: v })}
               placeholder="Create a strong password"
@@ -217,10 +217,10 @@ export default function RegisterPage() {
 
             <PasswordField
               id="confirm-password"
-              label="Confirm Password"
+              label={t("Confirm Password")}
               value={form.confirm}
               onChange={(v) => setForm({ ...form, confirm: v })}
-              placeholder="Re-enter your password"
+              placeholder={t("Confirm Password")}
               autoComplete="new-password"
               describedBy="confirm-status"
             >

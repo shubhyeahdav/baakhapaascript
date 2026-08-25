@@ -30,7 +30,10 @@ module.exports = {
         inkMuted: "#7E7A6F",
       },
       fontFamily: {
-        display: ['Spectral', 'Georgia', 'serif'],
+        // Spectral has no Devanagari. Without Mukta next in the stack a Nepali
+        // heading falls through to whatever the OS happens to provide, so the
+        // display face changes with the machine. Mukta covers both scripts.
+        display: ['Spectral', 'Mukta', 'Georgia', 'serif'],
         sans: ['Mukta', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ['"Courier Prime"', '"Courier New"', 'Courier', 'monospace'],
       },

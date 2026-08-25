@@ -137,10 +137,10 @@ export default function LoginPage() {
 
             <PasswordField
               id="current-password"
-              label="Password"
+              label={t("Password")}
               value={password}
               onChange={setPassword}
-              placeholder="Your password"
+              placeholder={t("Password")}
               autoComplete="current-password"
             />
 
