@@ -6,8 +6,10 @@ import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
 import CraftPanel from "../components/CraftPanel";
 import FormatShortcuts, { harvestVocabulary, suggestFor } from "../components/FormatShortcuts";
+import ToolbarMenu from "../components/ToolbarMenu";
 import { enterText } from "../utils/screenplayFormat";
 import { saveRescue, clearRescue } from "../utils/draftRescue";
+import { transliterateWord, WORD_PATTERN, DANDA } from "../utils/nepaliTransliterate";
 
 // What the shortcuts dropdown lists. Kept beside the editor rather than in
 // FormatShortcuts so the reference and the engine can't silently disagree
@@ -84,6 +86,13 @@ export default function ScriptEditor() {
   const [aiResponse, setAiResponse] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [panelTab, setPanelTab] = useState("ai");
+  // Nepali phonetic input. Remembered across sessions because it is a property
+  // of the writer, not of the draft — someone who writes in Nepali writes in
+  // Nepali tomorrow too, and having to switch it back on every morning is the
+  // kind of friction that gets a feature abandoned.
+  const [nepaliMode, setNepaliMode] = useState(
+    () => window.localStorage.getItem("baakhapaa:nepali") === "on"
+  );
   const [patterns, setPatterns] = useState(null);
   const [patternsLoading, setPatternsLoading] = useState(false);
   // Why the current patterns were chosen: [] plus "similarity" means nothing
@@ -418,6 +427,38 @@ export default function ScriptEditor() {
     }
     return true;
   }, []);
+
+  /**
+   * Convert the romanised word behind the caret to Devanagari.
+   *
+   * Runs on a word boundary rather than per keystroke: converting live makes
+   * the word change shape underneath the cursor while it is still being typed,
+   * so you cannot read back what you wrote until you stop. This way the writer
+   * sees the Roman word they meant, then sees it become Nepali once.
+   *
+   * Goes through `replaceRange` so the browser records it as an ordinary edit
+   * and Ctrl+Z still walks back through the draft. A conversion the writer
+   * cannot undo is worse than no conversion.
+   */
+  const transliterateBehindCaret = useCallback(
+    (ta) => {
+      if (!ta) return;
+      const caret = ta.selectionStart;
+      if (caret !== ta.selectionEnd) return;
+
+      const match = ta.value.slice(0, caret).match(new RegExp("(" + WORD_PATTERN + ")$"));
+      if (!match) return;
+
+      const word = match[1];
+      const converted = transliterateWord(word);
+      // `shouldConvert` already refused sluglines, character cues and anything
+      // with a digit, so an unchanged word here means there was nothing to do.
+      if (converted === word) return;
+
+      replaceRange(caret - word.length, caret, converted);
+    },
+    [replaceRange]
+  );
 
   const insertAtPosition = (pos, text) => {
     if (!replaceRange(pos, pos, text)) {
@@ -773,7 +814,30 @@ export default function ScriptEditor() {
   };
 
   // Keyboard Navigation & Screenwriting Tab-and-Enter helper rules
+  // The keys that end a word. Space and Enter do most of the work; the
+  // punctuation is here so a line ending in "?" converts its last word too,
+  // which in dialogue is most of them.
+  const WORD_BOUNDARY_KEYS = [" ", "Enter", ".", ",", "?", "!", ";", ":"];
+
   const handleKeyDown = (e) => {
+    // Nepali phonetic input, before anything else looks at the key. Not
+    // prevented — the boundary character itself still gets typed, after the
+    // word in front of it has become Devanagari.
+    if (nepaliMode && WORD_BOUNDARY_KEYS.includes(e.key)) {
+      transliterateBehindCaret(e.currentTarget);
+    }
+
+    // Devanagari ends a sentence with a danda, not a full stop. `|` is the
+    // convention Roman Nepali already uses for it, and typing a pipe into
+    // dialogue is not otherwise a thing anyone does.
+    if (nepaliMode && e.key === "|") {
+      e.preventDefault();
+      transliterateBehindCaret(e.currentTarget);
+      const ta = e.currentTarget;
+      requestAnimationFrame(() => replaceRange(ta.selectionStart, ta.selectionEnd, DANDA));
+      return;
+    }
+
     // Completion keys, only while a suggestion is showing. Tab is the key a
     // screenwriter already reaches for to "make the format right", so it does
     // both jobs: take the completion when there is one, cycle the indent when
@@ -955,20 +1019,34 @@ export default function ScriptEditor() {
               </div>
             )}
           </div>
-          <button
-            onClick={() => setZenMode(!zenMode)}
-            className={`p-2 rounded-lg border transition duration-200 ${zenMode ? "bg-goldDim border-gold text-gold" : "bg-bg border-border text-inkMuted hover:text-ink"}`}
-            title="Zen Focus Mode"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-          <button 
-            onClick={() => setPageTheme(pageTheme === "light" ? "dark" : "light")} 
-            className={`p-2 rounded-lg border transition duration-200 ${pageTheme === "dark" ? "bg-goldDim border-gold text-gold" : "bg-bg border-border text-inkMuted hover:text-ink"}`}
-            title="Toggle Page Theme"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          </button>
+          <div className="h-4 w-px bg-borderSoft mx-1" />
+          {/* Nepali phonetic input. Labelled in both scripts rather than with
+              an icon, because the thing it switches between IS the two scripts
+              — a glyph would need explaining and these explain themselves. */}
+          <div className="flex rounded-lg border border-border overflow-hidden" role="group" aria-label="Typing script">
+            {[
+              { on: false, label: "A", title: "Type in English" },
+              { on: true, label: "अ", title: "Type Nepali phonetically — write ‘namaste’, get नमस्ते" },
+            ].map((opt) => (
+              <button
+                key={opt.label}
+                onClick={() => {
+                  setNepaliMode(opt.on);
+                  window.localStorage.setItem("baakhapaa:nepali", opt.on ? "on" : "off");
+                  textareaRef.current?.focus();
+                }}
+                aria-pressed={nepaliMode === opt.on}
+                title={opt.title}
+                className={`text-xs py-1.5 px-3 transition ${
+                  nepaliMode === opt.on
+                    ? "bg-goldDim text-gold"
+                    : "text-inkMuted hover:text-ink hover:bg-elevated/50"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
           <div className="h-4 w-px bg-borderSoft mx-1" />
           {/* Script / Corkboard / Outline. One workspace, three readings of the
               same scene rows — the pattern Final Draft, Arc Studio and
@@ -1008,15 +1086,41 @@ export default function ScriptEditor() {
               Structure
             </button>
           )}
-          <button onClick={() => handleExport("pdf")} className="btn-ghost text-xs py-1.5 px-3">
-            Export PDF
-          </button>
-          {/* Final Draft sits beside PDF because it is the one export another
-              screenwriting tool can actually open. It was built free and wired
-              to nothing, so until now the only way out of here was read-only. */}
-          <button onClick={() => handleExport("fdx")} className="btn-ghost text-xs py-1.5 px-3" title="Final Draft (.fdx)">
-            .fdx
-          </button>
+          {/* One menu rather than a button per format. Two of the four were
+              only reachable from a different page entirely, and naming them
+              in a list says what each is FOR — which "Export PDF" beside
+              ".fdx" never did. */}
+          <ToolbarMenu
+            label="Export"
+            title="Download this script"
+            items={[
+              { key: "pdf", label: "PDF", hint: "For reading and sending", onSelect: () => handleExport("pdf") },
+              { key: "fdx", label: "Final Draft (.fdx)", hint: "Opens in Final Draft, Celtx, Arc Studio", onSelect: () => handleExport("fdx") },
+              { key: "word", label: "Word (.docx)", hint: "For editing outside the app", onSelect: () => handleExport("word") },
+              { key: "d1", divider: true },
+              { key: "package", label: "Production package", hint: "Script, shot list and storyboard in one PDF", onSelect: () => handleExport("package") },
+            ]}
+          />
+
+          <ToolbarMenu
+            label="View"
+            title="Display options"
+            items={[
+              {
+                key: "zen",
+                label: "Focus mode",
+                hint: "Hide everything except the page",
+                active: zenMode,
+                onSelect: () => setZenMode((z) => !z),
+              },
+              {
+                key: "theme",
+                label: pageTheme === "dark" ? "Light page" : "Dark page",
+                hint: "The colour of the paper, not the app",
+                onSelect: () => setPageTheme(pageTheme === "light" ? "dark" : "light"),
+              },
+            ]}
+          />
           <button onClick={handleFinalize} disabled={reviewing} className="btn-gold text-xs py-1.5 px-3.5">
             {reviewing ? "Reviewing…" : "Finalize & Storyboard"}
           </button>
