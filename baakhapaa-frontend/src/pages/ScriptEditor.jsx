@@ -7,6 +7,7 @@ import CommentThreads from "../components/CommentThreads";
 import CraftPanel from "../components/CraftPanel";
 import FormatShortcuts, { harvestVocabulary, suggestFor } from "../components/FormatShortcuts";
 import ToolbarMenu from "../components/ToolbarMenu";
+import GuidePanel from "../components/GuidePanel";
 import { enterText } from "../utils/screenplayFormat";
 import { saveRescue, clearRescue } from "../utils/draftRescue";
 import { transliterateWord, WORD_PATTERN, DANDA } from "../utils/nepaliTransliterate";
@@ -1354,6 +1355,7 @@ export default function ScriptEditor() {
               {[
                 { key: "ai", label: "Assist" },
                 { key: "craft", label: "Craft" },
+                { key: "guide", label: "Guide" },
                 { key: "history", label: "History" },
               ].map((t) => (
                 <button
@@ -1371,6 +1373,22 @@ export default function ScriptEditor() {
 
             {/* Remounts on open so it re-reads the current draft rather than
                 showing a check from three edits ago. */}
+            {/* Always here, never a popup that fires once and vanishes. A
+                writer who needs to be told how a parenthetical works needs it
+                in week three as much as on day one, and by then a dismissed
+                tour is unreachable. */}
+            {panelTab === "guide" && (
+              <GuidePanel
+                content={content}
+                onInsert={(text) => {
+                  const ta = textareaRef.current;
+                  const at = ta ? ta.selectionStart : content.length;
+                  insertAtPosition(at, `${text}
+`);
+                }}
+              />
+            )}
+
             {panelTab === "craft" && (
               <CraftPanel content={content} genre={genre} tone={tone} />
             )}
