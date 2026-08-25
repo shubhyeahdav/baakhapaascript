@@ -47,3 +47,9 @@ baakhapaa-backend/corpus_fingerprints.json
 *.wav
 report-*.pdf
 *.skill
+
+# Derived cuts of the hook corpus — regenerate with the pipelines in docs/hooks/.
+# The curated core and the templates are tracked; these are not.
+docs/hooks/hooks_curated_en.csv
+docs/hooks/hooks_by_usability.csv
+docs/hooks/hooks_review_queue.csv

@@ -10,12 +10,21 @@ Research context and the evidence this is interpreted against: [`../HOOKS_RESEAR
 | File | Rows | What it is |
 |---|---|---|
 | **`hook_templates.csv`** | **126** | **Start here.** Fill-in-the-blank templates ranked by usability |
-| **`hooks_by_usability.csv`** | **8,285** | The corpus recut by creator intent / production / funnel |
 | `hooks_curated.csv` | 8,285 | Curated core — cleaned, deduped, archetype-labelled, all languages |
-| `hooks_curated_en.csv` | 7,484 | English-only cut of the core |
-| `hooks_review_queue.csv` | 8,714 | Survived cleaning but matched no archetype; still contains OCR noise. **Not curated — review before use.** |
 | `hooks_manifest.json` / `usability_manifest.json` | — | Provenance, counts, known limits |
 | `curate_hooks.py` / `categorize_by_usability.py` | — | The pipelines, re-runnable |
+
+### Cuts that are not stored, because they are derivable
+
+Three files used to sit here and were removed: together they were 24,486 lines
+of CSV in git for information already present in the two above. Regenerate any
+of them in seconds:
+
+| Was | Rows | How to get it back |
+|---|---|---|
+| `hooks_curated_en.csv` | 7,484 | The `lang == "en"` rows of `hooks_curated.csv`. One filter. |
+| `hooks_by_usability.csv` | 8,285 | `python categorize_by_usability.py` — the same rows plus seven computed columns |
+| `hooks_review_queue.csv` | 8,714 | `python curate_hooks.py` re-emits it. It is the **uncurated** residue and still contains OCR noise; it was never safe to use as-is |
 
 ## Columns
 
