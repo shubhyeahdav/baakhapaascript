@@ -8,10 +8,12 @@ import CraftPanel from "../components/CraftPanel";
 import FormatShortcuts, { harvestVocabulary, suggestFor } from "../components/FormatShortcuts";
 import ToolbarMenu from "../components/ToolbarMenu";
 import GuidePanel from "../components/GuidePanel";
+import PenPrompt from "../components/PenPrompt";
 import ImportScript from "../components/ImportScript";
 import CoveragePanel from "../components/CoveragePanel";
 import AccessLog from "../components/AccessLog";
 import ReviewModal from "../components/ReviewModal";
+import TeamPanel from "../components/TeamPanel";
 import SceneRail from "../components/SceneRail";
 import { enterText } from "../utils/screenplayFormat";
 import { saveRescue, clearRescue } from "../utils/draftRescue";
@@ -79,6 +81,14 @@ function UpgradePrompt({ mode, onUpgrade }) {
       </p>
     </div>
   );
+}
+
+/** Words in a draft, counting the screenplay as a reader would rather than as a
+ *  tokeniser would: runs of non-whitespace, so "INT." is one word and an em
+ *  dash between two words is not a third. */
+function countWords(text) {
+  const trimmed = (text || "").trim();
+  return trimmed ? trimmed.split(/\s+/).length : 0;
 }
 
 export default function ScriptEditor() {
@@ -314,6 +324,20 @@ export default function ScriptEditor() {
   };
 
   const [showStructure, setShowStructure] = useState(false);
+  // Sharing belongs on the work, not in an account screen. It used to live only
+  // under Settings → Team Members, which asked a writer already inside a script
+  // to go to their account, find a tab, and re-pick the project they were
+  // looking at. Every tool people already use — Docs, Figma, Notion — puts
+  // Share next to the thing being shared.
+  const [showShare, setShowShare] = useState(false);
+  // What the draft looked like when focus mode was entered, so the status line
+  // can report THIS session's output rather than the script's total. "You have
+  // written 400 words today" is a fact a writer acts on; "your script is 4,000
+  // words" is one they already knew.
+  const [sessionStart, setSessionStart] = useState(null);
+  // Focus mode hides the app's own chrome; this hides the BROWSER's. They are
+  // different wishes and compose — a writer can have neither, either or both.
+  const [isFullPage, setIsFullPage] = useState(false);
   const [addingScene, setAddingScene] = useState(null);
 
   // Script / Corkboard / Outline, the way Final Draft and Arc Studio split it.
@@ -325,6 +349,52 @@ export default function ScriptEditor() {
   const [pagination, setPagination] = useState({ page_lines: 45, page_count: 1 });
   const [pageScroll, setPageScroll] = useState(0);
   const [caretPage, setCaretPage] = useState(1);
+
+  // Focus mode keeps its own session baseline. Reset on entry rather than on
+  // mount, so leaving and re-entering starts a fresh sprint — which is how
+  // writers actually use a focus mode.
+  useEffect(() => {
+    if (!zenMode) {
+      setSessionStart(null);
+      return;
+    }
+    setSessionStart({ words: countWords(content), at: Date.now() });
+    // Deliberately keyed on zenMode alone: `content` is read once, at the
+    // moment focus mode opens, which is the baseline the session measures from.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zenMode]);
+
+  /**
+   * Fill the screen using the browser's own fullscreen, not a CSS imitation.
+   *
+   * Focus mode hides what the APP draws; this hides what the BROWSER draws —
+   * tabs, address bar, bookmarks. On a 13-inch laptop that is roughly 120px of
+   * vertical space, which is four or five lines of screenplay.
+   *
+   * The two compose deliberately: a writer can have neither, either, or both.
+   * The request can be refused (an iframe without the permission, or a browser
+   * setting), so the state is read back from the document rather than assumed —
+   * a toggle that lies about whether it worked is worse than one that does
+   * nothing.
+   */
+  const toggleFullPage = useCallback(async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch {
+      // Refused. `fullscreenchange` never fires, so the menu keeps showing the
+      // truthful state, which is "off".
+    }
+  }, []);
+
+  // The browser owns this state — Esc and F11 change it without telling us —
+  // so it is observed, never inferred.
+  useEffect(() => {
+    const sync = () => setIsFullPage(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", sync);
+    sync();
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
 
   // Zen mode: Esc leaves. Without a keyboard exit the only way out is a button
   // that zen mode itself has just hidden most of the context around.
@@ -363,9 +433,13 @@ export default function ScriptEditor() {
         // before the first keystroke, not after a second round trip.
         setBible(res.data.bible || null);
         if (res.data.pagination) setPagination(res.data.pagination);
-        // Open the structure preview by default when the script has AI
-        // suggestions but no scenes added yet (fresh from the wizard).
-        if (res.data.suggestions_json && (res.data.scenes || []).length === 0) {
+        // Open the structure preview only when suggestions exist AND the
+        // writer has something on the page. It used to open on arrival from the
+        // wizard, so a new project greeted its author with a list of scenes
+        // they had not chosen. Suggestions are now generated on request, which
+        // makes their presence the signal that they are wanted.
+        if (res.data.suggestions_json && (res.data.scenes || []).length === 0
+            && (res.data.content || "").trim()) {
           setShowStructure(true);
         }
       })
@@ -956,7 +1030,14 @@ export default function ScriptEditor() {
       {/* Toolbar */}
       {/* Scrolls sideways on a phone rather than wrapping. A wrapped toolbar
           silently eats the page height it is sitting above, and there is not
-          enough of that on a 375px screen to give any away. */}
+          enough of that on a 375px screen to give any away.
+
+          Hidden entirely in focus mode. It was not, which meant "focus mode"
+          removed the timeline and the scene rail and left thirteen controls
+          sitting above the page — most of the chrome, and all of the visual
+          noise, still there. The status line inside the page is the deliberate
+          replacement: page, session words, save state. Esc brings this back. */}
+      {!zenMode && (
       <header className="h-14 bg-surface border-b border-border flex items-center gap-4 px-4 md:px-6 shrink-0 relative z-20 overflow-x-auto lg:overflow-visible">
         <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1.5 shrink-0 text-inkMuted hover:text-ink transition duration-200 text-sm">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
@@ -968,8 +1049,18 @@ export default function ScriptEditor() {
             writer nothing they could not see, costing width that the view
             switcher then had to give up, which is why "Outline" was rendering
             as "Outl". */}
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-display font-medium text-ink text-[15px] truncate">
+        {/* `min-w-0` alone let flex crush this whole group to 24px — narrower
+            than the Setup button inside it, which then escaped its container and
+            collided with the SYNCED / page-number status beside it, rendering as
+            "SetuSYNCED". The group no longer shrinks; the TITLE truncates
+            instead, within a bounded width, and the header (already
+            `overflow-x-auto`) scrolls when there is genuinely not enough room. */}
+        <div className="flex items-center gap-2 shrink-0">
+          <span
+            className="font-display font-medium text-ink text-[15px] truncate
+                       max-w-[8rem] md:max-w-[12rem] lg:max-w-[18rem]"
+            title={script.project?.title || "Untitled"}
+          >
             {script.project?.title || "Untitled"}
           </span>
           {/* The story bible moved out of the writing panel to its own screen.
@@ -1113,6 +1204,15 @@ export default function ScriptEditor() {
             }}
           />
 
+          <button
+            onClick={() => setShowShare(true)}
+            title="Share this project"
+            className="text-xs py-1.5 px-3 rounded-lg border border-border text-inkMuted
+                       hover:text-ink transition"
+          >
+            Share
+          </button>
+
           <ToolbarMenu
             label="Export"
             title="Download this script"
@@ -1135,6 +1235,13 @@ export default function ScriptEditor() {
                 hint: "Hide everything except the page",
                 active: zenMode,
                 onSelect: () => setZenMode((z) => !z),
+              },
+              {
+                key: "full",
+                label: "Full page",
+                hint: "Fill the whole screen — browser chrome and all",
+                active: isFullPage,
+                onSelect: toggleFullPage,
               },
               {
                 key: "theme",
@@ -1162,8 +1269,45 @@ export default function ScriptEditor() {
           </button>
         </div>
       </header>
+      )}
 
       {/* FR07: what the review found, before finalizing. Reports, never blocks. */}
+      {showShare && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6"
+          onMouseDown={() => setShowShare(false)}
+        >
+          <div
+            className="bg-surface border border-borderSoft rounded-2xl shadow-card
+                       max-w-lg w-full max-h-[80vh] overflow-y-auto p-6"
+            onMouseDown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Share this project"
+          >
+            <div className="flex items-baseline justify-between mb-4">
+              <h2 className="font-display text-xl text-ink">Share</h2>
+              <button
+                onClick={() => setShowShare(false)}
+                aria-label="Close"
+                className="text-inkMuted hover:text-ink text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            {/* The same panel Settings mounts, told which project it is on —
+                one implementation, so roles cannot mean two different things
+                in two places. */}
+            {/* `script.project` is a whitelisted subset of project FIELDS and
+                carries no id — the id is top-level `project_id`. Passing
+                `proj.id` silently handed TeamPanel `undefined`, which made it
+                fall back to its project picker and ask a writer already inside
+                a script which project they meant. */}
+            <TeamPanel projectId={script?.project_id} />
+          </div>
+        </div>
+      )}
+
       <ReviewModal
         review={review}
         onKeepWriting={() => setReview(null)}
@@ -1258,7 +1402,61 @@ export default function ScriptEditor() {
                away the caret position or the textarea's native undo stack. */
             style={{ display: view === "script" ? undefined : "none" }}
           >
-            {zenMode && <div className="zen-hint">Esc to leave focus mode</div>}
+            {/* Focus mode's status line.
+                Hiding the chrome hides the save indicator too, and "is my work
+                saved" is the anxiety that pulls a writer out of focus faster
+                than any toolbar would. So the three facts that survive are the
+                three worth interrupting for: where you are in the script, what
+                you have written since you started, and whether it is safe.
+                Everything else stays gone. */}
+            {/* The Pen, only on a blank page and never in focus mode.
+                A new project now opens genuinely empty — the wizard stopped
+                generating a structure — which makes this the most stuck a
+                writer is ever going to be here. It disappears on the first
+                keystroke rather than waiting to be dismissed. */}
+            {view === "script" && !zenMode && !content.trim() && (
+              <PenPrompt
+                pageTheme={pageTheme}
+                onInsert={(line) => {
+                  insertAtPosition(0, `${line}
+
+`);
+                  textareaRef.current?.focus();
+                }}
+                onOpenGuide={() => {
+                  setPanelTab("guide");
+                  setPanelOpen(true);
+                }}
+              />
+            )}
+
+            {zenMode && (
+              <div className="zen-hint" aria-live="polite">
+                <span className="tabular-nums">
+                  p. {Math.min(caretPage, pagination.page_count)} / {pagination.page_count}
+                </span>
+                {sessionStart && (
+                  <span className="tabular-nums ml-4">
+                    +{Math.max(0, countWords(content) - sessionStart.words)} words
+                  </span>
+                )}
+                <span className="ml-4">{saving ? "Saving…" : "Saved"}</span>
+                {/* Clickable, because the toolbar that held the Focus mode
+                    toggle is now hidden and Esc would otherwise be the only way
+                    out — fine for anyone who knows, a trap for anyone who does
+                    not. The strip itself is pointer-events:none so it never
+                    steals a click meant for the page; this one control opts
+                    back in. */}
+                <button
+                  type="button"
+                  onClick={() => setZenMode(false)}
+                  className="ml-4 opacity-60 hover:opacity-100 hover:text-gold
+                             transition pointer-events-auto uppercase tracking-[0.08em]"
+                >
+                  Esc to leave
+                </button>
+              </div>
+            )}
             {/* The page and its rules share one positioned box. The rules were
                 first drawn over the whole container, which does not scroll —
                 the textarea does — so they sat at a fixed offset and never
@@ -1275,7 +1473,18 @@ export default function ScriptEditor() {
               <textarea
               ref={textareaRef}
               className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} resize-none`}
-              placeholder="Type Scene Headings starting with INT. or EXT., and press TAB to format characters, parentheticals, and dialogue..."
+              /* Short, because the Pen now says the useful version on an empty
+                 page. This read "Type Scene Headings starting with INT. or
+                 EXT., and press TAB to format characters, parentheticals, and
+                 dialogue…" — accurate, and four pieces of vocabulary aimed at
+                 somebody who has none. */
+              placeholder="Start writing…"
+              /* A real name, not just a placeholder. A placeholder disappears
+                 the moment there is text, so a screen-reader user returning to
+                 a written draft previously met an unnamed textarea — and it
+                 also means the copy above can change without breaking every
+                 test that needs to find the page. */
+              aria-label="Screenplay"
               value={content}
               onChange={(e) => {
                 setContent(e.target.value);

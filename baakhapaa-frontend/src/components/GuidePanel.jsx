@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { GUIDES, GUIDE_GROUPS, guideProgress } from "../utils/guides";
+import ThePen from "./ThePen";
 
 /**
  * The guide. Always available, never modal, and it works on your own script.
@@ -19,6 +20,12 @@ import { GUIDES, GUIDE_GROUPS, guideProgress } from "../utils/guides";
  * to be able to read the instruction and type at the same time, and anything
  * that dims the page to point at a button is unusable the moment you want to
  * work while it is open.
+ *
+ * The Pen is here because it is the same voice as onboarding and the blank
+ * page. A writer met it before they had ever seen the editor, and it is the
+ * thing the blank-page prompt hands off to; arriving at an anonymous panel
+ * would make that a dead end. It reacts to the step's own check — the one
+ * already driving `StepCheck` — so it is reading the draft, not performing.
  */
 
 function StepCheck({ done, label }) {
@@ -66,6 +73,12 @@ function Running({ guide, content, onExit, onInsert }) {
         >
           ← All guides
         </button>
+        <ThePen
+          mood={!step.check ? "idle" : satisfied ? "pleased" : "nudging"}
+          size={18}
+          className="text-gold/60"
+          decorative
+        />
         <span className="ml-auto font-mono text-[10px] text-inkMuted">
           {index + 1} / {guide.steps.length}
         </span>
@@ -159,6 +172,7 @@ export default function GuidePanel({ content, onInsert, onClose }) {
   return (
     <div className="h-full overflow-y-auto">
       <div className="flex items-start gap-2 mb-4">
+        <ThePen mood="idle" size={22} className="text-gold/70 shrink-0 mt-0.5" decorative />
         <div>
           <h3 className="font-display text-[17px] text-ink leading-snug">Guides</h3>
           <p className="text-[11.5px] text-inkMuted mt-0.5 leading-snug">

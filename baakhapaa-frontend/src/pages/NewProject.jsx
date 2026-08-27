@@ -134,18 +134,18 @@ export default function NewProject() {
       const projectRes = await projects.create(payload);
       const projectId = projectRes.data.id;
 
-      // Creating the project and generating its structure are two calls, and the
-      // second one talks to a model. If it fails, the project already exists —
-      // and on the free plan it has just consumed the one-project allowance, so
-      // sending the writer back to a form that now answers 402 would strand
-      // them. Open the project instead; a structure can be generated later.
-      try {
-        const structureRes = await scripts.generateStructure(payload, projectId);
-        navigate(`/projects/${structureRes.data.script_id}/editor`);
-      } catch (structureErr) {
-        const script = await scripts.getByProject(projectId);
-        navigate(`/projects/${script.data.id}/editor?structure_failed=1`);
-      }
+      // Straight to the page. The wizard used to generate a structure here and
+      // drop the writer into an editor already holding a list of scenes
+      // somebody else had decided on — before they had typed a word. That is
+      // the blank-page problem solved by taking the page away.
+      //
+      // The system suggests; it does not write. Structure is now something the
+      // writer asks for from inside the editor, when they want it and against
+      // whatever they have already put down. The suggestion is better for
+      // having a draft to read, and a writer who never wants one never has to
+      // dismiss one.
+      const script = await scripts.getByProject(projectId);
+      navigate(`/projects/${script.data.id}/editor`);
     } catch (err) {
       const detail = err.response?.data?.detail;
       setError(

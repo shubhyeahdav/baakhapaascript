@@ -153,15 +153,31 @@ html, body {
     font-size: 14px;
     box-shadow: none;
   }
+  /* Same asymmetry as the desktop rule: a real top margin, deep bottom. On a
+     phone the viewport is short enough that a centred first line filled the
+     whole screen with nothing. */
   .screenplay-page.zen-page {
-    padding: 20vh 1.25rem;
+    padding: 5vh 1.25rem 40vh;
   }
 }
 
+/* Typewriter scrolling needs deep padding at the BOTTOM and only a normal
+   margin at the top, and the difference matters.
+
+   The bottom padding is what lets the final line of a draft scroll up to the
+   middle of the screen — without it the caret sinks to the bottom edge as you
+   approach the end, which is the whole thing typewriter scrolling exists to
+   prevent.
+
+   The top padding was 45vh to match, which centred the FIRST line too — so
+   opening focus mode on a new script showed an empty page that began halfway
+   down the screen and looked broken. A document starts at its top. The caret
+   is centred from the moment there is enough text above it to centre against,
+   which is how iA Writer and Ulysses behave and what a writer expects. */
 .screenplay-page.zen-page {
   max-width: 760px;
   min-height: 100%;
-  padding: 45vh 4rem;
+  padding: 8vh 4rem 45vh;
   box-shadow: none;
   border-radius: 0;
   caret-color: #C9A227;
@@ -180,8 +196,14 @@ html, body {
   transition: opacity 0.4s ease;
 }
 
+/* Dimmed while typing, not hidden.
+   This was `opacity: 0` when the strip said only "Esc to leave focus mode" — a
+   hint you need before you start and never again. It now carries the save
+   state and the session's word count, and those are wanted precisely WHILE
+   writing: "is my work saved" is the anxiety that breaks focus fastest, and it
+   cannot answer that from behind an opacity of nought. */
 .zen-container:focus-within .zen-hint {
-  opacity: 0;
+  opacity: 0.35;
 }
 
 .screenplay-page.dark-page {

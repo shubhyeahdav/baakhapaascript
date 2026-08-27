@@ -108,3 +108,32 @@ describe("progress reads the real draft", () => {
     expect(guideProgress(guide, "नमस्ते").done).toBe(1);
   });
 });
+
+/**
+ * The Pen in the panel. It is the same character as onboarding and the blank
+ * page, and the blank-page prompt hands off to here — so what these pin is
+ * that it is present at the handoff and that its mood is read from the draft
+ * rather than decorative.
+ */
+describe("the guide has a face on it", () => {
+  test("the shelf carries the Pen, so the handoff from the blank page lands somewhere familiar", () => {
+    const { container } = render(<GuidePanel content="" />);
+    expect(container.querySelector(".the-pen")).toBeTruthy();
+  });
+
+  test("the Pen nudges while a step is unmet and is pleased once the draft meets it", () => {
+    const { container, rerender } = render(<GuidePanel content="" />);
+    fireEvent.click(screen.getByText("Write your first scene"));
+    expect(container.querySelector(".the-pen--nudging")).toBeTruthy();
+
+    rerender(<GuidePanel content="INT. CHIYA PASAL - DAY" />);
+    expect(container.querySelector(".the-pen--pleased")).toBeTruthy();
+  });
+
+  test("the Pen beside text that already says the same thing is not announced twice", () => {
+    // Both placements accompany prose; only onboarding's Pen is the speaker.
+    const { container } = render(<GuidePanel content="" />);
+    expect(container.querySelector(".the-pen")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByRole("img", { name: /The Pen/ })).toBeNull();
+  });
+});

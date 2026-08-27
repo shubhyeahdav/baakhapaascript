@@ -24,6 +24,9 @@ const SCRIPT = {
     characters: [{ name: "PRERANA", age: "24", want: "", need: "", wound: "", voice: "", notes: "" }],
     locations: ["FRAME SHOP, PATAN"],
   },
+  // `project` is a whitelisted subset of project FIELDS and carries no id —
+  // the id is top-level, which is what the share sheet scopes on.
+  project_id: "project-1",
   project: { title: "Tehro", genre: "Drama", tone: "Emotional", language: "Bilingual", format: "short" },
 };
 
@@ -60,10 +63,17 @@ vi.mock("../services/api", () => ({
   // AccessLog and CoveragePanel both mount under History/Craft.
   scriptsExtra: {},
   learn: { forRule: vi.fn() },
+  // The share sheet mounts TeamPanel, which reaches for these. Without them
+  // the panel degrades through its own try/catch and the test passes without
+  // exercising anything — the failure mode this suite exists to catch.
+  projects: {
+    getAll: vi.fn(), members: vi.fn(),
+    addMember: vi.fn(), setMemberRole: vi.fn(), removeMember: vi.fn(),
+  },
 }));
 
 // eslint-disable-next-line import/first
-import { scripts, versions, comments, learn } from "../services/api";
+import { scripts, versions, comments, learn, projects } from "../services/api";
 // eslint-disable-next-line import/first
 import ScriptEditor from "./ScriptEditor";
 
@@ -90,9 +100,15 @@ function stubApi() {
   learn.forRule.mockRejectedValue(new Error("no lesson"));
   scripts.accessLog.mockRejectedValue(new Error("not an admin"));
   scripts.coverage.mockResolvedValue({ data: {} });
+  projects.getAll.mockResolvedValue({ data: [] });
+  projects.members.mockResolvedValue({
+    data: { members: [], your_role: "admin" },
+  });
 }
 
-const editor = () => screen.getByPlaceholderText(/Type Scene Headings/i);
+// By its accessible name, not its placeholder: a placeholder vanishes once
+// there is text, and it is copy that should be free to change.
+const editor = () => screen.getByLabelText("Screenplay");
 
 /** Type into the textarea the way the component expects (value + caret). */
 function typeInto(el, value, caret = value.length) {
@@ -284,5 +300,378 @@ describe("ScriptEditor", () => {
 
       expect(mockNavigate).toHaveBeenCalledWith("/pricing");
     });
+  });
+});
+
+describe("focus mode", () => {
+  /**
+   * Hiding the chrome hides the save indicator with it, and "is my work saved"
+   * is the anxiety that pulls a writer out of focus faster than any toolbar
+   * would. So focus mode keeps exactly three facts: where you are in the
+   * script, what you have written since you started, and whether it is safe.
+   *
+   * The word count is a SESSION count, reset each time focus mode is entered.
+   * "You have written 400 words today" is a fact a writer acts on; "your script
+   * is 4,000 words" is one they already knew.
+   */
+  beforeEach(() => {
+    stubApi();
+    mockQuery = {};
+    mockTier = "pro";
+  });
+
+  const enterFocus = async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /View/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Focus mode/ }));
+  };
+
+  it("reports whether the work is saved", async () => {
+    await enterFocus();
+
+    expect(await screen.findByText("Saved")).toBeInTheDocument();
+  });
+
+  it("keeps the page position visible", async () => {
+    // The page is the unit of screen time; losing it in focus mode would
+    // remove the one number a screenplay note is ever written in.
+    await enterFocus();
+
+    // Exactly one: the toolbar's own indicator goes with the toolbar.
+    expect(screen.getAllByText(/^p\. \d+ \/ \d+$/)).toHaveLength(1);
+  });
+
+  it("hides the toolbar, which is what makes it a focus mode", async () => {
+    // It did not. "Focus mode" removed the timeline and the scene rail and left
+    // thirteen controls sitting above the page — most of the chrome and all of
+    // the visual noise still there.
+    await enterFocus();
+
+    expect(screen.queryByRole("button", { name: /Export/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Back/ })).not.toBeInTheDocument();
+  });
+
+  it("offers a way out that does not require knowing about Esc", async () => {
+    // The toggle lived in the toolbar this mode now hides, so Esc would
+    // otherwise be the only exit — fine for anyone who knows, a trap otherwise.
+    await enterFocus();
+
+    fireEvent.click(screen.getByRole("button", { name: "Esc to leave" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Export/ })).toBeInTheDocument());
+  });
+
+  it("counts this session's words, not the script's total", async () => {
+    await enterFocus();
+
+    expect(await screen.findByText(/^\+\d+ words$/)).toBeInTheDocument();
+    expect(screen.getByText("+0 words")).toBeInTheDocument();
+  });
+
+  it("grows the count as the writer writes", async () => {
+    await enterFocus();
+
+    typeInto(editor(), "INT. PASAL - DAY\n\nShe counts the till twice.");
+
+    await waitFor(() => expect(screen.queryByText("+0 words")).not.toBeInTheDocument());
+  });
+
+  it("still says how to leave", async () => {
+    await enterFocus();
+
+    expect(screen.getByText("Esc to leave")).toBeInTheDocument();
+  });
+
+  it("announces changes politely rather than interrupting", async () => {
+    await enterFocus();
+
+    expect(screen.getByText("Esc to leave").closest("[aria-live]"))
+      .toHaveAttribute("aria-live", "polite");
+  });
+
+  it("shows none of it outside focus mode", async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    expect(screen.queryByText("Esc to leave")).not.toBeInTheDocument();
+  });
+});
+
+describe("sharing from inside the script", () => {
+  /**
+   * Sharing belongs on the work. It lived only under Settings → Team Members,
+   * which asked a writer already inside a script to leave it, find a tab, and
+   * re-pick the project they were looking at.
+   */
+  beforeEach(() => {
+    stubApi();
+    mockQuery = {};
+    mockTier = "pro";
+  });
+
+  const openShare = async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Share" }));
+  };
+
+  it("opens a share sheet", async () => {
+    await openShare();
+
+    expect(screen.getByRole("dialog", { name: "Share this project" })).toBeInTheDocument();
+  });
+
+  it("does not ask which project the writer means", async () => {
+    // `script.project` is a whitelisted subset of project FIELDS and carries no
+    // id; the id is top-level `project_id`. Passing the wrong one handed the
+    // panel `undefined` and it fell back to its picker.
+    await openShare();
+
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Project")).not.toBeInTheDocument());
+  });
+
+  it("closes again", async () => {
+    await openShare();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("full page", () => {
+  /**
+   * Focus mode hides what the APP draws; full page hides what the BROWSER
+   * draws. On a 13-inch laptop that is roughly 120px — four or five lines of
+   * screenplay. They compose: neither, either, or both.
+   *
+   * The browser owns this state (Esc and F11 change it without telling us), so
+   * it is read back from the document rather than assumed. A toggle that claims
+   * success when the request was refused is worse than one that does nothing.
+   */
+  beforeEach(() => {
+    stubApi();
+    mockQuery = {};
+    mockTier = "pro";
+    document.exitFullscreen = vi.fn().mockResolvedValue(undefined);
+    document.documentElement.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+  });
+
+  const openView = async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /View/ }));
+  };
+
+  it("is offered in the View menu", async () => {
+    await openView();
+
+    expect(screen.getByRole("menuitem", { name: /Full page/ })).toBeInTheDocument();
+  });
+
+  it("asks the browser to go fullscreen", async () => {
+    await openView();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Full page/ }));
+
+    await waitFor(() =>
+      expect(document.documentElement.requestFullscreen).toHaveBeenCalled());
+  });
+
+  it("leaves fullscreen when already in it", async () => {
+    Object.defineProperty(document, "fullscreenElement", {
+      value: document.documentElement, configurable: true,
+    });
+    await openView();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Full page/ }));
+
+    await waitFor(() => expect(document.exitFullscreen).toHaveBeenCalled());
+    Object.defineProperty(document, "fullscreenElement", {
+      value: null, configurable: true,
+    });
+  });
+
+  it("survives a browser that refuses the request", async () => {
+    // An iframe without the permission, or a browser setting. The menu keeps
+    // showing the truthful state rather than claiming it worked.
+    document.documentElement.requestFullscreen = vi.fn().mockRejectedValue(new Error("denied"));
+    await openView();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Full page/ }));
+
+    await waitFor(() =>
+      expect(document.documentElement.requestFullscreen).toHaveBeenCalled());
+    expect(screen.getByLabelText("Screenplay")).toBeInTheDocument();
+  });
+
+  it("follows the browser when Esc or F11 changes it behind our back", async () => {
+    await openView();
+    Object.defineProperty(document, "fullscreenElement", {
+      value: document.documentElement, configurable: true,
+    });
+
+    fireEvent(document, new Event("fullscreenchange"));
+
+    await waitFor(() =>
+      expect(screen.getByRole("menuitem", { name: /Full page/ }).textContent).toContain("•"));
+    Object.defineProperty(document, "fullscreenElement", {
+      value: null, configurable: true,
+    });
+  });
+});
+
+describe("the toolbar does not crush its own title", () => {
+  /**
+   * `min-w-0` let flex shrink the title group to 24px — narrower than the
+   * Setup button inside it, which then escaped its container and collided with
+   * the SYNCED / page-number status, rendering as "SetuSYNCED".
+   */
+  beforeEach(() => {
+    stubApi();
+    mockQuery = {};
+    mockTier = "pro";
+  });
+
+  it("keeps the project title and Setup in one group that does not collapse", async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    // The button's accessible name is its text, "Setup"; "Story bible…" is the
+    // tooltip.
+    const group = screen.getByRole("button", { name: "Setup" }).parentElement;
+    expect(group.className).toContain("shrink-0");
+    expect(group.className).not.toContain("min-w-0");
+  });
+
+  it("truncates a long title rather than letting it push the toolbar", async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    const title = screen.getByText("Tehro");
+    expect(title.className).toContain("truncate");
+    expect(title.className).toMatch(/max-w-/);
+  });
+
+  it("keeps the full title reachable on hover once truncated", async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    expect(screen.getByText("Tehro")).toHaveAttribute("title", "Tehro");
+  });
+});
+
+describe("the Pen on a blank page", () => {
+  /**
+   * `GuidePanel`'s own docstring says the product "shipped a blank page with a
+   * line of formatting jargon on it" — and that was still true of the editor
+   * after the guide was built, because it lives behind a tab in a four-tab
+   * panel and a first-time writer has no reason to press it.
+   *
+   * The wizard no longer generates a structure, so a new project opens
+   * genuinely empty. That is the most stuck a writer will ever be here, and the
+   * one moment worth spending a character on.
+   *
+   * The rules are all about not becoming a mascot: appears only on an empty
+   * draft, never in focus mode, never blocks the textarea, and vanishes on the
+   * first keystroke rather than waiting to be dismissed.
+   */
+  beforeEach(() => {
+    stubApi();
+    mockQuery = {};
+    mockTier = "pro";
+  });
+
+  it("offers a concrete first line instead of vocabulary", async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    expect(screen.getByText(/Every scene starts by saying where we are/))
+      .toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "INT. CHIYA PASAL - DAY" }))
+      .toBeInTheDocument();
+  });
+
+  it("writes that line into the draft when taken up", async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "INT. CHIYA PASAL - DAY" }));
+
+    await waitFor(() => expect(editor().value).toContain("INT. CHIYA PASAL - DAY"));
+  });
+
+  it("gets out of the way as soon as there is writing", async () => {
+    // Nothing here waits for a dismissal — anything a writer has to close is
+    // something we made them do.
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    typeInto(editor(), "INT. PASAL - DAY");
+
+    await waitFor(() =>
+      expect(screen.queryByText(/Every scene starts by saying/)).not.toBeInTheDocument());
+  });
+
+  it("treats whitespace as still blank", async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    typeInto(editor(), "   \n  ");
+
+    expect(screen.getByText(/Every scene starts by saying/)).toBeInTheDocument();
+  });
+
+  it("does not show for a script that already has a draft", async () => {
+    scripts.getById.mockResolvedValue({
+      data: { ...SCRIPT, content: "INT. PASAL - DAY\n\nShe waits.\n" },
+    });
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    expect(screen.queryByText(/Every scene starts by saying/)).not.toBeInTheDocument();
+  });
+
+  it("hands off to the walkthrough that already exists", async () => {
+    // The guide was built and then left behind a tab. This is the route in.
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /walk me through a whole scene/ }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Guide" }).className).toMatch(/gold|text-ink/));
+  });
+
+  it("stays away in focus mode", async () => {
+    // That mode's whole promise is that nothing is on the page but the page.
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /View/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Focus mode/ }));
+
+    expect(screen.queryByText(/Every scene starts by saying/)).not.toBeInTheDocument();
+  });
+
+  it("never intercepts a click meant for the page", async () => {
+    // A writer who ignores it entirely and just starts typing is not interrupted.
+    const { container } = render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    const wrapper = screen.getByText(/Every scene starts by saying/).closest(".pointer-events-none");
+    expect(wrapper).toBeTruthy();
+    expect(container).toBeTruthy();
+  });
+
+  it("shows nothing on the corkboard or outline", async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Corkboard" }));
+
+    expect(screen.queryByText(/Every scene starts by saying/)).not.toBeInTheDocument();
   });
 });

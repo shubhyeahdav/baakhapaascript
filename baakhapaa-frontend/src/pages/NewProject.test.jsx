@@ -88,3 +88,47 @@ test("onboarding answers arrive pre-filled", async () => {
   await waitFor(() => expect(projects.create).toHaveBeenCalled());
   expect(projects.create.mock.calls[0][0].language).toBe("Nepali");
 });
+
+describe("the wizard does not write the script for you", () => {
+  /**
+   * It used to generate a three-act structure straight after creating the
+   * project, so a writer arrived in an editor already holding a list of scenes
+   * somebody else had decided on — before they had typed a word. That is the
+   * blank-page problem solved by taking the page away.
+   *
+   * The system suggests; it does not write. Structure is now asked for from
+   * inside the editor, against whatever the writer has already put down — the
+   * suggestion is better for having a draft to read, and a writer who never
+   * wants one never has to dismiss one.
+   */
+
+  const submitValidForm = () => {
+    render(<NewProject />);
+    fireEvent.change(screen.getByLabelText(/project title/i), {
+      target: { value: "Chiya Pasal" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /generate project structure/i }));
+  };
+
+  it("creates the project without generating anything", async () => {
+    submitValidForm();
+
+    await waitFor(() => expect(projects.create).toHaveBeenCalled());
+    expect(scripts.generateStructure).not.toHaveBeenCalled();
+  });
+
+  it("opens the editor on the project's own script", async () => {
+    submitValidForm();
+
+    await waitFor(() => expect(scripts.getByProject).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith(expect.stringMatching(/\/editor$/)));
+  });
+
+  it("does not flag a structure failure it never attempted", async () => {
+    submitValidForm();
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalled());
+    expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining("structure_failed"));
+  });
+});
