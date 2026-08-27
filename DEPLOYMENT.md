@@ -32,12 +32,62 @@ locally. Warnings (plain-http origins, unset `FRONTEND_URL`) print and continue.
 ### 1. Supabase
 
 Create a project and run `baakhapaa-backend/supabase_schema.sql`. On an existing
-database, the `ALTER TABLE` lines near the top of that file are the migrations —
-note the newest one:
+database, the `ALTER TABLE` blocks in that file are the migrations. **There are
+four, and they must be run in this order** — this section named only the last
+until 2026-08-26, so a runbook followed before then under-ran the schema.
+
+**1. Google sign-in** (`supabase_schema.sql`, top of file). Existing rows read as
+`'password'`, so this downgrades nobody:
+
+```sql
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+ALTER TABLE users ADD COLUMN auth_provider TEXT NOT NULL DEFAULT 'password';
+ALTER TABLE users ADD COLUMN google_sub TEXT UNIQUE;
+```
+
+**2. Email normalisation.** This is the only migration that can fail on real
+data. If the `UPDATE` raises a unique violation, two rows hold the same address
+in different cases — merge or delete one before retrying, and do that before the
+index is created, not after:
+
+```sql
+UPDATE users SET email = lower(trim(email));
+CREATE UNIQUE INDEX users_email_lower_idx ON users (lower(email));
+```
+
+**3. Invitations** (added 2026-08-27). Lets somebody be invited before they have
+an account — the membership is granted when they register with that address:
+
+```sql
+CREATE TABLE IF NOT EXISTS project_invites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('admin', 'editor', 'viewer')),
+  token TEXT NOT NULL UNIQUE,
+  invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  claimed_at TIMESTAMPTZ,
+  claimed_by UUID REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_project_invites_email ON project_invites(lower(email));
+CREATE INDEX IF NOT EXISTS idx_project_invites_project ON project_invites(project_id);
+```
+
+**4. Payments and renewals.** Both idempotent:
 
 ```sql
 ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS renewal_notices_json TEXT;
 ```
+
+A NULL `subscription_expires_at` means "not time-boxed" — Stripe owns that
+renewal — which is why adding the column downgraded nobody.
+
+> There is no migration tool here, and the local SQLite mock has already produced
+> three schema-drift bugs (`HANDOVER.md`). Getting a real Postgres into CI and
+> adopting a migration tool is the right fix, and is worth doing before the next
+> schema change rather than after it.
 
 Take the **service role** key, not the anon key. The backend is the only thing
 that talks to Postgres; row-level security is not what is protecting this data,
@@ -83,12 +133,15 @@ the number to multiply by your image price for the worst case of one click.
 ### 3. Frontend → Vercel
 
 Root directory `baakhapaa-frontend`. `vercel.json` sets the build, the security
-headers, and the SPA rewrite. **The rewrite is not optional** — CRA ships one
+headers, and the SPA rewrite. **The rewrite is not optional** — the app ships one
 `index.html` and routes client-side, so without it a hard refresh on
 `/dashboard`, or any shared `/pricing` link, is a 404 from the CDN.
 
-Set `REACT_APP_API_URL` to the Railway URL. It is baked in at build time, so
-changing it requires a redeploy, not a restart.
+The frontend is **Vite**, not Create React App (migrated in `11287cd`). Set
+**`VITE_API_URL`** to the Railway URL; `REACT_APP_API_URL` is still read as a
+fallback in `src/services/api.js` but is legacy and should not be used for a new
+deploy. Either way it is baked in at build time, so changing it requires a
+redeploy, not a restart.
 
 ### 4. Payments
 

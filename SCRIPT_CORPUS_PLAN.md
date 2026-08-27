@@ -148,7 +148,14 @@ This is the highest-leverage thing in this plan relative to effort.
 **Audience:** someone who has never written a screenplay. Assume they don't
 know what a slugline is.
 
-**Promise:** *"In 14 lessons you'll write your first complete short film script."*
+**Promise:** *"In two tracks you'll write your first complete short film script."*
+
+*(Amended 2026-08-26: the course was 14 lessons in four modules and is now 19
+in two tracks. **The Pen** — the page, the scene, finishing — teaches the script
+itself. **The Story** teaches what the page is for, and holds nine lessons drawn
+from the analysed corpus's technique playbook. The split is deliberate: page
+craft and story craft fail independently, and a writer whose pages are clean can
+still have no story.)*
 
 **Design principle:** every lesson ends with the user *writing something* that
 the app can immediately respond to. A course that only presents information
@@ -168,7 +175,12 @@ Module → Lesson → Concept (2 min) → Corpus proof → Exercise → Feedback
 - **Unlock** — the relevant technique is added to the user's Patterns tab, so
   the course visibly grows their toolkit.
 
-### Curriculum (14 lessons, 4 modules)
+### Curriculum (19 lessons, two tracks)
+
+The modules below are **The Pen**. **The Story** adds nine: want versus need, the
+inciting incident as a choice, every win must cost something, three acts, the
+midpoint flip, progress is the trap, pressure not villains, break it where it is
+safest, and redefining what winning means.
 
 **Module 1 — The page (lessons 1–3)**
 1. What a screenplay is: page = minute; the four elements. *Exercise: format one slugline + one action line correctly.* Linter checks format.
@@ -199,7 +211,7 @@ the corpus median for its genre.
 
 | | Free | Pro/Studio |
 |---|---|---|
-| All 14 lessons + exercises | ✅ | ✅ |
+| All 19 lessons + exercises, both tracks | ✅ | ✅ |
 | Craft linter feedback | ✅ (deterministic, $0) | ✅ |
 | Claude critique of exercises | ❌ | ✅ |
 | Benchmark report | first lesson only | ✅ full |

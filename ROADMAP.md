@@ -19,7 +19,7 @@ decides whether this launches in September.
 | 06 | Bilingual output | Shipped. Devanagari PDF closed 2026-08-18; Noto Sans Devanagari bundled under OFL |
 | 07 | Review before finalization | Shipped (`review.py`) — timing, character names, act balance |
 | 08–09 | Storyboard generation and controls | Shipped — camera notes, shot-type override, reorder, redraw |
-| 10 | Real-time collaboration | **Partial** — sharing, roles and attributed line-anchored comments work; live cursors need a real Supabase project |
+| 10 | Real-time collaboration | **Descoped 2026-08-26 to async collaboration.** Sharing, per-project roles and attributed line-anchored comments are shipped and are what Phase 1 promises. Live cursors need a real Supabase project and a conflict-resolution design; `PRD.md` US4 and its scope lists were amended to match, rather than leaving the promise unmet |
 | 11 | Version history with diff | Shipped, with per-window snapshot coalescing |
 | 12 | Role-based access | Shipped — Admin/Editor/Viewer per project, enforced server-side |
 | 13 | Export system | Shipped — PDF, Word, `.fdx`, and a production package that is now a real shot list |
@@ -43,8 +43,11 @@ against a real host, which nothing here has ever done.
 - ~~`CORS_ORIGINS`, `--proxy-headers`, `REQUIRE_SHIPPABLE_FONT`~~ — no longer
   reminders. `APP_ENV=production` makes `deploy_checks.py` refuse the boot if any
   of them is wrong, and `Procfile`/`railway.json` carry the proxy flags
-- Still to do: frontend → Vercel, backend → Railway, a real Supabase project
-  (run the `subscription_expires_at` migration at the top of `supabase_schema.sql`)
+- Still to do: frontend → Vercel, backend → Railway, a real Supabase project.
+  **Four migrations, not one** — Google sign-in columns, email normalisation
+  (the only one that can fail on real data), the `project_invites` table, and
+  `subscription_expires_at` / `renewal_notices_json`. `DEPLOYMENT.md` §1 has the
+  order and the failure mode
 
 ### Weeks 2–4 · Payments that work in Nepal
 **Decided and built 2026-08-20: both gateways.** Khalti and eSewa ship alongside
@@ -79,10 +82,11 @@ are all still unreviewed templates.
 
 | Decision | Why it blocks | Recommendation |
 |---|---|---|
-| Live co-editing: build or descope | FR10 promises visible cursors | Descope to async collaboration for launch and amend the PRD, rather than leaving a promise unmet |
+| ~~Live co-editing: build or descope~~ | — | **Resolved 2026-08-26: descoped to async collaboration.** `PRD.md` US4, the in-scope list and the out-of-scope list now say so. Sharing, roles and attributed comments are what ships |
 | ~~Khalti, eSewa, or both~~ | — | **Resolved 2026-08-20: both**, behind one interface. Stripe kept for international cards |
 | ~~NPR pricing per tier~~ | — | **Resolved: Rs 999 Pro / Rs 2,499 Studio per month.** Still unchecked against the cost model below |
 | Invite-only or open launch | Decides waitlist vs funnel | Invite-only for a month — one developer cannot absorb open signup plus a bug queue |
+| ~~NFR03: what we claim about encryption~~ | — | **Resolved 2026-08-26: state it truthfully.** `PRD.md` §7 now says TLS in transit, provider-managed disk encryption at rest, and **no application-level encryption of `scripts.content`**. Building that encryption remains open, and has to be designed before launch rather than retrofitted — it changes what diffing, search and export can do. `DATA_HANDLING.md` is the full account |
 | Who reviews the legal docs | Unreviewed templates | Budget for a lawyer now; this is the one item that cannot be compressed later |
 
 ## Known non-blockers, carried forward

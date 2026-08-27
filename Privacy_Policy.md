@@ -99,6 +99,15 @@ We implement reasonable technical safeguards, including:
 - Access controls limiting who can view your data
 - JWT-based authentication with expiring sessions
 
+**What we do not do, stated plainly.** Your script text is stored without
+application-level encryption. It is protected at rest only by our database
+provider's disk-level encryption and by the access controls above, which means
+someone holding our database credentials could read it. Script text is also sent
+to the AI providers named in section 4 when you ask for generation, improvement
+or storyboard frames. If you are working on material where neither is acceptable,
+please do not put it in Baakhapaa. We would rather say this than let you assume
+otherwise.
+
 No system is perfectly secure; we will notify affected users and relevant
 authorities in the event of a data breach affecting personal information,
 consistent with Data Act 2079 breach notification expectations.

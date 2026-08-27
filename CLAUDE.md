@@ -74,9 +74,10 @@ machine). Then:
 > `raw_scripts_TEMP/`, no `D:\AkxyaRup`; this is a single repo at
 > `C:\baakhapaa` on branch `codebase`).
 >
-> Backend tests: **536 across 32 files, all passing** (the Devanagari font gate
+> Backend tests: **731 across 41 files, all passing** (the Devanagari font gate
 > no longer skips — the asset is bundled), `./venv/Scripts/python -m pytest`.
-> Frontend tests: **181 across 15 files**, `npm run test:ci`.
+> Frontend tests: **995 across 54 files**, `npm run test:ci`. Every component
+> and page has one; the 26 that had none were covered on 2026-08-26.
 > **CI runs lint, dependency audit, both suites and the production build** on
 > push and PR (`.github/workflows/ci.yml`), on Linux with
 > `REQUIRE_SHIPPABLE_FONT=true` — the only place the Devanagari font gate is
@@ -223,6 +224,80 @@ machine). Then:
   tag. Embeddings are local (fastembed `bge-small-en-v1.5`, 384-dim), so this
   needs no API key. Every `worked_example` is original prose — that's what keeps
   the corpus publishable by construction
+- **The course, in two tracks** (`lessons.py`, `learn.py`, `LearnPage.jsx`) —
+  19 lessons, free on every tier, each graded by the craft linter rather than by
+  a Next button. **The Pen** (10) teaches the script page: format, action lines,
+  dialogue, finishing. **The Story** (9) teaches what the page is for, each
+  lesson a technique from the corpus playbook — want vs need, the inciting
+  incident as a choice, cost of pursuit, three acts, the midpoint flip, progress
+  as the trap, institutional antagonists, detonating at a celebration, and
+  redefining victory. Split on a lesson's `track` field because page craft and
+  story craft fail independently. The linter reads pages, so its rules route
+  into Pen lessons; `review.py`'s structural findings (act balance, runtime
+  drift) are the only automatic route into Story, and the craft panel links the
+  rest of that track by hand — no check can tell a writer their midpoint does
+  not flip
+- **The Pen teaches onboarding** (`ThePen.jsx`, `Onboarding.jsx`) — the course
+  was the best thing in the product and sat behind a nav item nobody had reason
+  to press. A guide character now asks the four questions and teaches lesson one
+  **inside onboarding**: the writer produces a real scene heading, graded by the
+  craft linter, before they ever see the editor. They arrive having already
+  written something correct. Deliberately NOT copied from Duolingo: hearts
+  (contradicts the course's "no penalty for trying"), streaks (a screenwriter
+  who rests is not failing) and points (this product reports measurements, not
+  scores). The Pen is a nib, not a creature — a cartoon congratulating a
+  screenwriter reads as condescension
+- **The course speaks Nepali** (`lessons_ne.py`) — all 19 lessons, 76 prose
+  fields, served on `?lang=`. Fallback is per FIELD so a lesson added before
+  anyone translates it still reads correctly. The interface had spoken Nepali
+  since `i18n/strings.js`; the course had not, which was the least defensible
+  English left in a product that lints Nepali dialogue
+- **Structure suggests, it does not write** (2026-08-26) — the wizard used to
+  generate a three-act structure straight after creating a project, so a writer
+  arrived in an editor already holding scenes nobody had asked for. It now goes
+  to a blank page; structure is requested from inside the editor, against
+  whatever is already written
+- **The Pen is on the page, not only in onboarding** (`PenPrompt.jsx`,
+  `GuidePanel`) — the guide character that asks onboarding's four questions and
+  teaches lesson one now also meets a writer on an empty draft, offering one
+  concrete line to type (`INT. CHIYA PASAL - DAY`, inserted on click) and a way
+  into the walkthrough. It matters because the wizard no longer generates a
+  structure, so a new project opens genuinely empty. `GuidePanel` — what the
+  prompt hands off to — carries the Pen too, its mood driven by the step's
+  existing draft `check` rather than decoratively. Three constraints the browser
+  taught: the prompt needs a **z-index** (the opaque screenplay page paints over
+  it otherwise, and the component works while being invisible), it takes
+  `pageTheme` because the app's ink tokens wash out on `#FAF9F6` paper, and
+  `ThePen` takes `decorative` so only the Pen that is *speaking* gets an
+  accessible name. Empty drafts only, never in focus mode, `pointer-events-none`,
+  nothing to dismiss
+- **Sharing lives on the work** — a Share sheet in the editor mounts the same
+  `TeamPanel` Settings does, scoped to the open project (`script.project_id`,
+  not `script.project.id` — that sub-object is a field subset with no id)
+- **Focus mode actually focuses** — it left the whole 13-control toolbar
+  standing. The toolbar is now hidden, and the page carries a status line with
+  the three facts worth interrupting for: page position, THIS session's word
+  count, and save state. Hiding chrome hid the save indicator, and "is my work
+  saved" is what breaks focus fastest
+- **Tier limits are real** — `FREE_PROJECT_LIMIT = 3` (was 1, which collided
+  with the course: finishing it spent the entire allowance). `membership.SEAT_LIMITS`
+  gives free 2 collaborators, pro 5, studio unlimited — enforced against the
+  project OWNER's plan. This is what Studio buys; until now `PAID_TIERS` held
+  both paid tiers and nothing branched on studio
+- **Terms and Privacy are reachable** — `/terms` and `/privacy`, public, served
+  from the root markdown through a build-time virtual module (one copy, no
+  drift). Sign-up states what is being agreed to. Both documents are still
+  unreviewed templates and say so in a banner
+- **Invitations** (`invites.py`, FR12) — anyone can be invited, including
+  someone with no account. `add_member` used to refuse an unknown address, so
+  collaboration could only start between two people who had both already found
+  the product. **The link does not grant access** — it only describes the offer;
+  membership comes from registering with the invited address, because a link
+  that granted access would be a bearer token in a forwarded chat message. No
+  email is sent (there is no SMTP account and `renewals.py` shows what
+  pretending otherwise costs) — the inviter passes the link on themselves.
+  Pending invites occupy a seat. `project_invites` is a **fourth unapplied
+  migration**
 - **Freemium split** — free tier runs on RAG only, zero Claude cost:
   `POST /scripts/recommendations` (all tiers) powers the editor's Patterns tab;
   `generate-scene`/`improve`/`suggest` are Pro/Studio (403 for free);
@@ -255,17 +330,19 @@ machine). Then:
   older notes below and in AUDIT_REPORT.md still list them as open
 - ~~Devanagari in PDF exports~~ — **closed 2026-08-18**, font bundled. The
   narrow screenplay column CSS (D1) is still open
-- **Live co-editing (FR10) is the one unmet promise.** Sharing, roles and
-  attributed comments now work, so collaboration is real — but simultaneous
-  editing with visible cursors needs a real Supabase project and was deliberately
-  not faked again. `ROADMAP.md` recommends descoping it and amending the PRD
+- ~~**Live co-editing (FR10) is the one unmet promise.**~~ — **descoped
+  2026-08-26.** Collaboration in Phase 1 is asynchronous and real: sharing,
+  per-project roles, attributed line-anchored comments. Simultaneous editing with
+  visible cursors needs a real Supabase project and was deliberately not faked
+  again; `PRD.md` US4 and both scope lists were amended to say so rather than
+  leave the promise standing
 - ~~Custom user-added scenes UI~~ — **closed 2026-08-20**: the Corkboard's
   "+ New scene" and the Outline's per-act add compose a slugline inline, write
   the row and the scene block together
 - **Collaboration/presence was REMOVED 2026-08-13** (`CollabBar`, `realtime.js`,
   `@supabase/supabase-js`) — it showed "Solo session" to every user because it
-  needs real Supabase keys. This contradicts PRD US4, which still lists
-  real-time collaboration as in scope; that reconciliation is PROJECT_PLAN **E7**
+  needs real Supabase keys. PRD US4 was reconciled with that cut on 2026-08-26
+  (PROJECT_PLAN **E7**, now closed)
 - **Nothing renews on its own.** Khalti and eSewa have no subscription
   primitive, so a lapsed plan stops working. `PlanNotice` warns in-app and
   `renewals.py` mails the writer who has *not* opened the app (plain SMTP, one
@@ -285,7 +362,7 @@ playbook distilled from every analysis — use when writing or analyzing scripts
 working copy is **two nested repos** — the wrapper at `D:\AkxyaRup` (branch
 `main`, holds `.claude/` + a gitlink) and this project repo (branch `master` →
 `origin/codebase`). Don't target `main` with project work. Full explanation and
-the push sequence: `WORKING_GUIDE.md` §1 and §3. PR #1 open.
+the push sequence: `WORKING_GUIDE.md` §1 and §3. PR #1's content is already contained in `origin/codebase` — the branch is merged and only the GitHub PR object may still be open.
 
 **Copyright:** `raw_scripts_TEMP/` (117 screenplays, incl. a ~19MB
 `knowledge_base.json` of full script text) is gitignored at the wrapper level

@@ -62,10 +62,10 @@ GENERATION_ARCHITECTURE.md (spec only, nothing implemented).
 | US1 — three-act outline from genre/tone/duration | ✅ done (upgraded to preview + selective add) | — |
 | US2 — AI write/improve scenes | ✅ done (mock verified) | Real-key path never exercised |
 | US3 — automatic storyboard frames | ✅ core done | Frame edit/regenerate UI missing (backend ready) |
-| US4 — real-time collaboration + version history | 🟡 | Versions ✅. Presence built but unverified without real Supabase; comments not truly line-anchored |
+| US4 — collaboration + version history | ✅ | **Amended 2026-08-26.** Versions ✅ with a line-by-line diff (FR11). Comments ARE line-anchored and attributed. Presence was deleted 2026-08-13 and real-time co-editing descoped — Phase 1 collaboration is asynchronous: sharing, per-project roles, attributed comments |
 | US5 — one-click production package | ✅ | — |
 | US6 — bilingual output (Nepali dialogue) | 🟡 | Editor/UI fine (Mukta covers Devanagari). **PDF/package export almost certainly cannot render Devanagari** (ReportLab font). Word export likely OK |
-| Free/Creator/Pro tiers (UI built, payment not wired) | exceeded scope: Stripe checkout wired (test mode) | **Tier limits unenforced** — the actual product gating doesn't exist |
+| ~~Free/Creator/Pro tiers (UI built, payment not wired)~~ | ✅ | **Superseded.** Tiers are `free`/`pro`/`studio` (settled 2026-08-20; the proposal is what gets amended). Gating is enforced server-side throughout, and payment runs through Stripe, Khalti and eSewa — sandbox/demo verified only, no real money has moved |
 | §7 non-functional: bilingual rendering in editor **and exports** | 🟡 | Export side, as above |
 | §7: ownership checks everywhere | ✅ verified today | — |
 | Success metric: team completes one real script end-to-end | ❌ blocked externally | Requires real API keys + real Supabase — everything to date is demo-mode |
@@ -168,7 +168,7 @@ GENERATION_ARCHITECTURE.md shipped (`32d0956`, see §6). The remaining spec work
 | E4 ✅ done | **Refactor** — 8 duplication classes collapsed; fixed a leaked object URL in the editor's export path | **M** | multiple |
 | E5 ✅ done | **Cut ZenAudio, CollabBar, `realtime.js`** + dropped `@supabase/supabase-js` | **S** | — |
 | E6 | **Run `build_fingerprints.py` on the real corpus** — blocked, corpus is on another machine | **S** | — |
-| E7 | **Reconcile docs with the presence cut** — PRD US4 still lists real-time collaboration as in scope; `PRD.md`, `TRD.md`, `AUDIT_REPORT.md`, `MONTH_1_REPORT.md`, `SESSION_SUMMARY.md` all still describe it | **S** | docs |
+| E7 ✅ done | **Reconcile docs with the presence cut** — FR10 descoped 2026-08-26. `PRD.md` US4, its in-scope and out-of-scope lists, and `ROADMAP.md` now describe async collaboration: sharing, roles, attributed line-anchored comments. `TRD.md`, `AUDIT_REPORT.md`, `MONTH_1_REPORT.md` and `SESSION_SUMMARY.md` are historical records of earlier sessions and were left as written | **S** | docs |
 | E8 | **Frontend test suite** — currently zero tests behind a vacuous `--passWithNoTests` | **M** | — |
 | E9 | **Test asserting the Devanagari font asset exists** — A1 passes CI today and still renders blank boxes on Linux | **S** | `tests/` |
 | E10 | **Layer-2 craft expansion** 29 → ~150–250 entries. At 1000 films this is ~$60–180, not the $5–15 estimated for 117. Techniques saturate; measurements don't — so use all scripts for E2, a curated subset here | **M** + $ | — |
@@ -257,5 +257,6 @@ this section wins.
 
 - Remote wired: `shubhyeahdav/baakhapaascript`, **default branch `codebase`**
   (the old `main` holds only an unrelated empty starter commit — don't target it).
-- **PR #1** open: `editor-ux-and-nav-fixes` → `codebase` (4 commits, 8 files,
-  +659/−99, mergeable clean).
+- ~~**PR #1** open: `editor-ux-and-nav-fixes` → `codebase`~~ — **stale.** Its tip
+  `d6b1e3c` is fully contained in `origin/codebase`; the content is merged. Only
+  the GitHub PR object may still be open, and closing it is a browser action.
