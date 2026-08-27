@@ -105,10 +105,16 @@ def get_diff(version_id_a: str, version_id_b: str, user_id: str = Depends(get_cu
         raise HTTPException(status_code=404, detail="Version not found")
 
     va, vb = ra.data[0], rb.data[0]
+
+    # Access first, then the cross-script rule. The other way round, the 400 and
+    # the 404 answer two questions about scripts the caller cannot read: whether
+    # a version id exists, and whether two of them share a script. Every other
+    # route here returns 404 rather than confirm an id, and this one was the
+    # exception.
+    require_script_access(va["script_id"], user_id, minimum=membership.VIEWER)
+
     if va["script_id"] != vb["script_id"]:
         raise HTTPException(status_code=400, detail="Those versions belong to different scripts.")
-
-    require_script_access(va["script_id"], user_id, minimum=membership.VIEWER)
 
     hunks = _diff_hunks(va["content"] or "", vb["content"] or "")
     added = sum(1 for h in hunks for r in h if r["type"] == "add")

@@ -368,6 +368,12 @@ class _NoRedirects(urllib_request.HTTPRedirectHandler):
     Validating the host and then following a redirect validates nothing: the
     redirect target is chosen after the check. Storyboard hosts serve images
     directly, so refusing costs nothing real.
+
+    The argument list belongs to `urllib.request.HTTPRedirectHandler`, not to us:
+    most of it is unused here and cannot be trimmed without breaking the override.
+    Returning `None` is urllib's documented way to refuse — it makes the opener
+    raise on the 3xx instead of following it — so the empty-looking body is the
+    entire mechanism. `tests/test_export_ssrf.py` pins it.
     """
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):

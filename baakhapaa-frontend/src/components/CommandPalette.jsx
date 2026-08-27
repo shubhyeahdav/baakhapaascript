@@ -38,7 +38,12 @@ export default function CommandPalette() {
 
   // Load projects the first time the palette opens.
   useEffect(() => {
-    if (open && !loaded) {
+    // `isAuthenticated` guards the render below, but `open` still flips for a
+    // signed-out visitor — the login page listens for ⌘K too. Without this the
+    // palette showed nothing and still fired GET /projects/, which 401s, and
+    // the api client's interceptor answers a 401 by clearing the token and
+    // setting window.location to /login.
+    if (open && !loaded && isAuthenticated) {
       projects.getAll().then((r) => setProjList(r.data)).catch(() => {}).finally(() => setLoaded(true));
     }
     if (open) {
@@ -46,7 +51,7 @@ export default function CommandPalette() {
       setActive(0);
       setTimeout(() => inputRef.current?.focus(), 30);
     }
-  }, [open, loaded]);
+  }, [open, loaded, isAuthenticated]);
 
   const openProject = async (projectId) => {
     setBusy(true);

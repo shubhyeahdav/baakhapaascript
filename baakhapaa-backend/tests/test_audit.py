@@ -154,3 +154,21 @@ def test_names_are_resolved_at_read_time_not_stored():
     entries = audit.history("script-z")
     assert entries
     assert entries[0]["name"]
+
+
+def test_the_repeat_visit_window_is_configurable(monkeypatch):
+    """`ACCESS_LOG_WINDOW_SECONDS` is what decides whether a second visit is a
+    new line or a bumped timestamp.
+
+    Note the mechanic: `audit.py` reads the variable at IMPORT time, so
+    `monkeypatch.setenv` does nothing here — the module attribute is what has to
+    be patched. The same is true of `esewa.TIMEOUT` and `khalti.TIMEOUT` if
+    anyone tests those later.
+    """
+    monkeypatch.setattr(audit, "ACCESS_LOG_WINDOW_SECONDS", 0)
+
+    audit.record("script-window", "reader-1", audit.OPENED)
+    audit.record("script-window", "reader-1", audit.OPENED)
+
+    entries = audit.history("script-window")
+    assert len(entries) == 2, "a zero-length window should collapse nothing"
