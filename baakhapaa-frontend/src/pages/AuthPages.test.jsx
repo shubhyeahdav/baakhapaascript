@@ -11,7 +11,10 @@ let mockLogin, mockRegister, mockGoogle, mockNavigate;
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
-  Link: ({ children, ...p }) => <a {...p}>{children}</a>,
+  // react-router renders `to` as `href`; the mock has to do the same or an
+  // href assertion tests the mock rather than the component. (Same note as
+  // PlanNotice.test.jsx — the convention across this suite.)
+  Link: ({ children, to, ...p }) => <a href={to} {...p}>{children}</a>,
 }));
 
 vi.mock("../context/AuthContext", () => ({
@@ -233,4 +236,66 @@ test("a configured deployment loads Google's script", async () => {
   await waitFor(() =>
     expect(document.querySelector('script[src*="accounts.google.com"]')).not.toBeNull()
   );
+});
+
+describe("consent and language on the way in", () => {
+  /**
+   * Two gaps that a signed-out visitor hit before 2026-08-26.
+   *
+   * Signup collected an account, and with it unproduced scripts that get sent
+   * to two AI providers, with no consent step and no way to read either
+   * governing document — both existed at the repo root and were routed
+   * nowhere. `Privacy_Policy.md` cites Nepal's Individual Privacy Act 2075,
+   * which asks for informed consent; a form that never mentions the policy
+   * cannot obtain it.
+   *
+   * And the language switcher lived only in TopNav's signed-in dropdown, so a
+   * Nepali writer met an English login page with no way to change it — in a
+   * product that exists to read and lint their Nepali.
+   */
+
+  it("tells a new user what they are agreeing to", () => {
+    render(<RegisterPage />);
+
+    expect(screen.getByText(/By creating an account you agree to our/))
+      .toBeInTheDocument();
+  });
+
+  it("links both governing documents from the form", () => {
+    render(<RegisterPage />);
+
+    expect(screen.getByText("Terms of Use").closest("a")).toHaveAttribute("href", "/terms");
+    expect(screen.getByText("Privacy Policy").closest("a")).toHaveAttribute("href", "/privacy");
+  });
+
+  it("opens them without discarding a half-filled form", () => {
+    render(<RegisterPage />);
+
+    for (const name of ["Terms of Use", "Privacy Policy"]) {
+      const link = screen.getByText(name).closest("a");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+    }
+  });
+
+  it("says the specific thing a screenwriter would want to know", () => {
+    // A generic policy link buries this; it is the fact that actually bears on
+    // whether someone puts an unproduced script into the product.
+    render(<RegisterPage />);
+
+    expect(screen.getByText(/without application-level encryption/)).toBeInTheDocument();
+    expect(screen.getByText(/sent to our AI providers/)).toBeInTheDocument();
+  });
+
+  it("lets a signed-out visitor choose Nepali on the sign-up page", () => {
+    render(<RegisterPage />);
+
+    expect(screen.getByRole("button", { name: "नेपाली" })).toBeInTheDocument();
+  });
+
+  it("lets a signed-out visitor choose Nepali on the sign-in page", () => {
+    render(<LoginPage />);
+
+    expect(screen.getByRole("button", { name: "नेपाली" })).toBeInTheDocument();
+  });
 });

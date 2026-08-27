@@ -1,5 +1,37 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+
+/**
+ * Serve the root Terms and Privacy Policy to the app as one virtual module.
+ *
+ * Those two files live at the repo root because that is where the project
+ * treats them as canonical — `LEGAL_REVIEW.md` edits them there. The app needs
+ * their text, and the three obvious ways to get it are all worse: a second
+ * copy under `src/` drifts and eventually shows users the older document;
+ * `?raw` from outside the Vite root trips the dev server's fs allow-list and
+ * Vitest's separately; and `public/` would ship them as separate fetches.
+ *
+ * A virtual module reads them at build time, needs no path permissions, and
+ * behaves identically in dev, build and test.
+ */
+function legalDocuments() {
+  const VIRTUAL = "virtual:legal-documents";
+  const read = (name) =>
+    readFileSync(new URL(`../${name}`, import.meta.url), "utf8");
+
+  return {
+    name: "baakhapaa-legal-documents",
+    resolveId: (id) => (id === VIRTUAL ? `\0${VIRTUAL}` : null),
+    load(id) {
+      if (id !== `\0${VIRTUAL}`) return null;
+      return [
+        `export const terms = ${JSON.stringify(read("Terms_of_Use.md"))};`,
+        `export const privacy = ${JSON.stringify(read("Privacy_Policy.md"))};`,
+      ].join("\n");
+    },
+  };
+}
 
 /**
  * Vite, replacing react-scripts.
@@ -14,7 +46,7 @@ import react from "@vitejs/plugin-react";
  * themselves by. Adding it now means those files drop in unedited later.
  */
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), legalDocuments()],
   resolve: {
     // import.meta.dirname, not __dirname: this config is ESM now, and
     // Vite warns that the CommonJS global is going away.

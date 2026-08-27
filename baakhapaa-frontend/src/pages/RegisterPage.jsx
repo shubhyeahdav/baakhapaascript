@@ -5,6 +5,7 @@ import { checkPassword, passwordRequirementSentence } from "../utils/password";
 import { authErrorMessage } from "../utils/apiError";
 import PasswordField from "../components/PasswordField";
 import { useT } from "../i18n";
+import LanguageToggle from "../components/LanguageToggle";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 
 /**
@@ -149,6 +150,10 @@ export default function RegisterPage() {
           <h2 className="font-display text-3xl text-ink mb-1">{t("Create Account")}</h2>
           <p className="text-inkMuted text-sm mb-8">Start your screenwriting journey today</p>
 
+          {/* Same reasoning as the login page: choosing the interface language
+              must not require already having an account. */}
+          <LanguageToggle variant="inline" className="mb-6 -mt-4" />
+
           {error && (
             <div
               role="alert"
@@ -233,6 +238,32 @@ export default function RegisterPage() {
                 </p>
               )}
             </PasswordField>
+
+            {/* Consent, and consent that can actually be given: both documents
+                are one click away and open in a new tab, so reading them does
+                not throw away a half-filled form.
+
+                Stated rather than checkboxed. A checkbox is the more familiar
+                pattern and it is the weaker one here — it trains people to tick
+                without reading, and Nepal's Individual Privacy Act 2075 asks
+                for informed consent, not a ticked box. Creating the account IS
+                the affirmative act, and this sentence is what makes it
+                informed. The specific sentence about script text is here
+                because it is the thing a screenwriter would actually want to
+                know and the thing a generic policy link buries. */}
+            <p className="text-[11.5px] text-inkMuted leading-snug mt-4">
+              {t("By creating an account you agree to our")}{" "}
+              <Link to="/terms" target="_blank" rel="noopener noreferrer"
+                    className="text-gold hover:underline">
+                {t("Terms of Use")}
+              </Link>{" "}
+              {t("and")}{" "}
+              <Link to="/privacy" target="_blank" rel="noopener noreferrer"
+                    className="text-gold hover:underline">
+                {t("Privacy Policy")}
+              </Link>
+              . {t("Your script text is stored without application-level encryption and is sent to our AI providers when you ask for generation.")}
+            </p>
 
             {/* Deliberately NOT disabled while the form is incomplete. A dead
                 button gives a user nothing to act on and no way to find out

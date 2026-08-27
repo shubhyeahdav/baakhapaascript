@@ -20,6 +20,7 @@ import SettingsPage from "./pages/SettingsPage";
 import StoryboardsPage from "./pages/StoryboardsPage";
 import ExportsPage from "./pages/ExportsPage";
 import LearnPage from "./pages/LearnPage";
+import LegalPage from "./pages/LegalPage";
 
 export default function App() {
   return (
@@ -39,6 +40,11 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/pricing" element={<PricingPage />} />
+            {/* Public, and they have to be: somebody deciding whether to sign
+                up needs to read what they are agreeing to BEFORE they have an
+                account. Both were unreachable from the app until now. */}
+            <Route path="/terms" element={<LegalPage doc="terms" />} />
+            <Route path="/privacy" element={<LegalPage doc="privacy" />} />
             {/* Every gateway redirects here. The provider is in the PATH, not a
                 query parameter: each gateway appends its own query string to the
                 URL we hand it, and eSewa's docs do not say what it does when one

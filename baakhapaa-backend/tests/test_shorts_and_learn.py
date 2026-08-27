@@ -187,3 +187,199 @@ class TestLessons:
     def test_no_lesson_passes_on_empty_input(self, lesson_id):
         """A blank submission must never satisfy an exercise."""
         assert lessons.grade(lesson_id, "")["passed"] is False
+
+
+class TestStoryTrack:
+    """The storytelling track (2026-08-26).
+
+    The curriculum split into two tracks: the pen (the script page) and the
+    story (what the page is for). The story track grew from four lessons to
+    nine, each one a technique from the analysed corpus's playbook. These pin
+    the split and the new lessons' grading — an outline exercise cannot be
+    graded by the page linter, so `_check_beat_outline` grades structure
+    instead, and that is new surface.
+    """
+
+    def test_every_lesson_declares_a_track(self):
+        for l in lessons.LESSONS:
+            assert l.get("track") in ("pen", "story"), l["id"]
+
+    def test_the_story_track_is_a_real_course_not_a_module(self):
+        story = [l for l in lessons.LESSONS if l["track"] == "story"]
+        assert len(story) >= 9
+
+    def test_the_pen_track_holds_the_page_craft(self):
+        pen_modules = {l["module"] for l in lessons.LESSONS if l["track"] == "pen"}
+        assert "The page" in pen_modules
+        assert "Story" not in pen_modules
+
+    def test_the_api_reports_each_track_with_its_own_modules(self, client, make_user):
+        """`tracks` maps a track to its modules. A flat module list mixing both
+        courses was ambiguous the moment a module stopped being unique to one."""
+        user = make_user()
+        body = client.get("/learn/lessons", headers=user["headers"]).json()
+
+        assert list(body["tracks"]) == ["pen", "story"]
+        assert "The page" in body["tracks"]["pen"]
+        assert body["tracks"]["story"] == ["Story"]
+        assert "Story" not in body["tracks"]["pen"]
+        assert all("track" in l for l in body["lessons"])
+
+    def test_the_structural_review_can_reach_the_story_track(self):
+        """The craft linter reads pages, so its rules land on pen lessons.
+        `review.py` reads shape — act balance and runtime drift — and those are
+        the only story-level problems this product can detect automatically."""
+        for rule in ("act_out_of_balance", "act_balance_unknown", "runtime_drift"):
+            lesson_id = lessons.RULE_TO_LESSON.get(rule)
+            assert lesson_id, rule
+            assert lessons.LESSONS_BY_ID[lesson_id]["track"] == "story"
+
+    def test_every_mapped_rule_still_points_at_a_real_lesson(self):
+        for rule, lesson_id in lessons.RULE_TO_LESSON.items():
+            assert lesson_id in lessons.LESSONS_BY_ID, f"{rule} -> {lesson_id}"
+
+    def test_a_beat_outline_passes_on_beats_with_the_flip_marked(self):
+        outline = "\n".join([
+            "Mira takes the extra shift to pay for the class",
+            "Baba praises her for finally taking the shop seriously",
+            "The class times clash with the evening rush",
+            "FLIP: a customer from the class walks into the shop",
+            "Every sale now risks the secret",
+            "She starts closing early and cooking the books",
+        ])
+        result = lessons.grade("midpoint-flip", outline)
+        assert result["passed"], result["problems"]
+
+    def test_a_beat_outline_fails_without_enough_beats(self):
+        result = lessons.grade("midpoint-flip", "one beat\nFLIP: two")
+        assert not result["passed"]
+        assert any("6 beats" in p for p in result["problems"])
+
+    def test_a_beat_outline_fails_without_the_flip_named(self):
+        outline = "\n".join(f"Beat {i}" for i in range(6))
+        result = lessons.grade("midpoint-flip", outline)
+        assert not result["passed"]
+        assert any("FLIP" in p for p in result["problems"])
+
+    def test_the_marker_is_matched_without_caring_about_case(self):
+        outline = "\n".join(["a", "b", "c", "flip: the register turns", "e", "f"])
+        assert lessons.grade("midpoint-flip", outline)["passed"]
+
+    def test_redefine_victory_rejects_on_the_nose_triumph(self):
+        """The lesson that teaches the earned ending must not pass a scene the
+        linter reads as stating the feeling outright."""
+        scene = (
+            "INT. CHIYA PASAL - NIGHT\n\n"
+            "MIRA\n"
+            "I am so happy because I finally won and proved everyone wrong.\n"
+        )
+        result = lessons.grade("redefine-victory", scene)
+        assert not result["passed"]
+
+    def test_story_lessons_grade_a_clean_scene(self):
+        """A properly written scene passes the scene-based story exercises —
+        the checks must be passable, or the track is a wall, not a course."""
+        scene = (
+            "INT. CHIYA PASAL - NIGHT\n\n"
+            "Mira counts the till twice. She slides three notes into her bag\n"
+            "and the rest into the drawer.\n\n"
+            "MIRA\n"
+            "Bholi bihanai kholchhu.\n\n"
+            "BABA\n"
+            "Aaja dherai bikri bhayo?\n\n"
+            "MIRA\n"
+            "Ali ali.\n\n"
+            "BABA\n"
+            "Ramro. Class kasto chha?\n\n"
+            "She zips the bag shut.\n"
+        )
+        for lesson_id in ("stakes-of-pursuit", "progress-is-the-trap",
+                          "detonate-where-safe", "redefine-victory"):
+            result = lessons.grade(lesson_id, scene)
+            assert result["passed"], (lesson_id, result["problems"])
+
+
+class TestNepaliCurriculum:
+    """The course speaks Nepali (2026-08-26).
+
+    The interface had spoken Nepali since `i18n/strings.js`, but the course did
+    not — a writer could switch the product to Nepali and meet nineteen lessons
+    of English prose in the one place the product is explicitly teaching. For a
+    tool whose differentiator is that it reads and lints Nepali dialogue, that
+    was the least defensible English left.
+
+    The fallback is per FIELD, not per lesson, so a lesson added before anyone
+    translates it still reads correctly rather than showing a half-Nepali page.
+    """
+
+    def _devanagari(self, text):
+        return any("ऀ" <= c <= "ॿ" for c in text)
+
+    def test_every_lesson_is_translated(self):
+        for l in lessons.LESSONS:
+            assert l["id"] in lessons.TRANSLATIONS["ne"], l["id"]
+
+    def test_every_prose_field_is_translated(self):
+        for l in lessons.LESSONS:
+            entry = lessons.TRANSLATIONS["ne"][l["id"]]
+            for field in ("title", "concept", "corpus_proof", "exercise"):
+                assert entry.get(field), f'{l["id"]}.{field}'
+                assert self._devanagari(entry[field]), f'{l["id"]}.{field} is not Nepali'
+
+    def test_asking_for_nepali_returns_nepali(self):
+        got = lessons.public_lesson(lessons.LESSONS_BY_ID["midpoint-flip"], lang="ne")
+
+        assert self._devanagari(got["title"])
+        assert self._devanagari(got["concept"])
+
+    def test_the_default_is_still_english(self):
+        got = lessons.public_lesson(lessons.LESSONS_BY_ID["midpoint-flip"])
+
+        assert got["title"] == "The midpoint flips the register"
+
+    def test_an_unknown_language_falls_back_to_english(self):
+        got = lessons.public_lesson(lessons.LESSONS_BY_ID["subtext"], lang="fr")
+
+        assert got["title"] == "Nobody says what they want"
+
+    def test_a_missing_field_falls_back_per_field(self):
+        """Half a translated lesson must read as English where it is missing,
+        not as a blank — the alternative looks broken to the writer."""
+        original = lessons.TRANSLATIONS["ne"]["subtext"]
+        lessons.TRANSLATIONS["ne"]["subtext"] = {"title": "शीर्षक"}
+        try:
+            got = lessons.public_lesson(lessons.LESSONS_BY_ID["subtext"], lang="ne")
+            assert got["title"] == "शीर्षक"
+            assert got["concept"] == lessons.LESSONS_BY_ID["subtext"]["concept"]
+        finally:
+            lessons.TRANSLATIONS["ne"]["subtext"] = original
+
+    def test_the_api_serves_the_course_in_nepali(self, client, make_user):
+        user = make_user()
+
+        r = client.get("/learn/lessons?lang=ne", headers=user["headers"])
+
+        assert r.status_code == 200, r.text
+        assert all(self._devanagari(l["title"]) for l in r.json()["lessons"])
+
+    def test_the_api_defaults_to_english(self, client, make_user):
+        user = make_user()
+
+        body = client.get("/learn/lessons", headers=user["headers"]).json()
+
+        assert any(l["title"] == "What a screenplay is" for l in body["lessons"])
+
+    def test_a_flag_can_reach_its_lesson_in_nepali(self, client, make_user):
+        """The editor's "why this matters" must answer in the language the
+        writer is reading the app in."""
+        user = make_user()
+
+        r = client.get("/learn/for-rule/on_the_nose?lang=ne", headers=user["headers"])
+
+        assert r.status_code == 200, r.text
+        assert self._devanagari(r.json()["concept"])
+
+    def test_grading_is_unaffected_by_language(self):
+        """The checks read the writer's screenplay, not the lesson's prose."""
+        scene = "INT. PASAL - DAY\n\nShe counts the till.\n"
+        assert lessons.grade("the-page", scene)["passed"]

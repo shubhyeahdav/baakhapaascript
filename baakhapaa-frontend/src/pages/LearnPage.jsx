@@ -2,9 +2,17 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import TopNav from "../components/TopNav";
 import { learn } from "../services/api";
+import { useT, useLanguage } from "../i18n";
 
 /**
- * The course. Fourteen lessons ending in a finished short.
+ * The course, in two tracks, ending in a finished short.
+ *
+ * **The Pen** teaches the script page — format, action lines, dialogue, the
+ * mechanics a camera can obey. **The Story** teaches what the page is for —
+ * the storytelling fundamentals distilled from the analysed corpus. They are
+ * separate tracks on purpose: page craft and story craft fail independently,
+ * and a writer whose pages are clean can still have no story. A lesson's
+ * `track` field decides where it lives; the switcher below splits on it.
  *
  * Every lesson ends in the user writing something, and the submission is
  * graded by the craft linter rather than by a Next button. That is the whole
@@ -56,6 +64,15 @@ function Feedback({ result }) {
   );
 }
 
+// The two tracks. The Pen is the page; The Story is what the page is for.
+// A visible pair rather than more modules in one list, because they answer
+// different failures: clean pages with no story, or a strong story typed
+// unreadably.
+const TRACKS = [
+  { key: "pen", label: "The Pen", blurb: "the script page" },
+  { key: "story", label: "The Story", blurb: "what the page is for" },
+];
+
 export default function LearnPage() {
   const [lessons, setLessons] = useState([]);
   const [completed, setCompleted] = useState([]);
@@ -64,26 +81,46 @@ export default function LearnPage() {
   const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState("");
+  // Which track's curriculum is showing. Following a lesson link (a linter
+  // flag's "Learn this", or the resume-on-arrival pick) switches the track to
+  // wherever that lesson lives, so the nav never shows a list the open lesson
+  // is not in.
+  const [track, setTrack] = useState("pen");
   const [params] = useSearchParams();
+  const t = useT();
+  const { lang } = useLanguage();
 
   const load = useCallback(async () => {
     try {
-      const res = await learn.lessons();
+      const res = await learn.lessons(lang);
       setLessons(res.data.lessons);
       setCompleted(res.data.completed);
       setActiveId((cur) => {
         if (cur) return cur;
-        // Arriving from a linter flag ("Learn this") opens that exact lesson.
-        // Otherwise resume at the first unfinished one — resuming beats
-        // re-choosing.
+        // `?lesson=` opens that exact lesson — a linter flag's "Learn this".
+        // `?track=` opens a track wherever the writer left off in it, which is
+        // what the editor's craft panel links to: it points at a course rather
+        // than at the answer to one flag. With neither, resume at the first
+        // unfinished lesson, because resuming beats re-choosing.
         const requested = params.get("lesson");
-        if (requested && res.data.lessons.some((l) => l.id === requested)) return requested;
-        return (res.data.lessons.find((l) => !l.completed) || res.data.lessons[0])?.id;
+        const wantedTrack = params.get("track");
+        const pool = wantedTrack
+          ? res.data.lessons.filter((l) => (l.track || "pen") === wantedTrack)
+          : res.data.lessons;
+        const opened =
+          (requested && res.data.lessons.find((l) => l.id === requested)) ||
+          pool.find((l) => !l.completed) ||
+          pool[0] ||
+          res.data.lessons[0];
+        if (opened?.track) setTrack(opened.track);
+        return opened?.id;
       });
     } catch (err) {
       setLoadError("Could not load the course.");
     }
-  }, [params]);
+    // `lang` is a dependency on purpose: switching language has to re-fetch the
+    // course, or the chrome turns Nepali around nineteen English lessons.
+  }, [params, lang]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -111,40 +148,130 @@ export default function LearnPage() {
 
   const byModule = useMemo(() => {
     const out = [];
-    lessons.forEach((l) => {
-      const bucket = out.find((b) => b.module === l.module);
-      if (bucket) bucket.items.push(l);
-      else out.push({ module: l.module, items: [l] });
-    });
+    lessons
+      .filter((l) => (l.track || "pen") === track)
+      .forEach((l) => {
+        const bucket = out.find((b) => b.module === l.module);
+        if (bucket) bucket.items.push(l);
+        else out.push({ module: l.module, items: [l] });
+      });
     return out;
-  }, [lessons]);
+  }, [lessons, track]);
 
+  // Progress per track, so switching tracks reads as two courses with two
+  // states rather than one number that jumps around.
+  const trackProgress = useMemo(() => {
+    const inTrack = lessons.filter((l) => (l.track || "pen") === track);
+    return {
+      done: inTrack.filter((l) => l.completed).length,
+      total: inTrack.length,
+    };
+  }, [lessons, track]);
+
+  const openLesson = (l) => {
+    if (l.track) setTrack(l.track);
+    setActiveId(l.id);
+  };
+
+  /** Left/right (and Home/End) move between tracks, per the ARIA tabs pattern. */
+  const onTrackKey = (e) => {
+    const i = TRACKS.findIndex((tr) => tr.key === track);
+    let next = null;
+    if (e.key === "ArrowRight") next = TRACKS[(i + 1) % TRACKS.length];
+    else if (e.key === "ArrowLeft") next = TRACKS[(i - 1 + TRACKS.length) % TRACKS.length];
+    else if (e.key === "Home") next = TRACKS[0];
+    else if (e.key === "End") next = TRACKS[TRACKS.length - 1];
+    if (!next) return;
+    e.preventDefault();
+    chooseTrack(next.key);
+    document.getElementById(`track-tab-${next.key}`)?.focus();
+  };
+
+  /**
+   * Switch track AND move the open lesson into it.
+   *
+   * Switching the nav alone left the pane showing a lesson from the other
+   * track — the curriculum said Story while the exercise on screen was a
+   * formatting one, which reads as the page having lost its place. Resuming at
+   * the track's first unfinished lesson matches what arriving on the page does.
+   */
+  const chooseTrack = (key) => {
+    setTrack(key);
+    if (active && (active.track || "pen") === key) return;
+    const inTrack = lessons.filter((l) => (l.track || "pen") === key);
+    const resume = inTrack.find((l) => !l.completed) || inTrack[0];
+    if (resume) setActiveId(resume.id);
+  };
+
+  // The next lesson within the SAME track. Crossing tracks on "Next" would
+  // yank a writer from a story exercise into a formatting one mid-thought.
   const nextLesson = useMemo(() => {
-    const i = lessons.findIndex((l) => l.id === activeId);
-    return i >= 0 ? lessons[i + 1] : null;
-  }, [lessons, activeId]);
+    const own = lessons.filter((l) => (l.track || "pen") === (active?.track || "pen"));
+    const i = own.findIndex((l) => l.id === activeId);
+    return i >= 0 ? own[i + 1] : null;
+  }, [lessons, activeId, active]);
 
   return (
     <div className="cine-bg min-h-screen">
-      <TopNav />
+      <TopNav active="Learn" />
       <div className="max-w-6xl mx-auto px-8 py-8 animate-fade-up">
         <div className="mb-6">
           <p className="text-inkMuted text-xs tracking-[0.2em] uppercase mb-2">Learn</p>
-          <h1 className="font-display text-4xl text-ink mb-1">Write your first short</h1>
+          <h1 className="font-display text-4xl text-ink mb-1">
+            {t("Write your first short")}
+          </h1>
           <p className="text-inkMuted text-sm">
-            Fourteen lessons. Every one ends in you writing something the app checks.
+            {t("Two tracks. Every lesson ends in you writing something the app checks.")}
           </p>
+        </div>
+
+        {/* Tabs, and the full ARIA pattern rather than half of it: each tab
+            owns the curriculum panel by id, only the selected one is in the tab
+            order, and the arrow keys move between them. `role="tab"` without
+            those is worse than plain buttons — it promises a keyboard contract
+            screen-reader users then find missing. */}
+        <div className="flex gap-2 mb-6" role="tablist" aria-label="Course track">
+          {TRACKS.map((tr) => (
+            <button
+              key={tr.key}
+              id={`track-tab-${tr.key}`}
+              role="tab"
+              aria-selected={track === tr.key}
+              aria-controls="track-curriculum"
+              // Roving tabindex: Tab reaches the tablist once, arrows move
+              // inside it. Two tab stops for one control would be noise.
+              tabIndex={track === tr.key ? 0 : -1}
+              onKeyDown={onTrackKey}
+              onClick={() => chooseTrack(tr.key)}
+              className={`text-left rounded-xl border px-4 py-2.5 transition
+                          focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 ${
+                track === tr.key
+                  ? "border-gold/50 bg-goldDim"
+                  : "border-borderSoft bg-surface hover:border-gold/30"
+              }`}
+            >
+              <span className={`block text-[13.5px] font-semibold ${track === tr.key ? "text-gold" : "text-ink"}`}>
+                {t(tr.label)}
+              </span>
+              <span className="block text-[11px] text-inkMuted">{t(tr.blurb)}</span>
+            </button>
+          ))}
         </div>
 
         {loadError && <p className="text-red-400 text-sm">{loadError}</p>}
 
         <div className="mb-6 max-w-md">
-          <ProgressRing done={completed.length} total={lessons.length} />
+          <ProgressRing done={trackProgress.done} total={trackProgress.total} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 items-start">
           {/* Curriculum */}
-          <nav className="bg-surface border border-borderSoft rounded-2xl p-4 space-y-4">
+          <nav
+            id="track-curriculum"
+            role="tabpanel"
+            aria-labelledby={`track-tab-${track}`}
+            className="bg-surface border border-borderSoft rounded-2xl p-4 space-y-4"
+          >
             {byModule.map((mod) => (
               <div key={mod.module}>
                 <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-2">
@@ -154,7 +281,7 @@ export default function LearnPage() {
                   {mod.items.map((l) => (
                     <li key={l.id}>
                       <button
-                        onClick={() => setActiveId(l.id)}
+                        onClick={() => openLesson(l)}
                         className={`w-full text-left px-2.5 py-2 rounded-lg text-[12.5px] leading-snug transition flex items-start gap-2 ${
                           l.id === activeId
                             ? "bg-goldDim text-gold"
@@ -223,7 +350,7 @@ export default function LearnPage() {
                 </button>
                 {result?.passed && nextLesson && (
                   <button
-                    onClick={() => setActiveId(nextLesson.id)}
+                    onClick={() => openLesson(nextLesson)}
                     className="text-sm text-inkMuted hover:text-gold transition-colors"
                   >
                     Next: {nextLesson.title} →

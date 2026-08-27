@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { authErrorMessage } from "../utils/apiError";
 import PasswordField from "../components/PasswordField";
 import { useT } from "../i18n";
+import LanguageToggle from "../components/LanguageToggle";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 
 export default function LoginPage() {
@@ -78,7 +79,12 @@ export default function LoginPage() {
       </div>
 
       {/* Form panel */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+      <div className="relative flex-1 flex items-center justify-center px-6 py-12">
+        {/* The first screen the product shows anyone, and until now the one
+            place a Nepali writer could not choose Nepali — the switcher was
+            inside the signed-in account menu. */}
+        <LanguageToggle variant="inline" className="absolute top-5 right-5" />
+
         <div className="w-full max-w-sm animate-fade-up">
           <div className="lg:hidden text-center mb-10">
             <span className="wordmark text-base">BAAKHAPAA</span>

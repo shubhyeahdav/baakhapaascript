@@ -41,25 +41,34 @@ def _save_progress(user_id: str, completed: list):
 
 
 @router.get("/lessons")
-def list_lessons(user_id: str = Depends(get_current_user)):
+def list_lessons(lang: str = "en", user_id: str = Depends(get_current_user)):
     """The whole curriculum plus this user's progress. Free on every tier —
     the exercises are graded by the linter, which costs nothing to run."""
     done = _progress(user_id)
-    items = lessons.curriculum(done)
+    items = lessons.curriculum(done, lang)
     return {
         "lessons": items,
         "completed": done,
         "total": len(items),
-        "modules": list(dict.fromkeys(l["module"] for l in items)),
+        # Two tracks: "pen" (the script page) and "story" (what the page is
+        # for). The Learn page splits its curriculum on this, so modules are
+        # reported per track — a flat list mixing both was ambiguous the moment
+        # a module stopped being unique to one course.
+        "tracks": {
+            track: list(dict.fromkeys(
+                l["module"] for l in items if l["track"] == track
+            ))
+            for track in dict.fromkeys(l["track"] for l in items)
+        },
     }
 
 
 @router.get("/lessons/{lesson_id}")
-def get_lesson(lesson_id: str, user_id: str = Depends(get_current_user)):
+def get_lesson(lesson_id: str, lang: str = "en", user_id: str = Depends(get_current_user)):
     lesson = lessons.LESSONS_BY_ID.get(lesson_id)
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
-    return lessons.public_lesson(lesson, _progress(user_id))
+    return lessons.public_lesson(lesson, _progress(user_id), lang)
 
 
 @router.post("/lessons/{lesson_id}/submit")
@@ -85,7 +94,7 @@ def submit_lesson(lesson_id: str, body: LessonSubmission,
 
 
 @router.get("/for-rule/{rule}")
-def lesson_for_rule(rule: str, user_id: str = Depends(get_current_user)):
+def lesson_for_rule(rule: str, lang: str = "en", user_id: str = Depends(get_current_user)):
     """Which lesson teaches the fix for a linter rule.
 
     Lets a flag in the editor offer "learn this" instead of only naming the
@@ -95,4 +104,4 @@ def lesson_for_rule(rule: str, user_id: str = Depends(get_current_user)):
     lesson_id = lessons.RULE_TO_LESSON.get(rule)
     if not lesson_id:
         raise HTTPException(status_code=404, detail="No lesson covers that rule")
-    return lessons.public_lesson(lessons.LESSONS_BY_ID[lesson_id], _progress(user_id))
+    return lessons.public_lesson(lessons.LESSONS_BY_ID[lesson_id], _progress(user_id), lang)

@@ -32,6 +32,15 @@ export const STRINGS = {
     "Sign out": "साइन आउट",
     "Pricing & plan": "मूल्य र योजना",
 
+    // --- the course ------------------------------------------------------
+    "The Pen": "कलम",
+    "the script page": "स्क्रिप्टको पाना",
+    "The Story": "कथा",
+    "what the page is for": "पाना केका लागि हो",
+    "Write your first short": "आफ्नो पहिलो छोटो फिल्म लेख्नुहोस्",
+    "Two tracks. Every lesson ends in you writing something the app checks.":
+      "दुई बाटा। हरेक पाठको अन्त्यमा तपाईं केही लेख्नुहुन्छ, जुन एपले जाँच्छ।",
+
     // --- sign in / sign up ----------------------------------------------
     "Welcome back": "फेरि स्वागत छ",
     "Sign in to your studio": "आफ्नो स्टुडियोमा साइन इन गर्नुहोस्",
@@ -44,6 +53,12 @@ export const STRINGS = {
     "Full Name": "पूरा नाम",
     "Confirm Password": "पासवर्ड पुष्टि गर्नुहोस्",
     "Already have an account?": "पहिले नै खाता छ?",
+    "By creating an account you agree to our": "खाता बनाएर तपाईं हाम्रो",
+    "Terms of Use": "प्रयोगका सर्तहरू",
+    "Privacy Policy": "गोपनीयता नीति",
+    and: "र",
+    "Your script text is stored without application-level encryption and is sent to our AI providers when you ask for generation.":
+      "तपाईंको स्क्रिप्ट एप-स्तरको इन्क्रिप्सन बिना राखिन्छ, र तपाईंले लेखाउन खोज्दा हाम्रा एआई सेवाहरूमा पठाइन्छ मा सहमत हुनुहुन्छ।",
     Show: "देखाउनुहोस्",
     Hide: "लुकाउनुहोस्",
     "Passwords match": "पासवर्ड मिल्यो",

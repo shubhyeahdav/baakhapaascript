@@ -62,6 +62,11 @@ export const projects = {
   setMemberRole: (id, userId, role) =>
     instance.put(`/projects/${id}/members/${userId}`, { role }),
   removeMember: (id, userId) => instance.delete(`/projects/${id}/members/${userId}`),
+  // Invitations to people who have not registered yet. No email is sent — the
+  // inviter passes the link on themselves, which in this market is far more
+  // likely to be WhatsApp than mail.
+  invites: (id) => instance.get(`/projects/${id}/invites`),
+  revokeInvite: (id, inviteId) => instance.delete(`/projects/${id}/invites/${inviteId}`),
 };
 
 export const scripts = {
@@ -139,11 +144,16 @@ export const comments = {
 };
 
 export const learn = {
-  lessons: () => instance.get("/learn/lessons"),
-  lesson: (id) => instance.get(`/learn/lessons/${id}`),
+  // The course is translated too, not just the chrome around it. `lang` is
+  // passed explicitly rather than read from a header so a caller can ask for a
+  // specific language — the editor's "learn this" link wants the language the
+  // writer is reading the app in, which is not necessarily the browser's.
+  lessons: (lang = "en") => instance.get("/learn/lessons", { params: { lang } }),
+  lesson: (id, lang = "en") => instance.get(`/learn/lessons/${id}`, { params: { lang } }),
   // Graded by the craft linter, so the verdict is deterministic and free.
   submit: (id, content) => instance.post(`/learn/lessons/${id}/submit`, { content }),
-  forRule: (rule) => instance.get(`/learn/for-rule/${rule}`),
+  forRule: (rule, lang = "en") =>
+    instance.get(`/learn/for-rule/${rule}`, { params: { lang } }),
 };
 
 export const subscription = {
