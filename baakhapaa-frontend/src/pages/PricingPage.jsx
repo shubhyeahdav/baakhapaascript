@@ -9,15 +9,24 @@ const TIERS = [
     name: "Free",
     price: "Rs. 0",
     period: "forever",
-    tagline: "For writers testing the waters",
+    tagline: "Everything you need to write and finish one script",
     cta: "Start Writing",
     highlight: false,
+    // These are what the free tier ACTUALLY gets, checked against the code
+    // rather than against an old plan: nothing here is behind `require_tier`
+    // or `require_paid_tier`. The previous list named five things and omitted
+    // the course, the linter, the benchmark and Final Draft export — it sold
+    // the free tier as a trial when it is a usable product, which costs
+    // signups at the top of the funnel.
     features: [
-      "1 active project",
-      "Pattern-based structure starter",
-      "Structural recommendations while writing",
-      "Script editor with auto-save",
-      "PDF export",
+      "3 active projects",
+      "The full course — both tracks, 19 lessons, graded",
+      "Craft linter: line-by-line notes as you write",
+      "Benchmark your draft's shape against the corpus",
+      "Structure starter, scene index, corkboard and outline",
+      "Version history, diffs and comments",
+      "Export to PDF and Final Draft (.fdx)",
+      "Share a project with up to 2 collaborators",
     ],
   },
   {
@@ -25,16 +34,20 @@ const TIERS = [
     name: "Pro",
     price: "Rs. 999",
     period: "per month",
-    tagline: "For serious storytellers",
+    tagline: "For writers who want the AI doing the heavy lifting",
     cta: "Go Pro",
     highlight: true,
+    // The real paid line: everything that costs an API call, plus the project
+    // cap and the two heavier exports. "Version history & restore" was listed
+    // here and is free — claiming a free feature as paid makes the whole list
+    // untrustworthy.
     features: [
-      "Unlimited projects",
-      "AI three-act structure generator",
-      "Full AI scene generation & rewrites",
-      "AI storyboard frames",
-      "Word & production package exports",
-      "Version history & restore",
+      "Everything in Free, with unlimited projects",
+      "Up to 5 collaborators per project",
+      "AI scene generation, rewrites and suggestions",
+      "AI storyboard frames from your scenes",
+      "Word and production-package exports",
+      "Structure generation grounded in the craft corpus",
     ],
   },
   {
@@ -45,12 +58,19 @@ const TIERS = [
     tagline: "For production teams",
     cta: "Go Studio",
     highlight: false,
+    // Studio now buys something. It previously did not: `PAID_TIERS` held both
+    // paid tiers and nothing branched on studio, so it cost Rs 1,500/month more
+    // than Pro for nothing — while promising real-time collaboration that had
+    // been descoped and a ten-seat cap no code enforced.
+    //
+    // `membership.SEAT_LIMITS` is the differentiator, and it is enforced
+    // server-side against the project OWNER's plan. Every line below is a thing
+    // the build actually does.
     features: [
       "Everything in Pro",
-      "Real-time collaboration",
-      "Comment threads & review notes",
-      "Up to 10 team members",
-      "Priority support",
+      "Unlimited collaborators per project",
+      "Roles per project — who can write, who can only read",
+      "Line-anchored comments, attributed to whoever left them",
     ],
   },
 ];

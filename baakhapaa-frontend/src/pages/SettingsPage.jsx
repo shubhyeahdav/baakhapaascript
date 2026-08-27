@@ -39,9 +39,10 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   // ?tab=team lets the Team nav item deep-link straight to the right tab.
   const [params] = useSearchParams();
-  const deepLink = TABS.find(
-    (t) => t.toLowerCase().replace(/\s+/g, "") === (params.get("tab") || "").toLowerCase()
-  );
+  // Both sides get the same normalisation, so "?tab=teammembers",
+  // "?tab=team%20members" and "?tab=team+members" all land on Team Members.
+  const wanted = (params.get("tab") || "").toLowerCase().replace(/\s+/g, "");
+  const deepLink = TABS.find((t) => t.toLowerCase().replace(/\s+/g, "") === wanted);
   const [tab, setTab] = useState(deepLink || "Account");
   const [stats, setStats] = useState(null);
 

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { scripts, learn } from "../services/api";
+import { useLanguage } from "../i18n";
 
 /**
  * The free tier's craft feedback: deterministic lint flags plus a corpus
@@ -60,6 +61,10 @@ function WhyThis({ rule }) {
   const [open, setOpen] = useState(false);
   const [lesson, setLesson] = useState(null);
   const [state, setState] = useState("idle");
+  // The lesson behind a flag is translated like the rest of the course. A
+  // Nepali interface that answers "why this matters" in English is the gap
+  // this product can least afford.
+  const { lang } = useLanguage();
 
   const toggle = async () => {
     if (open) return setOpen(false);
@@ -67,7 +72,7 @@ function WhyThis({ rule }) {
     if (lesson || state === "loading") return;
     setState("loading");
     try {
-      const res = await learn.forRule(rule);
+      const res = await learn.forRule(rule, lang);
       setLesson(res.data);
       setState("done");
     } catch {
@@ -329,6 +334,30 @@ export default function CraftPanel({ content, genre, tone }) {
               Shape vs corpus
             </div>
             <Benchmark data={bench} />
+          </div>
+
+          {/* The way into the story track.
+              The linter reads pages and the benchmark reads shape; neither can
+              tell a writer their midpoint does not flip or their protagonist
+              never chooses anything. Those are read, not measured — so the
+              story track cannot wait to be summoned by a flag the way pen
+              lessons can, and needs a door. Saying plainly what this panel
+              cannot see is also the honest framing: a tool that implied its
+              silence meant the story was fine would be lying. */}
+          <div className="pt-1">
+            <a
+              href="/learn?track=story"
+              className="block rounded-xl border border-borderSoft bg-elevated/40 p-3
+                         hover:border-gold/40 transition-colors"
+            >
+              <p className="text-[12px] text-inkSoft leading-snug">
+                These checks read your <span className="text-ink">pages</span>.
+                They cannot see whether the story works.
+              </p>
+              <p className="text-[11.5px] text-gold mt-1">
+                The Story track →
+              </p>
+            </a>
           </div>
 
           {lint?.statistics && (
