@@ -105,21 +105,82 @@ def list_members(project: dict) -> list:
     return members
 
 
+# Collaborators a project may carry, by the OWNER's plan.
+#
+# This is what Studio buys. Until 2026-08-26 `PAID_TIERS = ("pro", "studio")`
+# and nothing anywhere branched on studio, so it cost Rs 1,500/month more than
+# Pro for exactly nothing — while its pricing copy promised real-time
+# collaboration that had been descoped and a ten-seat cap that no code
+# enforced. A tier has to mean something or it should not be sold.
+#
+# Seats are the honest differentiator because they are the axis on which a
+# production company genuinely differs from a writer: the work is the same, the
+# number of people around it is not. The cap counts collaborators, not the
+# owner — a solo writer is never blocked by it, on any plan.
+SEAT_LIMITS = {"free": 2, "pro": 5, "studio": None}  # None = unlimited
+
+
+def seat_limit(tier: str):
+    """Collaborators allowed on a project owned by someone on `tier`."""
+    return SEAT_LIMITS.get(tier, SEAT_LIMITS["free"])
+
+
+def enforce_seat_limit(project: dict, pending: int = 0):
+    """Raise 402 when a project is already at its owner's collaborator cap.
+
+    Charged against the OWNER's plan, not the caller's: the project is the
+    owner's, and an admin they invited should not be able to spend seats the
+    owner is not paying for.
+
+    `pending` counts invitations sent to people who have not registered yet.
+    They occupy a seat from the moment they are sent — otherwise a free project
+    could invite fifty people and only meet the cap as they arrived one by one,
+    which is a cap that does nothing at the moment it is being exceeded.
+    """
+    from payments import effective_tier
+    from database import get_user_by_id
+
+    owner = get_user_by_id(project.get("user_id")) or {}
+    limit = seat_limit(effective_tier(owner))
+    if limit is None:
+        return
+
+    current = len(list_members(project)) - 1 + pending  # the owner takes no seat
+    if current >= limit:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"This project is at its limit of {limit} collaborators. "
+                "Studio removes the cap — see /pricing."
+            ),
+        )
+
+
 def add_member(project: dict, email: str, role: str) -> dict:
     from database import get_user_by_email
 
     if role not in ROLES:
         raise HTTPException(status_code=400, detail=f"Role must be one of: {', '.join(ROLES)}.")
 
+    enforce_seat_limit(project)
+
     user = get_user_by_email((email or "").strip().lower())
     if not user:
-        # No invitation email exists yet, so be explicit rather than silently
-        # creating a membership pointing at nobody.
-        raise HTTPException(
-            status_code=404,
-            detail="No account with that email. They need to register first — "
-                   "invitations by email aren't built yet.",
-        )
+        # Not an error any more. An address with no account becomes a pending
+        # invitation and a link the inviter passes on themselves — see
+        # `invites.py` for why no mail is sent. Imported here rather than at
+        # module scope because `invites` imports this module back.
+        import invites
+
+        invite = invites.create(project, email, role, invited_by=project.get("user_id"))
+        return {
+            "pending": True,
+            "invite_id": invite["id"],
+            "email": invite["email"],
+            "role": invite["role"],
+            "token": invite["token"],
+            "owner": False,
+        }
     if user["id"] == project.get("user_id"):
         raise HTTPException(status_code=400, detail="The owner already has full access.")
     if get_membership(project["id"], user["id"]):

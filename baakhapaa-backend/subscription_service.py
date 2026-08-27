@@ -172,4 +172,18 @@ def handle_webhook(payload: bytes, sig_header: str) -> dict:
             return {"status": "updated", "user_id": record["user_id"],
                     "tier": result["tier"]}
 
+        # A VERIFIED completed checkout whose reference matches no row of ours.
+        # Stripe signed this, so somebody really paid — and returning 200 tells
+        # Stripe the event was handled, so it stops retrying. Whatever went
+        # wrong (a webhook that beat the `payments` insert, a row written
+        # against another environment's database), the money moved and the tier
+        # did not. That has to leave a trace a human can find.
+        print(
+            "WARNING: verified checkout.session.completed for unknown reference "
+            f"{reference!r} (stripe session {session.get('id')!r}). Payment was "
+            "taken and no tier was granted — reconcile this by hand."
+        )
+        return {"status": "ignored", "reason": "unknown reference",
+                "reference": reference}
+
     return {"status": "ignored", "event": event["type"]}

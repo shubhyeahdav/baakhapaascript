@@ -343,6 +343,11 @@ def purge_projects(project_ids) -> dict:
         ("comments", "script_id", script_ids),
         ("scripts", "project_id", project_ids),
         ("project_members", "project_id", project_ids),
+        # Unclaimed invitations go with the project too. Leaving them would let
+        # an invite to a deleted project be claimed later by whoever registers
+        # with that address, granting membership of nothing — and it keeps an
+        # email address on file after the erasure that was supposed to remove it.
+        ("project_invites", "project_id", project_ids),
         ("projects", "id", project_ids),
     )
 

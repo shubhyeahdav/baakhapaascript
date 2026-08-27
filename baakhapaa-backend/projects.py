@@ -1,14 +1,26 @@
 from fastapi import APIRouter, HTTPException, Depends
 from models import ProjectCreate, MemberCreate, MemberRoleUpdate
 from database import supabase, purge_projects
+import invites
 import membership
 from auth import get_current_user, is_paid_tier, require_project_access
 from updates import apply_whitelist
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
-# Free plan allowance, matching the pricing page ("1 active project").
-FREE_PROJECT_LIMIT = 1
+# Free plan allowance.
+#
+# Raised from 1 to 3 on 2026-08-26, because 1 collided with the product's own
+# course. The course ends by asking the writer to produce a complete short — so
+# a free account that finished it had spent its entire allowance and could
+# never start the thing it had just been taught to write. That is the moment a
+# writer is most persuaded and least able to act, which is the worst possible
+# place to put a wall.
+#
+# Three is deliberate rather than generous: a finished script, a work in
+# progress, and somewhere to try something. Still obviously bounded against
+# Pro's unlimited.
+FREE_PROJECT_LIMIT = 3
 
 
 def enforce_project_limit(user_id: str):
@@ -21,7 +33,7 @@ def enforce_project_limit(user_id: str):
         raise HTTPException(
             status_code=402,
             detail=(
-                f"The free plan includes {FREE_PROJECT_LIMIT} active project. "
+                f"The free plan includes {FREE_PROJECT_LIMIT} active projects. "
                 "Upgrade at /pricing to create more."
             ),
         )
@@ -142,6 +154,28 @@ def set_member_role(project_id: str, member_user_id: str, req: MemberRoleUpdate,
                     user_id: str = Depends(get_current_user)):
     project = require_project_access(project_id, user_id, minimum=membership.ADMIN)
     return membership.set_role(project, member_user_id, req.role)
+
+
+@router.get("/{project_id}/invites")
+def list_invites(project_id: str, user_id: str = Depends(get_current_user)):
+    """Invitations sent to people who have not registered yet.
+
+    Viewer-readable, like the member list: knowing who else has been asked onto
+    a script you are working on is not privileged.
+    """
+    require_project_access(project_id, user_id, minimum=membership.VIEWER)
+    return {"invites": [
+        {k: v for k, v in i.items() if k != "invited_by"}
+        for i in invites.pending_for_project(project_id)
+    ]}
+
+
+@router.delete("/{project_id}/invites/{invite_id}")
+def revoke_invite(project_id: str, invite_id: str,
+                  user_id: str = Depends(get_current_user)):
+    require_project_access(project_id, user_id, minimum=membership.ADMIN)
+    invites.revoke(project_id, invite_id)
+    return {"success": True}
 
 
 @router.delete("/{project_id}/members/{member_user_id}")

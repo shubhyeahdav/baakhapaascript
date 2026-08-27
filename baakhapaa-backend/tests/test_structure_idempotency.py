@@ -7,6 +7,7 @@ made the project wizard's two-call create fragile: a free user whose structure
 call failed had already spent their one-project allowance, so retrying returned
 402 and the account was stuck with an empty project.
 """
+import projects
 from database import supabase
 
 PROJECT = {
@@ -72,15 +73,26 @@ def test_regenerating_a_structure_never_discards_the_draft(client, make_user):
     assert reopened["content"] == draft
 
 
-def test_the_wizard_can_recover_after_a_failed_structure_call(client, make_user):
-    """A free user gets ONE project. If the structure call fails, opening the
-    project must still work rather than stranding them behind a 402."""
-    user = make_user("free")
-    project_id = client.post("/projects/", json=PROJECT, headers=user["headers"]).json()["id"]
+def test_a_project_at_the_free_allowance_can_still_be_opened(client, make_user):
+    """Spending the last of the free allowance must not strand the writer.
 
-    # Second create is refused — the allowance is spent, exactly as it would be
-    # after a structure failure.
-    assert client.post("/projects/", json=PROJECT, headers=user["headers"]).status_code == 402
+    The wizard used to generate a structure right after creating the project,
+    so a failure there left a project that existed, had consumed an allowance
+    slot, and could not be reached by creating another. The wizard no longer
+    generates anything (structure is asked for from inside the editor), but the
+    property still matters: a writer at their limit has to be able to open what
+    they already own.
+    """
+    user = make_user("free")
+    project_id = client.post("/projects/", json=PROJECT,
+                             headers=user["headers"]).json()["id"]
+    for i in range(projects.FREE_PROJECT_LIMIT - 1):
+        client.post("/projects/", json={**PROJECT, "title": f"Filler {i}"},
+                    headers=user["headers"])
+
+    # The allowance is now spent.
+    assert client.post("/projects/", json=PROJECT,
+                       headers=user["headers"]).status_code == 402
 
     opened = client.get(f"/scripts/project/{project_id}", headers=user["headers"])
     assert opened.status_code == 200

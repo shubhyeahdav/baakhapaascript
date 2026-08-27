@@ -220,7 +220,20 @@ def register(request: Request, user: UserCreate):
             status_code=400, detail="Could not create account. Try a different email."
         ) from None
 
-    return _user_response(result.data[0])
+    created = result.data[0]
+
+    # Anyone who was invited before they had an account gets those projects the
+    # moment the account exists. Never allowed to fail the registration: a
+    # person who has just chosen a password must not be told their account
+    # could not be created because a project they were invited to is gone.
+    try:
+        import invites
+
+        invites.claim_for_user(created)
+    except Exception as e:  # noqa: BLE001
+        print(f"WARNING: invite claim failed for {created.get('id')!r}: {e}")
+
+    return _user_response(created)
 
 
 @router.post("/login")

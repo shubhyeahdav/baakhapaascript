@@ -52,6 +52,16 @@ else:
     )
     print("WARNING: CORS allows any localhost port (dev default). Set CORS_ORIGINS before deploying.")
 
+# What an invitation link is for, readable without an account — the recipient
+# has to be able to see what they are being asked to join BEFORE deciding to
+# register. Returns the project title and role only: never the script, never
+# anything identifying other members.
+@app.get("/invites/{token}", tags=["invites"])
+def describe_invite(token: str):
+    import invites
+    return invites.describe(token)
+
+
 app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(scripts.router)

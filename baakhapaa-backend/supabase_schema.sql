@@ -186,6 +186,31 @@ CREATE TABLE project_members (
 CREATE INDEX idx_project_members_user ON project_members(user_id);
 
 
+-- Invitations to people who do not have an account yet.
+--
+-- Sharing previously required both people to have already found the product
+-- and registered, so collaboration could never START with someone who had not
+-- heard of Baakhapaa. An invite records the intent; the membership row is
+-- created when that address registers.
+--
+-- The membership is granted by EMAIL, never by the token. The token only lets
+-- the link explain itself before signup — a link that granted access on its own
+-- would be a bearer token in a forwarded chat message.
+CREATE TABLE IF NOT EXISTS project_invites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,                      -- stored lowercased, like users.email
+  role TEXT NOT NULL CHECK (role IN ('admin', 'editor', 'viewer')),
+  token TEXT NOT NULL UNIQUE,
+  invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  claimed_at TIMESTAMPTZ,
+  claimed_by UUID REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_project_invites_email ON project_invites(lower(email));
+CREATE INDEX IF NOT EXISTS idx_project_invites_project ON project_invites(project_id);
+
+
 -- Payments.
 --
 -- A row is written BEFORE the user is sent to the gateway, and this is the
@@ -242,6 +267,7 @@ BEGIN
   DELETE FROM versions WHERE script_id IN (SELECT id FROM scripts WHERE project_id = ANY(project_ids));
   DELETE FROM comments WHERE script_id IN (SELECT id FROM scripts WHERE project_id = ANY(project_ids));
   DELETE FROM scripts         WHERE project_id = ANY(project_ids);
+  DELETE FROM project_invites WHERE project_id = ANY(project_ids);
   DELETE FROM project_members WHERE project_id = ANY(project_ids);
   DELETE FROM projects        WHERE id         = ANY(project_ids);
 END;

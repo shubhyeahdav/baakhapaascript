@@ -238,16 +238,25 @@ class TestMemberManagement:
         assert client.get(f"/scripts/{script_id}",
                           headers=member["headers"]).status_code == 404
 
-    def test_an_unknown_email_is_refused_clearly(self, client, make_user):
-        """There is no invitation email yet, so say so rather than creating a
-        membership pointing at nobody."""
+    def test_an_unknown_email_becomes_an_invitation(self, client, make_user):
+        """Superseded 2026-08-27.
+
+        This used to assert a 404 — "they need to register first" — which meant
+        collaboration could never START with somebody who had not already found
+        the product and signed up. An unknown address now becomes a pending
+        invitation instead. `tests/test_invites.py` covers that path properly;
+        this keeps the old entry point honest about what it does now.
+        """
         owner = make_user("free")
-        project_id = client.post("/projects/", json=PROJECT, headers=owner["headers"]).json()["id"]
+        project_id = client.post("/projects/", json=PROJECT,
+                                 headers=owner["headers"]).json()["id"]
+
         r = client.post(f"/projects/{project_id}/members",
-                        json={"email": "nobody@example.com", "role": "editor"},
+                        json={"email": "nobody-yet@example.com", "role": "editor"},
                         headers=owner["headers"])
-        assert r.status_code == 404
-        assert "register first" in r.json()["detail"]
+
+        assert r.status_code == 200, r.text
+        assert r.json()["pending"] is True
 
     def test_adding_the_same_person_twice_is_refused(self, client, shared):
         owner, member, project_id, _ = shared("editor")
@@ -296,3 +305,121 @@ class TestMemberManagement:
         r = client.post("/projects/", json={**PROJECT, "title": "My own"},
                         headers=reader["headers"])
         assert r.status_code == 200, "a shared project should not count against the free limit"
+
+
+class TestSeatLimits:
+    """What Studio actually buys (2026-08-26).
+
+    Until this commit `PAID_TIERS = ("pro", "studio")` and nothing branched on
+    studio — it cost Rs 1,500/month more than Pro for nothing, while promising
+    real-time collaboration that had been descoped and a ten-seat cap no code
+    enforced. Seats are the honest differentiator: a production company differs
+    from a lone writer in how many people are around the work, not in the work.
+
+    The cap counts collaborators, never the owner, so a solo writer is never
+    blocked by it on any plan.
+    """
+
+    def test_a_solo_writer_is_never_blocked(self, client, make_user):
+        """The owner does not occupy one of their own seats."""
+        owner = make_user("free")
+        project_id = client.post("/projects/", json=PROJECT,
+                                 headers=owner["headers"]).json()["id"]
+
+        r = client.get(f"/projects/{project_id}/members", headers=owner["headers"])
+
+        assert r.status_code == 200, r.text
+        assert len(r.json()["members"]) == 1
+
+    def test_free_stops_at_two_collaborators(self, client, make_user):
+        owner = make_user("free")
+        project_id = client.post("/projects/", json=PROJECT,
+                                 headers=owner["headers"]).json()["id"]
+
+        for _ in range(2):
+            guest = make_user()
+            r = client.post(f"/projects/{project_id}/members",
+                            json={"email": guest["email"], "role": "viewer"},
+                            headers=owner["headers"])
+            assert r.status_code == 200, r.text
+
+        third = make_user()
+        r = client.post(f"/projects/{project_id}/members",
+                        json={"email": third["email"], "role": "viewer"},
+                        headers=owner["headers"])
+
+        assert r.status_code == 402, r.text
+        assert "Studio" in r.json()["detail"]
+
+    def test_studio_has_no_cap(self, client, make_user):
+        """The whole point of the tier."""
+        owner = make_user("studio")
+        project_id = client.post("/projects/", json=PROJECT,
+                                 headers=owner["headers"]).json()["id"]
+
+        for _ in range(6):
+            guest = make_user()
+            r = client.post(f"/projects/{project_id}/members",
+                            json={"email": guest["email"], "role": "editor"},
+                            headers=owner["headers"])
+            assert r.status_code == 200, r.text
+
+    def test_pro_sits_between_the_two(self, client, make_user):
+        owner = make_user("pro")
+        project_id = client.post("/projects/", json=PROJECT,
+                                 headers=owner["headers"]).json()["id"]
+
+        for _ in range(5):
+            guest = make_user()
+            assert client.post(f"/projects/{project_id}/members",
+                               json={"email": guest["email"], "role": "viewer"},
+                               headers=owner["headers"]).status_code == 200
+
+        sixth = make_user()
+        r = client.post(f"/projects/{project_id}/members",
+                        json={"email": sixth["email"], "role": "viewer"},
+                        headers=owner["headers"])
+
+        assert r.status_code == 402, r.text
+
+    def test_the_cap_follows_the_owner_not_the_inviter(self, client, make_user):
+        """An admin the owner invited must not be able to spend seats the owner
+        is not paying for."""
+        owner = make_user("free")
+        project_id = client.post("/projects/", json=PROJECT,
+                                 headers=owner["headers"]).json()["id"]
+
+        admin = make_user("studio")
+        client.post(f"/projects/{project_id}/members",
+                    json={"email": admin["email"], "role": "admin"},
+                    headers=owner["headers"])
+
+        second = make_user()
+        client.post(f"/projects/{project_id}/members",
+                    json={"email": second["email"], "role": "viewer"},
+                    headers=admin["headers"])
+
+        third = make_user()
+        r = client.post(f"/projects/{project_id}/members",
+                        json={"email": third["email"], "role": "viewer"},
+                        headers=admin["headers"])
+
+        assert r.status_code == 402, r.text
+
+    def test_402_not_403_because_the_fix_is_to_upgrade(self, client, make_user):
+        """Same reasoning as the project limit: the request is well-formed."""
+        owner = make_user("free")
+        project_id = client.post("/projects/", json=PROJECT,
+                                 headers=owner["headers"]).json()["id"]
+        for _ in range(2):
+            guest = make_user()
+            client.post(f"/projects/{project_id}/members",
+                        json={"email": guest["email"], "role": "viewer"},
+                        headers=owner["headers"])
+
+        blocked = make_user()
+        r = client.post(f"/projects/{project_id}/members",
+                        json={"email": blocked["email"], "role": "viewer"},
+                        headers=owner["headers"])
+
+        assert r.status_code == 402
