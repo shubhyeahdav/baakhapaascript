@@ -407,7 +407,7 @@ describe("the statistics strip", () => {
     });
     show();
 
-    expect(await screen.findByText("scenes")).toBeInTheDocument();
+    expect(await screen.findByText("Scenes")).toBeInTheDocument();
     expect(screen.getByText("9")).toBeInTheDocument();
     expect(screen.getByText("0.6")).toBeInTheDocument();
   });
@@ -421,15 +421,43 @@ describe("the statistics strip", () => {
     });
     show();
 
-    await screen.findByText("scenes");
-    expect(screen.queryByText("dialogue/action")).not.toBeInTheDocument();
+    await screen.findByText("Scenes");
+    expect(screen.queryByText(/dialogue per action/i)).not.toBeInTheDocument();
+  });
+
+  it("says 'under 1' rather than 0.24 of a page", async () => {
+    // A page is the unit of screen time in this craft, and nobody counts it in
+    // hundredths. The raw float implied a precision a line-count estimate does
+    // not have.
+    scripts.lint.mockResolvedValue({
+      data: {
+        ...EMPTY_LINT,
+        statistics: { scene_count: 1, estimated_pages: 0.24, character_count: 2, dialogue_action_ratio: 2 },
+      },
+    });
+    show();
+
+    expect(await screen.findByText("under 1")).toBeInTheDocument();
+    expect(screen.queryByText("0.24")).not.toBeInTheDocument();
+  });
+
+  it("keeps a real page count readable", async () => {
+    scripts.lint.mockResolvedValue({
+      data: {
+        ...EMPTY_LINT,
+        statistics: { scene_count: 9, estimated_pages: 14.4, character_count: 4, dialogue_action_ratio: 0.6 },
+      },
+    });
+    show();
+
+    expect(await screen.findByText("14")).toBeInTheDocument();
   });
 
   it("shows nothing when the linter returns no statistics", async () => {
     show();
 
     await screen.findByText("Nothing flagged in this draft.");
-    expect(screen.queryByText("scenes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Scenes")).not.toBeInTheDocument();
   });
 });
 

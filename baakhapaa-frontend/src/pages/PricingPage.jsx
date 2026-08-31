@@ -22,6 +22,10 @@ const TIERS = [
       "3 active projects",
       "The full course — both tracks, 19 lessons, graded",
       "Craft linter: line-by-line notes as you write",
+      // The linter finds it; this is what fixes it. Retrieval runs on local
+      // embeddings, so it costs nothing per call and works on every tier —
+      // which is exactly why it belongs in the free column and not the paid one.
+      "Craft patterns matched to what is wrong with your scene",
       "Benchmark your draft's shape against the corpus",
       "Structure starter, scene index, corkboard and outline",
       "Version history, diffs and comments",

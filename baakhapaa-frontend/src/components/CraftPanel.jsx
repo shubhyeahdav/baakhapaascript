@@ -272,6 +272,21 @@ function Benchmark({ data }) {
   );
 }
 
+/**
+ * Pages, the way a writer says them.
+ *
+ * `estimated_pages` arrives as a float and was printed raw, so a scene in
+ * progress read "0.24" — two decimal places of a unit nobody counts in
+ * fractions. A page is the unit of screen time in this craft; a quarter of one
+ * is "under a page", and pretending to hundredths implies a precision the
+ * line-count estimate does not have.
+ */
+function pageCount(n) {
+  if (n == null) return "—";
+  if (n < 1) return "under 1";
+  return n < 10 ? n.toFixed(1).replace(/\.0$/, "") : Math.round(n);
+}
+
 export default function CraftPanel({ content, genre, tone }) {
   const [lint, setLint] = useState(null);
   const [bench, setBench] = useState(null);
@@ -329,6 +344,36 @@ export default function CraftPanel({ content, genre, tone }) {
         <>
           <Flags byLevel={lint?.by_craft_level} counts={lint?.counts} />
 
+          {/* What the draft IS, before what it compares to. These four were
+              at the very bottom under the Story-track card, which put a link
+              between two blocks of measurement. Order now runs: what is wrong
+              -> what this draft is -> how it compares -> what none of it can
+              see. */}
+          {lint?.statistics && (
+            <div className="pt-1">
+              <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-2">
+                This draft
+              </div>
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+                <dt className="text-inkMuted">Scenes</dt>
+                <dd className="text-ink text-right tabular-nums">{lint.statistics.scene_count}</dd>
+                <dt className="text-inkMuted">Pages</dt>
+                <dd className="text-ink text-right tabular-nums">{pageCount(lint.statistics.estimated_pages)}</dd>
+                <dt className="text-inkMuted">Speaking parts</dt>
+                <dd className="text-ink text-right tabular-nums">{lint.statistics.character_count}</dd>
+                {lint.statistics.dialogue_action_ratio != null && (
+                  <>
+                    {/* "dialogue/action" read as a division. It is a balance. */}
+                    <dt className="text-inkMuted">Dialogue per action line</dt>
+                    <dd className="text-ink text-right tabular-nums">
+                      {lint.statistics.dialogue_action_ratio}
+                    </dd>
+                  </>
+                )}
+              </dl>
+            </div>
+          )}
+
           <div className="pt-1">
             <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-2">
               Shape vs corpus
@@ -360,21 +405,6 @@ export default function CraftPanel({ content, genre, tone }) {
             </a>
           </div>
 
-          {lint?.statistics && (
-            <div className="pt-1 border-t border-borderSoft">
-              <div className="grid grid-cols-2 gap-x-3 gap-y-1 pt-2.5 text-[10.5px] font-mono text-inkMuted">
-                <span>scenes</span><span className="text-inkSoft text-right">{lint.statistics.scene_count}</span>
-                <span>est. pages</span><span className="text-inkSoft text-right">{lint.statistics.estimated_pages}</span>
-                <span>speakers</span><span className="text-inkSoft text-right">{lint.statistics.character_count}</span>
-                {lint.statistics.dialogue_action_ratio != null && (
-                  <>
-                    <span>dialogue/action</span>
-                    <span className="text-inkSoft text-right">{lint.statistics.dialogue_action_ratio}</span>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>
