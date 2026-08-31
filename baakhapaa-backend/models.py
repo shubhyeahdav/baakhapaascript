@@ -323,6 +323,13 @@ class RecommendRequest(BaseModel):
     scene_text: str = ""
     genre: str = "Drama"
     tone: str = "Emotional"
+    # The symptom the writer is asking about ("my dialogue is on the nose"),
+    # separate from the draft. These MUST stay separate: the editor's focus
+    # chips used to be sent as `scene_text`, so the linter diagnosed the
+    # complaint sentence and the UI reported the result as "found in your
+    # draft, line 1" — a line in a string the writer never wrote. Diagnosis
+    # always reads scene_text; `focus` only steers semantic retrieval.
+    focus: str = ""
 
 class LessonSubmission(BaseModel):
     content: str = ""

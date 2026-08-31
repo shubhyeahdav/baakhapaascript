@@ -135,6 +135,13 @@ def recommendations(req: RecommendRequest, user_id: str = Depends(get_current_us
     Better still, a linter flag already names the technique that fixes it,
     because every rule was derived from a craft entry's `warning_sign`. Those
     come back by exact lookup; embeddings only fill the remaining slots.
+
+    `focus` and `scene_text` are different things and the distinction is
+    load-bearing. Diagnosis is always run against the DRAFT. A focus phrase
+    only redirects the semantic half. When the editor sent its focus chips as
+    `scene_text`, this endpoint dutifully linted the complaint itself and
+    returned a flag on line 1 of it, which the editor then displayed under the
+    heading "found in your draft".
     """
     text = req.scene_text or ""
     flags = linter.lint(text)
@@ -147,7 +154,11 @@ def recommendations(req: RecommendRequest, user_id: str = Depends(get_current_us
     #    corpus is embedded on rather than with the draft itself.
     patterns = list(diagnosed)
     if len(patterns) < RECOMMENDATION_COUNT:
-        if flags:
+        if req.focus:
+            # The writer named the problem. That is better evidence than
+            # anything inferred, and it is already in the corpus's register.
+            query = req.focus
+        elif flags:
             query = " ".join(f["message"] for f in ranked[:3])
         else:
             query = text[-1500:] or "starting a new scene"

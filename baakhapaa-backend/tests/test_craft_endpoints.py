@@ -124,3 +124,119 @@ def test_fdx_export_respects_ownership(client, make_user, make_script):
     _, script_id = make_script(owner)
     r = client.get(f"/export/script/fdx/{script_id}", headers=intruder["headers"])
     assert r.status_code == 404
+
+
+# --- diagnosis reads the draft, never the question -------------------------
+#
+# The editor's focus chips ("Feels flat", "On the nose") are complaints written
+# in the writer's voice, and they used to be sent as `scene_text` — the same
+# field the draft goes in. So choosing a chip replaced the draft with the
+# chip's own wording, the linter dutifully diagnosed THAT, and the panel
+# displayed the result under the heading "found in your draft, line 1". The
+# line it named was a line of a sentence the writer had never typed.
+#
+# These pin the separation. `focus` may steer retrieval; only `scene_text` may
+# ever be diagnosed.
+
+CLEAN = (
+    "INT. CHIYA PASAL - MORNING\n\n"
+    "Sanjana wipes the counter. Steam rises from the kettle.\n"
+)
+
+# Reads like a complaint about on-the-nose dialogue, and trips the linter's
+# interiority rule if you are careless enough to lint it.
+NOSE_COMPLAINT = (
+    "my dialogue is on the nose, characters say exactly what they feel, "
+    "it sounds like a therapy transcript with no subtext"
+)
+
+
+def test_a_focus_phrase_is_never_diagnosed_as_the_draft(client, make_user):
+    user = make_user("free")
+    r = client.post(
+        "/scripts/recommendations",
+        json={"scene_text": CLEAN, "focus": NOSE_COMPLAINT,
+              "genre": "Drama", "tone": "Emotional"},
+        headers=user["headers"],
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+
+    # The clean draft trips nothing, so there is nothing to report as found.
+    assert body["diagnosed"] == []
+    assert body["source"] == "similarity"
+
+
+def _seed_two_patterns():
+    """Two entries far apart in meaning, embedded for real.
+
+    Retrieval is the thing under test, so the embeddings have to come from the
+    same model the endpoint uses — a stub would prove only that the stub works.
+    """
+    import database, rag
+    rows = [
+        ("dialogue-fix", "dialogue",
+         "My dialogue is on the nose. Characters announce their feelings "
+         "instead of behaving, and every line sounds like a confession."),
+        ("structure-fix", "structure",
+         "My second act sags. The protagonist is passive, events happen to "
+         "them, and the ending is not earned by anything they chose."),
+    ]
+    for technique, level, problem in rows:
+        database.supabase.table(rag.TABLE).insert({
+            "id": f"focus-test-{technique}",
+            "title_ref": f"Ref for {technique}",
+            "genre": "Drama", "origin_tradition": "screen craft",
+            "craft_level": level, "technique": technique, "problem": problem,
+            "how_it_works": "Because it does.", "how_to_apply": "Do the thing.",
+            "worked_example": "Original prose.",
+            "warning_sign": "A sign.",
+            "embedding": rag.embed_texts([problem])[0],
+        }).execute()
+
+
+def test_the_focus_phrase_still_steers_what_comes_back(client, make_user):
+    """Separating the fields must not make the chips decorative again."""
+    user = make_user("free")
+    _seed_two_patterns()
+
+    def patterns_for(focus):
+        r = client.post(
+            "/scripts/recommendations",
+            json={"scene_text": CLEAN, "focus": focus,
+                  "genre": "Drama", "tone": "Emotional"},
+            headers=user["headers"],
+        )
+        assert r.status_code == 200, r.text
+        return [p["technique"] for p in r.json()["patterns"]]
+
+    dialogue = patterns_for(NOSE_COMPLAINT)
+    structure = patterns_for(
+        "the middle sags and the ending feels unearned, the protagonist is "
+        "passive and things just happen to them"
+    )
+    assert dialogue and structure
+    # The clean draft is identical in both calls, so any difference in what
+    # comes back can only have come from `focus`.
+    assert dialogue[0] == "dialogue-fix"
+    assert structure[0] == "structure-fix"
+
+
+def test_a_real_flag_in_the_draft_is_still_reported(client, make_user):
+    """The fix must not cost us the feature it protects."""
+    user = make_user("free")
+    r = client.post(
+        "/scripts/recommendations",
+        json={"scene_text": MELODRAMATIC, "genre": "Drama", "tone": "Emotional"},
+        headers=user["headers"],
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+
+    assert body["diagnosed"], "a melodramatic draft should diagnose something"
+    # NOT asserting `source` here: it reports whether a stored pattern matched
+    # the flagged technique, so it depends on `script_patterns` being loaded.
+    # Every reported line must be a real line of the submitted draft.
+    line_count = len(MELODRAMATIC.splitlines())
+    for d in body["diagnosed"]:
+        assert 1 <= d["line"] <= line_count

@@ -22,6 +22,19 @@ os.environ.pop("SUPABASE_KEY", None)
 # pins the offline simulation instead. Tests that care about the sandbox set
 # this themselves.
 os.environ["PAYMENT_SANDBOX"] = "false"
+# Same reasoning, for the AI providers. `script_engine` picks its provider at
+# import time from whether a real key is present, so the day a developer put
+# real keys in `.env` the suite silently started making live, billed calls —
+# and hung, because the SDK retries a failure before giving up. A unit test
+# must not spend money or depend on Anthropic being reachable. Tests that
+# exercise the real-provider branch set these themselves.
+# SET, do not pop. `load_dotenv()` only declines to overwrite a variable that
+# already exists, so popping these just lets the real .env refill them on the
+# next import — which is the trap this guard exists to close. The value is the
+# placeholder shape `script_engine._usable()` rejects.
+os.environ["ANTHROPIC_API_KEY"] = "your-anthropic-key-tests-never-call-out"
+os.environ["OPENAI_API_KEY"] = "your-openai-key-tests-never-call-out"
+os.environ["GROQ_API_KEY"] = "your-groq-key-tests-never-call-out"
 # ---------------------------------------------------------------------------
 
 import pytest  # noqa: E402
