@@ -45,8 +45,19 @@ import PageBreaks from "../components/PageBreaks";
 // One-click focuses for pattern recommendations. The pattern library is
 // indexed by the PROBLEM a technique solves, so each chip just names that
 // problem in the retrieval query — no extra endpoint, no extra cost.
+// `origin_tradition` is a real cinema for 12 of the 29 entries and filler for
+// the other 17. Rendering the filler puts a category-shaped word on the card
+// that carries nothing; rendering the real ones tells a writer in Kathmandu
+// that a technique comes from a cinema near them, which is the whole point of
+// having tagged them.
+const GENERIC_TRADITIONS = new Set(["screen craft", "shorts-general", "general"]);
+const namedTradition = (t) =>
+  t && !GENERIC_TRADITIONS.has(String(t).trim().toLowerCase()) ? t : null;
+
 const FOCUSES = [
-  { key: "scene", label: "This scene", query: "" },
+  // Alone among these, this one queries the DRAFT rather than a named problem.
+  // The label says "read" so the difference is visible without a legend.
+  { key: "scene", label: "Read my page", query: "" },
   { key: "flat", label: "Feels flat", query: "this scene feels flat and skippable, nothing changes in it, the characters just talk and it drags" },
   { key: "dialogue", label: "On the nose", query: "my dialogue is on the nose, characters say exactly what they feel, it sounds like a therapy transcript with no subtext" },
   { key: "character", label: "Thin character", query: "my characters sound the same and feel predictable, thin, described rather than shown" },
@@ -99,7 +110,12 @@ export default function ScriptEditor() {
   const [script, setScript] = useState(null);
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
-  const [aiMode, setAiMode] = useState("generate");
+  // Patterns, not Generate. Generate is a paid tab that needs an instruction
+  // typed before it does anything; Patterns is free on every tier, costs no
+  // API call, and has loaded three grounded suggestions by the time the panel
+  // finishes opening. Landing a free user on a locked tab was the single
+  // worst thing about this panel.
+  const [aiMode, setAiMode] = useState("patterns");
   const [instruction, setInstruction] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -423,9 +439,22 @@ export default function ScriptEditor() {
     };
   }, [zenMode, scrollCaretIntoView]);
 
+  // The route reads `/projects/:id/editor`, but the id in it is a SCRIPT id:
+  // the dashboard resolves project -> script before navigating. Existing links
+  // therefore work, and a URL built honestly from a project id — a shared link,
+  // anything constructed from the project list — 404s with "Script not found".
+  //
+  // Rather than rename the route and break every link already in the wild, the
+  // editor accepts either: try it as a script, and on a 404 ask for the
+  // project's script instead. `getByProject` is get-or-create, so it is also
+  // the path that opens a project which has no script row yet.
   useEffect(() => {
     scripts
       .getById(id)
+      .catch((err) => {
+        if (err.response?.status !== 404) throw err;
+        return scripts.getByProject(id);
+      })
       .then((res) => {
         setScript(res.data);
         setContent(res.data.content || "");
@@ -744,12 +773,19 @@ export default function ScriptEditor() {
     setPatternsLoading(true);
     try {
       const f = FOCUSES.find((x) => x.key === focusKey) || FOCUSES[0];
-      // "This scene" matches on what you've written. A focus chip instead
-      // queries the problem itself — mixing in the scene text drowns the
-      // short focus phrase in the embedding and every chip returns the same
-      // three patterns, which makes the chips decorative.
+      // The draft ALWAYS goes in scene_text, because that is what gets
+      // diagnosed. The chip goes in `focus`, which steers only the semantic
+      // half — mixing the scene text into the query drowns the short focus
+      // phrase in the embedding and every chip returns the same three
+      // patterns, which is what made them decorative.
+      //
+      // These were one field until 2026-08-31, so choosing a chip replaced the
+      // draft with the chip's own complaint. The linter then diagnosed the
+      // complaint, and this panel reported the result as "found in your draft,
+      // line 1" — pointing at a line of a sentence the writer never typed.
       const res = await scripts.recommendations({
-        scene_text: f.key === "scene" ? (content || instruction) : f.query,
+        scene_text: content || instruction,
+        focus: f.key === "scene" ? "" : f.query,
         genre,
         tone,
       });
@@ -1638,18 +1674,33 @@ export default function ScriptEditor() {
                 {/* One tap = the kind of help you need. Loads on open; each
                     chip re-queries for that problem type. */}
                 <div className="flex flex-wrap gap-1.5 mb-3">
-                  {FOCUSES.map((f) => (
-                    <button
-                      key={f.key}
-                      onClick={() => { setFocus(f.key); setOpenPattern(null); loadPatterns(f.key); }}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
-                        focus === f.key
-                          ? "bg-goldDim border-gold/40 text-gold"
-                          : "border-border text-inkMuted hover:text-ink"
-                      }`}
-                    >
-                      {f.label}
-                    </button>
+                  {FOCUSES.map((f, i) => (
+                    <React.Fragment key={f.key}>
+                      {/* A hairline after the first chip. It reads the draft;
+                          every chip after it names a problem instead. The rule
+                          shows that split without a sentence explaining it. */}
+                      {i === 1 && (
+                        <span
+                          aria-hidden="true"
+                          className="self-center h-3.5 w-px bg-borderSoft mx-0.5"
+                        />
+                      )}
+                      <button
+                        onClick={() => { setFocus(f.key); setOpenPattern(null); loadPatterns(f.key); }}
+                        title={
+                          f.key === "scene"
+                            ? "Match against what you have written so far"
+                            : `Match against: ${f.query}`
+                        }
+                        className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                          focus === f.key
+                            ? "bg-goldDim border-gold/40 text-gold"
+                            : "border-border text-inkMuted hover:text-ink"
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    </React.Fragment>
                   ))}
                 </div>
                 <div className="flex items-center justify-between mb-3">
@@ -1731,11 +1782,23 @@ export default function ScriptEditor() {
                       >
                         <div className="flex items-baseline justify-between gap-2 mb-1.5">
                           <span className="font-mono text-[10px] uppercase tracking-wider text-gold truncate">
-                            {p.craft_level || "craft"} · {p.origin_tradition}
+                            {p.craft_level || "craft"}
+                            {namedTradition(p.origin_tradition)
+                              ? ` · ${namedTradition(p.origin_tradition)}`
+                              : ""}
                           </span>
-                          <span className="font-mono text-[10px] text-inkMuted shrink-0">
-                            {hit ? `line ${hit.line}` : `${Math.round((p.similarity || 0) * 100)}%`}
-                          </span>
+                          {/* Only a diagnosis earns this slot. The similarity
+                              score that used to sit here was a cosine distance
+                              a writer cannot act on, and it implied a precision
+                              that is not there — 78% is not better advice than
+                              72%. Worse, it shared the slot with "line 12", so
+                              one position meant both "here is exactly where you
+                              did this" and "here is a number about vectors". */}
+                          {hit && (
+                            <span className="font-mono text-[10px] text-gold shrink-0">
+                              line {hit.line}
+                            </span>
+                          )}
                         </div>
                         {/* Lead with the technique. The mechanics, the concrete
                             steps and a worked example unfold only when asked. */}

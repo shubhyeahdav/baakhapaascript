@@ -49,7 +49,7 @@ vi.mock("../context/AuthContext", () => ({
 
 vi.mock("../services/api", () => ({
   scripts: {
-    getById: vi.fn(), save: vi.fn(), saveBible: vi.fn(),
+    getById: vi.fn(), getByProject: vi.fn(), save: vi.fn(), saveBible: vi.fn(),
     lint: vi.fn(), benchmark: vi.fn(), recommendations: vi.fn(),
     coverage: vi.fn(), accessLog: vi.fn(),
     addScene: vi.fn(), generateScene: vi.fn(), improve: vi.fn(),
@@ -83,6 +83,7 @@ import ScriptEditor from "./ScriptEditor";
  */
 function stubApi() {
   scripts.getById.mockResolvedValue({ data: SCRIPT });
+  scripts.getByProject.mockResolvedValue({ data: SCRIPT });
   scripts.save.mockResolvedValue({ data: {} });
   scripts.saveBible.mockResolvedValue({ data: {} });
   scripts.lint.mockResolvedValue({
@@ -673,5 +674,117 @@ describe("the Pen on a blank page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Corkboard" }));
 
     expect(screen.queryByText(/Every scene starts by saying/)).not.toBeInTheDocument();
+  });
+
+
+  /**
+   * The Patterns tab, from the writer's side.
+   *
+   * This is the only AI-shaped surface that is free on every tier, costs no API
+   * call and works with no keys configured — the craft library is retrieved with
+   * local embeddings. Everything pinned here is a usability decision that a
+   * refactor could silently undo.
+   */
+  describe("the patterns tab reads as advice, not as a measurement", () => {
+    const PATTERN = {
+      technique: "Every scene must end on a different charge than it started",
+      craft_level: "scene",
+      origin_tradition: "screen craft",
+      similarity: 0.78,
+      how_to_apply: "Label the charge in one word at the top and bottom.",
+    };
+
+    it("opens on Patterns, because Generate is paid and needs typing first", async () => {
+      render(<ScriptEditor />);
+      await waitFor(() => expect(editor()).toBeInTheDocument());
+
+      // No tab click. The panel's own default has to land here.
+      await waitFor(() => expect(scripts.recommendations).toHaveBeenCalled());
+      expect(screen.getByRole("button", { name: /read my page/i })).toBeInTheDocument();
+    });
+
+    it("shows no similarity percentage — it is a cosine distance a writer cannot act on", async () => {
+      scripts.recommendations.mockResolvedValue({
+        data: { patterns: [PATTERN], diagnosed: [], source: "similarity" },
+      });
+      render(<ScriptEditor />);
+      await waitFor(() => expect(screen.getByText(PATTERN.technique)).toBeInTheDocument());
+
+      expect(screen.queryByText(/^\d{1,3}%$/)).not.toBeInTheDocument();
+      expect(screen.queryByText("78%")).not.toBeInTheDocument();
+    });
+
+    it("gives that slot to the line number when the linter actually diagnosed one", async () => {
+      scripts.recommendations.mockResolvedValue({
+        data: {
+          patterns: [PATTERN],
+          diagnosed: [{ technique: PATTERN.technique, line: 12 }],
+          source: "diagnosed",
+        },
+      });
+      render(<ScriptEditor />);
+      await waitFor(() => expect(screen.getByText("line 12")).toBeInTheDocument());
+    });
+
+    it("hides the filler tradition and keeps a real one", async () => {
+      scripts.recommendations.mockResolvedValue({
+        data: { patterns: [PATTERN], diagnosed: [], source: "similarity" },
+      });
+      const { unmount } = render(<ScriptEditor />);
+      await waitFor(() => expect(screen.getByText(PATTERN.technique)).toBeInTheDocument());
+      // "screen craft" is filler on 17 of 29 entries — a category-shaped word
+      // carrying nothing.
+      expect(screen.queryByText(/screen craft/i)).not.toBeInTheDocument();
+      unmount();
+
+      scripts.recommendations.mockResolvedValue({
+        data: {
+          patterns: [{ ...PATTERN, origin_tradition: "Malayalam" }],
+          diagnosed: [],
+          source: "similarity",
+        },
+      });
+      render(<ScriptEditor />);
+      // A named cinema is the reason the field exists — keep it.
+      await waitFor(() => expect(screen.getByText(/Malayalam/)).toBeInTheDocument());
+    });
+  });
+});
+
+
+/**
+ * The route says `/projects/:id/editor` and the id in it is a SCRIPT id — the
+ * dashboard resolves project -> script before navigating. So a URL built
+ * honestly from a project id used to 404 with "Script not found", which is a
+ * trap for shared links and for anything constructed off the project list.
+ */
+describe("opening the editor by either id", () => {
+  it("loads a script id directly, without asking for the project", async () => {
+    stubApi();
+    render(<ScriptEditor />);
+
+    await screen.findByLabelText("Screenplay");
+    expect(scripts.getById).toHaveBeenCalledWith("script-1");
+    expect(scripts.getByProject).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the project's script when the id is a project id", async () => {
+    stubApi();
+    scripts.getById.mockRejectedValueOnce({ response: { status: 404 } });
+    render(<ScriptEditor />);
+
+    await waitFor(() => expect(scripts.getByProject).toHaveBeenCalledWith("script-1"));
+    expect(await screen.findByLabelText("Screenplay")).toBeInTheDocument();
+  });
+
+  it("still reports a real failure rather than retrying forever", async () => {
+    stubApi();
+    scripts.getById.mockRejectedValueOnce({
+      response: { status: 500, data: { detail: "Database is down." } },
+    });
+    render(<ScriptEditor />);
+
+    expect(await screen.findByText("Database is down.")).toBeInTheDocument();
+    expect(scripts.getByProject).not.toHaveBeenCalled();
   });
 });
