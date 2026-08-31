@@ -35,14 +35,31 @@ First run downloads ~130 MB to the fastembed cache; subsequent runs are fast.
 
 ```json
 {
-  "title_ref": "Film Name (Year)",
-  "source_type": "movie",            // movie | webseries | short
+  "title_ref": "Complicity engine (Korean thriller tradition)",
+  "source_type": "movie",             // movie | webseries | short
+  "craft_level": "structure",         // structure | scene | dialogue | character | image
   "genre": "thriller",
-  "origin_tradition": "Korean",       // Hollywood, Bollywood, TVF-style, K-drama, ...
-  "one_line_takeaway": "The single transferable structural lesson, one sentence.",
-  "structural_pattern": "2-4 sentences describing the beat structure mechanics."
+  "origin_tradition": "Korean",       // Hollywood, Bollywood, TVF-style, K-drama,
+                                      // Malayalam, ... or "screen craft" when the
+                                      // technique belongs to no single tradition
+  "technique": "Make the inciting opportunity something the protagonist wants",
+  "problem": "My inciting incident feels like something that happens TO the protagonist...",
+  "how_it_works": "Why the technique works, in mechanism terms.",
+  "how_to_apply": "The concrete steps a writer takes on their own page.",
+  "warning_sign": "The symptom on the page that says you need this.",
+  "worked_example": "Original prose showing it, never quoted script text."
 }
 ```
+
+**`problem` is the most important field.** `rag.pattern_to_text` embeds it
+**twice**, ahead of everything else, because writers search by symptom — "this
+scene feels flat" — not by genre tag. Write it as the complaint a stuck writer
+would actually type. That field decides whether the entry is ever retrieved.
+
+Two fields have jobs outside retrieval: `warning_sign` is what the **craft
+linter** turns into a rule, and `craft_level` is what routes a finding to a
+**lesson**. An entry missing either still embeds and retrieves, so the loss is
+silent — the entry simply never lints and never teaches.
 
 2. Reload: `./venv/Scripts/python.exe load_knowledge_base.py`
 
@@ -54,9 +71,10 @@ retrieval probes — a `WARN` there means retrieval quality regressed.
 **Hard rule:** entries contain structural analysis in original language ONLY —
 never copyrighted script text, dialogue quotes, or long plot recaps. The
 loader rejects fields over 600 chars as a guard. What makes a good entry: the
-`one_line_takeaway` should be a *transferable technique* ("let the inciting
-opportunity be something the protagonist wants"), not a plot summary, because
-that field is what gets embedded and matched against new requests.
+`technique` should be a *transferable move* ("let the inciting opportunity be
+something the protagonist wants"), never a plot summary — and `problem` should
+be the symptom that move cures, written the way a stuck writer would say it,
+because that is the field retrieval actually matches on.
 
 ## Using retrieval in code
 
@@ -68,8 +86,9 @@ patterns = retrieve_relevant_patterns(
     theme_description="a young woman defies her family to box",
     top_k=3,
 )
-# -> [{title_ref, genre, origin_tradition, one_line_takeaway,
-#      structural_pattern, similarity}, ...] sorted by similarity
+# -> [{title_ref, genre, origin_tradition, craft_level, technique, problem,
+#      how_it_works, how_to_apply, warning_sign, worked_example, similarity}, ...]
+#    sorted by similarity
 ```
 
 Design invariants to preserve when modifying this code:
@@ -77,14 +96,21 @@ Design invariants to preserve when modifying this code:
 - **Retrieval never breaks generation.** `retrieve_relevant_patterns` catches
   everything and returns `[]`; `generate_structure` proceeds ungrounded. Keep
   it that way — a missing model download must not 500 the endpoint.
-- **Query text = `"{genre} | {tone} | {theme}"`**, entry text =
-  `"{genre} | {origin_tradition} | {one_line_takeaway}"` (see
-  `rag.pattern_to_text`). Titles are deliberately NOT embedded so matching is
-  structural, not fame-based.
-- **Injection happens in Stage-1 (structure) only** via
+- **Query text = `"{genre} | {tone} | {theme}"`**; entry text leads with the
+  doubled `problem`, then `technique`, `craft_level`, `how_it_works`, `genre`,
+  `origin_tradition` (see `rag.pattern_to_text`). Titles are deliberately NOT
+  embedded, so matching is structural rather than fame-based.
+- **Injection reaches structure, scene generation AND improve** via
   `rag.format_patterns_for_prompt`, which instructs Claude to adapt techniques
-  and never echo titles. Don't add retrieval to scene/improve/suggest calls
-  without a reason — it bloats tokens for little gain.
+  and never echo titles. It was structure-only until 2026-08-19; `generate_scene`
+  and `improve` now receive patterns and the story bible as well, because a
+  writer had filled in the most useful thing you can give a generator and it was
+  being dropped.
+- **A focus phrase is not a draft.** `POST /scripts/recommendations` takes
+  `scene_text` (the draft, the only thing ever diagnosed) and `focus` (the
+  symptom, which steers retrieval only). They were one field until 2026-08-31,
+  so the editor's focus chips were linted as though the writer had typed the
+  complaint, and the panel reported the result as "found in your draft, line 1".
 - The backend logs `RAG patterns for structure: [...]` on every generate call
   (also in demo mode) — first place to look when debugging relevance.
 

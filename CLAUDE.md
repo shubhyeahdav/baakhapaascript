@@ -362,7 +362,7 @@ playbook distilled from every analysis — use when writing or analyzing scripts
 working copy is **two nested repos** — the wrapper at `D:\AkxyaRup` (branch
 `main`, holds `.claude/` + a gitlink) and this project repo (branch `master` →
 `origin/codebase`). Don't target `main` with project work. Full explanation and
-the push sequence: `WORKING_GUIDE.md` §1 and §3. PR #1's content is already contained in `origin/codebase` — the branch is merged and only the GitHub PR object may still be open.
+the push sequence: `WORKING_GUIDE.md` §1 and §3. PR #1 is closed and merged (verified against the GitHub API 2026-08-31); `feature/auth-editor-ux` was fast-forwarded into `codebase` the same day.
 
 **Copyright:** `raw_scripts_TEMP/` (117 screenplays, incl. a ~19MB
 `knowledge_base.json` of full script text) is gitignored at the wrapper level
