@@ -137,8 +137,12 @@ describe("the flags", () => {
     // carry that or the panel over-claims.
     show();
 
-    expect(await screen.findByText("Nothing flagged in this draft.")).toBeInTheDocument();
-    expect(screen.getByText(/not that the draft is finished/)).toBeInTheDocument();
+    const box = await screen.findByText("Nothing tripped these checks.");
+    expect(box).toBeInTheDocument();
+    expect(screen.getByText(/silence is not a verdict/)).toBeInTheDocument();
+    // Not green. Green is the colour of a pass, and the sentence beneath
+    // it says the opposite.
+    expect(box.className).not.toMatch(/emerald/);
   });
 
   it("groups flags by craft level, using the writer's own taxonomy", async () => {
@@ -346,8 +350,14 @@ describe("the benchmark", () => {
     });
 
     await screen.findByText("Keep going.");
-    const widths = Array.from(container.querySelectorAll(".bg-gold\\/60")).map((n) => n.style.width);
+    // Neutral, not gold: gold is this product's colour for a result, and a
+    // filling gold bar reads as progress toward a score rather than as the
+    // threshold the benchmark needs before it can say anything at all.
+    const widths = Array.from(
+      container.querySelectorAll(".bg-inkMuted\\/50")
+    ).map((n) => n.style.width);
     expect(widths).toEqual(["25%", "100%"]);
+    expect(container.querySelector(".bg-gold\\/60")).toBeNull();
   });
 
   it("does not divide by zero on a missing target", async () => {
@@ -456,7 +466,7 @@ describe("the statistics strip", () => {
   it("shows nothing when the linter returns no statistics", async () => {
     show();
 
-    await screen.findByText("Nothing flagged in this draft.");
+    await screen.findByText("Nothing tripped these checks.");
     expect(screen.queryByText("Scenes")).not.toBeInTheDocument();
   });
 });

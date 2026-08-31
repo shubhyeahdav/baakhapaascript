@@ -129,13 +129,17 @@ function Flags({ byLevel, counts }) {
   const levels = Object.keys(byLevel || {});
   if (!levels.length) {
     return (
-      <div className="rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3.5">
-        <p className="text-[12.5px] text-emerald-300 leading-snug">
-          Nothing flagged in this draft.
+      // Deliberately NOT green. Green is the colour of a pass, and the sentence
+      // underneath says the opposite: silence is the absence of a signal, not a
+      // verdict. Colouring it as success contradicts the copy and quietly
+      // over-claims exactly what this panel is careful not to claim.
+      <div className="rounded-xl border border-borderSoft bg-elevated/40 p-3.5">
+        <p className="text-[12.5px] text-inkSoft leading-snug">
+          Nothing tripped these checks.
         </p>
         <p className="text-[11px] text-inkMuted mt-1 leading-snug">
-          These checks are deliberately conservative — silence means nothing
-          tripped them, not that the draft is finished.
+          They are deliberately conservative, and they only read the page —
+          silence is not a verdict on the draft.
         </p>
       </div>
     );
@@ -229,8 +233,15 @@ function Benchmark({ data }) {
               <span>{label}</span>
               <span>{have} / {need}</span>
             </div>
+            {/* Not gold. Gold is this product's colour for a result, and a
+                filling gold bar reads as progress toward a score. This is a
+                threshold — how much draft the benchmark needs before it can
+                say anything at all. */}
             <div className="h-1 rounded-full bg-bgDeep/60 overflow-hidden">
-              <div className="h-full bg-gold/60" style={{ width: `${bar(have || 0, need || 1)}%` }} />
+              <div
+                className="h-full bg-inkMuted/50"
+                style={{ width: `${bar(have || 0, need || 1)}%` }}
+              />
             </div>
           </div>
         ))}
@@ -253,6 +264,8 @@ function Benchmark({ data }) {
         vs {b.cohort} · n={b.cohort_size}
       </p>
       {b.notes?.length === 0 ? (
+        // This one HAS measured something and found it unremarkable, which is
+        // a real result rather than an absence — so it keeps its colour.
         <div className="rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3.5">
           <p className="text-[12.5px] text-emerald-300 leading-snug">
             Your draft's shape sits inside the corpus norm.
@@ -320,8 +333,11 @@ export default function CraftPanel({ content, genre, tone }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-inkMuted">
-          Craft check · free
+        {/* Was "Craft check · free". The paid tabs carry their own ✦, so the
+            absence of one already says this; the word was pricing copy
+            competing with a section label for the same line. */}
+        <span className="font-mono text-[10px] uppercase tracking-wider text-ink">
+          Craft check
         </span>
         <button
           onClick={run}
