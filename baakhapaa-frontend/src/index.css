@@ -117,6 +117,11 @@ html, body {
 .screenplay-page {
   background-color: #FAF9F6;
   color: #1E1E20;
+  /* The caret is the one part of this interface a writer looks at for hours.
+     It was gold only inside focus mode, which meant the nicest detail in the
+     product was invisible unless you had already found a mode most people
+     never open. It belongs to the page. */
+  caret-color: #C9A227;
   width: 100%;
   max-width: 816px;   /* US Letter width proportional */
   min-height: 1056px; /* US Letter height proportional */
@@ -180,7 +185,6 @@ html, body {
   padding: 8vh 4rem 45vh;
   box-shadow: none;
   border-radius: 0;
-  caret-color: #C9A227;
 }
 
 .zen-hint {
@@ -209,6 +213,7 @@ html, body {
 .screenplay-page.dark-page {
   background-color: transparent;
   color: #D8D4C8;
+  caret-color: #E4BE64;
   box-shadow: none;
   border-radius: 0;
   min-height: 0;
@@ -236,4 +241,20 @@ input[type="range"].custom-slider::-webkit-slider-thumb {
 }
 input[type="range"].custom-slider::-webkit-slider-thumb:hover {
   background: #E4BE64;
+}
+
+
+/* Typewriter mode.
+
+   The caret holds its line near the middle of the page and the text moves
+   under it, instead of the caret walking down to the bottom edge and staying
+   there. It is the oldest comfort in writing software and the reason a long
+   session does not end with your eyes at the foot of the screen.
+
+   The padding is the mechanism, not decoration: without room below the last
+   line there is nothing to scroll INTO, so the final lines cannot reach the
+   middle and the caret sinks anyway. Focus mode already had this; it was the
+   only place you could get it. */
+.screenplay-page.typewriter-page {
+  padding-bottom: 55vh;
 }

@@ -788,3 +788,76 @@ describe("opening the editor by either id", () => {
     expect(scripts.getByProject).not.toHaveBeenCalled();
   });
 });
+
+
+/**
+ * Typewriter mode.
+ *
+ * The caret holds its line near the middle of the page and the text moves
+ * under it, instead of the caret walking to the bottom edge and staying there.
+ * Both halves of this — the centring and the gold caret — already existed, but
+ * only inside focus mode, so the nicest detail in the editor was invisible
+ * unless you had found a mode most writers never open.
+ *
+ * The bottom padding is the mechanism, not decoration: with nothing below the
+ * last line there is nowhere to scroll INTO, so the final lines can never reach
+ * the middle however the scroll maths is written.
+ */
+describe("typewriter mode", () => {
+  const openView = async () => {
+    stubApi();
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /View/ }));
+  };
+
+  it("is offered, and says what it does", async () => {
+    await openView();
+
+    expect(screen.getByRole("menuitem", { name: /Typewriter mode/ }))
+      .toHaveTextContent(/Hold the caret at the middle of the page/);
+  });
+
+  it("is off until asked for", async () => {
+    await openView();
+
+    expect(editor().className).not.toMatch(/typewriter-page/);
+  });
+
+  it("gives the page room to scroll into once turned on", async () => {
+    await openView();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Typewriter mode/ }));
+
+    expect(editor().className).toMatch(/typewriter-page/);
+  });
+
+  it("reports that it is on, so the menu is not a guess", async () => {
+    await openView();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Typewriter mode/ }));
+    fireEvent.click(screen.getByRole("button", { name: /View/ }));
+
+    expect(screen.getByRole("menuitem", { name: /Typewriter mode: on/ }))
+      .toBeInTheDocument();
+  });
+
+  it("turns back off", async () => {
+    await openView();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Typewriter mode/ }));
+    fireEvent.click(screen.getByRole("button", { name: /View/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Typewriter mode: on/ }));
+
+    expect(editor().className).not.toMatch(/typewriter-page/);
+  });
+
+  it("leaves the padding to focus mode's own rule when both are on", async () => {
+    // zen-page already carries the padding it needs. Stacking typewriter-page
+    // on top would fight it with a second bottom value.
+    await openView();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Typewriter mode/ }));
+    fireEvent.click(screen.getByRole("button", { name: /View/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Focus mode/ }));
+
+    expect(editor().className).toMatch(/zen-page/);
+    expect(editor().className).not.toMatch(/typewriter-page/);
+  });
+});

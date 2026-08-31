@@ -54,6 +54,12 @@ const GENERIC_TRADITIONS = new Set(["screen craft", "shorts-general", "general"]
 const namedTradition = (t) =>
   t && !GENERIC_TRADITIONS.has(String(t).trim().toLowerCase()) ? t : null;
 
+// Caret moves that produce no text change, so `onChange` never sees them.
+const NAV_KEYS = new Set([
+  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+  "PageUp", "PageDown", "Home", "End",
+]);
+
 const FOCUSES = [
   // Alone among these, this one queries the DRAFT rather than a named problem.
   // The label says "read" so the difference is visible without a legend.
@@ -243,6 +249,17 @@ export default function ScriptEditor() {
   // Custom Screenwriting Usability State
   const [zenMode, setZenMode] = useState(false);
   const [pageTheme, setPageTheme] = useState("light");
+  // Typewriter mode: the caret holds its line near the middle and the page
+  // moves under it. Focus mode has always done this, but only as a side effect
+  // of being focus mode — there was no way to write normally and still have it.
+  // On by default inside focus mode, independently switchable outside it.
+  const [typewriter, setTypewriter] = useState(false);
+  // Turning the mode on should take effect on the line you are already on,
+  // rather than waiting for the next keystroke to snap the page into place.
+  useEffect(() => {
+    if (typewriter) scrollCaretIntoView(true);
+    // eslint-disable-next-line
+  }, [typewriter]);
   const [activeScene, setActiveScene] = useState(0);
   const textareaRef = useRef(null);
 
@@ -336,7 +353,7 @@ export default function ScriptEditor() {
     const pos = starts.length > index ? starts[index] : ta.value.length;
     ta.focus();
     ta.setSelectionRange(pos, pos);
-    scrollCaretIntoView(zenMode);
+    scrollCaretIntoView(typewriter || zenMode);
   };
 
   const [showStructure, setShowStructure] = useState(false);
@@ -573,7 +590,7 @@ export default function ScriptEditor() {
     const caret = pos + text.indexOf("\n\n") + 2;
     requestAnimationFrame(() => {
       textareaRef.current?.setSelectionRange(caret, caret);
-      scrollCaretIntoView(zenMode);
+      scrollCaretIntoView(typewriter || zenMode);
     });
   };
 
@@ -865,7 +882,7 @@ export default function ScriptEditor() {
       const caret = at + text.length;
       requestAnimationFrame(() => {
         ta.setSelectionRange(caret, caret);
-        scrollCaretIntoView(zenMode);
+        scrollCaretIntoView(typewriter || zenMode);
       });
     } else {
       setContent(value.slice(0, at) + text + value.slice(at));
@@ -1020,7 +1037,7 @@ export default function ScriptEditor() {
       requestAnimationFrame(() => {
         const newCursorPos = lineStart + newLeadingSpaces + lineContent.length;
         e.target.setSelectionRange(newCursorPos, newCursorPos);
-        scrollCaretIntoView(zenMode);
+        scrollCaretIntoView(typewriter || zenMode);
       });
     } else if (e.key === "Enter") {
       const { selectionStart, value } = e.target;
@@ -1044,7 +1061,7 @@ export default function ScriptEditor() {
         e.target.setSelectionRange(newCursorPos, newCursorPos);
         // Every mode, not just zen: Enter is preventDefault-ed and inserted
         // programmatically, so the browser will not follow the caret for us.
-        scrollCaretIntoView(zenMode);
+        scrollCaretIntoView(typewriter || zenMode);
       });
     }
   };
@@ -1281,6 +1298,11 @@ export default function ScriptEditor() {
               },
               {
                 key: "theme",
+                label: typewriter ? "Typewriter mode: on" : "Typewriter mode",
+                hint: "Hold the caret at the middle of the page",
+                onSelect: () => setTypewriter((t) => !t),
+              },
+              {
                 label: pageTheme === "dark" ? "Light page" : "Dark page",
                 hint: "The colour of the paper, not the app",
                 onSelect: () => setPageTheme(pageTheme === "light" ? "dark" : "light"),
@@ -1508,7 +1530,7 @@ export default function ScriptEditor() {
               )}
               <textarea
               ref={textareaRef}
-              className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} resize-none`}
+              className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} ${typewriter && !zenMode ? "typewriter-page" : ""} resize-none`}
               /* Short, because the Pen now says the useful version on an empty
                  page. This read "Type Scene Headings starting with INT. or
                  EXT., and press TAB to format characters, parentheticals, and
@@ -1529,11 +1551,20 @@ export default function ScriptEditor() {
                 // Ordinary typing needs this as much as Enter does: the caret
                 // leaves the container's visible window long before it leaves
                 // the textarea, and the browser only follows it out of the latter.
-                scrollCaretIntoView(zenMode);
+                scrollCaretIntoView(typewriter || zenMode);
               }}
               onKeyDown={handleKeyDown}
               onClick={(e) => { trackCaret(e); updateCaretPage(e.currentTarget); }}
-              onKeyUp={(e) => { trackCaret(e); updateCaretPage(e.currentTarget); }}
+              onKeyUp={(e) => {
+                trackCaret(e);
+                updateCaretPage(e.currentTarget);
+                // Typing is handled by onChange. This is for moving the caret
+                // WITHOUT typing — arrows, page keys, Home/End. In typewriter
+                // mode the line has to hold its position however the caret got
+                // there, or navigating up through a scene throws the page out
+                // of alignment and the next keystroke snaps it back.
+                if (typewriter && NAV_KEYS.has(e.key)) scrollCaretIntoView(true);
+              }}
               onBlur={() => setSuggest(null)}
               onScroll={(e) => setPageScroll(e.currentTarget.scrollTop)}
               />
