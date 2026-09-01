@@ -179,6 +179,72 @@ def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> s
 _call_claude = _call_llm
 
 
+def _stream_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000):
+    """Yield the model's answer in pieces, as it is written.
+
+    Why this exists: `_call_llm` blocks until the whole response is composed, so
+    a writer who asks for a scene watches a spinner for as long as it takes to
+    generate two thousand tokens, then the text appears at once. In a tool whose
+    entire promise is keeping a writer in flow, that is the wrong shape — and it
+    is also the shape most likely to hit an HTTP timeout, which is why the SDK
+    asks for streaming above a certain `max_tokens` anyway.
+
+    The mock path streams too, deliberately. If demo mode returned its canned
+    scene in one lump, every bit of plumbing between here and the browser would
+    be untested until the day someone put a real key in — which is exactly the
+    class of bug this project has been finding all week.
+    """
+    if MOCK_AI:
+        demo = _DEMO_SCENE if max_tokens >= 2000 else "Demo mode: no model was called."
+        for chunk in _in_chunks(demo):
+            yield chunk
+        return
+
+    if PROVIDER == "groq":
+        # Groq's client is OpenAI-shaped, not Anthropic-shaped.
+        try:
+            stream = _groq_client.chat.completions.create(
+                model=GROQ_MODEL, max_tokens=max_tokens, stream=True,
+                messages=[{"role": "system", "content": system_prompt},
+                          {"role": "user", "content": user_prompt}],
+            )
+            for event in stream:
+                piece = event.choices[0].delta.content
+                if piece:
+                    yield piece
+        except Exception as e:
+            raise RuntimeError(f"Groq API error: {str(e)}") from e
+        return
+
+    try:
+        with client.messages.stream(
+            model=MODEL,
+            max_tokens=max_tokens,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        ) as stream:
+            yield from stream.text_stream
+    except Exception as e:
+        raise RuntimeError(f"Claude API error: {str(e)}") from e
+
+
+def _in_chunks(text: str, words: int = 4):
+    """Break text on whitespace the way a model emits it — never mid-word.
+
+    Splitting on a fixed character count would cut through words and, worse,
+    through Devanagari grapheme clusters, so a Nepali scene would arrive as
+    visible mojibake before the next chunk repaired it.
+    """
+    parts, buf = text.split(" "), []
+    for i, w in enumerate(parts, 1):
+        buf.append(w)
+        if i % words == 0:
+            yield " ".join(buf) + " "
+            buf = []
+    if buf:
+        yield " ".join(buf)
+
+
 def _extract_json(raw: str):
     """Parse a JSON object out of a model response.
 
@@ -529,6 +595,54 @@ Format correctly:
 {_format_language_rule(language)}"""
 
     return _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=2000)
+
+
+# The prompt builders below exist so the streaming and blocking paths cannot
+# drift. A streamed scene that was written to a slightly different prompt than
+# the one the tests pin would be a very quiet bug: the output still looks like
+# a scene, so nothing fails until someone compares them line by line.
+
+def scene_prompt(scene_description, genre, tone, language, character_names,
+                 act_number=1, bible=None, patterns=None):
+    if not character_names and bible:
+        character_names = [
+            (c.get("name") or "").strip()
+            for c in (bible.get("characters") or [])
+            if (c.get("name") or "").strip()
+        ]
+    chars = ", ".join(character_names) if character_names else "characters as needed"
+    return f"""Write a full screenplay scene.
+Genre: {genre} | Tone: {tone} | Language: {language} | Act: {act_number}
+Characters: {chars}
+Scene description: {scene_description}
+{format_bible_for_prompt(bible)}{format_patterns_for_prompt(patterns)}
+Format correctly:
+- INT./EXT. LOCATION - DAY/NIGHT as scene heading (uppercase)
+- Action lines in plain text
+- CHARACTER NAME centered/uppercase above dialogue
+- Dialogue below character name
+{_format_language_rule(language)}"""
+
+
+def improve_prompt(scene_text, instruction, language="English", bible=None, patterns=None):
+    return f"""Here is a screenplay scene:
+
+{scene_text}
+
+Instruction: {instruction}
+Language: {language}
+{format_bible_for_prompt(bible)}{format_patterns_for_prompt(patterns)}
+Rewrite the scene following the instruction exactly. Keep the same characters, location, and core story beat. Return only the rewritten scene."""
+
+
+def stream_scene(**kw):
+    """Stream a generated scene. Same prompt as `generate_scene`."""
+    return _stream_llm(BAAKHAPAA_STYLE, scene_prompt(**kw), max_tokens=2000)
+
+
+def stream_improvement(**kw):
+    """Stream a rewrite. Same prompt as `improve_scene`."""
+    return _stream_llm(BAAKHAPAA_STYLE, improve_prompt(**kw), max_tokens=2000)
 
 
 def improve_scene(scene_text, instruction, language="English", bible=None, patterns=None):

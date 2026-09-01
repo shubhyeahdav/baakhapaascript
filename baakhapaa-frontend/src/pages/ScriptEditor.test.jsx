@@ -70,10 +70,11 @@ vi.mock("../services/api", () => ({
     getAll: vi.fn(), members: vi.fn(),
     addMember: vi.fn(), setMemberRole: vi.fn(), removeMember: vi.fn(),
   },
+  streamSSE: vi.fn(),
 }));
 
 // eslint-disable-next-line import/first
-import { scripts, versions, comments, learn, projects } from "../services/api";
+import { scripts, versions, comments, learn, projects, streamSSE } from "../services/api";
 // eslint-disable-next-line import/first
 import ScriptEditor from "./ScriptEditor";
 
@@ -82,6 +83,14 @@ import ScriptEditor from "./ScriptEditor";
  * so they are installed per-test rather than in the module factory.
  */
 function stubApi() {
+  streamSSE.mockImplementation(async (_path, _body, onText) => {
+    // Two pieces, because a stub that calls back once cannot catch a
+    // component that only renders the final chunk.
+    const whole = "INT. CHIYA PASAL - DAY\n\nSanjana wipes the counter.";
+    onText(whole.slice(0, 24));
+    onText(whole);
+    return whole;
+  });
   scripts.getById.mockResolvedValue({ data: SCRIPT });
   scripts.getByProject.mockResolvedValue({ data: SCRIPT });
   scripts.save.mockResolvedValue({ data: {} });
@@ -255,8 +264,12 @@ describe("ScriptEditor", () => {
 
   it("inserts an accepted AI scene at the caret, not at the end", async () => {
     // Appending put a scene written for act 1 after act 3.
-    scripts.generateScene.mockResolvedValue({
-      data: { scene_text: "INT. ROOFTOP - DUSK\n\nInserted here." },
+    // Generation streams now, so the answer arrives through streamSSE
+    // rather than as a resolved response body.
+    streamSSE.mockImplementation(async (_p, _b, onText) => {
+      const whole = "INT. ROOFTOP - DUSK\n\nInserted here.";
+      onText(whole);
+      return whole;
     });
     render(<ScriptEditor />);
     await waitFor(() => expect(editor()).toBeInTheDocument());
@@ -859,5 +872,84 @@ describe("typewriter mode", () => {
 
     expect(editor().className).toMatch(/zen-page/);
     expect(editor().className).not.toMatch(/typewriter-page/);
+  });
+});
+
+
+/**
+ * Streaming generation.
+ *
+ * The point is not speed - the model takes as long either way - it is that a
+ * writer sees words instead of a spinner. So what these pin is that partial
+ * text actually reaches the screen, and that a failure mid-stream still says
+ * something useful rather than leaving half an answer sitting there.
+ */
+describe("generation streams", () => {
+  const ask = async (mode) => {
+    stubApi();
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.change(editor(), { target: { value: "INT. PASAL - DAY" } });
+    fireEvent.click(screen.getByRole("button", { name: new RegExp("^" + mode, "i") }));
+    fireEvent.click(screen.getByRole("button", { name: /execute ai action/i }));
+  };
+
+  it("asks the streaming route, not the blocking one", async () => {
+    await ask("generate");
+
+    await waitFor(() => expect(streamSSE).toHaveBeenCalled());
+    expect(streamSSE.mock.calls[0][0]).toBe("/scripts/generate-scene/stream");
+    expect(scripts.generateScene).not.toHaveBeenCalled();
+  });
+
+  it("shows the partial answer, not only the finished one", async () => {
+    stubApi();
+    let emit;
+    streamSSE.mockImplementation((_p, _b, onText) => {
+      emit = onText;
+      return new Promise(() => {});        // never settles: mid-stream
+    });
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /^generate/i }));
+    fireEvent.click(screen.getByRole("button", { name: /execute ai action/i }));
+
+    await waitFor(() => expect(emit).toBeDefined());
+    act(() => emit("INT. ROOFTOP - DUSK"));
+
+    expect(await screen.findByText(/INT. ROOFTOP - DUSK/)).toBeInTheDocument();
+  });
+
+  it("streams a rewrite from the improve route", async () => {
+    await ask("improve");
+
+    await waitFor(() => expect(streamSSE).toHaveBeenCalled());
+    expect(streamSSE.mock.calls[0][0]).toBe("/scripts/improve/stream");
+  });
+
+  it("reports a failure that happens mid-stream", async () => {
+    stubApi();
+    streamSSE.mockRejectedValue({
+      response: { data: { detail: "Claude API error: credit balance too low" } },
+    });
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /^generate/i }));
+    fireEvent.click(screen.getByRole("button", { name: /execute ai action/i }));
+
+    expect(await screen.findByText(/credit balance too low/)).toBeInTheDocument();
+  });
+
+  it("still offers the plan when a free user is refused", async () => {
+    // Tier is decided before the first byte, so this arrives as a status.
+    stubApi();
+    streamSSE.mockRejectedValue({ response: { status: 403, data: {} } });
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /^generate/i }));
+    fireEvent.click(screen.getByRole("button", { name: /execute ai action/i }));
+
+    await waitFor(() =>
+      expect(screen.queryByText(/Error:/)).not.toBeInTheDocument());
   });
 });

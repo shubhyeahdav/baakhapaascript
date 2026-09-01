@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile
+from fastapi.responses import StreamingResponse
 from models import (
     GenerateStructureRequest, GenerateSceneRequest,
     ImproveSceneRequest, SuggestRequest, ScriptSave, AddSceneRequest,
@@ -316,6 +317,50 @@ def generate_scene(req: GenerateSceneRequest, user_id: str = Depends(require_pai
     return {"scene_text": text}
 
 
+def _sse(generator):
+    """Wrap a text generator as Server-Sent Events.
+
+    Errors are the awkward part. Once the first byte is out the status code is
+    already 200, so a provider failure cannot become a 503 the way it does on
+    every other route here — it has to arrive as a message the client
+    understands. Hence an explicit `error` event rather than simply cutting the
+    connection, which a browser cannot tell apart from a network drop.
+    """
+    def events():
+        try:
+            for piece in generator:
+                if piece:
+                    yield f"data: {json.dumps({'text': piece})}\n\n"
+        except RuntimeError as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        yield "data: {\"done\": true}\n\n"
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        # Without this a proxy will happily buffer the whole stream and hand it
+        # over in one piece, which is precisely the behaviour being removed.
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.post("/generate-scene/stream")
+def generate_scene_stream(req: GenerateSceneRequest, user_id: str = Depends(require_paid_tier)):
+    """The same scene as POST /generate-scene, arriving as it is written.
+
+    A blocking call meant a writer asked for a scene and watched a spinner
+    while two thousand tokens were composed somewhere else, then received all
+    of it at once. This product's whole claim is keeping a writer in flow.
+    """
+    bible = _bible_for(req.script_id, user_id)
+    patterns = _craft_for(req.scene_description, req.genre, req.tone)
+    return _sse(script_engine.stream_scene(
+        scene_description=req.scene_description, genre=req.genre, tone=req.tone,
+        language=req.language, character_names=req.character_names,
+        bible=bible, patterns=patterns,
+    ))
+
+
 @router.post("/improve")
 def improve(req: ImproveSceneRequest, user_id: str = Depends(require_paid_tier)):
     bible = _bible_for(req.script_id, user_id)
@@ -337,6 +382,32 @@ def improve(req: ImproveSceneRequest, user_id: str = Depends(require_paid_tier))
             req.scene_text, req.instruction, req.language, bible=bible, patterns=patterns,
         )
     return {"improved_text": text}
+
+
+@router.post("/improve/stream")
+def improve_stream(req: ImproveSceneRequest, user_id: str = Depends(require_paid_tier)):
+    """The same rewrite as POST /improve, arriving as it is written.
+
+    This one matters more than the scene stream, because the writer is watching
+    their OWN words being replaced. Seeing the rewrite land line by line lets
+    them stop it when it goes somewhere they did not want; a spinner followed by
+    a wall of replaced text does not.
+    """
+    bible = _bible_for(req.script_id, user_id)
+    project = {}
+    if req.script_id:
+        script = require_script_access(req.script_id, user_id)
+        project = get_project_by_id(script.get("project_id")) or {}
+    patterns = _craft_for(
+        req.instruction,
+        project.get("genre") or "Drama",
+        project.get("tone") or "Emotional",
+        scene_text=req.scene_text,
+    )
+    return _sse(script_engine.stream_improvement(
+        scene_text=req.scene_text, instruction=req.instruction,
+        language=req.language, bible=bible, patterns=patterns,
+    ))
 
 
 @router.post("/suggest")

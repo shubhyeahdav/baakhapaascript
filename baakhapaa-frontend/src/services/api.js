@@ -13,6 +13,72 @@ const API_URL =
 
 const instance = axios.create({ baseURL: API_URL });
 
+/**
+ * Read a Server-Sent Events response, calling `onText` with each piece.
+ *
+ * axios buffers a whole response before resolving, which is the exact
+ * behaviour streaming exists to remove — so this drops to fetch and reads the
+ * body as it arrives.
+ *
+ * The buffering across reads is not optional. A network chunk has no
+ * relationship to an SSE event boundary: one read can end halfway through a
+ * `data:` line, and parsing that as-is throws on JSON and silently loses the
+ * piece. Everything up to the last complete blank-line separator is parsed,
+ * and the remainder is carried into the next read.
+ *
+ * Returns the full text, so a caller that only wants the finished answer does
+ * not have to accumulate it a second time.
+ */
+export async function streamSSE(path, body, onText) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    // Tier and auth failures still arrive as a normal status, because they are
+    // decided before the first byte of the stream.
+    const err = new Error("stream failed");
+    err.response = { status: res.status, data: await res.json().catch(() => ({})) };
+    throw err;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let full = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const events = buffer.split("\n\n");
+    buffer = events.pop();          // last piece may be incomplete
+
+    for (const block of events) {
+      if (!block.startsWith("data: ")) continue;
+      const payload = JSON.parse(block.slice(6));
+      if (payload.error) {
+        const err = new Error(payload.error);
+        err.response = { data: { detail: payload.error } };
+        throw err;
+      }
+      if (payload.text) {
+        full += payload.text;
+        onText(full);
+      }
+    }
+  }
+  return full;
+}
+
+
 instance.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;

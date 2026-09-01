@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { scripts, exportApi } from "../services/api";
+import { scripts, exportApi, streamSSE } from "../services/api";
 import { downloadBlob, safeFilename } from "../utils/download";
 import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
@@ -834,15 +834,23 @@ export default function ScriptEditor() {
         // the prompt in it. Without it the model never learns what a character
         // wants, needs, or sounds like — all of which the writer already typed
         // into the Story tab.
-        const res = await scripts.generateScene({
-          scene_description: instruction, genre, tone, language, script_id: id,
-        });
-        setAiResponse(res.data.scene_text);
+        // Streamed, so the scene appears as it is written rather than after
+        // it is finished. Two thousand tokens is a long time to show a writer
+        // nothing, in a product whose whole claim is keeping them in flow.
+        await streamSSE(
+          "/scripts/generate-scene/stream",
+          { scene_description: instruction, genre, tone, language, script_id: id },
+          setAiResponse,
+        );
       } else if (aiMode === "improve") {
-        const res = await scripts.improve({
-          scene_text: content, instruction, language, script_id: id,
-        });
-        setAiResponse(res.data.improved_text);
+        // This one matters more: the writer is watching their OWN words being
+        // replaced, and seeing it land line by line is what lets them stop it
+        // when it goes somewhere they did not want.
+        await streamSSE(
+          "/scripts/improve/stream",
+          { scene_text: content, instruction, language, script_id: id },
+          setAiResponse,
+        );
       } else {
         const res = await scripts.suggest({ scene_text: content, genre, tone });
         setAiResponse(res.data.suggestions.join("\n\n---\n\n"));
