@@ -456,13 +456,14 @@ describe("sharing from inside the script", () => {
   });
 });
 
-describe("full page", () => {
+describe("focus mode takes the whole screen", () => {
   /**
-   * Focus mode hides what the APP draws; full page hides what the BROWSER
-   * draws. On a 13-inch laptop that is roughly 120px — four or five lines of
-   * screenplay. They compose: neither, either, or both.
+   * These were two menu entries: one hid what the APP draws, the other what the
+   * BROWSER draws. A true distinction, and one nobody standing at this menu
+   * wants to make — a writer asking for fewer things on screen means all of
+   * them. One control now does both.
    *
-   * The browser owns this state (Esc and F11 change it without telling us), so
+   * The browser owns fullscreen (Esc and F11 change it without telling us), so
    * it is read back from the document rather than assumed. A toggle that claims
    * success when the request was refused is worse than one that does nothing.
    */
@@ -480,61 +481,42 @@ describe("full page", () => {
     fireEvent.click(screen.getByRole("button", { name: /View/ }));
   };
 
-  it("is offered in the View menu", async () => {
+  it("offers one control, not two", async () => {
     await openView();
 
-    expect(screen.getByRole("menuitem", { name: /Full page/ })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Focus mode/ })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Full page/ })).not.toBeInTheDocument();
   });
 
-  it("asks the browser to go fullscreen", async () => {
+  it("asks the browser for the whole screen on the way in", async () => {
     await openView();
 
-    fireEvent.click(screen.getByRole("menuitem", { name: /Full page/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Focus mode/ }));
 
     await waitFor(() =>
       expect(document.documentElement.requestFullscreen).toHaveBeenCalled());
   });
 
-  it("leaves fullscreen when already in it", async () => {
-    Object.defineProperty(document, "fullscreenElement", {
-      value: document.documentElement, configurable: true,
-    });
+  it("hides the toolbar as well, which is the app's half of the same wish", async () => {
     await openView();
 
-    fireEvent.click(screen.getByRole("menuitem", { name: /Full page/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Focus mode/ }));
 
-    await waitFor(() => expect(document.exitFullscreen).toHaveBeenCalled());
-    Object.defineProperty(document, "fullscreenElement", {
-      value: null, configurable: true,
-    });
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /Export/ })).not.toBeInTheDocument());
   });
 
-  it("survives a browser that refuses the request", async () => {
-    // An iframe without the permission, or a browser setting. The menu keeps
-    // showing the truthful state rather than claiming it worked.
+  it("survives a browser that refuses fullscreen", async () => {
+    // An iframe without the permission, or a browser setting. Focus mode still
+    // works — the app's own chrome is ours to hide either way.
     document.documentElement.requestFullscreen = vi.fn().mockRejectedValue(new Error("denied"));
     await openView();
 
-    fireEvent.click(screen.getByRole("menuitem", { name: /Full page/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Focus mode/ }));
 
     await waitFor(() =>
-      expect(document.documentElement.requestFullscreen).toHaveBeenCalled());
+      expect(screen.queryByRole("button", { name: /Export/ })).not.toBeInTheDocument());
     expect(screen.getByLabelText("Screenplay")).toBeInTheDocument();
-  });
-
-  it("follows the browser when Esc or F11 changes it behind our back", async () => {
-    await openView();
-    Object.defineProperty(document, "fullscreenElement", {
-      value: document.documentElement, configurable: true,
-    });
-
-    fireEvent(document, new Event("fullscreenchange"));
-
-    await waitFor(() =>
-      expect(screen.getByRole("menuitem", { name: /Full page/ }).textContent).toContain("•"));
-    Object.defineProperty(document, "fullscreenElement", {
-      value: null, configurable: true,
-    });
   });
 });
 

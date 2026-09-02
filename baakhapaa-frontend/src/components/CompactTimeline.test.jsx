@@ -289,3 +289,47 @@ describe("short form", () => {
     expect(screen.getByText(/3 beats/)).toBeInTheDocument();
   });
 });
+
+
+/**
+ * A crowded strip.
+ *
+ * The timeline is one row of fixed width. Past a dozen scenes each block gets
+ * about fifty pixels, and the heading truncated to "1 INT. CL9" reads as
+ * damage rather than as a label — so beyond that point the number alone is the
+ * honest thing to draw. The full heading stays in the title attribute and on
+ * the index cards.
+ */
+describe("when there are too many scenes to label", () => {
+  const many = (n) =>
+    Array.from({ length: n }, (_, i) =>
+      scene({ id: `s${i}`, title: `INT. LOCATION ${i} - DAY`, act_number: 1,
+              draft_json: { minutes: 1 } }));
+
+  it("still labels a strip that has room", () => {
+    show({ scenes: many(5) });
+
+    expect(screen.getByText(/INT\. LOCATION 0 - DAY/)).toBeInTheDocument();
+  });
+
+  it("drops to numbers once the blocks are too narrow to read", () => {
+    show({ scenes: many(20) });
+
+    // The block's own text, not a search: with twenty scenes every heading is
+    // gone from the strip and only the ordinal is drawn.
+    const first = screen.getAllByRole("button")
+      .find((b) => (b.getAttribute("title") || "").includes("INT. LOCATION 0 - DAY"));
+    // The ordinal survives (and the active block still shows its timecode);
+    // the heading is what goes.
+    expect(first.textContent).not.toContain("LOCATION");
+    expect(first.textContent).toContain("1");
+  });
+
+  it("keeps the heading reachable on hover", () => {
+    show({ scenes: many(20) });
+
+    const block = screen.getAllByRole("button")
+      .find((b) => (b.getAttribute("title") || "").includes("INT. LOCATION 0 - DAY"));
+    expect(block).toBeTruthy();
+  });
+});

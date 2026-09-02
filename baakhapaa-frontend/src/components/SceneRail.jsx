@@ -23,6 +23,34 @@ import React from "react";
  * hand-typed screenplay, because nothing had ever allocated those scenes
  * anything.
  */
+/** The draft fields sync writes, whichever shape the database hands them back in. */
+function draftOf(scene) {
+  try {
+    return typeof scene.draft_json === "string"
+      ? JSON.parse(scene.draft_json)
+      : scene.draft_json || {};
+  } catch {
+    return {};
+  }
+}
+
+/** Who speaks or appears in the scene, parsed off the page by `scene_sync`. */
+function sceneCast(scene) {
+  const cast = draftOf(scene).characters;
+  return Array.isArray(cast) ? cast : [];
+}
+
+/** The scene's first action line — what the camera sees when it opens. */
+function sceneAction(scene) {
+  return (draftOf(scene).summary || "").trim();
+}
+
+/** Which page it starts on. Derived, so it needs no round trip. */
+function scenePage(scene) {
+  const line = Number(draftOf(scene).line_number);
+  return Number.isFinite(line) ? Math.floor(line / 45) + 1 : 1;
+}
+
 function sceneRuntime(scene) {
   let draft = {};
   try {
@@ -105,11 +133,20 @@ export default function SceneRail({
             filed them with Import and Export, which are things you DO to a
             script rather than ways of seeing it. It also buys back room in a
             toolbar that had already crushed its own title once. */}
+        {/* Sticky. The rail scrolls, and with twenty scenes in it the switcher
+            went off the top — so the answer to "where is Corkboard" became
+            "scroll back up", which is indistinguishable from it not existing. */}
         <div
           role="tablist"
           aria-label="Workspace view"
-          className="flex rounded-lg border border-border overflow-hidden mb-4"
+          // The wrapper spans the rail's own padding (-mx-4 -mt-4, then put
+          // back with px-4 pt-4). Without that, `top-0` pins the control at the
+          // container edge while the 16px of padding above it stays
+          // transparent — so scrolled cards slid through the gap over the top
+          // of the switcher.
+          className="sticky top-0 z-20 -mx-4 -mt-4 px-4 pt-4 pb-3 bg-surface mb-1"
         >
+          <div className="flex rounded-lg border border-border overflow-hidden">
           {VIEWS.map((v) => (
             <button
               key={v.key}
@@ -126,6 +163,7 @@ export default function SceneRail({
               {v.label}
             </button>
           ))}
+          </div>
         </div>
 
         {hasReading ? (
@@ -149,8 +187,38 @@ export default function SceneRail({
                 : "border-borderSoft bg-surface/50 hover:border-gold/30 hover:bg-elevated/40"
             }`}
           >
-            <div className="text-[10px] font-mono text-gold mb-1 uppercase tracking-wider">Scene {i + 1}</div>
-            <div className="text-ink font-semibold text-sm truncate mb-2">{scene.title}</div>
+            <div className="flex items-baseline justify-between gap-2 mb-1">
+              <span className="text-[10px] font-mono text-gold uppercase tracking-wider">
+                Scene {i + 1}
+              </span>
+              {/* Where it is, which the page cannot tell you without scrolling
+                  to it and counting. */}
+              <span className="text-[9.5px] font-mono text-inkMuted">p.{scenePage(scene)}</span>
+            </div>
+            {/* The heading, smaller and quieter than it was. It IS on the page
+                three inches to the right — the card's job is to add what the
+                page cannot show you at a glance, not to say the same words
+                again in bold. */}
+            <div className="text-inkSoft text-[12px] font-mono truncate">{scene.title}</div>
+            {/* This is the part worth a card. Who is in it, and the first thing
+                the camera sees — the two facts you actually flip through an
+                index looking for. */}
+            {sceneCast(scene).length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {sceneCast(scene).slice(0, 4).map((name) => (
+                  <span key={name} className="text-[9.5px] font-mono text-gold/70
+                                              bg-goldDim/40 px-1.5 py-px rounded">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            )}
+            {sceneAction(scene) && (
+              <p className="text-[11.5px] text-inkMuted leading-snug mt-1.5 line-clamp-2">
+                {sceneAction(scene)}
+              </p>
+            )}
+            <div className="h-2" />
             <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider">
               <span className={scene.scene_type === "major" ? "text-skyAccent bg-skyDim px-2 py-0.5 rounded" : "text-inkMuted bg-borderSoft px-2 py-0.5 rounded"}>
                 {scene.scene_type}

@@ -128,6 +128,14 @@ export default function CompactTimeline({
     };
   });
 
+  // Past a dozen scenes the strip is the width it is and every block gets
+  // about fifty pixels, which renders "1 INT. CL9" — a truncation that
+  // reads as damage rather than as a label. Beyond that the number alone is
+  // the honest thing to show; the full heading is a hover away, and the
+  // index cards two inches to the left carry it in full.
+  const DENSE_AFTER = 12;
+  const dense = acts.reduce((n, a) => n + a.blocks.length, 0) > DENSE_AFTER;
+
   const total =
     acts.reduce((n, a) => n + a.blocks.reduce((m, b) => m + b.mins, 0), 0) || 1;
   const writtenMins = scenes.reduce((n, s) => n + (Number(draftOf(s).minutes) || 0), 0);
@@ -234,7 +242,7 @@ export default function CompactTimeline({
                       : "bg-elevated text-inkMuted hover:text-ink"
                   }`}
                 >
-                  <span className="truncate">{b.index + 1} {b.label}</span>
+                  <span className="truncate">{b.index + 1}{dense ? "" : ` ${b.label}`}</span>
                   {isActive && (
                     <span className="absolute right-1.5 font-mono text-gold">
                       {timecode(b.mins)}
@@ -249,7 +257,7 @@ export default function CompactTimeline({
                   style={style}
                   className={`${common} text-left bg-[#121110] border border-dashed border-white/10 text-inkMuted/50 hover:border-gold/30`}
                 >
-                  <span className="truncate italic">{b.label}</span>
+                  <span className="truncate italic">{dense ? "·" : b.label}</span>
                 </button>
               );
             })}

@@ -430,6 +430,22 @@ export default function ScriptEditor() {
   // Page rules are drawn from the server's own PAGE_LINES so the editor and the
   // PDF export cannot disagree about what page a scene is on.
   const [pagination, setPagination] = useState({ page_lines: 45, page_count: 1 });
+
+  /**
+   * How many pages, counted here rather than waited for.
+   *
+   * `pagination` arrives with a save, and saves are debounced by fifteen
+   * seconds — so the indicator sat on a stale total for most of a session and
+   * only caught up long after the page it described had been written. The rule
+   * is one line: the same PAGE_LINES the server paginates on and the PDF lays
+   * out with, so the two cannot disagree by more than the wrapped-line drift
+   * the server has too. Both places that show it — the toolbar and focus
+   * mode's status line — read this.
+   */
+  const pageCount = useMemo(() => {
+    const lines = (content || "").split("\n").length;
+    return Math.max(1, Math.ceil(lines / (pagination.page_lines || 45)));
+  }, [content, pagination.page_lines]);
   const [caretPage, setCaretPage] = useState(1);
 
   // Focus mode keeps its own session baseline. Reset on entry rather than on
@@ -1203,7 +1219,7 @@ export default function ScriptEditor() {
               className="text-[11px] font-mono text-inkMuted tabular-nums whitespace-nowrap"
               title="Page under the caret / pages in the draft — matches the PDF export"
             >
-              p. {Math.min(caretPage, pagination.page_count)} / {pagination.page_count}
+              p. {Math.min(caretPage, pageCount)} / {pageCount}
             </span>
           )}
           {/* Shortcut reference. A dropdown rather than a standing panel:
@@ -1327,21 +1343,23 @@ export default function ScriptEditor() {
             title="Display options"
             items={[
               {
+                // Focus mode and Full page were separate entries — one hid the
+                // app's chrome, the other the browser's. True, and a
+                // distinction nobody standing at this menu wants to make: a
+                // writer asking for fewer things on screen means all of them.
+                // One control now does both, and leaving focus restores both.
                 key: "zen",
                 label: "Focus mode",
-                hint: "Hide everything except the page",
+                hint: "Nothing on screen but the page",
                 active: zenMode,
-                onSelect: () => setZenMode((z) => !z),
+                onSelect: () => {
+                  const next = !zenMode;
+                  setZenMode(next);
+                  if (next !== isFullPage) toggleFullPage();
+                },
               },
               {
-                key: "full",
-                label: "Full page",
-                hint: "Fill the whole screen — browser chrome and all",
-                active: isFullPage,
-                onSelect: toggleFullPage,
-              },
-              {
-                key: "theme",
+                key: "typewriter",
                 label: typewriter ? "Typewriter mode: on" : "Typewriter mode",
                 hint: "Hold the caret at the middle of the page",
                 onSelect: () => setTypewriter((t) => !t),
@@ -1545,7 +1563,7 @@ export default function ScriptEditor() {
             {zenMode && (
               <div className="zen-hint" aria-live="polite">
                 <span className="tabular-nums">
-                  p. {Math.min(caretPage, pagination.page_count)} / {pagination.page_count}
+                  p. {Math.min(caretPage, pageCount)} / {pageCount}
                 </span>
                 {sessionStart && (
                   <span className="tabular-nums ml-4">
