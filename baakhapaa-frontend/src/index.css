@@ -114,6 +114,24 @@ html, body {
 }
 
 /* Light page kept for the user-toggleable paper mode */
+/* One card = one page.
+   The geometry below is derived, not guessed. `--page-lines` must equal
+   screenplay.PAGE_LINES on the server, which is what the PDF lays out with and
+   what the p. N / M indicator counts; the card's height is then exactly that
+   many lines plus its margins. Before this the card was a flat 1056px while
+   pagination broke at 45 lines — about 190px further down — so the dashed rule
+   fell well past the bottom of the paper it was supposedly ending. */
+:root {
+  --page-lines: 45;
+  --page-font: 15px;
+  --page-leading: 1.6;
+  --page-line-h: calc(var(--page-font) * var(--page-leading));
+  --page-margin-y: 1in;
+  --page-margin-l: 1.5in;   /* wide, as screenplays are bound down the left */
+  --page-margin-r: 1in;
+  --page-gap: 1.5rem;       /* the space between sheets */
+}
+
 .screenplay-page {
   background-color: #FAF9F6;
   color: #1E1E20;
@@ -123,14 +141,16 @@ html, body {
      never open. It belongs to the page. */
   caret-color: #C9A227;
   width: 100%;
-  max-width: 816px;   /* US Letter width proportional */
-  min-height: 1056px; /* US Letter height proportional */
+  max-width: 816px;   /* 8.5in at 96dpi */
+  min-height: calc(var(--page-lines) * var(--page-line-h)
+                   + var(--page-margin-y) * 2);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
   border-radius: 2px;
-  padding: 4rem 5rem;
+  padding: var(--page-margin-y) var(--page-margin-r)
+           var(--page-margin-y) var(--page-margin-l);
   font-family: 'Courier Prime', 'Courier New', Courier, monospace;
-  font-size: 15px;
-  line-height: 1.66;
+  font-size: var(--page-font);
+  line-height: var(--page-leading);
   outline: none;
   white-space: pre-wrap;
   transition: background-color 0.2s, color 0.2s;
@@ -257,4 +277,61 @@ input[type="range"].custom-slider::-webkit-slider-thumb:hover {
    only place you could get it. */
 .screenplay-page.typewriter-page {
   padding-bottom: 55vh;
+}
+
+
+/* The break between two sheets.
+
+   A textarea is one continuous flow: nothing can push text around a gap the
+   way it would in a real paginated editor. So this draws the two paper edges
+   and lets the app background show between them, which reads as a stack of
+   pages — and a line that happens to fall in the break stays visible rather
+   than being hidden behind an opaque band. Honest about what it is: a page
+   boundary you can see, not a page boundary text obeys. */
+.page-break {
+  /* Lifted so the break straddles the boundary rather than starting at it. */
+  transform: translateY(calc(var(--page-gap) / -2));
+}
+.page-break-edge {
+  height: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.16);
+}
+.page-break-edge--bottom {
+  box-shadow: 0 6px 10px -6px rgba(0, 0, 0, 0.45);
+}
+.page-break-edge--top {
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.8);
+}
+/* Translucent, and this is the whole compromise.
+   A filled band hid whatever lines fell inside it — at a 36px gap and a 24px
+   line that is one to two lines of the writer's script, gone, at every single
+   page boundary. Losing words to a decoration is not a trade worth making, so
+   the break dims the text behind it instead of covering it: the boundary reads
+   clearly and nothing is unreadable.
+
+   A true gap, where text flows around the break the way it does in Google
+   Docs, cannot be done in a <textarea> at all — the element has one continuous
+   flow and no way to insert vertical space that the text respects. That needs
+   a real paginated editor (CodeMirror, ProseMirror), which is a project rather
+   than a stylesheet. */
+.page-break-gap {
+  position: relative;
+  height: var(--page-gap);
+  background: rgba(11, 11, 10, 0.55);
+  backdrop-filter: saturate(0.4);
+}
+.page-break-number {
+  position: absolute;
+  bottom: 3px;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+}
+
+/* On dark paper the sheet edges invert and the gap has to be darker than the
+   page rather than lighter, or the break reads as a highlight. */
+.dark-page ~ * .page-break-edge,
+.dark-page .page-break-edge {
+  border-top-color: rgba(255, 255, 255, 0.14);
 }

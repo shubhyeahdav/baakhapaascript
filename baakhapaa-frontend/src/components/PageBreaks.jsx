@@ -58,20 +58,31 @@ export default function PageBreaks({ textareaRef, content, pageLines = 45, scrol
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      {/* A break between two sheets, not a line drawn on one.
+          Each is the bottom edge of the page above and the top edge of the one
+          below, with the app's own background showing through between them —
+          the Google Docs reading, where a document is a stack of paper rather
+          than an endless roll with marks on it. */}
       {rules.map((r) => (
-        <div key={r.page} className="absolute left-0 right-0" style={{ top: r.top }}>
-          <div className="border-t border-dashed border-black/25 page-rule" />
-          {/* The number belongs to the page BELOW the rule, and sits at its top
-              right — the printed screenplay convention, and what a reader
-              flipping to "page 4" is looking for. Labelling the rule with the
-              page that just ended reads as an off-by-one to anyone used to a
-              real script. */}
-          <span
-            className="absolute top-[3px] font-mono text-[9.5px] tracking-wider text-black/45 page-rule-label bg-[#FAF9F6] pl-2"
-            style={{ right: metrics.paddingRight }}
-          >
-            {r.page + 1}.
-          </span>
+        <div
+          key={r.page}
+          className="absolute left-0 right-0 page-break"
+          style={{ top: r.top }}
+        >
+          <div className="page-break-edge page-break-edge--bottom" />
+          <div className="page-break-gap">
+            {/* The number belongs to the page BELOW, at its top right — the
+                printed screenplay convention, and what a reader flipping to
+                "page 4" is looking for. Labelling the break with the page that
+                just ended reads as an off-by-one to anyone used to a script. */}
+            <span
+              className="page-break-number"
+              style={{ right: metrics.paddingRight }}
+            >
+              {r.page + 1}.
+            </span>
+          </div>
+          <div className="page-break-edge page-break-edge--top" />
         </div>
       ))}
     </div>
