@@ -129,7 +129,6 @@ html, body {
   --page-margin-y: 1in;
   --page-margin-l: 1.5in;   /* wide, as screenplays are bound down the left */
   --page-margin-r: 1in;
-  --page-gap: 2rem;         /* the space between sheets */
 }
 
 .screenplay-page {
@@ -277,64 +276,4 @@ input[type="range"].custom-slider::-webkit-slider-thumb:hover {
    only place you could get it. */
 .screenplay-page.typewriter-page {
   padding-bottom: 55vh;
-}
-
-
-/* The break between two sheets.
-
-   A textarea is one continuous flow: nothing can push text around a gap the
-   way it would in a real paginated editor. So this draws the two paper edges
-   and lets the app background show between them, which reads as a stack of
-   pages — and a line that happens to fall in the break stays visible rather
-   than being hidden behind an opaque band. Honest about what it is: a page
-   boundary you can see, not a page boundary text obeys. */
-.page-break {
-  /* Lifted so the break straddles the boundary rather than starting at it. */
-  transform: translateY(calc(var(--page-gap) / -2));
-}
-.page-break-edge {
-  height: 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.16);
-}
-.page-break-edge--bottom {
-  box-shadow: 0 6px 10px -6px rgba(0, 0, 0, 0.45);
-}
-.page-break-edge--top {
-  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.8);
-}
-/* Translucent, and this is the whole compromise.
-   A filled band hid whatever lines fell inside it — at a 36px gap and a 24px
-   line that is one to two lines of the writer's script, gone, at every single
-   page boundary. Losing words to a decoration is not a trade worth making, so
-   the break dims the text behind it instead of covering it: the boundary reads
-   clearly and nothing is unreadable.
-
-   A true gap, where text flows around the break the way it does in Google
-   Docs, cannot be done in a <textarea> at all — the element has one continuous
-   flow and no way to insert vertical space that the text respects. That needs
-   a real paginated editor (CodeMirror, ProseMirror), which is a project rather
-   than a stylesheet. */
-.page-break-gap {
-  position: relative;
-  height: var(--page-gap);
-  /* Solid again. The break snaps back to a blank line, so it sits on an empty
-     row and covers nothing — which is what makes a real gap possible here at
-     all. It was translucent only because a break at an arbitrary line was
-     landing on the writer's words. */
-  background: #0B0B0A;
-}
-.page-break-number {
-  position: absolute;
-  bottom: 3px;
-  color: rgba(255, 255, 255, 0.72);
-  font-family: 'Courier Prime', 'Courier New', Courier, monospace;
-  font-size: 9.5px;
-  letter-spacing: 0.06em;
-}
-
-/* On dark paper the sheet edges invert and the gap has to be darker than the
-   page rather than lighter, or the break reads as a highlight. */
-.dark-page ~ * .page-break-edge,
-.dark-page .page-break-edge {
-  border-top-color: rgba(255, 255, 255, 0.14);
 }

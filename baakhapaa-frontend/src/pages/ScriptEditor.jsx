@@ -40,7 +40,6 @@ import ShortFormTimeline from "../components/ShortFormTimeline";
 import CompactTimeline from "../components/CompactTimeline";
 import Corkboard from "../components/Corkboard";
 import OutlineView from "../components/OutlineView";
-import PageBreaks from "../components/PageBreaks";
 
 // One-click focuses for pattern recommendations. The pattern library is
 // indexed by the PROBLEM a technique solves, so each chip just names that
@@ -431,7 +430,6 @@ export default function ScriptEditor() {
   // Page rules are drawn from the server's own PAGE_LINES so the editor and the
   // PDF export cannot disagree about what page a scene is on.
   const [pagination, setPagination] = useState({ page_lines: 45, page_count: 1 });
-  const [pageScroll, setPageScroll] = useState(0);
   const [caretPage, setCaretPage] = useState(1);
 
   // Focus mode keeps its own session baseline. Reset on entry rather than on
@@ -1571,19 +1569,13 @@ export default function ScriptEditor() {
                 </button>
               </div>
             )}
-            {/* The page and its rules share one positioned box. The rules were
-                first drawn over the whole container, which does not scroll —
-                the textarea does — so they sat at a fixed offset and never
-                moved with the text. */}
+            {/* Page breaks used to be drawn in here as an overlay. Removed:
+                a textarea has one continuous flow, so the marker could only
+                ever sit ON the text rather than move it, and neither a rule
+                nor a gap earned the interruption. `p. N / M` in the toolbar
+                still says where you are, and the PDF still paginates for
+                real — the two places a page count is actually useful. */}
             <div className="relative w-full max-w-[816px] flex">
-              {!zenMode && pageTheme === "light" && (
-                <PageBreaks
-                  textareaRef={textareaRef}
-                  content={content}
-                  pageLines={pagination.page_lines}
-                  scrollTop={pageScroll}
-                />
-              )}
               <textarea
               ref={textareaRef}
               className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} ${typewriter && !zenMode ? "typewriter-page" : ""} resize-none`}
@@ -1622,7 +1614,6 @@ export default function ScriptEditor() {
                 if (typewriter && NAV_KEYS.has(e.key)) scrollCaretIntoView(true);
               }}
               onBlur={() => setSuggest(null)}
-              onScroll={(e) => setPageScroll(e.currentTarget.scrollTop)}
               />
             </div>
           </div>
