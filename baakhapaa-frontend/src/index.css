@@ -129,7 +129,7 @@ html, body {
   --page-margin-y: 1in;
   --page-margin-l: 1.5in;   /* wide, as screenplays are bound down the left */
   --page-margin-r: 1in;
-  --page-gap: 1.5rem;       /* the space between sheets */
+  --page-gap: 2rem;         /* the space between sheets */
 }
 
 .screenplay-page {
@@ -317,8 +317,11 @@ input[type="range"].custom-slider::-webkit-slider-thumb:hover {
 .page-break-gap {
   position: relative;
   height: var(--page-gap);
-  background: rgba(11, 11, 10, 0.55);
-  backdrop-filter: saturate(0.4);
+  /* Solid again. The break snaps back to a blank line, so it sits on an empty
+     row and covers nothing — which is what makes a real gap possible here at
+     all. It was translucent only because a break at an arbitrary line was
+     landing on the writer's words. */
+  background: #0B0B0A;
 }
 .page-break-number {
   position: absolute;

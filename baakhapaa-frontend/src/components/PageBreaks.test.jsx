@@ -138,3 +138,46 @@ it("does not intercept clicks meant for the textarea underneath", () => {
 
   expect(container.firstChild.className).toContain("pointer-events-none");
 });
+
+
+/**
+ * Where the break lands.
+ *
+ * A screenplay never splits a scene heading from its action, or a character
+ * cue from the line beneath it. Real paginating software pushes the break back
+ * to the nearest element boundary, and in this format that boundary is a blank
+ * line. It is also what makes a drawn gap usable: on a blank row the break
+ * covers nothing, so it can be solid rather than a translucent band lying over
+ * the writer's words.
+ */
+describe("breaks land on a blank line", () => {
+  // The harness mocks lineHeight 20 / paddingTop 10.
+  const draft = (blankAt) => {
+    const rows = [];
+    for (let i = 1; i <= 30; i += 1) rows.push(i === blankAt ? "" : `Line ${i}`);
+    return rows.join("\n");
+  };
+
+  const topOf = (container) =>
+    parseFloat(container.querySelector(".page-break").style.top);
+
+  it("pulls the break back to the blank row above it", () => {
+    const { container } = render(<Harness content={draft(9)} pageLines={10} />);
+
+    // Line 9 is blank, so the break moves from row 10 up to row 9.
+    expect(topOf(container)).toBe(PADDING_TOP + 9 * LINE_HEIGHT);
+  });
+
+  it("stays put when the row above the break is already blank", () => {
+    const { container } = render(<Harness content={draft(10)} pageLines={10} />);
+
+    expect(topOf(container)).toBe(PADDING_TOP + 10 * LINE_HEIGHT);
+  });
+
+  it("gives up rather than throwing away half a page", () => {
+    // No blank row within reach: breaking mid-element is the lesser damage.
+    const { container } = render(<Harness content={draft(0)} pageLines={10} />);
+
+    expect(topOf(container)).toBe(PADDING_TOP + 10 * LINE_HEIGHT);
+  });
+});

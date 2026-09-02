@@ -44,15 +44,41 @@ export default function PageBreaks({ textareaRef, content, pageLines = 45, scrol
   // occupies more than one row on screen, so a very wide action paragraph will
   // drift the rule slightly — acceptable, because screenplay lines are short by
   // format and the alternative is measuring every wrapped row on every keypress.
-  const totalLines = (content || "").split("\n").length;
+  const lines = (content || "").split("\n");
+  const totalLines = lines.length;
   const pages = Math.max(1, Math.ceil(totalLines / pageLines));
   if (pages < 2) return null;
 
+  /**
+   * Where the break actually goes.
+   *
+   * Never mid-element. A screenplay does not split a scene heading from its
+   * action, or a character cue from the line under it — real paginating
+   * software pushes the break back to the nearest element boundary, and a
+   * blank line is exactly what an element boundary looks like in this format.
+   *
+   * It also solves the thing that made a drawn gap unusable: on a blank line
+   * the break covers nothing, so it can be solid paper-to-paper instead of a
+   * translucent band sitting over the writer's words.
+   *
+   * Search backwards only, and no further than SNAP_LIMIT. Forwards would put
+   * more on the page than fits; further back throws away too much of it, and
+   * at that point breaking mid-element is the lesser damage.
+   */
+  const SNAP_LIMIT = 4;
+  const breakAt = (nominal) => {
+    for (let i = 0; i <= SNAP_LIMIT; i += 1) {
+      if ((lines[nominal - 1 - i] ?? "").trim() === "") return nominal - i;
+    }
+    return nominal;
+  };
+
   const rules = [];
   for (let p = 1; p < pages; p += 1) {
+    const line = breakAt(p * pageLines);
     rules.push({
       page: p,
-      top: metrics.paddingTop + p * pageLines * metrics.lineHeight - scrollTop,
+      top: metrics.paddingTop + line * metrics.lineHeight - scrollTop,
     });
   }
 
