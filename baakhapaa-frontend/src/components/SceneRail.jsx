@@ -80,12 +80,25 @@ function Totals({ scenes }) {
  * @param view          which of the three readings is open
  * @param onViewChange  switch reading
  */
-export default function SceneRail({ scenes, activeScene, onSceneClick, view = "script", onViewChange }) {
+export default function SceneRail({
+  scenes, activeScene, onSceneClick, view = "script", onViewChange, children,
+}) {
   // Hidden on a phone. 256px of index cards beside a 375px screen leaves no
   // page left to write on, and the Corkboard is this same list in a form that
   // suits a small screen far better.
+  //
+  // Wider when it is carrying a whole reading rather than the index list.
+  // Corkboard's grid is auto-fill/minmax(230px), so it collapses to a single
+  // column here without being told to.
+  // NOT `children ?`. The caller passes two conditional slots, so in Script
+  // view `children` is the ARRAY [false, false] — truthy — and the index cards
+  // silently vanished behind an empty box. `Children.toArray` drops false and
+  // null, which is the question actually being asked: is anything in there.
+  const hasReading = React.Children.toArray(children).length > 0;
   return (
-    <aside className="hidden lg:block w-64 bg-surface border-r border-border overflow-y-auto p-4 shrink-0 animate-fade-up">
+    <aside className={`hidden lg:flex flex-col ${hasReading ? "w-80 xl:w-96" : "w-64"}
+                       bg-surface border-r border-border overflow-y-auto p-4 shrink-0
+                       animate-fade-up transition-[width] duration-200`}>
         {/* The three readings live here rather than in the toolbar.
             They are a statement about what you are looking at, and the left
             column IS what you are looking at — putting them up in the toolbar
@@ -115,10 +128,13 @@ export default function SceneRail({ scenes, activeScene, onSceneClick, view = "s
           ))}
         </div>
 
-        {view !== "script" ? (
-          // Corkboard and Outline are a fuller version of this list, so the
-          // cards would be saying the same thing twice. The totals still hold.
-          <Totals scenes={scenes} />
+        {hasReading ? (
+          // Corkboard or Outline, rendered here rather than over the page.
+          // The screenplay stays visible in the main area at all times, so
+          // restructuring happens BESIDE the writing rather than instead of
+          // it — the reason to move a card is almost always something you
+          // just read on the page.
+          <div className="flex-1 min-h-0 flex flex-col -mx-4">{children}</div>
         ) : (
         <>
         <div className="text-[10px] font-bold text-inkMuted uppercase tracking-wider mb-4">Scene Index Cards</div>

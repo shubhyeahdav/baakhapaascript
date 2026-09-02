@@ -49,10 +49,13 @@ export default function CompactTimeline({
   activeScene,
   onSceneClick,
   onRenameScene,
+  onSetActMinutes,
   onExpand,
 }) {
   // Which scene block is being renamed, by scene index.
   const [editing, setEditing] = useState(null);
+  // Which act's planned minutes are being edited, by act number.
+  const [editingAct, setEditingAct] = useState(null);
   // Short-form has beats, not acts. Rather than returning null — which left
   // the minimized strip blank for every short-form project — collapse to a
   // one-line beat bar so runtime and shape stay visible while writing.
@@ -114,7 +117,15 @@ export default function CompactTimeline({
         written: false,
         index: null,
       }));
-    return { num, name: sugAct?.name || "", blocks: [...written, ...pending] };
+    // The act's own planned length, which is what the editable field shows.
+    // Not the sum of its scenes: an act can be allotted twelve minutes
+    // before a single scene in it has been written.
+    return {
+      num,
+      name: sugAct?.name || "",
+      planned: Number(sugAct?.duration_minutes) || 0,
+      blocks: [...written, ...pending],
+    };
   });
 
   const total =
@@ -260,15 +271,57 @@ export default function CompactTimeline({
           `justify-between` put ACT II above whatever happened to be in the
           middle of the strip, which is only ever right by accident. */}
       <div className="flex gap-[2px] text-[10px] text-inkMuted/60 mt-1.5">
-        {acts.map((a) => (
-          <span
-            key={a.num}
-            className="truncate min-w-0"
-            style={{ flex: `${a.blocks.reduce((m, b) => m + weight(b), 0) || MIN_WEIGHT} 1 0%` }}
-          >
-            ACT {ROMAN[a.num] || a.num}{a.name ? ` — ${a.name.toUpperCase()}` : ""}
-          </span>
-        ))}
+        {acts.map((a) => {
+          const style = { flex: `${a.blocks.reduce((m, b) => m + weight(b), 0) || MIN_WEIGHT} 1 0%` };
+          const label = `ACT ${ROMAN[a.num] || a.num}${a.name ? ` — ${a.name.toUpperCase()}` : ""}`;
+          if (editingAct === a.num) {
+            return (
+              <form
+                key={a.num}
+                style={style}
+                className="min-w-0 flex items-center gap-1"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const mins = parseFloat(e.currentTarget.elements.mins.value);
+                  if (mins > 0) onSetActMinutes?.(a.num, mins);
+                  setEditingAct(null);
+                }}
+              >
+                <span className="shrink-0">{label}</span>
+                <input
+                  name="mins"
+                  type="number"
+                  step="0.5"
+                  min="0.5"
+                  defaultValue={a.planned || ""}
+                  autoFocus
+                  aria-label={`Act ${a.num} planned minutes`}
+                  onBlur={(e) => {
+                    const mins = parseFloat(e.target.value);
+                    if (mins > 0) onSetActMinutes?.(a.num, mins);
+                    setEditingAct(null);
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Escape") setEditingAct(null); }}
+                  className="w-12 bg-transparent border-b border-gold text-gold
+                             font-mono text-[10px] outline-none"
+                />
+                <span className="shrink-0">min</span>
+              </form>
+            );
+          }
+          return (
+            <button
+              key={a.num}
+              type="button"
+              style={style}
+              onDoubleClick={() => setEditingAct(a.num)}
+              title={`${label} — double-click to change how long this act should run`}
+              className="truncate min-w-0 text-left hover:text-inkMuted transition-colors"
+            >
+              {label}
+            </button>
+          );
+        })}
         <span className="font-mono shrink-0 pl-3">
           {timecode(writtenMins)} written of {timecode(total)}
         </span>

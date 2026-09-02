@@ -59,13 +59,16 @@ export default function Corkboard({ scenes = [], activeScene, onOpen, onMove, on
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-bgDeep/40">
-      <div className="flex items-baseline justify-between mb-4">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-inkMuted">
+      {/* Stacked, not side by side. This lives in the left rail now, and at
+          that width `justify-between` interleaved the two lines into
+          "CORKBOARD — 2 drag a card to move the SCENES scene in the script". */}
+      <div className="mb-4">
+        <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-inkMuted">
           Corkboard — {scenes.length} {scenes.length === 1 ? "scene" : "scenes"}
-        </span>
-        <span className="font-mono text-[10px] text-inkMuted">
+        </div>
+        <div className="font-mono text-[10px] text-inkMuted/70 mt-0.5 leading-snug">
           drag a card to move the scene in the script
-        </span>
+        </div>
       </div>
 
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(230px,1fr))]">

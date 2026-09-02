@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from models import (
     GenerateStructureRequest, GenerateSceneRequest,
     ImproveSceneRequest, SuggestRequest, ScriptSave, AddSceneRequest,
-    RecommendRequest, StoryBible,
+    RecommendRequest, StoryBible, ActDurations,
 )
 from database import (
     supabase, get_project_by_id, get_versions_by_script,
@@ -94,6 +94,46 @@ def generate_structure(req: GenerateStructureRequest, project_id: str, user_id: 
         script_id = script_result.data[0]["id"]
 
     return {"script_id": script_id, "structure": structure}
+
+
+@router.put("/{script_id}/acts")
+def set_act_durations(script_id: str, req: ActDurations, user_id: str = Depends(get_current_user)):
+    """Change how long each act is planned to run.
+
+    The three-act split is a default, not a law — a short with a long second
+    act is a choice, and until now the only way to alter it was to regenerate
+    the whole structure and lose every suggestion in it.
+
+    Percentages are recomputed rather than stored twice. They were derived from
+    the durations when the structure was generated, so keeping a separate copy
+    would mean two numbers that disagree the moment one is edited.
+    """
+    script = require_script_access(script_id, user_id)
+    try:
+        structure = json.loads(script.get("suggestions_json") or "{}")
+    except (ValueError, TypeError):
+        structure = {}
+    acts = structure.get("acts") or []
+    if not acts:
+        raise HTTPException(status_code=400, detail="This script has no structure to adjust.")
+
+    by_num = {int(k): v for k, v in req.durations.items()}
+    for act in acts:
+        minutes = by_num.get(act.get("act_number"))
+        if minutes is not None:
+            act["duration_minutes"] = round(float(minutes), 2)
+
+    total = sum(float(a.get("duration_minutes") or 0) for a in acts)
+    for act in acts:
+        act["percentage"] = (
+            round(float(act.get("duration_minutes") or 0) / total * 100) if total else 0
+        )
+
+    structure["acts"] = acts
+    supabase.table("scripts").update(
+        {"suggestions_json": json.dumps(structure)}
+    ).eq("id", script_id).execute()
+    return {"structure": structure}
 
 
 @router.post("/add-scene")

@@ -212,7 +212,10 @@ describe("act labels", () => {
                scene({ id: "b", act_number: 2, draft_json: { minutes: 3 } })],
     });
 
-    const labels = Array.from(container.querySelectorAll("span[style*='flex']"));
+    // Buttons now, not spans: double-clicking an act label edits how long that
+    // act is planned to run, so the label had to become something clickable.
+    const labels = Array.from(container.querySelectorAll("button[style*='flex']"))
+      .filter((b) => /^ACT /.test(b.textContent));
     expect(labels.map((l) => l.style.flex)).toEqual(["1 1 0%", "3 1 0%"]);
   });
 });

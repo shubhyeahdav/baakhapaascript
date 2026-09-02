@@ -319,6 +319,15 @@ class VerifyPaymentRequest(BaseModel):
     # it selects a payment to check, it does not assert anything about it.
     params: dict = {}
 
+class ActDurations(BaseModel):
+    """Planned minutes per act, keyed by act number as a string.
+
+    A dict rather than a list because a client that only changed act II should
+    not have to resend the others and risk clobbering an edit it never saw.
+    """
+    durations: dict[str, float] = {}
+
+
 class RecommendRequest(BaseModel):
     scene_text: str = ""
     genre: str = "Drama"

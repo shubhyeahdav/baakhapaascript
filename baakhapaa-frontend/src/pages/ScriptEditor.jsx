@@ -258,6 +258,27 @@ export default function ScriptEditor() {
   const saveSoonRef = useRef(false);
 
   /**
+   * Change how long an act is planned to run.
+   *
+   * The 33/33/34 split is a default, not a law, and until now the only way to
+   * alter it was to regenerate the whole structure — which throws away every
+   * suggestion in it. The server recomputes the percentages, so nothing here
+   * has to keep two numbers agreeing.
+   */
+  const setActMinutes = useCallback(async (actNumber, minutes) => {
+    try {
+      const res = await scripts.setActDurations(id, { [actNumber]: minutes });
+      if (res?.data?.structure) {
+        setScript((prev) => (prev
+          ? { ...prev, suggestions_json: JSON.stringify(res.data.structure) }
+          : prev));
+      }
+    } catch (err) {
+      alert(err.response?.data?.detail || "Could not change the act length.");
+    }
+  }, [id]);
+
+  /**
    * Rename scene N by rewriting its slugline in the draft.
    *
    * Deliberately edits the DOCUMENT rather than the scene row. `scene_sync`
@@ -1432,6 +1453,7 @@ export default function ScriptEditor() {
         !zenMode && (
           <CompactTimeline
             onRenameScene={renameScene}
+            onSetActMinutes={setActMinutes}
             scenes={script.scenes || []}
             suggestions={suggestions}
             activeScene={activeScene}
@@ -1454,41 +1476,45 @@ export default function ScriptEditor() {
             onSceneClick={goToScene}
             view={view}
             onViewChange={setView}
-          />
+          >
+            {/* Corkboard and Outline live in the rail now, not over the page.
+                Restructuring happens BESIDE the writing rather than instead of
+                it: the reason to move a card is almost always something you
+                just read, and covering the script to move it meant holding the
+                scene in your head while you did. `onOpen` no longer switches
+                view either — the page is already there, so it just jumps. */}
+            {view === "corkboard" && (
+              <Corkboard
+                scenes={script.scenes || []}
+                activeScene={activeScene}
+                onOpen={goToScene}
+                onMove={moveScene}
+                onAdd={addCustomScene}
+                adding={addingScene}
+              />
+            )}
+            {view === "outline" && (
+              <OutlineView
+                scenes={script.scenes || []}
+                suggestions={suggestions}
+                activeScene={activeScene}
+                onOpen={goToScene}
+                onAdd={addCustomScene}
+                adding={addingScene}
+              />
+            )}
+          </SceneRail>
         )}
 
-        {/* Workspace: one of three views over the same scene rows. */}
+        {/* Workspace: the screenplay, always. */}
         <div className="flex-1 flex flex-col min-w-0">
-          {view === "corkboard" && (
-            <Corkboard
-              scenes={script.scenes || []}
-              activeScene={activeScene}
-              onOpen={(i) => { setView("script"); requestAnimationFrame(() => goToScene(i)); }}
-              onMove={moveScene}
-              onAdd={addCustomScene}
-              adding={addingScene}
-            />
-          )}
-
-          {view === "outline" && (
-            <OutlineView
-              scenes={script.scenes || []}
-              suggestions={suggestions}
-              activeScene={activeScene}
-              onOpen={(i) => { setView("script"); requestAnimationFrame(() => goToScene(i)); }}
-              onAdd={addCustomScene}
-              adding={addingScene}
-            />
-          )}
 
           <div
             className={`flex-1 screenplay-container min-h-0 relative ${zenMode ? "zen-container" : ""}`}
-            /* Inline, not Tailwind's `hidden`: `.screenplay-container` sets
-               `display:flex` in index.css and wins on source order, so the
-               utility class left the page rendering underneath the corkboard.
-               Hidden rather than unmounted, so switching views does not throw
-               away the caret position or the textarea's native undo stack. */
-            style={{ display: view === "script" ? undefined : "none" }}
+            /* No longer hidden in the other views. Corkboard and Outline moved
+               into the left rail, so the page is visible in all three — which
+               is also why the caret and the native undo stack now survive a
+               view switch by simply never being unmounted. */
           >
             {/* Focus mode's status line.
                 Hiding the chrome hides the save indicator too, and "is my work
