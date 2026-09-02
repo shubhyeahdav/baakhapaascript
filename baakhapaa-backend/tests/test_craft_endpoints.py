@@ -240,3 +240,103 @@ def test_a_real_flag_in_the_draft_is_still_reported(client, make_user):
     line_count = len(MELODRAMATIC.splitlines())
     for d in body["diagnosed"]:
         assert 1 <= d["line"] <= line_count
+
+
+# --- reading one voice at a time -----------------------------------------
+#
+# The question a writer arrives with around page thirty is "do these two people
+# sound the same?", and nothing in this product could answer it. The linter
+# reads a page, the benchmark reads a shape, the corkboard reads an order.
+
+TWO_VOICES = (
+    "INT. CHIYA PASAL - MORNING\n\n"
+    "Sanjana wipes the counter.\n\n"
+    "SANJANA\nTimro result aayo?\n\n"
+    "SANJANA\nKina bhanna sakdainau?\n\n"
+    "BABA\nSixty-two thousand. Second instalment. They do not take late.\n"
+)
+
+
+def _cast(client, user, script_id):
+    r = client.get(f"/scripts/{script_id}/cast", headers=user["headers"])
+    assert r.status_code == 200, r.text
+    return {c["name"]: c for c in r.json()["characters"]}
+
+
+def test_every_speaking_character_is_listed(client, make_user, make_script):
+    user = make_user("free")          # free on every tier: no AI call
+    _, script_id = make_script(user)
+    client.put(f"/scripts/{script_id}", json={"content": TWO_VOICES}, headers=user["headers"])
+
+    cast = _cast(client, user, script_id)
+
+    assert set(cast) == {"SANJANA", "BABA"}
+
+
+def test_the_loudest_voice_comes_first(client, make_user, make_script):
+    """The character with the most to say is the one whose voice costs the most
+    when it is wrong."""
+    user = make_user("free")
+    _, script_id = make_script(user)
+    client.put(f"/scripts/{script_id}", json={"content": TWO_VOICES}, headers=user["headers"])
+
+    names = [c["name"] for c in
+             client.get(f"/scripts/{script_id}/cast", headers=user["headers"]).json()["characters"]]
+
+    assert names[0] == "SANJANA"
+
+
+def test_the_measures_separate_two_voices(client, make_user, make_script):
+    """Sanjana asks and is terse; Baba tells and runs long. That difference is
+    the whole feature."""
+    user = make_user("free")
+    _, script_id = make_script(user)
+    client.put(f"/scripts/{script_id}", json={"content": TWO_VOICES}, headers=user["headers"])
+
+    cast = _cast(client, user, script_id)
+
+    assert cast["SANJANA"]["question_share"] == 1.0
+    assert cast["BABA"]["question_share"] == 0.0
+    assert cast["BABA"]["avg_words"] > cast["SANJANA"]["avg_words"]
+
+
+def test_the_lines_come_back_with_their_line_numbers(client, make_user, make_script):
+    """So a line found here can be reached on the page without hunting."""
+    user = make_user("free")
+    _, script_id = make_script(user)
+    client.put(f"/scripts/{script_id}", json={"content": TWO_VOICES}, headers=user["headers"])
+
+    lines = _cast(client, user, script_id)["SANJANA"]["lines"]
+
+    assert [l["text"] for l in lines] == ["Timro result aayo?", "Kina bhanna sakdainau?"]
+    assert all(isinstance(l["line"], int) and l["line"] > 0 for l in lines)
+
+
+def test_action_is_not_mistaken_for_dialogue(client, make_user, make_script):
+    user = make_user("free")
+    _, script_id = make_script(user)
+    client.put(f"/scripts/{script_id}", json={"content": TWO_VOICES}, headers=user["headers"])
+
+    said = [l["text"] for c in _cast(client, user, script_id).values() for l in c["lines"]]
+
+    assert "Sanjana wipes the counter." not in said
+
+
+def test_an_empty_draft_has_no_cast(client, make_user, make_script):
+    user = make_user("free")
+    _, script_id = make_script(user)
+
+    r = client.get(f"/scripts/{script_id}/cast", headers=user["headers"])
+
+    assert r.status_code == 200
+    assert r.json()["characters"] == []
+
+
+def test_somebody_elses_cast_is_not_readable(client, make_user, make_script):
+    owner = make_user("free")
+    _, script_id = make_script(owner)
+    stranger = make_user("free")
+
+    r = client.get(f"/scripts/{script_id}/cast", headers=stranger["headers"])
+
+    assert r.status_code == 404

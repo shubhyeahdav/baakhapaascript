@@ -70,6 +70,7 @@ const VIEWS = [
   { key: "script", label: "Script", hint: "Write the page" },
   { key: "corkboard", label: "Corkboard", hint: "Move scenes around" },
   { key: "outline", label: "Outline", hint: "Read the shape" },
+  { key: "cast", label: "Cast", hint: "Read one voice at a time" },
 ];
 
 /**

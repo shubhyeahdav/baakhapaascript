@@ -136,6 +136,35 @@ def set_act_durations(script_id: str, req: ActDurations, user_id: str = Depends(
     return {"structure": structure}
 
 
+@router.get("/{script_id}/cast")
+def cast(script_id: str, user_id: str = Depends(get_current_user)):
+    """Every character's dialogue, with the numbers that expose voice.
+
+    Free on every tier and no AI call — it is the parser and arithmetic. The
+    story bible is folded in where the writer filled it, so the voice they
+    described sits beside the voice they actually wrote, which is the only
+    comparison that settles the argument.
+    """
+    script = require_script_access(script_id, user_id, minimum=membership.VIEWER)
+    characters = screenplay.cast_lines(script.get("content") or "")
+
+    try:
+        bible = json.loads(script.get("bible_json") or "{}")
+    except (ValueError, TypeError):
+        bible = {}
+    described = {
+        (c.get("name") or "").strip().upper(): c
+        for c in (bible.get("characters") or [])
+    }
+    for c in characters:
+        match = described.get(c["name"].upper())
+        if match:
+            c["voice"] = (match.get("voice") or "").strip()
+            c["want"] = (match.get("want") or "").strip()
+
+    return {"characters": characters}
+
+
 @router.post("/add-scene")
 def add_scene(req: AddSceneRequest, user_id: str = Depends(get_current_user)):
     """Save ONE scene from the structure preview into the scenes table."""

@@ -40,6 +40,7 @@ import ShortFormTimeline from "../components/ShortFormTimeline";
 import CompactTimeline from "../components/CompactTimeline";
 import Corkboard from "../components/Corkboard";
 import OutlineView from "../components/OutlineView";
+import CastView from "../components/CastView";
 
 // One-click focuses for pattern recommendations. The pattern library is
 // indexed by the PROBLEM a technique solves, so each chip just names that
@@ -1507,6 +1508,27 @@ export default function ScriptEditor() {
                 onMove={moveScene}
                 onAdd={addCustomScene}
                 adding={addingScene}
+              />
+            )}
+            {view === "cast" && (
+              <CastView
+                scriptId={id}
+                onOpenLine={(line) => {
+                  // Jump the caret to that line of the draft. Reading a voice
+                  // and then fixing a line of it should not require finding it
+                  // again by eye.
+                  const ta = textareaRef.current;
+                  if (!ta) return;
+                  // +1 per line for the newline `join` leaves out — without
+                  // it the offset is the END of the previous line, and the
+                  // caret arrives one row above the line you clicked.
+                  const at = ta.value.split("\n")
+                    .slice(0, line - 1)
+                    .reduce((n, l) => n + l.length + 1, 0);
+                  ta.focus();
+                  ta.setSelectionRange(at, at);
+                  scrollCaretIntoView(true);
+                }}
               />
             )}
             {view === "outline" && (

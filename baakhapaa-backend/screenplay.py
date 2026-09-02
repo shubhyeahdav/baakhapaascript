@@ -290,6 +290,60 @@ MAX_SUMMARY_CHARS = 400
 # calibrate.
 PAGE_LINES = 45
 
+
+def cast_lines(text: str) -> list:
+    """Every character's dialogue, gathered, with the numbers that expose voice.
+
+    This is the reading the product did not have. The linter reads a page, the
+    benchmark reads a shape, the corkboard reads an order — and none of them can
+    answer the question a writer actually arrives with somewhere around page
+    thirty, which is "do these two people sound the same?"
+
+    Nothing here is a verdict. The three measures are chosen because they are
+    the ones a writer can act on:
+
+      * `avg_words` — how long a character's lines run. Two people with the same
+        average are two people written at the same speed.
+      * `distinct_ratio` — vocabulary spread. A character who says the same
+        forty words for eighty lines has a tic, not a voice.
+      * `question_share` — how often they ask rather than tell. It separates the
+        character who drives a scene from the one who is driven, and it is
+        usually the fastest thing to spot when two voices have collapsed.
+
+    Sorted by line count, because the character with the most to say is the one
+    whose voice costs the most when it is wrong.
+    """
+    doc = parse_document(text) if "parse_document" in globals() else None
+    elements = doc.elements if doc else parse(text)
+
+    by_speaker = {}
+    for el in elements:
+        if el.type != "dialogue" or not el.character:
+            continue
+        by_speaker.setdefault(el.character, []).append(el)
+
+    out = []
+    for name, els in by_speaker.items():
+        words = [len(el.text.split()) for el in els]
+        vocabulary = set()
+        for el in els:
+            vocabulary.update(w.strip(".,!?—-\"'").lower() for w in el.text.split())
+        total_words = sum(words) or 1
+        out.append({
+            "name": name,
+            "line_count": len(els),
+            "avg_words": round(total_words / len(els), 1),
+            "distinct_ratio": round(len(vocabulary) / total_words, 2),
+            "question_share": round(
+                sum(1 for el in els if el.text.rstrip().endswith("?")) / len(els), 2
+            ),
+            "lines": [
+                {"line": el.line_number, "text": el.text} for el in els
+            ],
+        })
+    out.sort(key=lambda c: c["line_count"], reverse=True)
+    return out
+
 # Characters per row, per element. Screenplay format gives dialogue a much
 # narrower column than action, so measuring both at the action width undercounts
 # how many rows a dialogue-heavy page really takes. Standard measures at 12pt

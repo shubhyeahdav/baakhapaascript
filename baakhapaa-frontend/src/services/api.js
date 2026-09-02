@@ -140,6 +140,7 @@ export const scripts = {
   getByProject: (projectId) => instance.get(`/scripts/project/${projectId}`),
   save: (id, content) => instance.put(`/scripts/${id}`, { content }),
   setActDurations: (id, durations) => instance.put(`/scripts/${id}/acts`, { durations }),
+  cast: (id) => instance.get(`/scripts/${id}/cast`),
   // Bring in an existing screenplay: .fdx, Fountain, plain text or PDF. The
   // server snapshots the current draft before overwriting it.
   importFile: (id, file, replace = true) => {
