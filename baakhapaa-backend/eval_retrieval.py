@@ -74,9 +74,9 @@ def golden_set():
     for e in entries:
         problem = (e.get("problem") or "").strip()
         if problem:
-            cases.append((problem, e.get("technique"), e.get("craft_level")))
+            cases.append((problem, e.get("technique"), e.get("craft_level"), "self"))
     for query, level in FOCUS_QUERIES.items():
-        cases.append((query, None, level))
+        cases.append((query, None, level, "chip"))
     return cases
 
 
@@ -101,7 +101,13 @@ def precision_at_k(results, expected_technique, expected_level, k=1):
     Score a hit when `expected_technique` matches, or — when the case has no
     specific technique — when `craft_level` matches. Return 1.0 or 0.0.
     """
-    raise NotImplementedError("write me")
+    for r in results[:k]:
+        if expected_technique:
+            if r.get("technique") == expected_technique:
+                return 1.0
+        elif r.get("craft_level") == expected_level:
+            return 1.0
+    return 0.0
 
 
 def reciprocal_rank(results, expected_technique, expected_level):
@@ -111,7 +117,12 @@ def reciprocal_rank(results, expected_technique, expected_level):
     Averaged over every case this is MRR, and unlike precision@1 it can tell
     "just missed" apart from "nowhere near".
     """
-    raise NotImplementedError("write me")
+    for i, r in enumerate(results, start=1):
+        hit = (r.get("technique") == expected_technique if expected_technique
+               else r.get("craft_level") == expected_level)
+        if hit:
+            return 1.0 / i
+    return 0.0
 
 
 def summarise(scores):
@@ -122,7 +133,31 @@ def summarise(scores):
     the breakdown is what tells you WHICH part of the corpus is weak, which is
     the difference between a number and a lead.
     """
-    raise NotImplementedError("write me")
+    n = len(scores) or 1
+    by_kind = {}
+    for row in scores:
+        b = by_kind.setdefault(row.get("kind", "self"), {"hits": 0.0, "h3": 0.0, "n": 0})
+        b["hits"] += row["p_at_1"]
+        b["h3"] += row["p_at_3"]
+        b["n"] += 1
+    by_level = {}
+    for row in scores:
+        b = by_level.setdefault(row["level"], {"hits": 0.0, "n": 0})
+        b["hits"] += row["p_at_1"]
+        b["n"] += 1
+    return {
+        "p_at_1": sum(r["p_at_1"] for r in scores) / n,
+        "p_at_3": sum(r["p_at_3"] for r in scores) / n,
+        "mrr": sum(r["rr"] for r in scores) / n,
+        "by_level": {
+            lvl: {"p_at_1": b["hits"] / b["n"], "n": b["n"]}
+            for lvl, b in by_level.items()
+        },
+        "by_kind": {
+            k: {"p_at_1": b["hits"] / b["n"], "p_at_3": b["h3"] / b["n"], "n": b["n"]}
+            for k, b in by_kind.items()
+        },
+    }
 
 
 # --- runner ---------------------------------------------------------------
@@ -133,11 +168,12 @@ def run(top_k=3):
         sys.exit("No cases. Is knowledge_base.json present?")
 
     scores = []
-    for query, technique, level in cases:
+    for query, technique, level, kind in cases:
         results = rag.retrieve_relevant_patterns("Drama", "Emotional", query, top_k=top_k)
         scores.append({
             "query": query[:60],
             "level": level,
+            "kind": kind,
             "p_at_1": precision_at_k(results, technique, level, k=1),
             "p_at_3": precision_at_k(results, technique, level, k=top_k),
             "rr": reciprocal_rank(results, technique, level),
@@ -158,10 +194,24 @@ def main():
         return
 
     print(f"\n  {len(scores)} cases\n")
-    print(f"  precision@1   {summary['p_at_1']:.1%}")
-    print(f"  precision@3   {summary['p_at_3']:.1%}")
-    print(f"  MRR           {summary['mrr']:.3f}\n")
-    print("  by craft level")
+    kinds = summary.get("by_kind", {})
+    chip = kinds.get("chip")
+    if chip:
+        # The headline. These are the queries the editor really sends, and they
+        # are the only ones where nobody already knows the answer.
+        print(f"  REAL QUERIES (focus chips, n={chip['n']})")
+        print(f"    precision@1  {chip['p_at_1']:.1%}")
+        print(f"    precision@3  {chip['p_at_3']:.1%}")
+    me = kinds.get("self")
+    if me:
+        # Kept, but never averaged in with the above. An entry's own `problem`
+        # retrieving that entry is close to free: the query IS the text that was
+        # embedded. Mixed together, 29 easy cases drowned 5 real ones and the
+        # combined score read 82% while the part that matters read 20%.
+        print(f"\n  SANITY CHECK (an entry finds itself, n={me['n']})")
+        print(f"    precision@1  {me['p_at_1']:.1%}   <- should stay near 100%")
+    print(f"\nall {len(scores)} cases: p@1 {summary['p_at_1']:.1%} | MRR {summary['mrr']:.3f}")
+    print("\nby craft level")
     for level, s in sorted(summary.get("by_level", {}).items()):
         print(f"    {level:<10} p@1 {s['p_at_1']:.0%}   n={s['n']}")
     print()
