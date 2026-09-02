@@ -465,7 +465,14 @@ def statistics(text: str) -> dict:
     lines, which is where the page estimate comes from.
     """
     els = parse(text)
-    scs = scenes(text)
+    # Only SLUGLINED scenes count. `scenes()` prepends a synthetic
+    # UNTITLED_SCENE for anything above the first heading, and almost every
+    # screenplay ever written has something there — "FADE IN:" alone is enough.
+    # Counting it inflated scene_count by one, put a ~0.04-page phantom at the
+    # front of scene_length_curve, and dragged median_scene_pages down, so the
+    # corpus percentiles were computed against a scene nobody wrote.
+    # `scene_summaries()` has always excluded it; this now agrees with it.
+    scs = [s for s in scenes(text) if s.heading != UNTITLED_SCENE]
 
     dialogue = [e for e in els if e.type == "dialogue"]
     action = [e for e in els if e.type == "action"]

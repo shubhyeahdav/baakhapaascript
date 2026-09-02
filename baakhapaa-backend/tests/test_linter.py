@@ -153,3 +153,40 @@ def test_every_rule_points_at_a_real_craft_entry():
     seen = {f["technique"] for s in samples for f in linter.lint(s)}
     assert seen, "no flags produced"
     assert seen <= known, f"unknown techniques: {seen - known}"
+
+
+# --- the synthetic opening is not a scene --------------------------------
+#
+# `scenes()` prepends an UNTITLED_SCENE for anything above the first slugline,
+# and almost every screenplay has something there: "FADE IN:" alone is enough.
+# `statistics()` counted it, so a 16-scene script reported 17, a ~0.04-page
+# phantom led scene_length_curve, and median_scene_pages was dragged down —
+# which meant the corpus percentiles were computed partly against a scene
+# nobody wrote. Found by writing an actual screenplay and counting the
+# headings by hand.
+
+FADE_IN_SCRIPT = (
+    "FADE IN:\n\n"
+    "INT. CHIYA PASAL - MORNING\n\n"
+    "Sanjana wipes the counter.\n\n"
+    "EXT. STREET - DAY\n\n"
+    "She walks.\n"
+)
+
+
+def test_a_fade_in_is_not_counted_as_a_scene():
+    import screenplay
+    assert screenplay.statistics(FADE_IN_SCRIPT)["scene_count"] == 2
+
+
+def test_statistics_agrees_with_the_scene_index():
+    """These two disagreed by one, and the editor shows both."""
+    import screenplay
+    stats = screenplay.statistics(FADE_IN_SCRIPT)
+    assert stats["scene_count"] == len(screenplay.scene_summaries(FADE_IN_SCRIPT))
+
+
+def test_a_script_with_no_preamble_is_unaffected():
+    import screenplay
+    no_preamble = FADE_IN_SCRIPT.replace("FADE IN:" + chr(10) + chr(10), "")
+    assert screenplay.statistics(no_preamble)["scene_count"] == 2
