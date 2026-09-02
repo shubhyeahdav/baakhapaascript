@@ -38,12 +38,89 @@ function sceneRuntime(scene) {
   return `${whole}:${String(Math.round((minutes - whole) * 60)).padStart(2, "0")}`;
 }
 
-export default function SceneRail({ scenes, activeScene, onSceneClick }) {
+const VIEWS = [
+  { key: "script", label: "Script", hint: "Write the page" },
+  { key: "corkboard", label: "Corkboard", hint: "Move scenes around" },
+  { key: "outline", label: "Outline", hint: "Read the shape" },
+];
+
+/**
+ * Totals, so the column says something even when it holds one card.
+ *
+ * A screenplay with two scenes left this panel almost entirely empty, which is
+ * the state every draft starts in — the moment a writer most needs the column
+ * to look like it is doing something.
+ */
+function Totals({ scenes }) {
+  const written = scenes?.length || 0;
+  const minutes = (scenes || []).reduce((sum, sc) => {
+    let d = {};
+    try {
+      d = typeof sc.draft_json === "string" ? JSON.parse(sc.draft_json) : sc.draft_json || {};
+    } catch { d = {}; }
+    return sum + (Number(d.minutes) || Number(sc.time_allocation) || 0);
+  }, 0);
+  const whole = Math.floor(minutes);
+  const runtime = minutes ? `${whole}:${String(Math.round((minutes - whole) * 60)).padStart(2, "0")}` : "—";
+  const major = (scenes || []).filter((sc) => sc.scene_type === "major").length;
+
+  return (
+    <dl className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[11px] mt-4 pt-3 border-t border-borderSoft">
+      <dt className="text-inkMuted">Scenes</dt>
+      <dd className="text-ink text-right tabular-nums">{written}</dd>
+      <dt className="text-inkMuted">Major beats</dt>
+      <dd className="text-ink text-right tabular-nums">{major}</dd>
+      <dt className="text-inkMuted">Written runtime</dt>
+      <dd className="text-ink text-right tabular-nums font-mono">{runtime}</dd>
+    </dl>
+  );
+}
+
+/**
+ * @param view          which of the three readings is open
+ * @param onViewChange  switch reading
+ */
+export default function SceneRail({ scenes, activeScene, onSceneClick, view = "script", onViewChange }) {
   // Hidden on a phone. 256px of index cards beside a 375px screen leaves no
   // page left to write on, and the Corkboard is this same list in a form that
   // suits a small screen far better.
   return (
     <aside className="hidden lg:block w-64 bg-surface border-r border-border overflow-y-auto p-4 shrink-0 animate-fade-up">
+        {/* The three readings live here rather than in the toolbar.
+            They are a statement about what you are looking at, and the left
+            column IS what you are looking at — putting them up in the toolbar
+            filed them with Import and Export, which are things you DO to a
+            script rather than ways of seeing it. It also buys back room in a
+            toolbar that had already crushed its own title once. */}
+        <div
+          role="tablist"
+          aria-label="Workspace view"
+          className="flex rounded-lg border border-border overflow-hidden mb-4"
+        >
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              role="tab"
+              aria-selected={view === v.key}
+              title={v.hint}
+              onClick={() => onViewChange?.(v.key)}
+              className={`flex-1 text-[11px] py-1.5 transition ${
+                view === v.key
+                  ? "bg-goldDim text-gold"
+                  : "text-inkMuted hover:text-ink hover:bg-elevated/50"
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+
+        {view !== "script" ? (
+          // Corkboard and Outline are a fuller version of this list, so the
+          // cards would be saying the same thing twice. The totals still hold.
+          <Totals scenes={scenes} />
+        ) : (
+        <>
         <div className="text-[10px] font-bold text-inkMuted uppercase tracking-wider mb-4">Scene Index Cards</div>
         {scenes?.map((scene, i) => (
           <button
@@ -70,6 +147,16 @@ export default function SceneRail({ scenes, activeScene, onSceneClick }) {
             </div>
           </button>
         ))}
+        {!scenes?.length && (
+          // Deliberately does not repeat the slugline instruction. The Pen
+          // says that on the blank page, where the writer actually is.
+          <p className="text-[11.5px] text-inkMuted leading-snug">
+            Scenes appear here as you write them.
+          </p>
+        )}
+        <Totals scenes={scenes} />
+        </>
+        )}
       </aside>
   );
 }

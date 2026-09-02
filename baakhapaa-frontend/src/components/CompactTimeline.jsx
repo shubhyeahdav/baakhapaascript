@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 // Compact act/scene timeline — the "instrument, not diagram" strip from design
 // 2b. This is what the structure panel collapses into: the writer keeps a
@@ -48,8 +48,11 @@ export default function CompactTimeline({
   suggestions,
   activeScene,
   onSceneClick,
+  onRenameScene,
   onExpand,
 }) {
+  // Which scene block is being renamed, by scene index.
+  const [editing, setEditing] = useState(null);
   // Short-form has beats, not acts. Rather than returning null — which left
   // the minimized strip blank for every short-form project — collapse to a
   // one-line beat bar so runtime and shape stay visible while writing.
@@ -172,11 +175,47 @@ export default function CompactTimeline({
               const common =
                 "flex items-center px-2 text-[10.5px] min-w-0 overflow-hidden whitespace-nowrap transition-colors";
               const style = { flex: `${weight(b)} 1 0%` };
+              if (b.written && editing === b.index) {
+                // Editing rewrites the SLUGLINE IN THE DRAFT, not a label on a
+                // chart. `scene_sync` derives every scene row from the document,
+                // so a rename that only touched this bar would be undone by the
+                // next save. The page is the single source of truth; this is a
+                // second place to type into it.
+                return (
+                  <form
+                    key={b.key}
+                    style={style}
+                    className={`${common} bg-[#2A2312] border-t-2 border-gold`}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const next = e.currentTarget.elements.slug.value.trim();
+                      if (next && next !== b.label) onRenameScene?.(b.index, next);
+                      setEditing(null);
+                    }}
+                  >
+                    <input
+                      name="slug"
+                      defaultValue={b.label}
+                      autoFocus
+                      aria-label={`Scene ${b.index + 1} heading`}
+                      onBlur={(e) => {
+                        const next = e.target.value.trim();
+                        if (next && next !== b.label) onRenameScene?.(b.index, next);
+                        setEditing(null);
+                      }}
+                      onKeyDown={(e) => { if (e.key === "Escape") setEditing(null); }}
+                      className="w-full bg-transparent text-ink text-[10.5px] font-mono
+                                 outline-none uppercase"
+                    />
+                  </form>
+                );
+              }
               return b.written ? (
                 <button
                   key={b.key}
                   onClick={() => onSceneClick?.(b.index)}
-                  title={`${b.label} · ${timecode(b.mins)}`}
+                  onDoubleClick={(e) => { e.stopPropagation(); setEditing(b.index); }}
+                  title={`${b.label} · ${timecode(b.mins)} — double-click to rename`}
                   style={style}
                   className={`${common} relative text-left ${
                     isActive

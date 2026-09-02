@@ -254,6 +254,36 @@ export default function ScriptEditor() {
   // of being focus mode — there was no way to write normally and still have it.
   // On by default inside focus mode, independently switchable outside it.
   const [typewriter, setTypewriter] = useState(false);
+  // Set by an edit that should not wait for the autosave debounce.
+  const saveSoonRef = useRef(false);
+
+  /**
+   * Rename scene N by rewriting its slugline in the draft.
+   *
+   * Deliberately edits the DOCUMENT rather than the scene row. `scene_sync`
+   * rebuilds every row from the page on each save, so a rename written to the
+   * row would be silently reverted by the next keystroke. Editing the line the
+   * row was derived from is the only version that survives.
+   */
+  const renameScene = useCallback((index, next) => {
+    const lines = content.split("\n");
+    let seen = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (/^\s*(INT\.|EXT\.)/i.test(lines[i])) {
+        seen += 1;
+        if (seen === index) {
+          lines[i] = next.toUpperCase();
+          setContent(lines.join("\n"));
+          // Save at once rather than waiting out the 15s autosave. The scene
+          // rows are rebuilt server-side and returned by that request, so
+          // until it runs the timeline still shows the old heading — the one
+          // control the writer just used is the last thing to update.
+          saveSoonRef.current = true;
+          return;
+        }
+      }
+    }
+  }, [content]);
   // Turning the mode on should take effect on the line you are already on,
   // rather than waiting for the next keystroke to snap the page into place.
   useEffect(() => {
@@ -757,6 +787,14 @@ export default function ScriptEditor() {
   }, [id, content]);
 
   useEffect(() => {
+    // An edit that asked to be saved now — a timeline rename — skips the
+    // debounce. `saveContent` closes over `content`, so this runs on the
+    // render AFTER the change, by which point it carries the new text.
+    if (saveSoonRef.current) {
+      saveSoonRef.current = false;
+      if (content) saveContent();
+      return undefined;
+    }
     const timer = setTimeout(() => {
       if (content) saveContent();
     }, 15000); // Save every 15s instead of 30s for higher reliability
@@ -1211,31 +1249,10 @@ export default function ScriptEditor() {
               </button>
             ))}
           </div>
-          <div className="h-4 w-px bg-borderSoft mx-1" />
-          {/* Script / Corkboard / Outline. One workspace, three readings of the
-              same scene rows — the pattern Final Draft, Arc Studio and
-              StudioBinder all settled on, because restructuring and writing are
-              different jobs and a single view can only be good at one. */}
-          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
-            {[
-              { key: "script", label: "Script" },
-              { key: "corkboard", label: "Corkboard" },
-              { key: "outline", label: "Outline" },
-            ].map((v) => (
-              <button
-                key={v.key}
-                onClick={() => setView(v.key)}
-                aria-pressed={view === v.key}
-                className={`text-xs py-1.5 px-3 transition ${
-                  view === v.key
-                    ? "bg-goldDim text-gold"
-                    : "text-inkMuted hover:text-ink hover:bg-elevated/50"
-                }`}
-              >
-                {v.label}
-              </button>
-            ))}
-          </div>
+          {/* Script / Corkboard / Outline moved into the left rail. They name
+              what you are LOOKING AT, and the left column is that thing; up
+              here they sat beside Import and Export, which are things you do
+              TO a script rather than ways of reading it. */}
           <div className="h-4 w-px bg-borderSoft mx-1" />
           {suggestions && (
             <button
@@ -1414,6 +1431,7 @@ export default function ScriptEditor() {
       ) : (
         !zenMode && (
           <CompactTimeline
+            onRenameScene={renameScene}
             scenes={script.scenes || []}
             suggestions={suggestions}
             activeScene={activeScene}
@@ -1424,14 +1442,18 @@ export default function ScriptEditor() {
       )}
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Scene rail. Hidden in Corkboard and Outline — both are a fuller
-            version of exactly this list, and keeping the rail beside them cost
-            256px to say the same thing twice. */}
-        {!zenMode && view === "script" && (
+        {/* The rail now stays in every view, because it carries the view
+            switch. It still does not draw the cards outside Script — Corkboard
+            and Outline are a fuller version of that same list — so the 256px
+            is spent on navigation and totals rather than on saying the same
+            thing twice. */}
+        {!zenMode && (
           <SceneRail
             scenes={script.scenes}
             activeScene={activeScene}
             onSceneClick={goToScene}
+            view={view}
+            onViewChange={setView}
           />
         )}
 

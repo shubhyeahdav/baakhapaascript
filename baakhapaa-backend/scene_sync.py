@@ -184,6 +184,24 @@ def sync_from_draft(script_id: str, content: str) -> List[dict]:
             continue
 
         last_act = row.get("act_number") or last_act
+
+        # Follow a renamed slugline — but ONLY when nobody ever named the scene
+        # themselves. A row created from the page gets `title` set to its
+        # heading, so a writer who then rewrites that heading was left with a
+        # scene index and a timeline showing a line no longer in the script.
+        # A structure-authored title ("The confession") is a different thing
+        # from the slugline and must survive: the test is whether the stored
+        # title still equals the heading this row was last synced from.
+        previous = {}
+        try:
+            raw = row.get("draft_json")
+            previous = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        except (ValueError, TypeError):
+            previous = {}
+        was_derived = (row.get("title") or "") == (previous.get("heading") or "")
+        if was_derived and summary["heading"] and row.get("title") != summary["heading"]:
+            payload["title"] = summary["heading"]
+
         # Only write when something actually changed. Sync runs on every save,
         # and in demo mode a write rewrites the whole table to SQLite — so an
         # unconditional update would make each save cost one full rewrite per

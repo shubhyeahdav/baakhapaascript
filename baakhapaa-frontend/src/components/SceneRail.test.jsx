@@ -72,24 +72,31 @@ describe("the cards", () => {
   });
 });
 
+// The runtime now appears twice on screen — once on the card and once in the
+// column's totals — so these look inside the card button specifically. With a
+// single scene the two values are identical, which is exactly when an
+// unscoped query becomes ambiguous.
+const cardText = (t) =>
+  screen.getAllByText(t).find((n) => n.closest("button"));
+
 describe("the runtime shown per scene", () => {
   it("prefers what is written over what was planned", () => {
     // The whole point: the page is the truth, the plan is an intention.
     show([scene({ time_allocation: 2.5, draft_json: { minutes: 1.5 } })]);
 
-    expect(screen.getByText("1:30")).toBeInTheDocument();
+    expect(cardText("1:30")).toBeTruthy();
   });
 
   it("falls back to the plan when nothing is written yet", () => {
     show([scene({ time_allocation: 2.5, draft_json: null })]);
 
-    expect(screen.getByText("2:30")).toBeInTheDocument();
+    expect(cardText("2:30")).toBeTruthy();
   });
 
   it("reads draft_json when Postgres hands it over as a string", () => {
     show([scene({ draft_json: JSON.stringify({ minutes: 0.75 }) })]);
 
-    expect(screen.getByText("0:45")).toBeInTheDocument();
+    expect(cardText("0:45")).toBeTruthy();
   });
 
   it("shows a dash rather than 0:00 for a scene with no runtime either way", () => {
@@ -97,24 +104,24 @@ describe("the runtime shown per scene", () => {
     // beside every one of them reads as a broken feature rather than a blank.
     show([scene({ time_allocation: 0, draft_json: null })]);
 
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(cardText("—")).toBeTruthy();
   });
 
   it("degrades to a dash on unparseable draft_json instead of throwing", () => {
     show([scene({ time_allocation: 0, draft_json: "{not json" })]);
 
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(cardText("—")).toBeTruthy();
   });
 
   it("still finds the planned time when draft_json is unparseable", () => {
     show([scene({ time_allocation: 2, draft_json: "{not json" })]);
 
-    expect(screen.getByText("2:00")).toBeInTheDocument();
+    expect(cardText("2:00")).toBeTruthy();
   });
 
   it("pads the seconds to two digits", () => {
     show([scene({ draft_json: { minutes: 3.1 } })]);
 
-    expect(screen.getByText("3:06")).toBeInTheDocument();
+    expect(cardText("3:06")).toBeTruthy();
   });
 });

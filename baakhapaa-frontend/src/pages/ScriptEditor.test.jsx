@@ -684,7 +684,7 @@ describe("the Pen on a blank page", () => {
     render(<ScriptEditor />);
     await waitFor(() => expect(editor()).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole("button", { name: "Corkboard" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Corkboard" }));
 
     expect(screen.queryByText(/Every scene starts by saying/)).not.toBeInTheDocument();
   });

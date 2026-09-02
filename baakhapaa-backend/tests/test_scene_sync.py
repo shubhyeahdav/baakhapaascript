@@ -295,3 +295,45 @@ def test_scene_visual_falls_back_to_the_plan():
     assert visual["description"] == "The plan."
     assert visual["characters"] == ["Baba"]
     assert visual["from_draft"] is False
+
+
+# --- renaming a slugline -------------------------------------------------
+#
+# `title` is deliberately not synced from the draft, because a structure gives
+# a scene a name ("The confession") that is a different thing from its
+# slugline. But a row created FROM the page has its title set to the heading,
+# so rewriting that heading left the scene index and the timeline showing a
+# line no longer anywhere in the script — and no amount of saving fixed it.
+
+RENAMED_BEFORE = "INT. CHIYA PASAL - DAY\n\nSanjana wipes the counter.\n"
+RENAMED_AFTER = "INT. CHIYA PASAL, PATAN - MORNING\n\nSanjana wipes the counter.\n"
+
+
+def _titles(client, user, script_id):
+    scenes = client.get(f"/scripts/{script_id}", headers=user["headers"]).json()["scenes"]
+    return [s["title"] for s in scenes]
+
+
+def test_a_renamed_slugline_reaches_the_scene_index(client, make_user, make_script):
+    user = make_user("free")
+    _, script_id = make_script(user)
+    client.put(f"/scripts/{script_id}", json={"content": RENAMED_BEFORE}, headers=user["headers"])
+    assert _titles(client, user, script_id) == ["INT. CHIYA PASAL - DAY"]
+
+    client.put(f"/scripts/{script_id}", json={"content": RENAMED_AFTER}, headers=user["headers"])
+
+    assert _titles(client, user, script_id) == ["INT. CHIYA PASAL, PATAN - MORNING"]
+
+
+def test_a_title_somebody_wrote_survives_the_rename(client, make_user, make_script):
+    """The whole reason sync does not own `title`."""
+    from database import supabase
+    user = make_user("free")
+    _, script_id = make_script(user)
+    client.put(f"/scripts/{script_id}", json={"content": RENAMED_BEFORE}, headers=user["headers"])
+    rows = client.get(f"/scripts/{script_id}", headers=user["headers"]).json()["scenes"]
+    supabase.table("scenes").update({"title": "The confession"}).eq("id", rows[0]["id"]).execute()
+
+    client.put(f"/scripts/{script_id}", json={"content": RENAMED_AFTER}, headers=user["headers"])
+
+    assert _titles(client, user, script_id) == ["The confession"]
