@@ -178,8 +178,10 @@ def test_an_oversized_upload_is_refused_before_it_is_parsed():
 
 
 def test_an_unsupported_type_names_the_ones_that_work():
+    # Was .docx, which is now supported. .rtf is the next thing a writer
+    # actually turns up with that this cannot read.
     with pytest.raises(script_import.ImportError_, match=r"\.fdx"):
-        script_import.import_screenplay("script.docx", b"whatever")
+        script_import.import_screenplay("script.rtf", b"whatever")
 
 
 # ---------------------------------------------------------------------------
@@ -292,3 +294,86 @@ def test_an_act_break_is_not_read_as_a_character():
     assert types["ACT ONE"] == "act_break"
     assert types["END OF ACT ONE"] == "act_break"
     assert types["SANJANA"] == "character"
+
+
+# --- Word ---------------------------------------------------------------
+#
+# Better than PDF and worse than .fdx. Word keeps paragraphs as paragraphs, so
+# the line structure arrives intact and nothing has to be guessed back; what it
+# does not keep is what each paragraph MEANT, because Word has no notion of a
+# character cue. Indentation is the only surviving signal, so it is preserved.
+
+def _docx_bytes(paragraphs, table=None):
+    import io as _io
+    import docx
+
+    d = docx.Document()
+    for text in paragraphs:
+        d.add_paragraph(text)
+    if table:
+        t = d.add_table(rows=len(table), cols=len(table[0]))
+        for r, row in enumerate(table):
+            for c, val in enumerate(row):
+                t.cell(r, c).text = val
+    buf = _io.BytesIO()
+    d.save(buf)
+    return buf.getvalue()
+
+
+SCREENPLAY_PARAS = [
+    "INT. CHIYA PASAL - MORNING",
+    "",
+    "Sanjana wipes the counter.",
+    "",
+    "                    SANJANA",
+    "          Timro result aayo?",
+]
+
+
+def test_a_word_file_imports():
+    result = script_import.import_screenplay("draft.docx", _docx_bytes(SCREENPLAY_PARAS))
+
+    assert result["source"] == "Word"
+    assert "INT. CHIYA PASAL - MORNING" in result["content"]
+    assert result["scenes"] == 1
+
+
+def test_blank_paragraphs_survive():
+    """They are the blank lines that separate screenplay elements — dropping
+    them glues a scene heading to the action beneath it."""
+    content = script_import.import_screenplay("d.docx", _docx_bytes(SCREENPLAY_PARAS))["content"]
+
+    lines = content.split("\n")
+    assert lines[1] == ""
+
+
+def test_indentation_survives():
+    """The only signal left for what a paragraph was."""
+    content = script_import.import_screenplay("d.docx", _docx_bytes(SCREENPLAY_PARAS))["content"]
+
+    assert "                    SANJANA" in content
+
+
+def test_a_script_laid_out_in_a_table_is_still_read():
+    """Shooting scripts arrive as two-column tables more often than you would
+    like. Reading only paragraphs returned an empty document."""
+    data = _docx_bytes([], table=[["1", "INT. CHIYA PASAL - MORNING"],
+                                 ["", "Sanjana wipes the counter."]])
+
+    result = script_import.import_screenplay("shooting.docx", data)
+
+    assert result["scenes"] == 1
+
+
+def test_a_word_file_with_no_text_says_so():
+    with pytest.raises(script_import.ImportError_) as exc:
+        script_import.import_screenplay("empty.docx", _docx_bytes([""]))
+
+    assert "no text" in str(exc.value).lower()
+
+
+def test_the_older_doc_format_is_named_rather_than_refused_vaguely():
+    with pytest.raises(script_import.ImportError_) as exc:
+        script_import.import_screenplay("old.doc", b"not really a doc")
+
+    assert ".docx" in str(exc.value)

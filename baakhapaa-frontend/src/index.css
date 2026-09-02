@@ -200,7 +200,14 @@ html, body {
    which is how iA Writer and Ulysses behave and what a writer expects. */
 .screenplay-page.zen-page {
   max-width: 760px;
-  min-height: 100%;
+  /* Viewport units, not 100%.
+     The page sits inside a wrapper that is only as tall as its own content, so
+     a percentage resolved against THAT — 723px against a 1274px screen on the
+     laptop this was found on — and focus mode showed a short slab of paper
+     with the app's background under it. `dvh` rather than `vh` so a phone's
+     collapsing address bar does not leave a strip of app showing either. */
+  min-height: 100vh;
+  min-height: 100dvh;
   padding: 8vh 4rem 45vh;
   box-shadow: none;
   border-radius: 0;

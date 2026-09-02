@@ -13,6 +13,10 @@ Three formats, in descending order of how much survives the trip:
               This is the inverse of `export_service.export_script_fdx`.
   * `.fountain` / `.txt` — already plain text, which is how drafts are stored
               here anyway. Fountain's markup is stripped rather than honoured.
+  * `.docx` — Word. Paragraphs are already separated, so line structure
+              survives intact; what is lost is which paragraph was a character
+              cue and which was action, because Word has no idea either. The
+              same classifier that reads plain text sorts it out downstream.
   * `.pdf`  — the format writers actually have, and the only lossy one. Text is
               extracted and then *classified*, because a scanned page extracts
               to nothing and a badly-produced one extracts with its line
@@ -39,7 +43,7 @@ from defusedxml import ElementTree as SafeET
 # refusing it early keeps a large file from being parsed at all.
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 
-SUPPORTED_EXTENSIONS = (".fdx", ".fountain", ".txt", ".pdf")
+SUPPORTED_EXTENSIONS = (".fdx", ".fountain", ".txt", ".docx", ".pdf")
 
 # The inverse of export_service._FDX_TYPE. Final Draft emits types this parser
 # does not model (Shot, General, Cast List); they become action, which is where
@@ -206,6 +210,50 @@ def _pdf_problem(text: str) -> str:
 # ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
+def from_docx(data: bytes) -> str:
+    """Extract a screenplay from a Word document.
+
+    Better than PDF and worse than .fdx. Word keeps paragraphs as paragraphs,
+    so unlike a PDF the line structure arrives intact and nothing has to be
+    guessed back. What Word does not keep is what each paragraph MEANT — it has
+    no notion of a character cue — so indentation is the only surviving signal,
+    and it is preserved rather than stripped for exactly that reason.
+
+    Empty paragraphs are kept too. They are the blank lines that separate
+    screenplay elements, and dropping them would glue a scene heading to the
+    action beneath it.
+    """
+    try:
+        import docx
+
+        document = docx.Document(io.BytesIO(data))
+    except Exception as exc:
+        raise ImportError_(
+            "That .docx file could not be read. It may be damaged, or saved in "
+            "the older .doc format — re-save it as .docx and try again."
+        ) from exc
+
+    lines = [p.text.rstrip() for p in document.paragraphs]
+
+    # Tables hold shooting scripts more often than you would like: a two-column
+    # layout with scene numbers down one side. Reading cell text keeps those
+    # importable instead of arriving as an empty document.
+    for table in document.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                cell_text = cell.text.strip()
+                if cell_text:
+                    lines.extend(cell_text.splitlines())
+
+    text = "\n".join(lines).strip()
+    if not text:
+        raise ImportError_(
+            "That Word file has no text in it. If the screenplay is an image "
+            "pasted into the document, there is nothing to read."
+        )
+    return text + "\n"
+
+
 def import_screenplay(filename: str, data: bytes) -> dict:
     """Turn an uploaded file into draft text plus a note on what came through.
 
@@ -226,11 +274,21 @@ def import_screenplay(filename: str, data: bytes) -> dict:
         text, source = from_fdx(data), "Final Draft"
     elif name.endswith(".pdf"):
         text, source = from_pdf(data), "PDF"
+    elif name.endswith(".docx"):
+        text, source = from_docx(data), "Word"
     elif name.endswith((".fountain", ".txt")):
         text, source = from_text(data), "Fountain"
+    elif name.endswith(".doc"):
+        # A different format entirely, not an older .docx — python-docx cannot
+        # read it and neither can anything else without a converter.
+        raise ImportError_(
+            "That is the older .doc format. Open it in Word and save as .docx, "
+            "then import that."
+        )
     else:
         raise ImportError_(
-            "Unsupported file type. Import a .fdx, .fountain, .txt or .pdf file."
+            "Unsupported file type. Import a .fdx, .fountain, .txt, .docx or "
+            ".pdf file."
         )
 
     scenes = len(SLUG_RE.findall(text))

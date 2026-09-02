@@ -85,7 +85,7 @@ test("the server's refusal is shown in full, not flattened", async () => {
 test("only the formats the server can read are offered", () => {
   render(<ImportScript scriptId="s1" />);
   const input = document.querySelector('input[type="file"]');
-  for (const ext of [".fdx", ".fountain", ".txt", ".pdf"]) {
+  for (const ext of [".fdx", ".fountain", ".txt", ".docx", ".pdf"]) {
     expect(input.getAttribute("accept")).toContain(ext);
   }
 });

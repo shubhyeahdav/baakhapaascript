@@ -22,7 +22,7 @@ import { authErrorMessage } from "../utils/apiError";
  * flattening those into "Import failed" throws away the only part that tells
  * the writer what to do next.
  */
-const ACCEPT = ".fdx,.fountain,.txt,.pdf";
+const ACCEPT = ".fdx,.fountain,.txt,.docx,.pdf";
 
 export default function ImportScript({ scriptId, onImported, className = "" }) {
   const input = useRef(null);
@@ -67,7 +67,7 @@ export default function ImportScript({ scriptId, onImported, className = "" }) {
         onClick={() => input.current?.click()}
         disabled={busy}
         className="text-xs py-1.5 px-3 rounded-lg border border-border text-inkMuted hover:text-ink transition disabled:opacity-50"
-        title="Import a screenplay from Final Draft, Fountain, plain text or PDF"
+        title="Import a screenplay from Final Draft, Fountain, Word, plain text or PDF"
       >
         {busy ? "Reading…" : "Import"}
       </button>
