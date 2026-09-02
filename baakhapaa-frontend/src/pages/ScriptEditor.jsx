@@ -60,6 +60,14 @@ const NAV_KEYS = new Set([
   "PageUp", "PageDown", "Home", "End",
 ]);
 
+// The pointer over the page, as a cycle. `next` makes the menu entry a single
+// control rather than three that have to be kept mutually exclusive.
+const CURSORS = {
+  pen:  { label: "Pen",     next: "ring", hint: "The nib, as everywhere else in this product" },
+  ring: { label: "Ring",    next: "text", hint: "A small sight, for placing the caret exactly" },
+  text: { label: "Default", next: "pen",  hint: "Your system's own text pointer" },
+};
+
 const FOCUSES = [
   // Alone among these, this one queries the DRAFT rather than a named problem.
   // The label says "read" so the difference is visible without a legend.
@@ -254,6 +262,20 @@ export default function ScriptEditor() {
   // of being focus mode — there was no way to write normally and still have it.
   // On by default inside focus mode, independently switchable outside it.
   const [typewriter, setTypewriter] = useState(false);
+  // Which pointer floats over the page. The nib is the default because it is
+  // already this product's character everywhere else.
+  const [cursor, setCursor] = useState("pen");
+  // True while typing, false the moment the mouse moves. Applies to whichever
+  // style is chosen rather than being a style of its own.
+  const [resting, setResting] = useState(false);
+
+  useEffect(() => {
+    const wake = () => setResting(false);
+    // `mousemove` only — a click without movement should not bring it back,
+    // because that is what happens when a trackpad is brushed while typing.
+    window.addEventListener("mousemove", wake);
+    return () => window.removeEventListener("mousemove", wake);
+  }, []);
   // Set by an edit that should not wait for the autosave debounce.
   const saveSoonRef = useRef(false);
 
@@ -1360,6 +1382,15 @@ export default function ScriptEditor() {
                 },
               },
               {
+                // One entry, three states. The menu was just cut from four
+                // items to three and adding three more would undo that; a
+                // cycling control says what it is and what comes next.
+                key: "cursor",
+                label: `Cursor: ${CURSORS[cursor].label}`,
+                hint: CURSORS[cursor].hint,
+                onSelect: () => setCursor(CURSORS[cursor].next),
+              },
+              {
                 key: "typewriter",
                 label: typewriter ? "Typewriter mode: on" : "Typewriter mode",
                 hint: "Hold the caret at the middle of the page",
@@ -1618,7 +1649,7 @@ export default function ScriptEditor() {
             <div className="relative w-full max-w-[816px] flex">
               <textarea
               ref={textareaRef}
-              className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} ${typewriter && !zenMode ? "typewriter-page" : ""} resize-none`}
+              className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} ${typewriter && !zenMode ? "typewriter-page" : ""} ${cursor === "pen" ? "cursor-pen" : cursor === "ring" ? "cursor-ring" : ""} ${resting ? "cursor-resting" : ""} resize-none`}
               /* Short, because the Pen now says the useful version on an empty
                  page. This read "Type Scene Headings starting with INT. or
                  EXT., and press TAB to format characters, parentheticals, and
@@ -1641,7 +1672,7 @@ export default function ScriptEditor() {
                 // the textarea, and the browser only follows it out of the latter.
                 scrollCaretIntoView(typewriter || zenMode);
               }}
-              onKeyDown={handleKeyDown}
+              onKeyDown={(e) => { setResting(true); handleKeyDown(e); }}
               onClick={(e) => { trackCaret(e); updateCaretPage(e.currentTarget); }}
               onKeyUp={(e) => {
                 trackCaret(e);

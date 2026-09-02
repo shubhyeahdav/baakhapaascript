@@ -935,3 +935,87 @@ describe("generation streams", () => {
       expect(screen.queryByText(/Error:/)).not.toBeInTheDocument());
   });
 });
+
+
+/**
+ * The pointer over the page.
+ *
+ * The nib is already this product's character — it teaches onboarding, meets
+ * you on a blank page, sits in the guide panel — so it is what floats over the
+ * page too. One cycling menu entry rather than three, because the View menu
+ * was just cut from four items to three and adding three more would undo that.
+ *
+ * The part that matters more than the shape: it gets out of the way while you
+ * type. A pointer parked in the middle of the sentence you are writing is the
+ * oldest small annoyance in word processing.
+ */
+describe("the pointer over the page", () => {
+  const openView = async () => {
+    stubApi();
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /View/ }));
+  };
+
+  it("is the nib to begin with", async () => {
+    await openView();
+
+    expect(editor().className).toMatch(/cursor-pen/);
+  });
+
+  it("cycles rather than offering three separate entries", async () => {
+    await openView();
+    expect(screen.getByRole("menuitem", { name: /Cursor: Pen/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Cursor: Pen/ }));
+
+    expect(editor().className).toMatch(/cursor-ring/);
+  });
+
+  it("comes back round to the system pointer, and then to the nib", async () => {
+    await openView();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Cursor: Pen/ }));
+    fireEvent.click(screen.getByRole("button", { name: /View/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Cursor: Ring/ }));
+
+    // "Default" draws no class of ours — it is the browser's own.
+    expect(editor().className).not.toMatch(/cursor-pen|cursor-ring/);
+
+    fireEvent.click(screen.getByRole("button", { name: /View/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Cursor: Default/ }));
+    expect(editor().className).toMatch(/cursor-pen/);
+  });
+
+  it("gets out of the way on the first keystroke", async () => {
+    stubApi();
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    fireEvent.keyDown(editor(), { key: "a" });
+
+    expect(editor().className).toMatch(/cursor-resting/);
+  });
+
+  it("comes back the moment the mouse moves", async () => {
+    stubApi();
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.keyDown(editor(), { key: "a" });
+
+    fireEvent.mouseMove(window);
+
+    await waitFor(() => expect(editor().className).not.toMatch(/cursor-resting/));
+  });
+
+  it("stays hidden on a click that did not move the mouse", async () => {
+    // A trackpad brushed while typing should not bring it back.
+    stubApi();
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.keyDown(editor(), { key: "a" });
+
+    fireEvent.click(editor());
+
+    expect(editor().className).toMatch(/cursor-resting/);
+  });
+});

@@ -284,3 +284,49 @@ input[type="range"].custom-slider::-webkit-slider-thumb:hover {
 .screenplay-page.typewriter-page {
   padding-bottom: 55vh;
 }
+
+
+/* ---------------------------------------------------------------------------
+   The pointer over the page.
+
+   A screenplay page is the one surface in this product a writer stares at for
+   hours, and the thing floating over it was the operating system's I-beam. The
+   nib is already this product's character — it teaches onboarding, it meets you
+   on a blank page, it sits in the guide panel — so letting it be the thing in
+   your hand costs nothing and makes the page feel like this product's page.
+
+   Hotspots are the part that goes wrong silently. The two numbers after the
+   url() are which pixel of the image is the actual point; get them wrong and
+   every click lands a few pixels off, which people feel without being able to
+   name. The nib's hotspot is its tip (2 2); the ring's is its centre (12 12).
+
+   Every rule keeps a real fallback after the comma, because a browser that
+   cannot load the image falls through to it rather than to nothing.
+   --------------------------------------------------------------------------- */
+
+.screenplay-page.cursor-pen {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M2 2 L10 5.5 L5.5 10 Z' fill='%23C9A227'/%3E%3Cpath d='M7.5 7.5 L19 19' stroke='%23C9A227' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 2 2, text;
+}
+
+.screenplay-page.cursor-ring {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Ccircle cx='12' cy='12' r='7.5' fill='none' stroke='%23C9A227' stroke-width='2'/%3E%3Ccircle cx='12' cy='12' r='1.25' fill='%23C9A227'/%3E%3C/svg%3E") 12 12, crosshair;
+}
+
+/* Dark paper needs the brighter gold; the darker one disappears into it. */
+.screenplay-page.dark-page.cursor-pen {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M2 2 L10 5.5 L5.5 10 Z' fill='%23E4BE64'/%3E%3Cpath d='M7.5 7.5 L19 19' stroke='%23E4BE64' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 2 2, text;
+}
+.screenplay-page.dark-page.cursor-ring {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Ccircle cx='12' cy='12' r='7.5' fill='none' stroke='%23E4BE64' stroke-width='2'/%3E%3Ccircle cx='12' cy='12' r='1.25' fill='%23E4BE64'/%3E%3C/svg%3E") 12 12, crosshair;
+}
+
+/* Out of the way while you type.
+
+   Not a fourth style — this applies to whichever one is chosen. A pointer
+   parked in the middle of the sentence you are writing is the oldest small
+   annoyance in word processing, and every serious editor hides it on the first
+   keystroke and brings it back the moment the mouse moves. Nothing is lost:
+   moving the mouse is exactly the gesture that means you want it. */
+.screenplay-page.cursor-resting {
+  cursor: none;
+}
