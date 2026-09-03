@@ -197,9 +197,15 @@ class TestProviderRouting:
         """A fumbled Anthropic key used to silently reroute every script to Groq."""
         import importlib
 
+        # SET to a placeholder rather than deleted. `script_engine` calls
+        # load_dotenv() at import, and load_dotenv does not overwrite a variable
+        # that is already set but DOES fill in one that is missing — so deleting
+        # the key invites the real one straight back out of `.env`, and this
+        # test passed only on a machine that had no real key. `_usable()` treats
+        # a "your-" placeholder as absent, which is the state being tested.
         monkeypatch.setenv("GROQ_API_KEY", "gsk_not_a_real_key")
-        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.delenv("LLM_PROVIDER", raising=False)
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "your-anthropic-key-not-a-real-key")
+        monkeypatch.setenv("LLM_PROVIDER", "")
 
         reloaded = importlib.reload(script_engine)
         try:

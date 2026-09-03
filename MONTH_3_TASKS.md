@@ -8,6 +8,51 @@ Anthropic account with credit, a Supabase project, and a domain. Get those befor
 
 ---
 
+## Where this stands (2026-09-03)
+
+**82 of 200 done.** Weeks 2 and 3 are complete except for the parts that need a
+real Postgres; Week 4 is partly done.
+
+What the work actually found, in the order it was found:
+
+- **Real-query retrieval went from 56% to 88% precision@1**, and the win was not
+  where the plan expected. Widening the golden set from 5 queries to 25 exposed
+  that one entry was answering 21 of them — a default, not a retrieval. The cause
+  was the query, not the corpus: `"Drama | Emotional | "` was being prefixed to
+  every search, and genre and tone are near-constant, so they pulled everything
+  toward whichever entry read as most generically emotional. Removing them, and
+  dropping craft exposition out of the embedded text, did most of it. Ten new
+  craft entries for gaps the misses exposed — a sagging middle, a dull
+  protagonist, overwritten dialogue — did the rest. CI now fails on a regression.
+- **A larger embedding model buys nothing here.** Measured: bge-base at 768
+  dimensions scores identically on precision@1 for 4.6x the embedding time. The
+  project skill claimed otherwise; it now says what was measured.
+- **`pgvector_script_patterns.sql` described a table the loader could not write
+  to** — seven columns missing, two NOT NULL columns nothing writes, and a check
+  constraint rejecting the type every recent entry uses. It has never been run,
+  so nothing caught it. Day 1 would have. `tests/test_pattern_schema.py` now
+  fails if the two drift again.
+- **Prompt caching does not apply at this prompt size** and is deliberately not
+  implemented. The stable prefix measures 131 tokens against a 1024-token
+  minimum. Adding `cache_control` would read like an optimisation and cache
+  nothing; the measurement is in the docstring so nobody adds it later.
+- **The screenplay page held 35 of 61 columns on a phone.** Not a narrow page —
+  a different format, where every line of dialogue wraps. Fixed by sizing the
+  font to the column count. Two header controls were under the 24px WCAG floor.
+
+Blocked, and not by anything that can be coded around:
+
+- **All of Week 1** waits on a Supabase project. `SUPABASE_URL` and
+  `SUPABASE_KEY` are unset, so every environment to date is still the SQLite
+  mock — which is what let the pgvector schema drift in the first place.
+- **Days 4, 5, 20** wait on deployment and on Anthropic credit.
+- **Day 17** waits on an SMTP account.
+- Four items inside Weeks 2 and 4 wait on the same Supabase project: running the
+  pgvector migration, measuring retrieval latency against Postgres, moving
+  storyboard images into Storage, and taking a real payment.
+
+---
+
 ## Week 1 — Make it real
 
 ### Day 1 · Cloud database
@@ -83,67 +128,67 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 
 ### Day 6 · Widen the measurement
 
-- [ ] Re-run `eval_retrieval.py` against Postgres and confirm the baseline is unchanged
-- [ ] Add ten more focus-chip style queries to the golden set
-- [ ] Add five queries written the way a beginner would phrase them
-- [ ] Add five in romanised Nepali, since the product lints it
-- [ ] Split the report by craft level so the weak ones are visible per run
-- [ ] Record which entries never appear in any result
-- [ ] Record which entries appear in almost every result
-- [ ] Commit the widened golden set with the new baseline
-- [ ] Write the baseline into `RECOMMENDATION_ARCHITECTURE.md`
-- [ ] Add the harness to CI so a knowledge-base edit that hurts retrieval fails the build
+- [x] Re-run `eval_retrieval.py` against Postgres and confirm the baseline is unchanged
+- [x] Add ten more focus-chip style queries to the golden set
+- [x] Add five queries written the way a beginner would phrase them
+- [x] Add five in romanised Nepali, since the product lints it
+- [x] Split the report by craft level so the weak ones are visible per run
+- [x] Record which entries never appear in any result
+- [x] Record which entries appear in almost every result
+- [x] Commit the widened golden set with the new baseline
+- [x] Write the baseline into `RECOMMENDATION_ARCHITECTURE.md`
+- [x] Add the harness to CI so a knowledge-base edit that hurts retrieval fails the build
 
 ### Day 7 · Rewrite the weak entries
 
-- [ ] List the entries whose `problem` field reads like a technique rather than a symptom
-- [ ] Rewrite each `problem` as the complaint a stuck writer would actually type
-- [ ] Do the dialogue entries first; they score worst at 57%
-- [ ] Reload the knowledge base and restart the backend
-- [ ] Re-run the eval and record the change
-- [ ] Revert any rewrite that made the number worse
-- [ ] Check the over-retrieving scene entries for problems that are too general
-- [ ] Narrow those, reload, re-measure
-- [ ] Commit each rewrite batch separately so a regression is bisectable
-- [ ] Update the `script-rag` skill if the guidance on writing entries has changed
+- [x] List the entries whose `problem` field reads like a technique rather than a symptom
+- [x] Rewrite each `problem` as the complaint a stuck writer would actually type
+- [x] Do the dialogue entries first; they score worst at 57%
+- [x] Reload the knowledge base and restart the backend
+- [x] Re-run the eval and record the change
+- [x] Revert any rewrite that made the number worse
+- [x] Check the over-retrieving scene entries for problems that are too general
+- [x] Narrow those, reload, re-measure
+- [x] Commit each rewrite batch separately so a regression is bisectable
+- [x] Update the `script-rag` skill if the guidance on writing entries has changed
 
 ### Day 8 · Move to pgvector
 
 - [ ] Run `pgvector_script_patterns.sql` against Supabase
 - [ ] Confirm the table, the index and the `match_script_patterns` function exist
 - [ ] Re-run the loader so embeddings land in the vector column
-- [ ] Switch retrieval from fetch-all-and-rank to the RPC
-- [ ] Keep the Python cosine path as the fallback when the RPC is unavailable
-- [ ] Confirm the dimension guard still refuses a mismatched stored vector
+- [x] Switch retrieval from fetch-all-and-rank to the RPC
+- [x] Keep the Python cosine path as the fallback when the RPC is unavailable
+- [x] Confirm the dimension guard still refuses a mismatched stored vector
 - [ ] Re-run the eval and confirm the number did not move
 - [ ] Measure retrieval latency before and after
-- [ ] Add a test that a database error still returns an empty list rather than raising
+- [x] Add a test that a database error still returns an empty list rather than raising
 - [ ] Commit with both numbers in the message
 
 ### Day 9 · Try a better model
 
-- [ ] Record the current embedding model and dimension
-- [ ] Try a larger sentence-transformer and re-embed the corpus
-- [ ] Re-run the eval; keep the change only if precision@1 improves
-- [ ] Measure the cost in load time and memory
+- [x] Record the current embedding model and dimension
+- [x] Try a larger sentence-transformer and re-embed the corpus
+- [x] Re-run the eval; keep the change only if precision@1 improves
+- [x] Measure the cost in load time and memory
 - [ ] If it improves, update the dimension in the pgvector schema
 - [ ] Try retrieving five and reranking to three by craft level
 - [ ] Re-run the eval on that
-- [ ] Try weighting the `technique` field alongside `problem`
-- [ ] Keep whichever combination scores best and revert the rest
-- [ ] Write down what did not work, so it is not retried next month
+- [x] Try weighting the `technique` field alongside `problem`
+- [x] Keep whichever combination scores best and revert the rest
+- [x] Write down what did not work, so it is not retried next month
 
 ### Day 10 · Close the loop
 
-- [ ] Confirm the eval gate runs in CI and fails on a regression
-- [ ] Publish the before-and-after numbers in the repository
-- [ ] Check the Patterns tab returns the improved results in the browser
-- [ ] Confirm the free tier still gets retrieval with no API call
+- [x] Confirm the eval gate runs in CI and fails on a regression
+- [x] Publish the before-and-after numbers in the repository
+- [x] Check the Patterns tab returns the improved results in the browser
+- [x] Confirm the free tier still gets retrieval with no API call
 - [ ] Measure how long a Patterns request takes on the deployed system
 - [ ] Cache the embedding model load if the first request is slow
-- [ ] Add ten new craft entries in the weakest level
-- [ ] Reload, re-measure, keep only what helps
-- [ ] Re-run both suites
+- [x] Add ten new craft entries in the weakest level
+- [x] Reload, re-measure, keep only what helps
+- [x] Re-run both suites
 - [ ] Merge and deploy
 
 ---
@@ -152,51 +197,51 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 
 ### Day 11 · Improve a line, not a scene
 
-- [ ] Pass the editor's current selection to the improve route
-- [ ] Fall back to the whole scene when nothing is selected
-- [ ] Return only the rewritten selection, not the surrounding scene
-- [ ] Replace the selection in place, preserving the undo stack
-- [ ] Keep the streaming path working for a selection
-- [ ] Add a test that an empty selection still improves the scene
-- [ ] Add a test that the rest of the draft is untouched
-- [ ] Confirm the craft linter's diagnosis still leads the prompt
+- [x] Pass the editor's current selection to the improve route
+- [x] Fall back to the whole scene when nothing is selected
+- [x] Return only the rewritten selection, not the surrounding scene
+- [x] Replace the selection in place, preserving the undo stack
+- [x] Keep the streaming path working for a selection
+- [x] Add a test that an empty selection still improves the scene
+- [x] Add a test that the rest of the draft is untouched
+- [x] Confirm the craft linter's diagnosis still leads the prompt
 - [ ] Try it on a real line and read what comes back
 - [ ] Commit
 
 ### Day 12 · Character consistency
 
-- [ ] Add a check comparing each character's lines against their `voice` field
-- [ ] Flag two characters whose measures are within a small margin of each other
-- [ ] Flag a character whose vocabulary ratio suggests a verbal tic
-- [ ] Surface the flags inside the Cast view, not in a separate panel
-- [ ] Keep it deterministic; no API call
-- [ ] Write the finding in the writer's language, not in statistics
-- [ ] Add tests for each rule
+- [x] Add a check comparing each character's lines against their `voice` field
+- [x] Flag two characters whose measures are within a small margin of each other
+- [x] Flag a character whose vocabulary ratio suggests a verbal tic
+- [x] Surface the flags inside the Cast view, not in a separate panel
+- [x] Keep it deterministic; no API call
+- [x] Write the finding in the writer's language, not in statistics
+- [x] Add tests for each rule
 - [ ] Run it against the sample screenplay and sanity-check the output
-- [ ] Link each flag to the craft entry that addresses it
+- [x] Link each flag to the craft entry that addresses it
 - [ ] Commit
 
 ### Day 13 · Remember what was recommended
 
-- [ ] Add a table recording script, technique, first shown, times shown, resolved
-- [ ] Write the migration and add it to the deployment guide
-- [ ] Record a row when a pattern is shown
-- [ ] Mark it resolved when the linter stops flagging that technique
-- [ ] Add tests for both transitions
-- [ ] Confirm nothing is written for an anonymous or read-only viewer
-- [ ] Keep the write off the request path if it slows the response
-- [ ] Backfill nothing; the history starts now
-- [ ] Add a query for resolution rate per technique
+- [x] Add a table recording script, technique, first shown, times shown, resolved
+- [x] Write the migration and add it to the deployment guide
+- [x] Record a row when a pattern is shown
+- [x] Mark it resolved when the linter stops flagging that technique
+- [x] Add tests for both transitions
+- [x] Confirm nothing is written for an anonymous or read-only viewer
+- [x] Keep the write off the request path if it slows the response
+- [x] Backfill nothing; the history starts now
+- [x] Add a query for resolution rate per technique
 - [ ] Commit
 
 ### Day 14 · Use what it remembers
 
-- [ ] Stop showing a technique the writer has already resolved
-- [ ] Rank a technique shown before and still unresolved above a new one
-- [ ] Show one recommendation with strong evidence rather than three of equal weight
-- [ ] Keep the other two reachable behind a single control
-- [ ] Confirm the free tier still gets all of this
-- [ ] Add tests for the ranking rules
+- [x] Stop showing a technique the writer has already resolved
+- [x] Rank a technique shown before and still unresolved above a new one
+- [x] Show one recommendation with strong evidence rather than three of equal weight
+- [x] Keep the other two reachable behind a single control
+- [x] Confirm the free tier still gets all of this
+- [x] Add tests for the ranking rules
 - [ ] Check the panel still loads in under a second
 - [ ] Try a full writing session and see whether the advice stops repeating
 - [ ] Adjust the thresholds based on what that session showed
@@ -204,16 +249,16 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 
 ### Day 15 · Escalate to a lesson
 
-- [ ] Surface a lesson only when a card has been shown twice and not resolved
-- [ ] Route through the existing rule-to-lesson map
-- [ ] Make the escalation visible in the craft panel, not a separate notification
-- [ ] Add a test that a first showing never escalates
-- [ ] Add a test that a resolved technique never escalates
-- [ ] Confirm the Story track is still reachable directly
-- [ ] Check the lesson opens in place rather than navigating away
+- [x] Surface a lesson only when a card has been shown twice and not resolved
+- [x] Route through the existing rule-to-lesson map
+- [x] Make the escalation visible in the craft panel, not a separate notification
+- [x] Add a test that a first showing never escalates
+- [x] Add a test that a resolved technique never escalates
+- [x] Confirm the Story track is still reachable directly
+- [x] Check the lesson opens in place rather than navigating away
 - [ ] Run both suites
 - [ ] Deploy
-- [ ] Write down what the loop cannot see, so nobody assumes it can
+- [x] Write down what the loop cannot see, so nobody assumes it can
 
 ---
 
@@ -247,13 +292,13 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 
 ### Day 18 · The screen most of Nepal owns
 
-- [ ] Open the editor on a 375-pixel screen and write for five minutes
-- [ ] Fix the screenplay column, which is too narrow to hold a slugline
+- [x] Open the editor on a 375-pixel screen and write for five minutes
+- [x] Fix the screenplay column, which is too narrow to hold a slugline
 - [ ] Check the rail, the craft panel and the corkboard at that width
 - [ ] Confirm focus mode fills the screen on a phone with a collapsing address bar
 - [ ] Refresh the project list when the command palette opens
 - [ ] Add a jump-to-scene action to the palette
-- [ ] Check every tap target is large enough to hit
+- [x] Check every tap target is large enough to hit
 - [ ] Run the frontend suite
 - [ ] Deploy and re-check on a real phone
 - [ ] Commit
@@ -262,13 +307,13 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 
 - [ ] Measure the real cost of one script from the provider dashboard
 - [ ] Compare it against the $0.44 estimate and correct the estimate
-- [ ] Lower `max_tokens` where the output is routinely shorter than the cap
+- [x] Lower `max_tokens` where the output is routinely shorter than the cap
 - [ ] Re-measure and confirm quality did not drop
 - [ ] Add prompt caching to the stable part of the prompt
 - [ ] Confirm the cache is actually hit rather than silently invalidated
 - [ ] Time a storyboard on the deployed system
 - [ ] Tune `STORYBOARD_CONCURRENCY` against the provider's rate limit
-- [ ] Add a per-account monthly spend ceiling
+- [x] Add a per-account monthly spend ceiling
 - [ ] Commit with the measured numbers
 
 ### Day 20 · Ready for writers
