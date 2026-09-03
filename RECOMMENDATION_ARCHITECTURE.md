@@ -461,6 +461,54 @@ Two known misses were left in place rather than tuned away:
   fact deserves. The fix is a Nepali gloss field embedded alongside the English
   problem statement — corpus work, not retrieval work.
 
+### A bigger embedding model is not the answer (measured, 2026-09-03)
+
+The RAG skill said the intended fix, when relevant entries stop surfacing, is a
+larger embedding model rather than prompt work. That had never been tested. It
+is now, on the same corpus, the same golden set, and the same document and query
+text:
+
+| model | dim | embed time | p@1 | p@3 |
+|---|---|---|---|---|
+| BAAI/bge-small-en-v1.5 (current) | 384 | 0.7s | **88.0%** | 92.0% |
+| BAAI/bge-base-en-v1.5 | 768 | 3.2s | 88.0% | 96.0% |
+| all-MiniLM-L6-v2 | 384 | 0.7s | 84.0% | 100.0% |
+
+The larger model buys nothing on precision@1 for 4.6x the embedding time, and
+moving to 768 dimensions would mean changing `vector(384)` in the schema and
+re-embedding the corpus. The small model stays. What actually moved the number
+was the query text, the document text, and the ten missing entries — none of
+which is a model problem, and all of which were cheaper.
+
+### The pgvector schema was wrong, and nothing would have caught it
+
+`pgvector_script_patterns.sql` is the only definition of `script_patterns` in
+the repository, and it is run by hand in the Supabase SQL editor. Every
+environment to date has been the SQLite mock, which creates columns on demand
+and therefore agrees with any writer. So it drifted:
+
+- it carried `one_line_takeaway` and `structural_pattern` as **NOT NULL columns
+  nothing has written for months**
+- it was **missing the seven columns the loader does write** — `craft_level`,
+  `technique`, `problem`, `how_it_works`, `how_to_apply`, `worked_example`,
+  `warning_sign`
+- its `source_type` check **rejected `'craft'`**, the type of every entry added
+  since the corpus moved to craft techniques, including all ten added today
+- the `match_script_patterns` RPC returned the old field set
+
+The first real Supabase deploy would have created the table without complaint
+and then failed on the first `load_knowledge_base.py` run, with an error naming
+a column rather than the cause. `tests/test_pattern_schema.py` reads the SQL as
+text and compares it against the loader; it needs no database, and five of its
+seven cases fail against the version of the file that shipped.
+
+Retrieval now uses the RPC above `RAG_RPC_THRESHOLD` rows (default 500) and
+falls back to exact ranking in Python for every reason the RPC can be absent:
+no `rpc` method on the client at all, which is the local mock; the migration
+never run against a project; a different signature. The fallback is the path
+that is always correct, so the RPC is a performance choice and never a
+correctness one.
+
 ### The gate
 
 CI runs `eval_retrieval.py --min-p1 0.80` after loading the knowledge base. The

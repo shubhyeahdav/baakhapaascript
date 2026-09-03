@@ -12,6 +12,7 @@ across both storage modes. Past ~500 entries, switch to the
 match_script_patterns RPC included in the migration file.
 """
 import json
+import os
 
 _model = None  # lazy: first call downloads/loads the ONNX model (~130 MB cached)
 
@@ -129,12 +130,45 @@ def _cosine(a, b):
     return dot / (na * nb) if na and nb else 0.0
 
 
+# Past this many rows, ranking every entry in Python on each request stops
+# being free. The pgvector RPC does the same work in the database against an
+# HNSW index. The threshold is not a cliff — exact scan at a few hundred rows
+# is still milliseconds — so this is about where the two paths cross, not about
+# where the current one breaks.
+RPC_THRESHOLD = int(os.getenv("RAG_RPC_THRESHOLD", "500"))
+RPC_NAME = "match_script_patterns"
+
+
+def _rpc_search(supabase, qvec, top_k):
+    """Server-side similarity search, or None if it is not available.
+
+    Returns None rather than raising for every reason it can fail, and there
+    are several that are all normal: the local SQLite mock has no `rpc` method
+    at all, a Supabase project may not have had `pgvector_script_patterns.sql`
+    run against it, and the function may exist at a different signature. None
+    means "use the Python path", which is exact and always correct — the RPC is
+    a performance choice, never a correctness one.
+    """
+    rpc = getattr(supabase, "rpc", None)
+    if rpc is None:
+        return None
+    try:
+        res = rpc(RPC_NAME, {"query_embedding": qvec, "match_count": top_k}).execute()
+    except Exception as e:
+        print(f"RAG: {RPC_NAME} unavailable ({e}); ranking in Python instead.")
+        return None
+    rows = getattr(res, "data", None)
+    if not rows:
+        return None
+    return [_pattern_payload(r, similarity=round(float(r.get("similarity") or 0), 4))
+            for r in rows]
+
+
 def retrieve_relevant_patterns(genre, tone, theme_description, top_k=3):
     """Embed the current request and return the top_k most semantically
     similar stored patterns — regardless of exact genre tag. Returns a list of
-    {title_ref, genre, origin_tradition, one_line_takeaway, structural_pattern,
-    similarity}. Never raises: any failure returns [] so generation proceeds
-    ungrounded rather than breaking."""
+    payload dicts sorted by similarity. Never raises: any failure returns [] so
+    generation proceeds ungrounded rather than breaking."""
     try:
         from database import supabase
         rows = supabase.table(TABLE).select("*").execute().data
@@ -150,6 +184,12 @@ def retrieve_relevant_patterns(genre, tone, theme_description, top_k=3):
         # real queries. Dropping the prefix took that to 8 and moved
         # precision@1 from 56% to 72%. Measured in `eval_retrieval.py`.
         qvec = embed_texts([theme_description])[0]
+
+        if len(rows) >= RPC_THRESHOLD:
+            hit = _rpc_search(supabase, qvec, top_k)
+            if hit is not None:
+                return hit
+
         scored = []
         for r in rows:
             emb = r.get("embedding")

@@ -404,3 +404,123 @@ def test_the_prompt_block_forbids_echoing_the_source_labels():
     block = rag.format_patterns_for_prompt([{"technique": "One"}])
 
     assert "Never mention these labels" in block
+
+
+# --- the pgvector RPC path ----------------------------------------------------
+#
+# Ranking every row in Python is exact and, at 39 entries, instant. It stops
+# being free somewhere in the hundreds, which is what `match_script_patterns` in
+# pgvector_script_patterns.sql exists for. The switch is a performance choice,
+# so the important property is not that the RPC works — it is that every way it
+# can be absent or broken falls back to the path that is always correct.
+#
+# It can be absent for three ordinary reasons: the local SQLite mock has no
+# `rpc` method at all, a Supabase project may never have had the migration run
+# against it, and the function may exist at a different signature. None of those
+# is an error a writer should ever see.
+
+def _many(n, dim_vec):
+    for i in range(n):
+        _seed(f"bulk-{i}", dim_vec)
+
+
+class _Rpc:
+    """Stands in for `supabase.rpc(...).execute()`."""
+
+    def __init__(self, rows=None, raises=None):
+        self.rows, self.raises, self.calls = rows, raises, []
+
+    def __call__(self, name, params):
+        self.calls.append((name, params))
+        outer = self
+
+        class _Q:
+            def execute(self):
+                # Real supabase-py raises at execute(), not at rpc().
+                if outer.raises:
+                    raise outer.raises
+                return type("R", (), {"data": outer.rows})()
+
+        return _Q()
+
+
+def _with_rpc(monkeypatch, rpc):
+    """Attach an `rpc` attribute to whatever `database.supabase` currently is."""
+    monkeypatch.setattr(database.supabase, "rpc", rpc, raising=False)
+    return rpc
+
+
+def test_a_small_library_never_calls_the_rpc(stub_embedder, monkeypatch):
+    """Below the threshold the Python path is used unconditionally. Calling out
+    to the database to rank forty rows would be slower, not faster."""
+    stub_embedder([1.0, 0.0, 0.0])
+    _seed("small", [1.0, 0.0, 0.0])
+    rpc = _with_rpc(monkeypatch, _Rpc(raises=AssertionError("must not be called")))
+
+    got = rag.retrieve_relevant_patterns("Drama", "Warm", "flat scene")
+
+    assert [p["technique"] for p in got] == ["small"]
+    assert rpc.calls == []
+
+
+def test_a_large_library_uses_the_rpc(stub_embedder, monkeypatch):
+    stub_embedder([1.0, 0.0, 0.0])
+    monkeypatch.setattr(rag, "RPC_THRESHOLD", 3)
+    _many(3, [1.0, 0.0, 0.0])
+    rpc = _with_rpc(monkeypatch, _Rpc(rows=[
+        {"technique": "from-postgres", "craft_level": "scene", "similarity": 0.9},
+    ]))
+
+    got = rag.retrieve_relevant_patterns("Drama", "Warm", "flat scene", top_k=2)
+
+    assert [p["technique"] for p in got] == ["from-postgres"]
+    assert got[0]["similarity"] == 0.9
+    name, params = rpc.calls[0]
+    assert name == "match_script_patterns"
+    assert params["match_count"] == 2
+    assert params["query_embedding"] == [1.0, 0.0, 0.0]
+
+
+def test_a_failing_rpc_falls_back_and_still_returns_the_right_pattern(
+    stub_embedder, monkeypatch
+):
+    """The migration not having been run is a normal state of a real project,
+    and it must cost nothing but a log line."""
+    stub_embedder([1.0, 0.0, 0.0])
+    monkeypatch.setattr(rag, "RPC_THRESHOLD", 2)
+    _seed("near", [1.0, 0.0, 0.0])
+    _seed("far", [0.0, 1.0, 0.0])
+    _with_rpc(monkeypatch, _Rpc(raises=RuntimeError("function does not exist")))
+
+    got = rag.retrieve_relevant_patterns("Drama", "Warm", "flat scene", top_k=1)
+
+    assert [p["technique"] for p in got] == ["near"]
+
+
+def test_a_client_with_no_rpc_method_falls_back(stub_embedder, monkeypatch):
+    """This is the local SQLite mock, which is what every developer and CI run
+    uses. It has no `rpc` at all, and reaching for one must not raise."""
+    stub_embedder([1.0, 0.0, 0.0])
+    monkeypatch.setattr(rag, "RPC_THRESHOLD", 1)
+    monkeypatch.delattr(database.supabase, "rpc", raising=False)
+    _seed("local", [1.0, 0.0, 0.0])
+
+    got = rag.retrieve_relevant_patterns("Drama", "Warm", "flat scene")
+
+    assert [p["technique"] for p in got] == ["local"]
+
+
+def test_an_rpc_that_returns_nothing_falls_back_rather_than_reporting_empty(
+    stub_embedder, monkeypatch
+):
+    """An empty RPC result and a genuinely empty library look the same from
+    here, and only one of them should reach a writer as 'no patterns'. Falling
+    back costs one exact scan and cannot be wrong."""
+    stub_embedder([1.0, 0.0, 0.0])
+    monkeypatch.setattr(rag, "RPC_THRESHOLD", 1)
+    _seed("present", [1.0, 0.0, 0.0])
+    _with_rpc(monkeypatch, _Rpc(rows=[]))
+
+    got = rag.retrieve_relevant_patterns("Drama", "Warm", "flat scene")
+
+    assert [p["technique"] for p in got] == ["present"]
