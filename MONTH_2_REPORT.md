@@ -1,7 +1,7 @@
 # Month 2 progress report
 
 **Baakhapaa: AI-powered pre-production intelligence system**
-Weeks 5 to 8 of 12. Reference: proposal §8.
+Weeks 5 to 8 of 12  ·  Prepared for Baakhapaa  ·  Reference: proposal §8
 
 The four modules scheduled for Month 2 were finished ahead of schedule in Month 1 and
 reported then. This month went instead on the work the schedule had no room for: proper
