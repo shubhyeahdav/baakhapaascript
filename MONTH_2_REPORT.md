@@ -3,12 +3,12 @@
 **Baakhapaa: AI-powered pre-production intelligence system**
 Weeks 5 to 8 of 12. Reference: proposal §8.
 
-Every module the proposal scheduled for Month 2 was already delivered in Month 1 and
-reported as such. Month 2 was therefore spent on the two things that decide whether any of
-it survives contact with a user: proving the system works when it is not being demonstrated,
-and measuring the one capability the product is sold on. The system ran outside demo mode
-for the first time. Retrieval was measured for the first time, and the first honest number
-was worse than the first flattering one.
+All four modules the proposal scheduled for Month 2 were delivered early, in Month 1, and
+were reported then. Month 2 was therefore spent on two things instead: testing the system
+properly, and measuring how well its main feature works.
+
+Two results stand out. The system ran against live AI providers for the first time. And
+retrieval quality was measured for the first time, giving a baseline of 20%.
 
 ## 1. Month 2 deliverables
 
@@ -20,70 +20,81 @@ was worse than the first flattering one.
 | 8 | Subscription tiers | Free / Pro / Studio, three gateways, server-side gating | Delivered Month 1 |
 | — | **Quality and measurement** | **Test coverage, retrieval evaluation, first live-key run** | **Done** |
 
-The four scheduled deliverables were verified again this month rather than rebuilt. What
-follows is the work that filled the month instead.
+The four scheduled deliverables were re-tested this month rather than rebuilt. The sections
+below describe the work that filled the month.
 
 ![The editor](docs/screenshots/m2-04-script-editor.png)
 
-**Figure 1.** The workspace as it stands at the end of Month 2. Left, the rail carrying the
-four readings and the index cards, each now showing the page a scene starts on, who is in it
-and the first thing the camera sees. Centre, the screenplay column. Right, the assist panel
-with its craft recommendations. Above, the timeline: scene headings are renameable in place
-and act durations are editable.
+**Figure 1.** The workspace at the end of Month 2. On the left is the panel holding four
+views of the script and the scene index cards. In the middle is the screenplay page. On the
+right is the assistant panel with craft recommendations. Above is the timeline.
 
-### Week 5: Coverage of the parts that fail quietly
+### Week 5: Adding tests
 
-Three backend modules had no test at all, and the ones without coverage were close to the
-inverse of where coverage should have been: the Stripe webhook is the only unauthenticated
-endpoint that grants a paid tier, `updates.py` is six lines standing between a client
-dictionary and two write handlers, and `rag.py` — the differentiator — returns an empty list
-on every error by design, so it fails silently.
+Three parts of the backend had no tests at all. This mattered because those three parts
+carry the most risk:
 
-104 backend tests were added across six new files, and all 26 untested frontend components
-and pages were covered. The suite now stands at **765 backend tests across 42 files** and
-**1,020 frontend tests across 54 files**.
+- The payment webhook is the only endpoint that grants a paid subscription without
+  requiring a login.
+- `updates.py` is the code that decides which fields a user is allowed to change.
+- `rag.py` is the retrieval system. It returns an empty result on failure by design, so
+  when it breaks, nothing reports an error.
 
-Two security defects were found and closed in the process. `versions.py` ran its access check
-*after* its error branches, so any signed-in user could learn whether two arbitrary version
-identifiers existed and belonged to the same script — every other route in the system returns
-404 precisely to prevent that. And the command palette guarded only its render, so pressing
-Cmd-K while signed out issued an authenticated request, received a 401 and ejected the
-visitor to the login page.
+104 new backend tests were written. All 26 frontend components that had no tests were
+covered. The test suite now has **765 backend tests in 42 files** and **1,020 frontend
+tests in 54 files**.
 
-### Week 6: Running outside demo mode
+Two security problems were found and fixed while writing these tests.
 
-The system had never been executed against a real provider. It was this month, and the run
-produced more information than a successful one would have.
+The first was in `versions.py`. It checked the user's permission after checking for other
+errors, not before. A logged-in user could therefore learn whether two script versions
+existed and belonged to the same script, even without access to them. Every other route in
+the system returns "not found" to prevent exactly this.
 
-The first finding was in the test suite rather than the product. `conftest.py` deliberately
-forces the mock database and pins payments offline, but had never done the same for the AI
-keys — which did not matter while those keys were absent. On the day real keys were added the
-suite began making live, billed API calls, and hung for twenty-six minutes retrying a provider
-error. The subtlety worth recording is that removing the variables does not fix it:
-`load_dotenv()` declines to overwrite a variable that already exists and happily fills in one
-that does not, so popping the key invites the real one straight back.
+The second was in the command palette. It was hidden from logged-out visitors but still
+sent a request to the server. The request failed with a 401 error, which logged the visitor
+out and sent them to the login page.
 
-The second was the cost model. A storyboard frame was estimated at $0.040 on the assumption
-of DALL-E 3. Measured against the model the system actually calls, one frame is **$0.0033** —
-a factor of twelve. This inverts the pricing lever: images are roughly 18% of the cost of a
-script and generation tokens are 82%, so the control that matters is output length, not the
-frame cap.
+### Week 6: Running with real API keys
 
-| Measured | Estimated | Actual |
-|----------|-----------|--------|
+The system had never been run against a real AI provider. This was done in Month 2, and two
+problems were found.
+
+**Problem 1: the test suite made real API calls.** The test configuration forces the tests
+to use a mock database and to skip payment providers. It had never done the same for the AI
+keys. This did not matter while no keys existed. Once real keys were added, the tests began
+calling the live API, which costs money. The suite also took 26 minutes instead of a few
+seconds, because the AI library retries a failed request several times.
+
+The fix is worth recording. Deleting the environment variable does not work, because the
+configuration loader fills in any variable that is missing. The variable must instead be set
+to an invalid value, so that it exists but cannot be used.
+
+**Problem 2: the cost estimate was wrong.** A storyboard image had been estimated at $0.040,
+assuming the system used DALL-E 3. It does not. Measured against the model actually used,
+one image costs $0.0033.
+
+| Item | Estimated | Measured |
+|------|-----------|----------|
 | One storyboard frame | $0.040 | **$0.0033** |
 | 24-frame storyboard | $0.96 | **$0.08** |
-| One script with a board | $1.32 | **~$0.44** |
+| One script with a storyboard | $1.32 | **~$0.44** |
 
-### Week 7: Measuring retrieval
+This changes which cost matters. Images are about 18% of the cost of producing a script.
+Text generation is about 82%. Reducing the length of generated text therefore saves more
+than reducing the number of storyboard images.
 
-The retrieval layer is what the product is sold on and nothing had ever measured it. An
-evaluation harness was built: 34 golden cases mined from the corpus itself rather than
-invented, scored on precision@1, precision@3 and mean reciprocal rank.
+### Week 7: Measuring retrieval quality
 
-The first result was 82.4% precision@1, which looked like good news and was not. The golden
-set mixes two populations of very different difficulty, and averaging them buried the one
-that matters:
+Retrieval is the system's main feature. It finds relevant screenwriting techniques and adds
+them to the AI prompt. It had never been measured.
+
+A test set of 34 cases was built from the existing craft library. Three standard measures
+were used: precision@1 (whether the correct result came first), precision@3 (whether it was
+in the top three), and mean reciprocal rank.
+
+The first result was 82.4% precision@1. This number was misleading. The test set contained
+two kinds of case, and one kind is much easier than the other:
 
     REAL QUERIES (what the editor actually sends, n=5)
       precision@1  20.0%
@@ -92,34 +103,39 @@ that matters:
     SANITY CHECK (an entry finds itself, n=29)
       precision@1  93.1%   <- should stay near 100%
 
-Self-retrieval is nearly free — the query *is* the text that was embedded — so 29 easy cases
-drowned five real ones. The harness now reports the two apart and leads with the real
-queries. **20% is the committed baseline**, and it agrees with what the corpus loader's own
-probes had been printing as passes all along: three of its four rank the wrong craft level
-first.
+The 29 easy cases search using text that was itself used to build the index, so a correct
+result is almost guaranteed. Only the 5 remaining cases match what the application really
+sends. Averaging all 34 together hid the real figure.
 
-That result is the most useful thing produced this month. It is also the reason the number is
-trusted: the measurement caught an error in its own design before it caught one in the system.
+The test now reports the two groups separately. **The baseline is 20% precision@1.** This
+agrees with four checks already built into the corpus loader, which had been reporting
+success while ranking the wrong result first in three cases out of four.
 
 ![The craft panel](docs/screenshots/m2-09-craft.png)
 
-**Figure 2.** The free tier's measurement surface. The linter reports nothing tripped and says
-plainly what that does not mean; below it, the draft's own statistics, and beneath those the
-corpus benchmark holding itself back until there is enough script to compare. Saying when a
-report will open is more useful than inventing a percentile from three scenes.
+**Figure 2.** The free-tier feedback panel. At the top, the rule-based checker reports that
+nothing was flagged, and explains that this does not mean the draft is finished. Below it
+are the draft's statistics. Below those is the corpus comparison, which does not report a
+result until there is enough script to compare.
 
-### Week 8: Craft features and production readiness
+### Week 8: Streaming and character analysis
 
-Generation now streams. Every AI call blocked until the whole response was composed, so a
-writer asked for a scene and watched a spinner while two thousand tokens were assembled
-elsewhere. Server-sent events replace that for scene generation and rewriting, with a provider
-failure arriving inside the stream — once the first byte is sent the status is already 200, so
-an error has to be a message the client can read rather than a dropped connection.
+**Streaming.** Every AI request previously waited for the full response before showing
+anything, so a writer asking for a scene saw a loading indicator for the whole time. Scene
+generation and rewriting now stream the text as it is produced. Errors are sent inside the
+stream, because once the response has started the HTTP status code can no longer be changed
+to report a failure.
 
-**Cast** was added: the reading the system did not have. The linter reads a page, the benchmark
-reads a shape, the corkboard reads an order, and none of them answers the question a writer
-arrives with around page thirty. Reading one character's lines end to end, with three measures
-chosen to be actionable rather than scored, does. Run against a short film written to test it:
+**Character analysis.** A new view called Cast was added. The existing tools examine
+formatting, overall shape, or scene order. None of them help with a common problem: two
+characters sounding the same. Cast lists each character's dialogue together, with three
+measures:
+
+- **Words per line** — how long their lines run.
+- **Vocabulary** — how much of their wording is repeated.
+- **Asks** — how often they ask a question instead of making a statement.
+
+Measured on a short film written to test the feature:
 
 | Character | Lines | Words per line | Vocabulary | Asks |
 |-----------|-------|----------------|------------|------|
@@ -127,73 +143,78 @@ chosen to be actionable rather than scored, does. Run against a short film writt
 | KANCHHA | 15 | 4.7 | 0.77 | **0.40** |
 | BABA | 15 | 6.3 | 0.76 | **0.00** |
 
-Kanchha asks a question in forty percent of his lines and Baba in none of them. That is
-characterisation, visible as a number, and it is the fastest way to see two voices collapsing
-into one. The story bible — which the writer fills in and which had been spent on prompts and
-shown back to them nowhere — now sits beside it, so the voice they described is next to the
-voice they wrote.
+Kanchha asks a question in 40% of his lines. Baba never asks one. This is a measurable
+difference in how two characters speak.
+
+The view also shows the character description the writer entered when setting up the
+project. That description was previously used only inside AI prompts and was never shown
+back to the writer.
 
 ![Cast](docs/screenshots/m2-08-cast.png)
 
-**Figure 3.** Cast, with one voice opened. Sanjana asks in a third of her lines, Raaja in none
-of his; her vocabulary is 0.94 against his 1.00 because she repeats herself and he barely
-speaks. Each line carries its number in the draft, so clicking it puts the caret there. The
-page stays on screen throughout — the point of moving these readings into the rail.
+**Figure 3.** The Cast view with one character opened. Each line shows its line number in
+the script, and clicking a line moves the cursor there. The script page stays visible.
 
 ## 2. Work beyond Month 2 scope
 
-### 2.1 Defects found by using the product as a writer would
+### 2.1 Faults found by writing a real screenplay
 
-A full short film was written inside the system and run through its own tools. This found what
-synthetic fixtures had not: `statistics` counted `FADE IN:` as a scene, so a 16-scene script
-reported 17, a phantom of 0.04 pages led the scene-length curve, and every corpus percentile
-shown to a writer was computed partly against a scene nobody wrote.
+A complete short film was written inside the system and processed by its own tools. This
+found five faults that test data had not.
 
-Four further defects were found the same way. The craft panel diagnosed the *question* a writer
-clicked rather than their draft, and reported the result as "found in your draft, line 1" — a
-line of a sentence they had never typed. Renaming a scene heading never reached the scene
-index, so the timeline kept showing a line no longer in the script. Focus mode drew a
-723-pixel page on a 1,274-pixel screen. And the editor's route claimed to carry a project
-identifier while carrying a script one.
+1. **`FADE IN:` was counted as a scene.** A 16-scene script reported 17 scenes. This also
+   affected the page statistics and the corpus comparison figures shown to the writer.
+2. **The craft panel analysed the wrong text.** When a writer selected a problem category,
+   the system analysed the category description instead of the writer's script, then
+   reported the result as if it had been found in their draft.
+3. **Renaming a scene had no effect on the scene list.** The timeline continued to show a
+   scene heading that no longer existed in the script.
+4. **Focus mode did not fill the screen.** The page was drawn 723 pixels tall on a
+   1,274-pixel screen.
+5. **The editor URL was inconsistent.** It was labelled as containing a project identifier
+   but actually contained a script identifier.
 
-### 2.2 Interface work
+### 2.2 Interface changes
 
 | Area | Change |
 |------|--------|
-| Workspace | Script, Corkboard, Outline and Cast moved into the left rail; the page is never taken away to reorganise it |
-| Page | Card height derived from the pagination rule, so one card is one page; screenplay-standard margins |
-| Timeline | Scene headings renameable in place, act durations editable, labels dropped when blocks are too narrow to read |
-| Writing | Typewriter mode, gold caret, nib and ring pointers, pointer hidden while typing |
-| Import | Word `.docx` added alongside Final Draft, Fountain, plain text and PDF |
+| Workspace | The four views moved into the left panel, so the script page stays visible while reorganising |
+| Page | Page height now matches the pagination rule; standard screenplay margins applied |
+| Timeline | Scene headings can be renamed directly; act durations can be edited |
+| Writing | Typewriter scrolling, custom cursors, cursor hidden while typing |
+| Import | Word `.docx` files can now be imported, alongside Final Draft, Fountain, text and PDF |
 
 ![Corkboard](docs/screenshots/m2-07-corkboard.png)
 
-**Figure 4.** Restructuring beside the writing rather than instead of it. The corkboard used
-to replace the screenplay, so the reason to move a card — almost always something just read —
-had to be held in memory while going to move it.
+**Figure 4.** The corkboard now appears next to the script rather than replacing it. A
+writer can reorder scenes while still reading the page.
 
 ### 2.3 Documentation and decisions
 
-Three decisions the documents recorded but never settled were closed: live co-editing descoped
-to asynchronous collaboration, the encryption claim stated truthfully, and tier naming fixed at
-free / pro / studio. The deploy runbook was corrected — it described three migrations and there
-are now four. A project skill documented a data schema the code had abandoned, which would have
-produced entries that half-worked in a way nobody would notice.
+Three decisions that had been left open in the documentation were settled:
+
+- Real-time collaborative editing was removed from scope. The system provides asynchronous
+  collaboration: sharing, roles and comments.
+- The claim about data encryption was corrected to describe what the system actually does.
+- Subscription tier names were fixed as free, pro and studio.
+
+The deployment guide was corrected. It described three database migrations; there are now
+four. A project reference document described a data format the code no longer uses.
 
 ## 3. Verification status
 
-Everything above runs. The AI providers are reachable with live credentials and the OpenAI path
-has been exercised end to end at real cost; the Anthropic path returns a billing error pending
-account credit, so streaming and the paid generation routes remain verified against the mock
-path only.
+The AI providers can be reached with live credentials. The image generation path has been
+run end to end at real cost. The text generation path returns a billing error because the
+account has no credit, so streaming and the paid generation features are still verified only
+against the mock provider.
 
-The system has still never been deployed. It runs on local SQLite because no Supabase project
-exists yet, which also means the four schema migrations remain unapplied. No money has moved
-through any payment gateway. Those three — a real database, a live host, and a first real
-payment — are the work of Month 3, and every remaining estimate depends on them.
+The system has not been deployed. It runs on a local database because no cloud database has
+been created, which also means four schema migrations remain unapplied. No payment has been
+processed.
 
-Every figure in this report was captured from the running system this month by
-`baakhapaa-frontend/scripts/capture-screenshots.mjs`, which signs in, writes a draft, and
-photographs each surface in turn. The Month 1 report's figures were taken by hand and were
-still being reused after the screens beneath them had changed; this removes that failure mode
-for Month 3.
+These three items — a cloud database, a live server, and a first real payment — are the work
+of Month 3. All remaining estimates depend on them.
+
+All figures in this report were captured from the running system this month using
+`baakhapaa-frontend/scripts/capture-screenshots.mjs`. This script signs in, enters a draft,
+and photographs each screen in turn.
