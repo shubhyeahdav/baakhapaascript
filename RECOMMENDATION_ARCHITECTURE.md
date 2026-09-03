@@ -390,9 +390,43 @@ A library where a quarter of the entries are unreachable is smaller than its
 count suggests, and a library with a default answer will give that answer to a
 question it does not fit.
 
+### What the measurement changed (same day)
+
+The coverage report pointed at the corpus, and the corpus turned out to be
+innocent. The defect was in how the query was built.
+
+`retrieve_relevant_patterns` embedded `f"{genre} | {tone} | {theme_description}"`.
+Genre and tone are near-constant across requests — almost everything arrives as
+some variant of "Drama | Emotional" — so they carried no information about what
+the writer was stuck on, while pulling every query toward whichever entry read
+as most generically emotional. That is what produced the default answer.
+
+The stored text had the mirror-image fault. It embedded `how_it_works`, the
+longest field in an entry, which explains the fix rather than the fault, plus
+`craft_level` and `genre` as bare tags. A query is a complaint; the more of the
+stored text that is not a complaint, the worse the match.
+
+Both changed. The query is now the symptom alone. The stored text is `problem`
+(twice), `technique`, and `warning_sign` — the last added because it is what the
+fault looks like on the page, which is the same register a complaint arrives in.
+
+| | before | after |
+|---|---|---|
+| real-query precision@1 | 56.0% | **72.0%** |
+| real-query precision@3 | 76.0% | **88.0%** |
+| romanised Nepali p@1 | 40.0% | **80.0%** |
+| structure p@1 | 33% | **83%** |
+| image p@1 | 75% | **100%** |
+| self-retrieval sanity | 93.1% | **100.0%** |
+| most-returned entry | 21 of 25 | **8 of 25** |
+| entries never returned | 6 of 29 | **2 of 29** |
+
+Still weak, and the leads for the next pass: beginner-phrased queries at 40%,
+dialogue at 33%, character at 50%.
+
 ### The gate
 
-CI runs `eval_retrieval.py --min-p1 0.50` after loading the knowledge base. The
+CI runs `eval_retrieval.py --min-p1 0.65` after loading the knowledge base. The
 floor sits below the current score on purpose: it is a regression gate, not a
 target. Editing a `problem` field changes an embedding, and nobody reviews an
 embedding in a diff.

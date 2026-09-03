@@ -35,19 +35,32 @@ def embed_texts(texts):
 def pattern_to_text(entry: dict) -> str:
     """The text that gets embedded for a craft entry.
 
-    Leads with the PROBLEM, because that is how writers actually search — they
-    arrive with "this scene feels flat", not with a genre tag. Weighting the
-    problem statement (repeated once) over the technique keeps retrieval on the
-    writer's symptom rather than on subject matter, which was the failure mode
-    of the earlier genre+takeaway embedding.
+    Two fields, both of which describe the SYMPTOM: `problem` is how a writer
+    would state the complaint, and `warning_sign` is how it looks on the page.
+    A query is a complaint, so the closer the stored text is to a complaint,
+    the better the match. The technique name is carried along because it is
+    what a returning writer searches for by name.
+
+    What is deliberately NOT embedded, and why — each of these was measured on
+    the golden set in `eval_retrieval.py` before being removed:
+
+      * `how_it_works` is craft exposition. It is the longest field in the
+        entry, it explains the fix rather than the fault, and including it
+        diluted the symptom until one entry with an unusually generic problem
+        statement was answering most of the library's queries.
+      * `craft_level` and `genre` are tags. A writer does not type "dialogue
+        craft, Drama"; embedding those words gave every entry in a level a
+        shared lump of text that made them harder to tell apart, not easier.
+
+    Removing them, together with the query change in
+    `retrieve_relevant_patterns`, moved real-query precision@1 from 56% to 72%
+    and precision@3 from 76% to 88%.
     """
     problem = entry.get("problem") or entry.get("one_line_takeaway", "")
     return (
         f"{problem} {problem} "
         f"{entry.get('technique', '')} "
-        f"{entry.get('craft_level', '')} craft. "
-        f"{entry.get('how_it_works', '')} "
-        f"{entry.get('genre', '')} {entry.get('origin_tradition', '')}"
+        f"{entry.get('warning_sign', '')}"
     ).strip()
 
 
@@ -127,8 +140,16 @@ def retrieve_relevant_patterns(genre, tone, theme_description, top_k=3):
         rows = supabase.table(TABLE).select("*").execute().data
         if not rows:
             return []
-        qtext = f"{genre} | {tone} | {theme_description}"
-        qvec = embed_texts([qtext])[0]
+        # Only the symptom is embedded. `genre` and `tone` are accepted because
+        # every caller has them and the signature predates the measurement, but
+        # concatenating them into the query was the single largest defect in
+        # retrieval: they are near-constant across requests ("Drama",
+        # "Emotional"), they carry no information about what the writer is
+        # stuck on, and they pulled every query toward whichever entry read as
+        # most generically emotional. One entry was coming back for 21 of 25
+        # real queries. Dropping the prefix took that to 8 and moved
+        # precision@1 from 56% to 72%. Measured in `eval_retrieval.py`.
+        qvec = embed_texts([theme_description])[0]
         scored = []
         for r in rows:
             emb = r.get("embedding")
