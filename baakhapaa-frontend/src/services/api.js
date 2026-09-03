@@ -161,8 +161,11 @@ export const scripts = {
   // Who has opened, exported or replaced this script. Admin only — a log of
   // who read a draft is itself sensitive.
   accessLog: (id) => instance.get(`/scripts/${id}/access`),
+  // `project_id` goes in the body, like every other id this API takes. It was
+  // a query parameter here and nowhere else. The server still accepts the old
+  // form, but nothing should send it.
   generateStructure: (data, projectId) =>
-    instance.post(`/scripts/generate-structure?project_id=${projectId}`, data),
+    instance.post("/scripts/generate-structure", { ...data, project_id: projectId }),
   addScene: (data) => instance.post("/scripts/add-scene", data),
   recommendations: (data) => instance.post("/scripts/recommendations", data),
   // Deterministic craft diagnostics — every tier, no AI cost, works on a

@@ -271,7 +271,14 @@ class ProjectCreate(ProjectBase):
 
 
 class GenerateStructureRequest(ProjectBase):
-    pass
+    # Which project this structure is for. It used to be a query parameter
+    # while every other route in this file takes its ids in the body, which is
+    # the kind of inconsistency that costs somebody twenty minutes exactly once
+    # and then keeps costing the next person the same twenty minutes.
+    #
+    # Optional here rather than required so the old query-parameter form keeps
+    # working; the route accepts either and prefers this one.
+    project_id: Optional[str] = None
 
 class GenerateSceneRequest(BaseModel):
     scene_description: str

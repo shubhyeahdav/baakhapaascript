@@ -3,6 +3,8 @@ import os
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
+from typing import Optional
+
 from fastapi import (APIRouter, BackgroundTasks, Depends, File,
                      HTTPException, UploadFile)
 from fastapi.responses import StreamingResponse
@@ -53,11 +55,26 @@ def ai_unavailable_as_503():
 
 
 @router.post("/generate-structure")
-def generate_structure(req: GenerateStructureRequest, project_id: str, user_id: str = Depends(get_current_user)):
+def generate_structure(req: GenerateStructureRequest,
+                       project_id: Optional[str] = None,
+                       user_id: str = Depends(get_current_user)):
     """Generate the three-act structure as a PREVIEW. No scenes are saved —
     the suggestion set is stored on the script row (suggestions_json) so the
     user can add scenes one at a time (POST /scripts/add-scene) and revisit
-    un-added suggestions later without regenerating."""
+    un-added suggestions later without regenerating.
+
+    `project_id` belongs in the body, like every other id this file takes. It
+    was a query parameter here and nowhere else, which is the kind of
+    inconsistency that costs somebody twenty minutes exactly once and then
+    costs the next person the same twenty minutes. The query form still works
+    so nothing in flight breaks; the body wins when both are sent.
+    """
+    project_id = req.project_id or project_id
+    if not project_id:
+        raise HTTPException(
+            status_code=422,
+            detail="project_id is required (send it in the request body)",
+        )
     require_project_access(project_id, user_id)
     with ai_unavailable_as_503():
         # Short-form has its own beat spine (hook -> escalation -> payoff ->
