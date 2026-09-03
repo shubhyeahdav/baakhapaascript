@@ -1,0 +1,19 @@
+{
+  "_note": "Front matter for the formal report. Fill in the four placeholders marked TODO before submitting — they are the only fields nobody but you can supply.",
+
+  "title": "Baakhapaa",
+  "subtitle": "AI-powered pre-production intelligence system",
+  "documentType": "Month 2 Progress Report",
+  "period": "Weeks 5 to 8 of 12",
+
+  "author": "TODO: your full name",
+  "rollNumber": "TODO: your roll number",
+  "programme": "TODO: e.g. Bachelor of Information Management",
+  "institution": "TODO: your college name",
+
+  "supervisor": "",
+  "submittedTo": "",
+  "date": "September 2026",
+
+  "reference": "Proposal §8"
+}
