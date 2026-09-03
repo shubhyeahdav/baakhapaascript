@@ -162,6 +162,14 @@ export default function ScriptEditor() {
   const [bible, setBible] = useState(null);
   const [focus, setFocus] = useState("scene");
   const [openPattern, setOpenPattern] = useState(null);
+  // The other two cards, folded away until asked for. Three pieces of advice
+  // of apparently equal weight is a menu, and a menu is what a writer skips.
+  const [showAllPatterns, setShowAllPatterns] = useState(false);
+  // What the panel has already said about this script, keyed by technique:
+  // {times_shown, resolved}. Advice the writer has seen before and not acted
+  // on is worth saying so about; advice they have already taken should not be
+  // coming back at all.
+  const [seen, setSeen] = useState({});
   // FR07 review, held open until the writer decides what to do about it.
   const [review, setReview] = useState(null);
   const [reviewing, setReviewing] = useState(false);
@@ -907,12 +915,18 @@ export default function ScriptEditor() {
       // complaint, and this panel reported the result as "found in your draft,
       // line 1" — pointing at a line of a sentence the writer never typed.
       const res = await scripts.recommendations({
+        // Lets the panel remember what it has already said about THIS script,
+        // and whether the writer went and fixed it. Without it every request
+        // is the first request, which is how the same three cards kept coming
+        // back after the writer had acted on them.
+        script_id: id,
         scene_text: content || instruction,
         focus: f.key === "scene" ? "" : f.query,
         genre,
         tone,
       });
       setPatterns(res.data.patterns);
+      setSeen(res.data.seen || {});
       // `diagnosed` is why these patterns came back: the linter flagged a
       // specific line and named the technique that fixes it. Showing the
       // reason is the difference between advice and a horoscope.
@@ -2018,7 +2032,14 @@ export default function ScriptEditor() {
               ) : (
                 <div className="space-y-2">
                   {patterns?.map((p, i) => {
-                    const open = openPattern === i;
+                    // Three cards of apparently equal weight is a menu, and a
+                    // menu is what a writer skips. The first card has the
+                    // strongest evidence behind it — it is either a line the
+                    // linter found or the technique this script has been shown
+                    // and has not dealt with — so it leads, open, and the rest
+                    // fold behind one control.
+                    if (i > 0 && !showAllPatterns) return null;
+                    const open = openPattern === i || (i === 0 && openPattern === null);
                     // An exact hit came from a linter flag, not from embedding
                     // distance. Its similarity is a placeholder 1.0, so showing
                     // "100%" would dress a diagnosis up as a perfect semantic
@@ -2057,6 +2078,15 @@ export default function ScriptEditor() {
                         <p className="text-[13px] text-ink leading-snug font-medium">
                           {p.technique || p.one_line_takeaway}
                         </p>
+                        {/* Said before, and still true. This is the difference
+                            between advice and nagging: naming the repetition
+                            makes it evidence, where saying the same thing
+                            silently for the third time is just noise. */}
+                        {seen[p.technique]?.times_shown > 1 && (
+                          <p className="text-[10px] text-inkMuted mt-1">
+                            Suggested {seen[p.technique].times_shown} times — still on the page.
+                          </p>
+                        )}
                         {open ? (
                           <div className="mt-2 pt-2 border-t border-borderSoft space-y-2.5">
                             {p.how_to_apply && (
@@ -2086,6 +2116,17 @@ export default function ScriptEditor() {
                       </button>
                     );
                   })}
+
+                  {patterns?.length > 1 && (
+                    <button
+                      onClick={() => setShowAllPatterns((v) => !v)}
+                      className="w-full text-[11px] font-mono text-inkMuted hover:text-gold transition-colors py-1.5"
+                    >
+                      {showAllPatterns
+                        ? "Show only the strongest"
+                        : `${patterns.length - 1} more ${patterns.length === 2 ? "pattern" : "patterns"}`}
+                    </button>
+                  )}
                 </div>
               )
             )}

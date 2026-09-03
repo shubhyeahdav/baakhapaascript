@@ -266,6 +266,13 @@ BEGIN
   DELETE FROM scenes   WHERE script_id IN (SELECT id FROM scripts WHERE project_id = ANY(project_ids));
   DELETE FROM versions WHERE script_id IN (SELECT id FROM scripts WHERE project_id = ANY(project_ids));
   DELETE FROM comments WHERE script_id IN (SELECT id FROM scripts WHERE project_id = ANY(project_ids));
+  -- Both of these would also go by FK cascade when the script row is deleted
+  -- below. Named explicitly anyway, for the same reason scenes and versions
+  -- are: DATA_HANDLING.md tells writers exactly what deletion removes, and a
+  -- promise that depends on a cascade nobody has re-read is a promise that
+  -- quietly stops being true the first time someone adds a table.
+  DELETE FROM access_log WHERE script_id IN (SELECT id FROM scripts WHERE project_id = ANY(project_ids));
+  DELETE FROM craft_recommendations WHERE script_id IN (SELECT id FROM scripts WHERE project_id = ANY(project_ids));
   DELETE FROM scripts         WHERE project_id = ANY(project_ids);
   DELETE FROM project_invites WHERE project_id = ANY(project_ids);
   DELETE FROM project_members WHERE project_id = ANY(project_ids);
@@ -285,3 +292,31 @@ CREATE TABLE access_log (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX access_log_script_idx ON access_log (script_id, created_at DESC);
+
+-- What the craft panel has already recommended for a script, and whether the
+-- writer went and fixed it.
+--
+-- One row per (script, technique). `times_shown` is why the panel can stop
+-- repeating itself; `resolved_at` is the only evidence this product can gather
+-- that a technique ever worked, and it is set when the linter stops reporting
+-- something it used to report.
+--
+-- `diagnosed` matters more than it looks. A technique that arrived by semantic
+-- similarity was never a linter flag, so there is nothing for it to stop being,
+-- and marking it resolved would be inventing a result. Only diagnosed rows
+-- resolve.
+--
+-- Holds no draft text: a technique name and two timestamps. Deleted with the
+-- script, so erasing a project leaves no record of what its writer was told.
+CREATE TABLE craft_recommendations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  script_id UUID REFERENCES scripts(id) ON DELETE CASCADE,
+  technique TEXT NOT NULL,
+  diagnosed BOOLEAN NOT NULL DEFAULT FALSE,
+  times_shown INTEGER NOT NULL DEFAULT 1,
+  first_shown_at TIMESTAMPTZ DEFAULT NOW(),
+  last_shown_at TIMESTAMPTZ DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ,
+  UNIQUE (script_id, technique)
+);
+CREATE INDEX craft_recommendations_script_idx ON craft_recommendations (script_id);

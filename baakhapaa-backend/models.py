@@ -346,6 +346,12 @@ class RecommendRequest(BaseModel):
     # draft, line 1" — a line in a string the writer never wrote. Diagnosis
     # always reads scene_text; `focus` only steers semantic retrieval.
     focus: str = ""
+    # Optional, and the panel works without it. With it, the craft loop can
+    # remember what it has already recommended for this script and whether the
+    # writer went and fixed it — which is the only way it can stop repeating
+    # itself, and the only evidence this product can gather that a technique
+    # ever worked.
+    script_id: Optional[str] = None
 
 class LessonSubmission(BaseModel):
     content: str = ""

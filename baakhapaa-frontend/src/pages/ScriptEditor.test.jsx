@@ -1114,3 +1114,98 @@ describe("the pointer over the page", () => {
     expect(editor().className).toMatch(/cursor-resting/);
   });
 });
+
+/**
+ * The craft panel remembering what it already said.
+ *
+ * It had no memory. It recomputed three cards on every request with no idea it
+ * had given the same three yesterday, or that the writer had acted on one of
+ * them. Three pieces of advice of apparently equal weight is a menu, and a menu
+ * is what a writer skips.
+ */
+describe("the craft panel leads with one card", () => {
+  const CARD = (technique) => ({
+    technique, craft_level: "scene", origin_tradition: "screen craft",
+    how_to_apply: "Do this.", worked_example: "On the page.",
+    warning_sign: "You need this if.",
+  });
+
+  const openPatterns = async (data) => {
+    stubApi();
+    scripts.recommendations.mockResolvedValue({ data });
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /^patterns/i }));
+  };
+
+  const THREE = {
+    patterns: [CARD("Deny the scene privacy"), CARD("Cut the first line"),
+               CARD("Start at the last moment")],
+    diagnosed: [],
+    source: "similarity",
+    seen: {},
+  };
+
+  it("sends the script id, so the panel can have a memory at all", async () => {
+    await openPatterns(THREE);
+
+    await waitFor(() => expect(scripts.recommendations).toHaveBeenCalled());
+    expect(scripts.recommendations.mock.calls[0][0]).toHaveProperty("script_id");
+  });
+
+  it("shows the strongest card and folds the rest away", async () => {
+    await openPatterns(THREE);
+
+    expect(await screen.findByText("Deny the scene privacy")).toBeInTheDocument();
+    expect(screen.queryByText("Cut the first line")).toBeNull();
+    expect(screen.getByRole("button", { name: /2 more patterns/i })).toBeInTheDocument();
+  });
+
+  it("unfolds the rest behind one control, and folds them back", async () => {
+    await openPatterns(THREE);
+    await screen.findByText("Deny the scene privacy");
+
+    fireEvent.click(screen.getByRole("button", { name: /2 more patterns/i }));
+    expect(screen.getByText("Cut the first line")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /show only the strongest/i }));
+    expect(screen.queryByText("Cut the first line")).toBeNull();
+  });
+
+  it("offers no control when there is only one card to show", async () => {
+    await openPatterns({ ...THREE, patterns: [CARD("Deny the scene privacy")] });
+    await screen.findByText("Deny the scene privacy");
+
+    expect(screen.queryByText(/more pattern/i)).toBeNull();
+  });
+
+  it("says when it has given the same advice before and it is still true", async () => {
+    /* Naming the repetition is what makes it evidence. Saying the same thing
+       silently for the third time is just noise. */
+    await openPatterns({
+      ...THREE,
+      seen: { "Deny the scene privacy": { times_shown: 3, resolved: false } },
+    });
+
+    expect(
+      await screen.findByText(/suggested 3 times.*still on the page/i),
+    ).toBeInTheDocument();
+  });
+
+  it("says nothing extra the first time a card appears", async () => {
+    await openPatterns({
+      ...THREE,
+      seen: { "Deny the scene privacy": { times_shown: 1, resolved: false } },
+    });
+    await screen.findByText("Deny the scene privacy");
+
+    expect(screen.queryByText(/suggested/i)).toBeNull();
+  });
+
+  it("survives a response from before any of this existed", async () => {
+    await openPatterns({ patterns: [CARD("Deny the scene privacy")],
+                         diagnosed: [], source: "similarity" });
+
+    expect(await screen.findByText("Deny the scene privacy")).toBeInTheDocument();
+  });
+});

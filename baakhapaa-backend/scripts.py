@@ -3,7 +3,8 @@ import os
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Depends, File, UploadFile
+from fastapi import (APIRouter, BackgroundTasks, Depends, File,
+                     HTTPException, UploadFile)
 from fastapi.responses import StreamingResponse
 from models import (
     GenerateStructureRequest, GenerateSceneRequest,
@@ -14,6 +15,7 @@ from database import (
     supabase, get_project_by_id, get_versions_by_script,
 )
 import membership
+import recommendation_log
 import voice
 from auth import (
     get_current_user, require_script_access, require_project_access,
@@ -203,7 +205,8 @@ RECOMMENDATION_COUNT = 3
 
 
 @router.post("/recommendations")
-def recommendations(req: RecommendRequest, user_id: str = Depends(get_current_user)):
+def recommendations(req: RecommendRequest, background: BackgroundTasks,
+                    user_id: str = Depends(get_current_user)):
     """Craft recommendations while writing — EVERY tier, no Claude call.
 
     Diagnosis first, similarity second. The library embeds each entry's
@@ -226,6 +229,19 @@ def recommendations(req: RecommendRequest, user_id: str = Depends(get_current_us
     text = req.scene_text or ""
     flags = linter.lint(text)
 
+    # History is read for ordering and written only for someone who can edit.
+    # A viewer reading somebody else's script is not evidence about that
+    # script's craft. `require_script_access` defaults to editor, so a viewer
+    # falls out here with their recommendations intact and nothing recorded.
+    seen, writable = {}, False
+    if req.script_id:
+        seen = recommendation_log.history(req.script_id)
+        try:
+            require_script_access(req.script_id, user_id)
+            writable = True
+        except HTTPException:
+            writable = False
+
     # 1. Exact: techniques the linter positively identified, worst first.
     ranked = sorted(flags, key=lambda f: {"high": 0, "medium": 1, "low": 2}.get(f["severity"], 3))
     diagnosed = rag.get_patterns_by_technique([f["technique"] for f in ranked])[:RECOMMENDATION_COUNT]
@@ -243,14 +259,37 @@ def recommendations(req: RecommendRequest, user_id: str = Depends(get_current_us
         else:
             query = text[-1500:] or "starting a new scene"
         already = {p["technique"] for p in patterns}
-        for p in script_engine.retrieve_relevant_patterns(
-            req.genre, req.tone, query, top_k=RECOMMENDATION_COUNT + len(patterns)
-        ):
-            if p["technique"] not in already:
-                patterns.append(p)
-                already.add(p["technique"])
+        candidates = [
+            p for p in script_engine.retrieve_relevant_patterns(
+                req.genre, req.tone, query,
+                top_k=(RECOMMENDATION_COUNT + len(patterns)) * 2,
+            )
+            if p["technique"] not in already
+        ]
+        # Unfinished business before new advice, and never bring back something
+        # the writer already fixed. Similarity has no way to know either: it
+        # sees what the draft looks like now, not what it used to look like or
+        # what has already been said about it. This is a stable sort, so
+        # retrieval order survives as the tiebreak.
+        candidates.sort(key=recommendation_log.rank_key(seen))
+        for p in candidates:
+            patterns.append(p)
+            already.add(p["technique"])
             if len(patterns) == RECOMMENDATION_COUNT:
                 break
+
+    # After the response, not during it. This is a free-tier feature sitting on
+    # the writing path, and a log write is not worth a millisecond of it.
+    if writable:
+        background.add_task(
+            recommendation_log.record, req.script_id,
+            [p["technique"] for p in patterns],
+            [f["technique"] for f in ranked],
+        )
+        background.add_task(
+            recommendation_log.resolve, req.script_id,
+            [f["technique"] for f in flags],
+        )
 
     return {
         "patterns": patterns,
@@ -262,6 +301,14 @@ def recommendations(req: RecommendRequest, user_id: str = Depends(get_current_us
             for f in ranked[:RECOMMENDATION_COUNT]
         ],
         "source": "diagnosis" if diagnosed else "similarity",
+        # What has already been said about this script, so the panel can lead
+        # with the advice that has evidence behind it rather than three cards of
+        # apparently equal weight.
+        "seen": {
+            p["technique"]: seen.get(p["technique"],
+                                     {"times_shown": 0, "resolved": False})
+            for p in patterns
+        },
     }
 
 
