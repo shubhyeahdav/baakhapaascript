@@ -23,6 +23,14 @@ was worse than the first flattering one.
 The four scheduled deliverables were verified again this month rather than rebuilt. What
 follows is the work that filled the month instead.
 
+![The editor](docs/screenshots/m2-04-script-editor.png)
+
+**Figure 1.** The workspace as it stands at the end of Month 2. Left, the rail carrying the
+four readings and the index cards, each now showing the page a scene starts on, who is in it
+and the first thing the camera sees. Centre, the screenplay column. Right, the assist panel
+with its craft recommendations. Above, the timeline: scene headings are renameable in place
+and act durations are editable.
+
 ### Week 5: Coverage of the parts that fail quietly
 
 Three backend modules had no test at all, and the ones without coverage were close to the
@@ -93,6 +101,13 @@ first.
 That result is the most useful thing produced this month. It is also the reason the number is
 trusted: the measurement caught an error in its own design before it caught one in the system.
 
+![The craft panel](docs/screenshots/m2-09-craft.png)
+
+**Figure 2.** The free tier's measurement surface. The linter reports nothing tripped and says
+plainly what that does not mean; below it, the draft's own statistics, and beneath those the
+corpus benchmark holding itself back until there is enough script to compare. Saying when a
+report will open is more useful than inventing a percentile from three scenes.
+
 ### Week 8: Craft features and production readiness
 
 Generation now streams. Every AI call blocked until the whole response was composed, so a
@@ -117,6 +132,13 @@ characterisation, visible as a number, and it is the fastest way to see two voic
 into one. The story bible — which the writer fills in and which had been spent on prompts and
 shown back to them nowhere — now sits beside it, so the voice they described is next to the
 voice they wrote.
+
+![Cast](docs/screenshots/m2-08-cast.png)
+
+**Figure 3.** Cast, with one voice opened. Sanjana asks in a third of her lines, Raaja in none
+of his; her vocabulary is 0.94 against his 1.00 because she repeats herself and he barely
+speaks. Each line carries its number in the draft, so clicking it puts the caret there. The
+page stays on screen throughout — the point of moving these readings into the rail.
 
 ## 2. Work beyond Month 2 scope
 
@@ -144,6 +166,12 @@ identifier while carrying a script one.
 | Writing | Typewriter mode, gold caret, nib and ring pointers, pointer hidden while typing |
 | Import | Word `.docx` added alongside Final Draft, Fountain, plain text and PDF |
 
+![Corkboard](docs/screenshots/m2-07-corkboard.png)
+
+**Figure 4.** Restructuring beside the writing rather than instead of it. The corkboard used
+to replace the screenplay, so the reason to move a card — almost always something just read —
+had to be held in memory while going to move it.
+
 ### 2.3 Documentation and decisions
 
 Three decisions the documents recorded but never settled were closed: live co-editing descoped
@@ -164,6 +192,8 @@ exists yet, which also means the four schema migrations remain unapplied. No mon
 through any payment gateway. Those three — a real database, a live host, and a first real
 payment — are the work of Month 3, and every remaining estimate depends on them.
 
-Screenshots are carried over from Month 1 where the screen is unchanged. The editor, corkboard
-and craft panel have all changed materially and need recapturing before this report is
-submitted.
+Every figure in this report was captured from the running system this month by
+`baakhapaa-frontend/scripts/capture-screenshots.mjs`, which signs in, writes a draft, and
+photographs each surface in turn. The Month 1 report's figures were taken by hand and were
+still being reused after the screens beneath them had changed; this removes that failure mode
+for Month 3.
