@@ -1,5 +1,6 @@
 import hashlib
 import os
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote
 
 from openai import OpenAI
@@ -232,24 +233,73 @@ def _image_reference(item) -> str | None:
     return f"data:image/png;base64,{b64}" if b64 else None
 
 
+# How many frames are drawn at once. Measured: one frame takes about nineteen
+# seconds, so a full 24-frame board drawn one at a time is seven and a half
+# minutes of a writer watching a progress bar. Six at a time brings that under
+# ninety seconds.
+#
+# Not unbounded. Twenty-four simultaneous image requests is a good way to meet
+# a provider rate limit, and a rate-limited board fails in a way that looks
+# like a broken product rather than a busy one.
+STORYBOARD_CONCURRENCY = int(os.getenv("STORYBOARD_CONCURRENCY", "6"))
+
+
 def generate_storyboard(script_id, scenes, supabase_client, genre="drama"):
-    frames = []
+    """Draw one frame per scene and store them in document order.
+
+    The image calls run concurrently; the database writes do not. Two reasons
+    the writes stay sequential: `order_index` has to match the scene order a
+    reader will page through, and the local mock database used in demo mode and
+    in tests rewrites its whole table on each write, which is not safe to do
+    from several threads at once.
+    """
     total = len(scenes)
+
+    # Everything that does not touch the network, computed first. This is pure
+    # and cheap, and doing it up front keeps the threaded section to one call.
+    plans = []
     for idx, scene in enumerate(scenes):
         visual = scene_visual(scene)
         shot_type = assign_shot_type(
             scene.get("scene_type") or "minor", idx, total, scene.get("act_number") or 1
         )
-        image_url = generate_frame(
-            visual["description"], shot_type, genre,
-            visual["location"], visual["emotional_beat"],
-            visual["time_of_day"], visual["characters"],
-        )
-        frame_result = supabase_client.table("storyboard_frames").insert({
-            "scene_id": scene["id"], "image_url": image_url,
+        plans.append({
+            "idx": idx,
+            "scene": scene,
+            "visual": visual,
             "shot_type": shot_type,
             "camera_notes": camera_note(shot_type, visual, idx, total),
-            "order_index": idx,
+        })
+
+    def draw(plan):
+        v = plan["visual"]
+        return plan["idx"], generate_frame(
+            v["description"], plan["shot_type"], genre,
+            v["location"], v["emotional_beat"], v["time_of_day"], v["characters"],
+        )
+
+    images = {}
+    if len(plans) > 1 and STORYBOARD_CONCURRENCY > 1:
+        workers = min(STORYBOARD_CONCURRENCY, len(plans))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for idx, url in pool.map(draw, plans):
+                images[idx] = url
+    else:
+        for plan in plans:
+            idx, url = draw(plan)
+            images[idx] = url
+
+    frames = []
+    for plan in plans:
+        frame_result = supabase_client.table("storyboard_frames").insert({
+            "scene_id": plan["scene"]["id"],
+            # `generate_frame` returns None on a provider failure rather than
+            # raising, so one refused image costs its own frame and not the
+            # board around it.
+            "image_url": images.get(plan["idx"]),
+            "shot_type": plan["shot_type"],
+            "camera_notes": plan["camera_notes"],
+            "order_index": plan["idx"],
         }).execute()
         frames.append(frame_result.data[0])
     return frames
