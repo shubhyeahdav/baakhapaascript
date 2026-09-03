@@ -56,6 +56,17 @@ First run downloads ~130 MB to the fastembed cache; subsequent runs are fast.
 scene feels flat" — not by genre tag. Write it as the complaint a stuck writer
 would actually type. That field decides whether the entry is ever retrieved.
 
+**`warning_sign` is the second most important**, and it is embedded too. It is
+what the fault looks like on the page, which is the same register a query
+arrives in. Write it as an observation someone could make about a draft, not as
+advice.
+
+Two failure modes worth knowing before you write one. An entry whose `problem`
+is phrased generally will be returned for questions it does not answer — that
+is how one entry came to answer most of the library. And an entry whose
+`problem` duplicates another's will make both unreachable, because neither wins
+cleanly. Check both by running `eval_retrieval.py` after `load_knowledge_base.py`.
+
 Two fields have jobs outside retrieval: `warning_sign` is what the **craft
 linter** turns into a rule, and `craft_level` is what routes a finding to a
 **lesson**. An entry missing either still embeds and retrieves, so the loss is
@@ -96,10 +107,25 @@ Design invariants to preserve when modifying this code:
 - **Retrieval never breaks generation.** `retrieve_relevant_patterns` catches
   everything and returns `[]`; `generate_structure` proceeds ungrounded. Keep
   it that way — a missing model download must not 500 the endpoint.
-- **Query text = `"{genre} | {tone} | {theme}"`**; entry text leads with the
-  doubled `problem`, then `technique`, `craft_level`, `how_it_works`, `genre`,
-  `origin_tradition` (see `rag.pattern_to_text`). Titles are deliberately NOT
-  embedded, so matching is structural rather than fame-based.
+- **Query text is the symptom ALONE.** It used to be
+  `"{genre} | {tone} | {theme}"`, and that was the single largest defect in
+  retrieval: genre and tone are near-constant across requests, so they said
+  nothing about what the writer was stuck on while pulling every query toward
+  whichever entry read as most generically emotional. One entry was answering
+  21 of 25 golden-set queries. `genre` and `tone` remain in the signature
+  because eight callers pass them; they never reach the embedder.
+- **Entry text is symptom-only too**: the doubled `problem`, the `technique`,
+  and the `warning_sign` (see `rag.pattern_to_text`). `how_it_works`,
+  `craft_level`, `genre` and `origin_tradition` were each measured and removed
+  — craft exposition and bare tags diluted the complaint the query is made of.
+  Titles are deliberately not embedded, so matching is structural rather than
+  fame-based.
+- **Every change here is measured before it is kept.** `eval_retrieval.py` runs
+  a 64-case golden set — 25 real queries in three styles (focus chips, beginner
+  phrasing, romanised Nepali) plus 39 self-retrieval sanity checks that are
+  reported apart and never averaged in. CI fails the build if real-query
+  precision@1 drops below the committed floor. Run it before and after touching
+  anything in this pipeline.
 - **Injection reaches structure, scene generation AND improve** via
   `rag.format_patterns_for_prompt`, which instructs Claude to adapt techniques
   and never echo titles. It was structure-only until 2026-08-19; `generate_scene`

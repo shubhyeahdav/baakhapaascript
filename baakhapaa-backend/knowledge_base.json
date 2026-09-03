@@ -77,7 +77,6 @@
     "worked_example": "The youngest brother fixes the roof with the middle one (labour, no talking). That earns him the standing to tell the eldest what the middle one actually said the night he left. Only then can the eldest face their mother.",
     "warning_sign": "Your climax has more than three people forgiving each other in one room."
   },
-
   {
     "title_ref": "Late entry, early exit (screen craft)",
     "source_type": "craft",
@@ -156,7 +155,6 @@
     "worked_example": "The confession happens in the kitchen while relatives are in the next room for a puja. Every line is half-volume. The aunt walks in for a spoon at the worst possible moment, and the sentence is never finished.",
     "warning_sign": "Three consecutive scenes are two people alone talking."
   },
-
   {
     "title_ref": "Answering the wrong question (dialogue craft)",
     "source_type": "craft",
@@ -222,7 +220,6 @@
     "worked_example": "Baba says 'Paisa aaudaina, jaandaina' ('money doesn't come, doesn't go') whenever anything is spent — a shrug. In the last scene, handing Raaja rental cash, Raaja says it back to him. It now means something closer to permission.",
     "warning_sign": "You could swap your characters' dialogue between them and nothing would break."
   },
-
   {
     "title_ref": "Introduce under pressure (character craft)",
     "source_type": "craft",
@@ -275,7 +272,6 @@
     "worked_example": "Baba says the rented camera will be a problem. The rental shop reports it missing and Kanchha never had permission — exactly as predicted. Baba says nothing about it, which is worse.",
     "warning_sign": "Every prediction your antagonist makes turns out false."
   },
-
   {
     "title_ref": "Externalise the internal (image craft)",
     "source_type": "craft",
@@ -315,7 +311,6 @@
     "worked_example": "Not: 'It is a small tea shop with four tables. There are three customers. Steam rises from the glasses.' Instead: 'A four-table shop, three of them wrong for talking. Steam. The kind of quiet that's really listening.'",
     "warning_sign": "Your action paragraphs run more than four lines, or list furniture."
   },
-
   {
     "title_ref": "Cold open at the crisis (shorts craft)",
     "source_type": "short",
@@ -380,5 +375,135 @@
     "how_to_apply": "Replace the misunderstanding with a fact both characters fully understand and cannot change. Let them discuss it openly and early. Then build intimacy through small acts of care performed inside that constraint.",
     "worked_example": "They both know she leaves for Dubai in six weeks on a contract her family has already spent. Nothing is hidden. Every gentle thing they do for each other is measured against that date.",
     "warning_sign": "Your couple's problem would be solved by one of them finishing a sentence."
+  },
+  {
+    "title_ref": "The closing-doors middle (screen craft)",
+    "source_type": "craft",
+    "craft_level": "structure",
+    "genre": "any",
+    "origin_tradition": "screen craft",
+    "technique": "Make the middle a series of closing doors, not open ones",
+    "problem": "The middle of my story sags. The opening works and I know my ending, but the long stretch between them drifts and I keep adding scenes to fill it without anything feeling more urgent.",
+    "how_it_works": "A second act does not gain momentum from events being added. It gains momentum from options being removed. If the protagonist could still walk away, quit, apologise or go home, the audience is not yet worried, however much is happening. Each sequence in the middle should take one of those exits away, so that the person who had five choices in the opening has one by the time the ending arrives. Pressure is the count of remaining doors, not the count of scenes.",
+    "how_to_apply": "Write down every way your protagonist could still stop and be fine, as of the end of your opening. Usually there are three or four: the money, the other job, the friend who would take them in, the version of the truth nobody has checked. Assign each one a scene in the middle whose only job is to remove it. Order them so the cheapest exit closes first and the one that costs most closes last.",
+    "warning_sign": "The scenes in your middle could be reordered without breaking anything, and none of them ends with the protagonist having fewer options than when it started.",
+    "worked_example": "A driver takes an unlicensed fare to cover his sister's fees. Scene: his regular employer calls and he lets it ring out, so the salaried job is gone. Scene: he asks his cousin for a loan and is offered it on a condition he cannot accept, so the clean exit is gone. Scene: the passenger learns his name, so anonymity is gone. Nothing has exploded. He simply has one door left, and the audience counted them closing."
+  },
+  {
+    "title_ref": "Competence under threat (screen craft)",
+    "source_type": "craft",
+    "craft_level": "character",
+    "genre": "any",
+    "origin_tradition": "screen craft",
+    "technique": "Give the protagonist a competence the story will take away",
+    "problem": "My main character is boring. They are likeable and they want something, but nobody finds them interesting and I cannot work out what is missing.",
+    "how_it_works": "Audiences attach to skill before they attach to need. Watching somebody be good at a specific thing is the fastest route to interest, and it is what makes their later helplessness cost something. A character defined only by what they lack has nothing to lose, so the story can only pity them. Give them one demonstrable competence, show it early doing real work, then put the story somewhere that competence does not reach.",
+    "how_to_apply": "Name one thing your protagonist can do that most people cannot, and keep it small and concrete rather than heroic: reading a room, fixing a specific machine, remembering faces, undercutting a price. Put it on screen in their first or second scene solving a real problem, not as a party trick. Then make sure the central difficulty of the story is precisely the kind that skill cannot solve.",
+    "warning_sign": "Your protagonist is described by circumstances rather than abilities, and their first scene shows something happening to them rather than something they do well.",
+    "worked_example": "A tailor can tell a customer's weight change from a month-old measurement, and does, kindly, in her first scene. When her landlord raises the rent the skill is worthless: there is no seam to let out. The audience already knows she is good at something, so watching her be useless is a loss rather than a description."
+  },
+  {
+    "title_ref": "Trim the approach and the exit (screen craft)",
+    "source_type": "craft",
+    "craft_level": "dialogue",
+    "genre": "any",
+    "origin_tradition": "screen craft",
+    "technique": "Cut the first and last line of every speech",
+    "problem": "My people talk too much. The scenes say what I want them to say but they are twice as long as they should be, and everything ends up sounding explained rather than spoken.",
+    "how_it_works": "Most overwritten dialogue is not overwritten in the middle. A speech typically begins with the character orienting themselves to the topic and ends with them summarising what they just said, and both halves are the writer thinking on the page rather than the character speaking. Removing them rarely loses information, because the middle carries it, and what is gained is the sense that these people were already talking before the scene arrived.",
+    "how_to_apply": "Take any speech longer than two lines and delete its opening clause and its closing sentence. Read the scene again. If nothing is lost, the cut stands. Where something is genuinely lost it is usually one noun, which can be moved into the middle. Do this to the whole scene before adjusting anything else; scenes commonly lose a third of their length and gain pace without a single new line.",
+    "warning_sign": "Most of your speeches run past three lines, they open with words like well or look or the thing is, and they close by restating the point.",
+    "worked_example": "Before: Look, the thing is, I have been thinking about the shop, and honestly I do not think we can keep it open past Dashain, that is just where we are. After: We cannot keep it open past Dashain. The hesitation the first version was reaching for now belongs to the pause before the line, where an actor can play it."
+  },
+  {
+    "title_ref": "The resented repetition (screen craft)",
+    "source_type": "craft",
+    "craft_level": "dialogue",
+    "genre": "any",
+    "origin_tradition": "screen craft",
+    "technique": "Make one character already know it and resent hearing it again",
+    "problem": "My characters explain the situation to each other in dialogue. The audience needs the information but nobody in the room would actually say it out loud, and it reads as a briefing.",
+    "how_it_works": "Exposition is unbearable when both characters need it and unremarkable when neither does. The fix is not to hide the information but to change who it is for. If one character already knows and is being told anyway, the scene stops being about the facts and starts being about the insult of being told, which is drama. The audience gets the information in full while watching two people fight about something else.",
+    "how_to_apply": "Find the speech that carries your exposition and give the listener full prior knowledge of it. Now they can interrupt, finish sentences, correct a detail, or ask the speaker to stop. Write their impatience rather than their comprehension. Keep every fact you needed and deliver it through the friction of repetition.",
+    "warning_sign": "Two characters exchange facts they would both already have, and neither of them interrupts, contradicts or looks away.",
+    "worked_example": "Instead of a brother explaining the debt to his sister, she says the figure before he reaches it, then corrects his interest rate, then asks whether he is telling her or telling himself. The audience learns the amount, the term and the lender, and watches a woman who is tired of being managed."
+  },
+  {
+    "title_ref": "The wrong completion (screen craft)",
+    "source_type": "craft",
+    "craft_level": "dialogue",
+    "genre": "any",
+    "origin_tradition": "screen craft",
+    "technique": "Let one character finish the other's sentence wrongly",
+    "problem": "Everyone in my script speaks in complete sentences and waits their turn. It is clear and correct and it reads as polite, careful and unreal.",
+    "how_it_works": "Real speech overlaps because people are predicting each other, and prediction is characterisation: what someone assumes you were about to say tells the audience what they think of you. A wrong completion does three jobs in one line. It breaks the turn-taking rhythm, it reveals an assumption, and it forces the first speaker to decide whether to correct it. That decision is usually the most revealing beat in the exchange.",
+    "how_to_apply": "Choose one exchange per scene where a character is building to something. Have the other cut in and complete it incorrectly, in a way that is plausible given what they believe. Then let the first character either accept the wrong version or fight it. Use it sparingly: once or twice a scene reads as life, and every line reads as a gimmick.",
+    "warning_sign": "Every line in your dialogue ends in a full stop, no speech is ever cut off mid-clause, and no character ever answers a question that was not the one asked.",
+    "worked_example": "She starts to say she went to see him because, and he finishes it for her: because you want the shop. She corrects him. Because he is dying. She could have let the accusation stand and kept the argument she was winning. She gives up her advantage to be understood."
+  },
+  {
+    "title_ref": "The refused answer (screen craft)",
+    "source_type": "craft",
+    "craft_level": "dialogue",
+    "genre": "any",
+    "origin_tradition": "screen craft",
+    "technique": "Answer a question with an action instead of a line",
+    "problem": "Every question in my script gets answered in words. Nothing has weight, nobody ever refuses to speak, and the dialogue feels like it is carrying the whole film on its own.",
+    "how_it_works": "A question creates an obligation and the audience feels it. Meeting the obligation with a line discharges it immediately. Meeting it with an action leaves it open, and the audience holds the question while watching the character do something else. That gap is where an actor works and where subtext lives. It also characterises silently: what someone does instead of answering says what the answer would cost.",
+    "how_to_apply": "Find the three most loaded questions in your script. Replace one answer with a physical action that is neither agreement nor refusal: pouring the tea, closing the shutter, handing something over. Do not follow it with a line that explains the action. Let the next beat move on and trust the audience to keep holding the question.",
+    "warning_sign": "Every question mark in your script is followed by a spoken answer, and no character ever leaves one hanging.",
+    "worked_example": "Asked whether he is going to tell her, he picks up the two cups, washes one, and puts the other back on the table. The scene moves on. Nobody in the audience has forgotten the question, and they now know it will be answered badly."
+  },
+  {
+    "title_ref": "The unserved want (screen craft)",
+    "source_type": "craft",
+    "craft_level": "character",
+    "genre": "any",
+    "origin_tradition": "screen craft",
+    "technique": "Give the secondary character a want the plot will not satisfy",
+    "problem": "My side characters only exist to move the story along. They turn up when they are needed, say the thing that unblocks the scene, and have nothing going on themselves.",
+    "how_it_works": "A supporting character reads as furniture when every want they have happens to be served by the protagonist's story. Give them one want the plot has no intention of satisfying and they acquire a life that continues off screen, because the audience can feel a thread the film is not following. It costs almost nothing in running time, since a want can be established in two lines, and it is the difference between a world and a set.",
+    "how_to_apply": "For each supporting character write one sentence naming something they want that your story will never deliver. Plant it once, early, in a line that is not about the plot. Then let it surface exactly once more, at a moment when the protagonist is too preoccupied to notice. Do not resolve it.",
+    "warning_sign": "Every supporting character's dialogue is about the protagonist's problem, and none of them wants anything the story does not eventually hand them.",
+    "worked_example": "The neighbour who keeps the spare key mentions, once, that her son has not called since Tihar. She never mentions it again. In the last act she is still holding the key and still not called, and the audience understands that this street will go on after the story ends."
+  },
+  {
+    "title_ref": "The place being lost (screen craft)",
+    "source_type": "craft",
+    "craft_level": "character",
+    "genre": "any",
+    "origin_tradition": "screen craft",
+    "technique": "Attach the character to one place they are losing",
+    "problem": "My protagonist could be from anywhere. The story is set in Kathmandu but nothing about them would change if I moved it, and the setting is decoration rather than pressure.",
+    "how_it_works": "Specificity of place becomes characterisation only when the place is at stake. A character who merely lives somewhere carries local colour. A character who is losing somewhere carries a want the audience can see in every wide shot. It also solves exposition about setting, because a room someone is about to lose gets looked at differently, and the camera can do the describing.",
+    "how_to_apply": "Pick one specific place your protagonist is attached to, and not the city: a room, a stall, a stretch of road. Establish what they do there that they do nowhere else. Then make the story's pressure fall on that place through rent, redevelopment, a sibling's claim, a road widening. Every later scene set there now carries the loss without a line of dialogue about it.",
+    "warning_sign": "Your locations could be swapped for one another without changing a single line, and no character would be worse off if any of them disappeared.",
+    "worked_example": "She does her accounts on the third step of the shop, never inside, because the light is better and her mother did the same. When the notice goes up the film does not need to say what she is losing. It only needs to hold on the step."
+  },
+  {
+    "title_ref": "Understanding held back from the dialogue (screen craft)",
+    "source_type": "craft",
+    "craft_level": "structure",
+    "genre": "any",
+    "origin_tradition": "screen craft",
+    "technique": "Put the last piece of understanding in the audience, not the dialogue",
+    "problem": "My ending spells out its own meaning. A character says what the story was about and it flattens everything, but when I cut the line I am not confident anyone will understand it.",
+    "how_it_works": "An ending lands when the audience completes it. If a character states the theme the audience is a recipient. If the final piece is withheld and they assemble it themselves they are a participant, and the feeling is theirs rather than reported to them. The confidence problem is real, but it is almost never solved by the summarising line. It is solved earlier, by planting the two facts the audience needs to put together.",
+    "how_to_apply": "Delete the line that states the meaning. Then find the two concrete facts a viewer needs in order to reach it themselves, and make sure each is shown once, clearly, well before the end and away from each other. The ending then only has to place them side by side. Test it on one reader and ask what they think it was about, not whether they understood.",
+    "warning_sign": "Your final scene contains a line that could be lifted out and used as the film's synopsis, and nothing in the ending would change if you cut it except your confidence.",
+    "worked_example": "Cut the line where he tells her she was never doing it for him. Keep instead, twenty minutes earlier, the moment he refuses the money once, quietly. Keep at the end the moment he takes it. Nobody says anything. The audience assembles the sentence."
+  },
+  {
+    "title_ref": "The last small decision (screen craft)",
+    "source_type": "craft",
+    "craft_level": "structure",
+    "genre": "any",
+    "origin_tradition": "screen craft",
+    "technique": "Give the protagonist the last decision, however small",
+    "problem": "My ending resolves but the protagonist is not the one who resolves it. Events close the story, or another character does, and it feels like the film stops rather than ends.",
+    "how_it_works": "An ending reads as earned when the final change in the situation is caused by the person the story has been about. The decision does not have to be large or successful. It has to be theirs and it has to be visible. This is why endings where the world simply relents feel hollow even when everything the audience wanted has happened: the story spent its length making somebody capable of choosing, and then chose for them.",
+    "how_to_apply": "Find the last thing in your script that changes the situation and ask who caused it. If the answer is circumstance or a secondary character, look for a smaller action the protagonist can take immediately afterwards which accepts or refuses what has happened. Put the camera on that. It can be one gesture and it can fail. What it cannot be is absent.",
+    "warning_sign": "In your last five pages the protagonist has no line or action that changes anything, and the outcome would be identical if they were not in the room.",
+    "worked_example": "The buyer withdraws on his own and the shop is saved without her. That is where the draft ended. Now she takes down the FOR SALE board herself, folds it, and keeps it. She did not save the shop. She decided what to do about having nearly lost it."
   }
 ]

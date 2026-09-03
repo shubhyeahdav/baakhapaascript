@@ -76,7 +76,7 @@ jobs:
         working-directory: baakhapaa-backend
         run: |
           python load_knowledge_base.py
-          python eval_retrieval.py --min-p1 0.65
+          python eval_retrieval.py --min-p1 0.80
 
   frontend:
     runs-on: ubuntu-latest

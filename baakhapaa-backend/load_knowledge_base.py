@@ -2,8 +2,9 @@
 
     ./venv/Scripts/python.exe load_knowledge_base.py
 
-Reads knowledge_base.json, embeds every entry (genre + origin_tradition +
-one_line_takeaway), and upserts into the script_patterns table via the same
+Reads knowledge_base.json, embeds every entry (see `rag.pattern_to_text` — the
+doubled `problem`, the `technique`, and the `warning_sign`, all of which state
+the SYMPTOM), and upserts into the script_patterns table via the same
 database abstraction the app uses — local SQLite in demo mode, real Supabase
 (pgvector) when keys are set. Re-running after editing knowledge_base.json is
 safe: rows are replaced by title_ref. Malformed entries are skipped with a

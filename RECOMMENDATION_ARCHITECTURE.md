@@ -424,9 +424,46 @@ fault looks like on the page, which is the same register a complaint arrives in.
 Still weak, and the leads for the next pass: beginner-phrased queries at 40%,
 dialogue at 33%, character at 50%.
 
+### Filling the gaps the measurement found
+
+Three of the remaining misses were not retrieval failures. The library had no
+entry for a sagging middle, none for a dull protagonist, and none for dialogue
+that is simply overwritten — so no ranking could have answered those queries.
+Ten entries were added, weighted to the levels that scored worst: four dialogue,
+three character, three structure.
+
+| | before | after entries |
+|---|---|---|
+| real-query precision@1 | 72.0% | **88.0%** |
+| real-query precision@3 | 88.0% | **92.0%** |
+| beginner-phrased p@1 | 40.0% | **100.0%** |
+| structure p@1 | 83% | **100%** |
+| character p@1 | 50% | **75%** |
+| dialogue p@1 | 33% | **60%** |
+| corpus size | 29 | 39 |
+
+One golden label was corrected in the same pass, and only one: the query about
+dialogue that "sounds like a therapy transcript" was labelled `dialogue`, while
+the corpus entry "Let them fight about the small wrong thing" states its problem
+as "My confrontation is on-the-nose ... and it plays as a therapy transcript".
+Retrieval was returning the right entry and being marked wrong. A verbatim match
+is the only ground on which a label gets changed here; relabelling a test to
+match its output measures nothing.
+
+Two known misses were left in place rather than tuned away:
+
+- The chip "my characters sound the same and feel predictable, thin, described
+  rather than shown" asks two questions and can only be half answered. The
+  defect is in the chip, not in retrieval. It should be split in the UI.
+- The romanised Nepali query for "my characters all sound the same" misses
+  entirely. The corpus is embedded in English by an English model, so romanised
+  Nepali is out of distribution, and 80% on the other four is better than that
+  fact deserves. The fix is a Nepali gloss field embedded alongside the English
+  problem statement — corpus work, not retrieval work.
+
 ### The gate
 
-CI runs `eval_retrieval.py --min-p1 0.65` after loading the knowledge base. The
+CI runs `eval_retrieval.py --min-p1 0.80` after loading the knowledge base. The
 floor sits below the current score on purpose: it is a regression gate, not a
 target. Editing a `problem` field changes an embedding, and nobody reviews an
 embedding in a diff.
