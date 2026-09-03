@@ -44,7 +44,20 @@ import rag
 # by nobody — they are what the UI sends when a writer presses "Feels flat" —
 # so if retrieval is wrong for them it is wrong in production.
 
-FOCUS_QUERIES = {
+# Twenty-five of them, in three styles, because they fail differently and an
+# average across all three hides which one is broken.
+#
+#   chip      - what the editor's focus buttons send. Long, fluent, written by
+#               nobody. These were the only real queries the harness had.
+#   plain     - how a beginner actually types. Four words, no craft vocabulary.
+#               The product's own onboarding says most of its users have never
+#               finished a screenplay, so this is not an edge case.
+#   romanised - Nepali typed in Latin script. The linter reads it; retrieval
+#               had never been asked whether it does. The corpus is embedded in
+#               English, so a failure here is expected and worth measuring
+#               rather than assuming.
+
+CHIP_QUERIES = {
     "this scene feels flat and skippable, nothing changes in it, the characters "
     "just talk and it drags": "scene",
     "my dialogue is on the nose, characters say exactly what they feel, it "
@@ -55,7 +68,52 @@ FOCUS_QUERIES = {
     "and things just happen to them": "structure",
     "the emotion is overwrought and melodramatic, it feels sentimental and "
     "false rather than restrained": "dialogue",
+    "my ending is emotionally right but it does not land, there is no sense of "
+    "completion or return": "image",
+    "the backstory arrives in one lump of explanation and kills the momentum "
+    "of the scene": "structure",
+    "my action lines read like a camera manual, technically correct and a "
+    "boring read": "image",
+    "every emotional scene is two people alone in a quiet room and they all "
+    "look the same": "scene",
+    "my protagonist gets exactly what they were chasing and the ending still "
+    "feels hollow": "character",
+    "everyone who disagrees with my protagonist comes across as obviously "
+    "wrong or stupid": "character",
+    "my bilingual dialogue switches between Nepali and English at random and "
+    "reads as decoration": "dialogue",
+    "my short is well made but people drop off halfway through and I cannot "
+    "tell where": "structure",
+    "my characters over-explain, every emotional beat gets a full explanatory "
+    "sentence": "dialogue",
+    "my comic premise is funny once and then the sketch just stops": "scene",
 }
+
+PLAIN_QUERIES = {
+    "my people talk too much": "dialogue",
+    "boring middle part": "structure",
+    "how do i show feelings without saying them": "image",
+    "the main guy is boring": "character",
+    "scene has no point": "scene",
+}
+
+ROMANISED_QUERIES = {
+    "mero scene ma kehi hunna, dialogue matra cha ra boring cha": "scene",
+    "mero character haru sabai eutai jasto sunincha": "dialogue",
+    "kathako beech ma story sustaucha ra ending ma kehi feel hunna": "structure",
+    "mero emotion dialogue ma matra cha, screen ma dekhindaina": "image",
+    "hero le jitcha tara ending jhuto lagcha": "structure",
+}
+
+REAL_QUERIES = [
+    (q, lvl, style)
+    for style, group in (
+        ("chip", CHIP_QUERIES),
+        ("plain", PLAIN_QUERIES),
+        ("romanised", ROMANISED_QUERIES),
+    )
+    for q, lvl in group.items()
+]
 
 
 def golden_set():
@@ -75,8 +133,8 @@ def golden_set():
         problem = (e.get("problem") or "").strip()
         if problem:
             cases.append((problem, e.get("technique"), e.get("craft_level"), "self"))
-    for query, level in FOCUS_QUERIES.items():
-        cases.append((query, None, level, "chip"))
+    for query, level, style in REAL_QUERIES:
+        cases.append((query, None, level, style))
     return cases
 
 
@@ -140,11 +198,19 @@ def summarise(scores):
         b["hits"] += row["p_at_1"]
         b["h3"] += row["p_at_3"]
         b["n"] += 1
-    by_level = {}
+    by_level, by_level_real = {}, {}
     for row in scores:
         b = by_level.setdefault(row["level"], {"hits": 0.0, "n": 0})
         b["hits"] += row["p_at_1"]
         b["n"] += 1
+        # The same breakdown over real queries only. The all-cases version is
+        # dominated by the self-retrieval cases and reads about ten points high
+        # on every level, which is exactly the averaging mistake this harness
+        # was rewritten to stop making.
+        if row.get("kind") != "self":
+            b2 = by_level_real.setdefault(row["level"], {"hits": 0.0, "n": 0})
+            b2["hits"] += row["p_at_1"]
+            b2["n"] += 1
     return {
         "p_at_1": sum(r["p_at_1"] for r in scores) / n,
         "p_at_3": sum(r["p_at_3"] for r in scores) / n,
@@ -152,6 +218,10 @@ def summarise(scores):
         "by_level": {
             lvl: {"p_at_1": b["hits"] / b["n"], "n": b["n"]}
             for lvl, b in by_level.items()
+        },
+        "by_level_real": {
+            lvl: {"p_at_1": b["hits"] / b["n"], "n": b["n"]}
+            for lvl, b in by_level_real.items()
         },
         "by_kind": {
             k: {"p_at_1": b["hits"] / b["n"], "p_at_3": b["h3"] / b["n"], "n": b["n"]}
@@ -174,34 +244,112 @@ def run(top_k=3):
             "query": query[:60],
             "level": level,
             "kind": kind,
+            "returned": [r.get("technique") for r in results],
             "p_at_1": precision_at_k(results, technique, level, k=1),
             "p_at_3": precision_at_k(results, technique, level, k=top_k),
             "rr": reciprocal_rank(results, technique, level),
         })
-    return summarise(scores), scores
+    summary = summarise(scores)
+    summary["coverage"] = coverage(scores, cases)
+    return summary, scores
+
+
+def coverage(scores, cases):
+    """Which entries the real queries never reach, and which they always reach.
+
+    A precision number says how often the top card is right. It does not say
+    that the same three cards are answering every question, which is the other
+    way a small library fails: twenty-five different complaints, three pieces of
+    advice. An entry no query ever surfaces is dead weight in the corpus, and an
+    entry that surfaces for most of them is not being retrieved, it is being
+    defaulted to.
+    """
+    real = [r for r in scores if r["kind"] != "self"]
+    n = len(real) or 1
+    hits = Counter()
+    for row in real:
+        for t in row["returned"]:
+            if t:
+                hits[t] += 1
+    known = {t for _, t, _, kind in cases if kind == "self" and t}
+    return {
+        "n_real": n,
+        "never": sorted(known - set(hits)),
+        "always": sorted(t for t, c in hits.items() if c >= 0.5 * n),
+        "counts": dict(hits.most_common()),
+    }
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", action="store_true", help="machine-readable, for CI")
     ap.add_argument("--top-k", type=int, default=3)
+    ap.add_argument(
+        "--min-p1", type=float, default=None,
+        help="exit non-zero if combined real-query precision@1 falls below this",
+    )
     args = ap.parse_args()
 
     summary, scores = run(args.top_k)
+    real = real_score(summary)
 
     if args.json:
-        print(json.dumps({"summary": summary, "cases": scores}, indent=2))
-        return
+        print(json.dumps({"summary": summary, "real": real, "cases": scores}, indent=2))
+    else:
+        report(summary, scores, real)
+
+    # The gate. Editing knowledge_base.json is the cheapest way to make
+    # retrieval worse, and until now nothing would have noticed: a rewritten
+    # `problem` field changes an embedding, and an embedding is not something
+    # anyone reviews in a diff. CI runs this with the committed floor.
+    if args.min_p1 is not None and real["p_at_1"] < args.min_p1:
+        sys.exit(
+            f"retrieval regressed: real-query p@1 {real['p_at_1']:.1%} "
+            f"is below the floor of {args.min_p1:.1%}"
+        )
+    return
+
+
+def real_score(summary):
+    """The combined figure over every query a person could actually type.
+
+    Deliberately excludes the self-retrieval cases. They are a sanity check on
+    the embedding, not a measure of the product, and averaging them in is the
+    mistake that let an 82% headline sit on top of a 20% reality.
+    """
+    kinds = summary.get("by_kind", {})
+    hit1 = hit3 = tot = 0.0
+    for k, b in kinds.items():
+        if k == "self":
+            continue
+        hit1 += b["p_at_1"] * b["n"]
+        hit3 += b["p_at_3"] * b["n"]
+        tot += b["n"]
+    tot = tot or 1
+    return {"p_at_1": hit1 / tot, "p_at_3": hit3 / tot, "n": int(tot)}
+
+
+def report(summary, scores, real):
 
     print(f"\n  {len(scores)} cases\n")
     kinds = summary.get("by_kind", {})
-    chip = kinds.get("chip")
-    if chip:
-        # The headline. These are the queries the editor really sends, and they
-        # are the only ones where nobody already knows the answer.
-        print(f"  REAL QUERIES (focus chips, n={chip['n']})")
-        print(f"    precision@1  {chip['p_at_1']:.1%}")
-        print(f"    precision@3  {chip['p_at_3']:.1%}")
+
+    # The headline. These are the queries the product really sends, and they
+    # are the only ones where nobody already knows the answer. Reported by
+    # style, because a corpus embedded in English can be fine for one style and
+    # useless for another, and one average across all three would say neither.
+    real_kinds = [k for k in ("chip", "plain", "romanised") if k in kinds]
+    if real_kinds:
+        print("  REAL QUERIES")
+        hit1 = hit3 = tot = 0.0
+        for k in real_kinds:
+            b = kinds[k]
+            print(f"    {k:<10} n={b['n']:<3} p@1 {b['p_at_1']:>6.1%}   p@3 {b['p_at_3']:>6.1%}")
+            hit1 += b["p_at_1"] * b["n"]
+            hit3 += b["p_at_3"] * b["n"]
+            tot += b["n"]
+        print(f"    {'combined':<10} n={real['n']:<3} p@1 {real['p_at_1']:>6.1%}   p@3 {real['p_at_3']:>6.1%}")
+
     me = kinds.get("self")
     if me:
         # Kept, but never averaged in with the above. An entry's own `problem`
@@ -210,10 +358,20 @@ def main():
         # combined score read 82% while the part that matters read 20%.
         print(f"\n  SANITY CHECK (an entry finds itself, n={me['n']})")
         print(f"    precision@1  {me['p_at_1']:.1%}   <- should stay near 100%")
-    print(f"\nall {len(scores)} cases: p@1 {summary['p_at_1']:.1%} | MRR {summary['mrr']:.3f}")
-    print("\nby craft level")
-    for level, s in sorted(summary.get("by_level", {}).items()):
-        print(f"    {level:<10} p@1 {s['p_at_1']:.0%}   n={s['n']}")
+
+    print("\n  BY CRAFT LEVEL (real queries only)")
+    for level, s_ in sorted(summary.get("by_level_real", {}).items()):
+        print(f"    {level:<10} p@1 {s_['p_at_1']:>4.0%}   n={s_['n']}")
+
+    cov = summary.get("coverage") or {}
+    if cov:
+        print(f"\n  CORPUS COVERAGE (over {cov['n_real']} real queries)")
+        never = cov.get("never") or []
+        print(f"    never retrieved  {len(never)}")
+        for t in never[:8]:
+            print(f"      - {t[:64]}")
+        for t in cov.get("always") or []:
+            print(f"    answers half of everything: {t[:56]} ({cov['counts'][t]}x)")
     print()
 
 

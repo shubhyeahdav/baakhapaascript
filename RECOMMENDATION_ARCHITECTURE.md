@@ -354,6 +354,49 @@ not by reading the code — worth noting as a method.
 
 ---
 
+## 6.4 The measured baseline (2026-09-03)
+
+`eval_retrieval.py` runs a golden set of 54 cases against the live retrieval path
+and reports two populations separately, because they measure different things.
+
+**Real queries (n=25)** — what a person could actually type, in three styles:
+
+| style | n | precision@1 | precision@3 | what it is |
+|---|---|---|---|---|
+| chip | 15 | 66.7% | 86.7% | what the editor's focus buttons send |
+| plain | 5 | 40.0% | 60.0% | how a beginner types: four words, no craft vocabulary |
+| romanised | 5 | 40.0% | 60.0% | Nepali in Latin script, which the linter reads |
+| **combined** | **25** | **56.0%** | **76.0%** | |
+
+**Sanity check (n=29)** — each entry's own `problem` field used as a query, whose
+correct answer is that entry. 93.1%. This is close to free, because the query is
+the text that was embedded, and it is never averaged into the number above. Doing
+so is what produced an 82.4% headline while the part that mattered read 20%.
+
+By craft level, over real queries only: scene 100%, image 75%, character 50%,
+dialogue 33%, structure 33%.
+
+### What the coverage report found
+
+Precision does not say whether the same few entries are answering everything.
+They were. Over 25 real queries:
+
+- **One entry, "Every scene must end on a different charge than it starts", was
+  returned 21 times.** That is not retrieval, it is a default.
+- **Six of 29 entries were never returned at all**, including three of the four
+  character entries.
+
+A library where a quarter of the entries are unreachable is smaller than its
+count suggests, and a library with a default answer will give that answer to a
+question it does not fit.
+
+### The gate
+
+CI runs `eval_retrieval.py --min-p1 0.50` after loading the knowledge base. The
+floor sits below the current score on purpose: it is a regression gate, not a
+target. Editing a `problem` field changes an embedding, and nobody reviews an
+embedding in a diff.
+
 ## 7. Open items
 
 | Item | Status |

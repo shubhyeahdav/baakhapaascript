@@ -57,6 +57,27 @@ jobs:
         working-directory: baakhapaa-backend
         run: python -m pytest -q
 
+      # Retrieval is the product's differentiator and the easiest thing in the
+      # repository to break without noticing. Editing a `problem` field in
+      # knowledge_base.json changes an embedding, and nobody reviews an
+      # embedding in a diff. This runs the golden set and fails the build if
+      # real-query precision@1 drops below the committed floor.
+      #
+      # The floor is deliberately below the current score. It is a regression
+      # gate, not a target: it should catch a change that makes retrieval
+      # worse, not block one that makes it slightly less better.
+      - name: Cache the embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/fastembed
+          key: fastembed-bge-small-en-v1.5
+
+      - name: Retrieval quality
+        working-directory: baakhapaa-backend
+        run: |
+          python load_knowledge_base.py
+          python eval_retrieval.py --min-p1 0.50
+
   frontend:
     runs-on: ubuntu-latest
     steps:
