@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { scripts, exportApi, streamSSE } from "../services/api";
+import { scripts, exportApi, learn, streamSSE } from "../services/api";
 import { downloadBlob, safeFilename } from "../utils/download";
 import VersionHistory from "../components/VersionHistory";
 import CommentThreads from "../components/CommentThreads";
@@ -114,6 +114,64 @@ function UpgradePrompt({ mode, onUpgrade }) {
 function countWords(text) {
   const trimmed = (text || "").trim();
   return trimmed ? trimmed.split(/\s+/).length : 0;
+}
+
+/**
+ * The way out of a loop, offered only once the loop is real.
+ *
+ * A recommendation the writer has been given twice and has not acted on is no
+ * longer a recommendation problem: either they do not believe it or they do not
+ * know how, and both of those are what a lesson is for. A FIRST showing never
+ * escalates — being sent to a course the moment you are first told something
+ * reads as being told off.
+ *
+ * Nineteen lessons cannot cover thirty-nine craft entries, so most techniques
+ * have none. That is the common case and it renders nothing at all, rather than
+ * an empty box or an apology.
+ */
+function LessonEscalation({ technique }) {
+  const [lesson, setLesson] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [state, setState] = useState("idle");
+
+  useEffect(() => {
+    let live = true;
+    setState("loading");
+    learn
+      .forTechnique(technique)
+      .then((res) => {
+        if (!live) return;
+        setLesson(res.data);
+        setState("done");
+      })
+      .catch(() => live && setState("none"));
+    return () => { live = false; };
+  }, [technique]);
+
+  if (state !== "done" || !lesson) return null;
+
+  return (
+    <div className="pt-2 border-t border-borderSoft">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="text-[10.5px] text-gold hover:text-goldBright transition-colors underline decoration-dotted underline-offset-2"
+      >
+        {open ? "Hide the lesson" : "There is a lesson on this"}
+      </button>
+      {open && (
+        <div className="mt-1.5 rounded-lg border border-borderSoft bg-bgDeep/40 p-2.5">
+          <p className="text-[11px] text-gold/80 font-semibold mb-1 leading-snug">
+            {lesson.title}
+          </p>
+          <p className="text-[11.5px] text-inkSoft leading-relaxed">
+            {lesson.concept}
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ScriptEditor() {
@@ -2046,12 +2104,15 @@ export default function ScriptEditor() {
                     // match. Show the line it answers instead.
                     const hit = diagnosed.find((d) => d.technique === p.technique);
                     return (
-                      <button
+                      <div
                         key={i}
-                        onClick={() => setOpenPattern(open ? null : i)}
-                        className={`w-full text-left rounded-xl p-3.5 border transition-colors ${
+                        className={`rounded-xl border transition-colors ${
                           open ? "bg-elevated/60 border-gold/30" : "bg-elevated/40 border-borderSoft hover:border-gold/20"
                         }`}
+                      >
+                      <button
+                        onClick={() => setOpenPattern(open ? null : i)}
+                        className="w-full text-left p-3.5"
                       >
                         <div className="flex items-baseline justify-between gap-2 mb-1.5">
                           <span className="font-mono text-[10px] uppercase tracking-wider text-gold truncate">
@@ -2114,6 +2175,21 @@ export default function ScriptEditor() {
                           <span className="text-[10px] text-inkMuted mt-1.5 inline-block">How to use it ↓</span>
                         )}
                       </button>
+
+                      {/* Outside the card's own button, because a button inside
+                          a button is invalid and the browser takes it apart.
+                          Advice given twice and not taken is not a
+                          recommendation problem any more: either the writer
+                          does not believe it or does not know how, and both of
+                          those are what a lesson is for. A first showing never
+                          escalates — being sent to a course the moment you are
+                          first told something reads as being told off. */}
+                      {seen[p.technique]?.times_shown > 1 && (
+                        <div className="px-3.5 pb-3">
+                          <LessonEscalation technique={p.technique} />
+                        </div>
+                      )}
+                      </div>
                     );
                   })}
 

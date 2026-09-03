@@ -521,6 +521,23 @@ LESSONS = [
 
 LESSONS_BY_ID = {l["id"]: l for l in LESSONS}
 
+# The other way into the course, from a craft entry rather than a linter rule.
+#
+# A lesson's `technique` is written to match the `technique` field of the
+# knowledge-base entry it teaches, so a recommendation the writer keeps being
+# given can offer the lesson that explains it. Matched case-insensitively
+# because the two lists are maintained by hand and will drift in capitalisation
+# long before they drift in meaning.
+#
+# Partial by design. Nineteen lessons cannot cover thirty-nine craft entries,
+# and a missing lesson is a 404 the caller treats as "nothing to offer" — never
+# an error. What must not happen is a wrong lesson attached to a technique,
+# which is why this is an exact-name map and not a search.
+LESSON_BY_TECHNIQUE = {
+    (l.get("technique") or "").strip().lower(): l["id"]
+    for l in LESSONS if l.get("technique")
+}
+
 
 # Translated fields, keyed by lesson id. Kept in its own module so this file
 # stays the English source text — see `lessons_ne` for why.

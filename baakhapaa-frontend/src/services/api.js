@@ -222,6 +222,11 @@ export const learn = {
   submit: (id, content) => instance.post(`/learn/lessons/${id}/submit`, { content }),
   forRule: (rule, lang = "en") =>
     instance.get(`/learn/for-rule/${rule}`, { params: { lang } }),
+  // The escalation path from the craft panel. Technique names carry commas and
+  // apostrophes, so the value is encoded rather than interpolated raw.
+  forTechnique: (technique, lang = "en") =>
+    instance.get(`/learn/for-technique/${encodeURIComponent(technique)}`,
+                 { params: { lang } }),
 };
 
 export const subscription = {

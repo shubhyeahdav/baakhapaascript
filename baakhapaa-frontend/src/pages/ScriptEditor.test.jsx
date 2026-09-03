@@ -62,7 +62,7 @@ vi.mock("../services/api", () => ({
   comments: { getAll: vi.fn(), add: vi.fn(), remove: vi.fn() },
   // AccessLog and CoveragePanel both mount under History/Craft.
   scriptsExtra: {},
-  learn: { forRule: vi.fn() },
+  learn: { forRule: vi.fn(), forTechnique: vi.fn() },
   // The share sheet mounts TeamPanel, which reaches for these. Without them
   // the panel degrades through its own try/catch and the test passes without
   // exercising anything — the failure mode this suite exists to catch.
@@ -108,6 +108,9 @@ function stubApi() {
   versions.getAll.mockResolvedValue({ data: [] });
   comments.getAll.mockResolvedValue({ data: [] });
   learn.forRule.mockRejectedValue(new Error("no lesson"));
+  // The common case: nineteen lessons cannot cover thirty-nine craft
+  // entries, so most techniques have none and the panel shows nothing.
+  learn.forTechnique.mockRejectedValue(new Error("no lesson"));
   scripts.accessLog.mockRejectedValue(new Error("not an admin"));
   scripts.coverage.mockResolvedValue({ data: {} });
   projects.getAll.mockResolvedValue({ data: [] });
@@ -1207,5 +1210,84 @@ describe("the craft panel leads with one card", () => {
                          diagnosed: [], source: "similarity" });
 
     expect(await screen.findByText("Deny the scene privacy")).toBeInTheDocument();
+  });
+});
+
+/**
+ * Escalating to a lesson, and only when the loop is real.
+ *
+ * Advice given twice and not taken is no longer a recommendation problem:
+ * either the writer does not believe it or does not know how, and both of those
+ * are what a lesson is for. A first showing never escalates — being sent to a
+ * course the moment you are first told something reads as being told off.
+ */
+describe("escalating to a lesson", () => {
+  const CARD = { technique: "Deny the scene privacy", craft_level: "scene" };
+  const LESSON = { id: "crossed-purposes", title: "Crossed purposes",
+                   concept: "Two people, two wants, one room." };
+
+  const withHistory = async (times) => {
+    stubApi();
+    learn.forTechnique.mockResolvedValue({ data: LESSON });
+    scripts.recommendations.mockResolvedValue({
+      data: {
+        patterns: [CARD], diagnosed: [], source: "similarity",
+        seen: { "Deny the scene privacy": { times_shown: times, resolved: false } },
+      },
+    });
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /^patterns/i }));
+    await screen.findByText("Deny the scene privacy");
+  };
+
+  it("offers the lesson once the same advice has come back", async () => {
+    await withHistory(3);
+
+    // The assist panel is mounted twice — a column on a laptop and a sheet
+    // over the page on a phone — so every control in it has two nodes.
+    expect(
+      await screen.findAllByRole("button", { name: /there is a lesson on this/i }),
+    ).not.toHaveLength(0);
+  });
+
+  it("does not escalate the first time", async () => {
+    await withHistory(1);
+
+    expect(screen.queryByRole("button", { name: /there is a lesson/i })).toBeNull();
+    expect(learn.forTechnique).not.toHaveBeenCalled();
+  });
+
+  it("opens the lesson in place, without navigating away from the draft", async () => {
+    await withHistory(2);
+    const [offer] = await screen.findAllByRole(
+      "button", { name: /there is a lesson on this/i },
+    );
+    fireEvent.click(offer);
+
+    expect(screen.getAllByText("Crossed purposes")).not.toHaveLength(0);
+    expect(screen.getAllByText(/two people, two wants/i)).not.toHaveLength(0);
+    // Still on the page they were writing.
+    expect(editor()).toBeInTheDocument();
+  });
+
+  it("shows nothing when no lesson covers the technique", async () => {
+    /* The common case. Nineteen lessons cannot cover thirty-nine craft
+       entries, and an empty box apologising for itself is worse than
+       silence. */
+    stubApi();
+    scripts.recommendations.mockResolvedValue({
+      data: {
+        patterns: [CARD], diagnosed: [], source: "similarity",
+        seen: { "Deny the scene privacy": { times_shown: 4, resolved: false } },
+      },
+    });
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /^patterns/i }));
+    await screen.findByText("Deny the scene privacy");
+
+    await waitFor(() => expect(learn.forTechnique).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: /there is a lesson/i })).toBeNull();
   });
 });

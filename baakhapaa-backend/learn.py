@@ -105,3 +105,25 @@ def lesson_for_rule(rule: str, lang: str = "en", user_id: str = Depends(get_curr
     if not lesson_id:
         raise HTTPException(status_code=404, detail="No lesson covers that rule")
     return lessons.public_lesson(lessons.LESSONS_BY_ID[lesson_id], _progress(user_id), lang)
+
+
+@router.get("/for-technique/{technique:path}")
+def lesson_for_technique(technique: str, lang: str = "en",
+                         user_id: str = Depends(get_current_user)):
+    """Which lesson teaches a craft technique by name.
+
+    The escalation path. A recommendation the writer has been given twice and
+    has not acted on is not a recommendation problem any more — either they do
+    not believe it or they do not know how, and both of those are what a lesson
+    is for. `for-rule` covers the linter's route in; this covers the craft
+    panel's.
+
+    A 404 here means "nothing to offer", which is the common case: nineteen
+    lessons cannot cover thirty-nine craft entries. The caller shows nothing
+    rather than an error. `{technique:path}` because technique names contain
+    commas and slashes.
+    """
+    lesson_id = lessons.LESSON_BY_TECHNIQUE.get((technique or "").strip().lower())
+    if not lesson_id:
+        raise HTTPException(status_code=404, detail="No lesson covers that technique")
+    return lessons.public_lesson(lessons.LESSONS_BY_ID[lesson_id], _progress(user_id), lang)
