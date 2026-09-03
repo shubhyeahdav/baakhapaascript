@@ -121,8 +121,14 @@ def render(md_path, out_path, root):
             if os.path.exists(path):
                 from reportlab.lib.utils import ImageReader
                 iw, ih = ImageReader(path).getSize()
-                w = CONTENT_W
-                flow.append(Image(path, width=w, height=w * ih / iw))
+                # Not full width. A 1440x900 capture at the full text measure is
+                # about 4.3 inches tall, which strands it on a page of its own
+                # with a caption and nothing else. At 82% two figures and their
+                # captions share a page with body text.
+                w = CONTENT_W * 0.82
+                img = Image(path, width=w, height=w * ih / iw)
+                img.hAlign = "CENTER"
+                flow.append(img)
             i += 1
             continue
 

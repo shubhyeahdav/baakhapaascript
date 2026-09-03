@@ -17,6 +17,13 @@ assigned deliverable in turn.
 | 7 | Export system | PDF, Word, Final Draft `.fdx`, production package | Done |
 | 8 | Subscription tiers | Free / Pro / Studio with checkout and paid-tier gating | Done |
 
+![The dashboard](docs/screenshots/m2-02-dashboard.png)
+
+**Figure 1.** The dashboard, which is the entry point to every deliverable below. Projects
+carry their genre, language and planned duration, and open directly into the editor. The free
+plan allows three active projects, raised this month from one, because the course ends by
+asking a writer to complete a short film and finishing it consumed the entire allowance.
+
 ### Week 5: Storyboard generation
 
 The storyboard engine turns a finalized script into one frame per scene. Each frame is
@@ -25,9 +32,17 @@ Shot, Medium Close Up, Close Up, Extreme Close Up, Over The Shoulder, Point Of V
 Insert — chosen from the scene's position within its act rather than at random, so a
 sequence opens wide and tightens as it approaches its turn.
 
-Each frame also carries a camera note derived from the shot type, the scene's position, its
-cast, time of day and emotional beat. These are produced without an API call. Before this
-work, the field was written as an empty string on every frame ever generated.
+The shot type is not chosen arbitrarily. A scene's position within its act, and the act's
+position within the script, decide how tight the frame is: an act tends to open on a wide
+establishing frame and close nearer the face, and a scene marked as a major turning point is
+given a tighter shot than a transitional one beside it. The writer can override any of this,
+and an override is never undone by a later regeneration.
+
+The camera note is assembled from the same inputs plus the scene's cast, its time of day and
+its emotional beat. A two-hander at night in a confined location produces a different note
+from a crowd scene at dawn, without either requiring a model call. This is the part of the
+storyboard a director actually reads, and it was previously blank on every frame the system
+had ever produced.
 
 Frames draw their description from the written draft where one exists and from the structure
 beat where it does not, and they carry the scene's location, time of day, cast and the
@@ -86,9 +101,23 @@ five-minute window, so a long session leaves a readable history rather than hund
 near-identical entries. A no-op save creates nothing, and a manual save is never merged into
 an automatic one.
 
-The diff compares any two snapshots and reports ordered difflib hunks with line numbers and
-two lines of context. This replaced a set-based comparison that reported a moved line as no
-change at all and collapsed every blank line.
+The diff compares any two snapshots and reports ordered hunks with line numbers and two
+lines of context on either side. This replaced a set-based comparison, which had two failures
+that matter in a screenplay specifically: moving a scene from one act to another registered as
+no change at all, because the same lines were still present somewhere in the document; and
+every blank line collapsed into one, which in a format where blank lines separate every
+element made the comparison unreadable. Line numbers on the new side are taken from the newer
+snapshot and on the old side from the older, so a hunk can be found in either version.
+
+Seat allowances are enforced against the project owner's plan rather than the invited
+person's, since the owner is the one paying: two collaborators on Free, five on Pro,
+unlimited on Studio. A pending invitation occupies a seat, so an owner cannot exceed the
+allowance by inviting faster than people accept.
+
+The invitations feature required a new database table, which is the fourth schema migration
+now waiting to be applied to a production database that does not yet exist. The three earlier
+ones cover Google sign-in columns, email normalisation, and the subscription expiry fields
+described in Week 8.
 
 ### Week 7: Export system
 
@@ -109,11 +138,29 @@ Four export formats are available.
 Every export is titled and named after the project. All four previously downloaded as
 `script.pdf` titled "Baakhapaa Script", regardless of which project produced them.
 
-Import was added alongside export this month, which the proposal did not ask for but which
-the export formats made obvious: a writer arriving with a finished screenplay had to retype
-it before the system would say anything about it. Final Draft, Fountain, plain text, Word
-and PDF are all accepted. PDF is the only lossy path, and a scanned page is refused with an
-explanation rather than imported as an empty script.
+Import was added alongside export this month. The proposal does not ask for it, but the
+export formats made the gap obvious: the things this system is best at are all forms of
+*reading* a screenplay — the craft checker, the corpus benchmark, the structural review — and
+every one of them was gated behind typing an existing script in again.
+
+Five formats are accepted, in descending order of how much survives the journey. Final Draft
+`.fdx` is lossless for the six elements the system models, because the format states the type
+of every paragraph. Fountain and plain text are already close to how drafts are stored.
+Word `.docx` keeps paragraphs intact, so line structure survives, but Word has no notion of a
+character cue, which leaves indentation as the only surviving signal of what each paragraph
+was; it is preserved rather than stripped for that reason, and table cells are read as well,
+since shooting scripts arrive as two-column layouts more often than expected.
+
+PDF is the only lossy path and the one most writers will use. Extracted text is classified
+before it is accepted, because a scanned page extracts to nothing and a badly produced one
+extracts with its line structure destroyed, and both still look importable to a naive parser.
+A scan is refused with an explanation instead of importing as an empty script and leaving the
+writer to conclude the product is broken.
+
+Uploaded `.fdx` files are parsed with a hardened XML reader rather than the standard library
+one. The export builds XML, which is safe; importing parses XML supplied by a user, which is
+not. The default parser resolves external entities, so a crafted file could read files from
+the server or exhaust its memory through entity expansion. Both cases are covered by tests.
 
 ### Week 8: Subscription tiers
 
@@ -141,6 +188,26 @@ all.
 Where a free user meets a paid feature, the editor now offers the plan rather than printing
 the refusal as an error, so the paid tabs are no longer dead ends.
 
+**Three operating modes, not two.** With no keys configured at all, both Nepali gateways
+still open their real payment pages: eSewa through its published test credentials, and Khalti
+through the sandbox key printed in its own documentation. Stripe remains simulated, because
+its test keys are issued per account and cannot be shared, and the interface says so rather
+than implying a real transaction. A third mode disables all outbound calls entirely, and the
+test suite pins that mode so a unit test can never depend on a third party being reachable.
+Only that last mode proves nothing, and it is labelled accordingly.
+
+**The return address is a path, not a query string.** A gateway sends the user back to a URL
+the application supplies, and every gateway appends its own parameters to it. eSewa's
+documentation does not state what it does when parameters are already present, so the return
+address carries the provider in the path itself rather than risking it.
+
+**Nothing renews automatically.** Neither Nepali gateway offers a subscription primitive, so
+a plan bought through them stops working after thirty days rather than renewing. The
+application warns in-app as the date approaches, and a reminder script exists to mail a
+writer who has not opened the application recently. It sends nothing until a mail server is
+configured, and no mail account exists yet. This is the largest remaining gap in the billing
+story and it did not exist while Stripe was the only path.
+
 ![Subscription tiers](docs/screenshots/m2-06-pricing.png)
 
 **Figure 1.** The three tiers. The pricing page was corrected this month in both directions:
@@ -161,6 +228,17 @@ retrieval system, which returns an empty result when it fails and therefore repo
 104 backend tests were written, and the 26 frontend components without tests were covered.
 The suite now stands at **765 backend tests in 42 files** and **1,020 frontend tests in 54
 files**.
+
+The six new test files and what each protects:
+
+| File | What it protects |
+|------|------------------|
+| Payment webhook | That the tier granted comes from the stored payment row and never from the incoming message, so a forged event claiming Studio against a Pro purchase grants Pro |
+| Field whitelist | That the two routes taking a raw object cannot be made to write a user identifier or a subscription tier |
+| Version diff | The moved-line case the previous comparison scored as no change |
+| Export fetching | The one place the server fetches a URL a user can influence |
+| Retrieval | Every path, since all of them return an empty list on error and therefore fail silently |
+| Configuration | A guard that every setting the application reads is documented, shipping with no exceptions |
 
 Two security faults surfaced. In the version history, the permission check ran after the
 other error checks, so the difference between two responses told a logged-in user whether two
@@ -199,8 +277,20 @@ misleading: twenty-nine of the cases search using text that was itself used to b
 index, which makes a correct answer close to guaranteed, and averaging them with the five
 realistic cases hid the number that mattered.
 
-**Streaming.** AI requests previously waited for the entire response before showing anything.
-Scene generation and rewriting now stream as the text arrives.
+![The craft panel](docs/screenshots/m2-09-craft.png)
+
+**Figure 2.** The free-tier feedback panel, which the retrieval measurement supports. The
+rule-based checker reports that nothing was flagged and states plainly that this is not the
+same as the draft being finished. The draft's own statistics sit below it, and beneath those
+the corpus comparison, which declines to report a result until there is enough script to
+compare against.
+
+**Streaming.** AI requests previously waited for the entire response before showing anything,
+so a writer asking for a scene watched an indicator for as long as generation took. Scene
+generation and rewriting now stream the text as it is produced. Errors travel inside the
+stream, because once a response has begun there is no longer a status code available to
+report a failure with — a dropped connection is something a browser cannot distinguish from
+a lost network.
 
 **Character analysis.** A view called Cast gathers each character's dialogue in one place and
 reports line length, vocabulary repetition, and how often the character asks a question
@@ -222,7 +312,68 @@ the timeline.
 **Figure 3.** The workspace at the end of Month 2, with the four views and scene index cards
 on the left, the screenplay page in the middle and the assistant panel on the right.
 
-## 4. Verification status
+![Corkboard](docs/screenshots/m2-07-corkboard.png)
+
+**Figure 5.** The corkboard beside the script rather than in place of it. Scenes can be
+reordered while the page they belong to is still being read, and a card dragged here moves
+the scene in the script itself rather than in a parallel list.
+
+## 4. Plan for Month 3
+
+Three items block everything else and are taken in order, because each depends on the one
+before it.
+
+**A cloud database.** The four outstanding migrations are applied against a real Postgres
+instance. The email normalisation migration is run first and separately, because it is the
+only one that can fail on existing data: it adds a uniqueness constraint on lowercased
+addresses, and two rows differing only in capitalisation will stop it.
+
+**A live deployment.** Backend and frontend are hosted, and the production configuration
+checks are exercised for the first time. Those checks refuse to start the application on an
+unset origin list, a demonstration account left enabled, a local database file, or a
+Devanagari font that resolves only to the non-redistributable Windows one. Each was
+previously a line in a document asking a person to remember something.
+
+**A first real payment.** Merchant applications to Khalti and eSewa require company
+registration, a business bank account and a live website address, which is why they follow
+deployment rather than preceding it. A human reviews each application, so the delay is
+measured in days rather than minutes.
+
+Two further items follow once those exist: a scheduled task for renewal reminders, which
+requires a mail account; and a pilot with five writers taking real projects from first page
+to export, which is where the proposal's success measure — one script completed without
+falling back to manual methods — is either demonstrated or disproved.
+
+## 5. Open decisions
+
+Four questions cannot be settled by building, and each of them blocks or reshapes work in
+Month 3. They are recorded here so they can be answered rather than deferred again.
+
+**Whether Rs 999 survives the cost model.** Pro is priced at Rs 999 a month, which is about
+$7.20. With a script measured this month at roughly $0.44 to produce including a storyboard,
+a Pro subscriber covers their own cost at about sixteen scripts a month, which is far above
+normal use. The price is therefore safe on cost and questionable on market: it was set against
+international screenwriting tools, while the subscription price Nepali users are anchored to
+sits nearer Rs 499. An annual option would also convert twelve monthly opportunities to lapse
+into one, which matters because neither Nepali gateway renews automatically.
+
+**Whether launch is invite-only or open.** One developer cannot absorb open registration and
+a defect queue at the same time. An invitation period would also make the pilot and the launch
+the same activity rather than two.
+
+**What is done about encryption of script text.** The system stores screenplays without
+application-level encryption. This is now stated truthfully in the privacy documentation
+rather than implied otherwise, but stating it is not the same as resolving it. Adding
+encryption is a design decision rather than a feature, because it changes what diffing,
+searching and exporting can do, and retrofitting it after a pilot is considerably harder than
+deciding it before one.
+
+**Who reviews the legal documents.** The terms of use, privacy policy and data compliance
+checklist are unreviewed templates and carry a banner saying so. A Nepal-qualified lawyer is
+required, and this is the one item on the whole project that cannot be compressed by working
+harder, because it depends on somebody else's calendar.
+
+## 6. Verification status
 
 Both AI providers can be reached with live credentials, and the image generation path has
 been run end to end at real cost. Text generation returns a billing error because the account
