@@ -91,7 +91,10 @@ while (i < lines.length) {
   if (img) {
     const file = resolve(root, img[2]);
     if (existsSync(file)) {
-      const w = 560, h = Math.round((900 / 1440) * 560);
+      // Compact mode is aiming at a page count, and a full-width screenshot
+      // costs about a third of a page each.
+      const w = cfg?.compact ? 400 : 560;
+      const h = Math.round((900 / 1440) * w);
       body.push(new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { before: 240, after: 80 },
@@ -157,7 +160,7 @@ while (i < lines.length) {
     const level = [HeadingLevel.HEADING_1, HeadingLevel.HEADING_1, HeadingLevel.HEADING_2][h[1].length - 1];
     body.push(new Paragraph({
       heading: level,
-      pageBreakBefore: cfg && h[1].length === 2,
+      pageBreakBefore: cfg && !cfg.compact && h[1].length === 2,
       spacing: { before: 320, after: 160 },
       children: runs(h[2]),
     }));
@@ -189,7 +192,7 @@ while (i < lines.length) {
   }
 
   body.push(new Paragraph({
-    spacing: { after: 180, line: 320 },
+    spacing: { after: cfg?.compact ? 120 : 180, line: cfg?.compact ? 276 : 320 },
     alignment: cfg ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
     children: runs(text, { size: 22 }),
   }));
@@ -202,7 +205,29 @@ const centred = (text, opts = {}) =>
                   children: [new TextRun({ text, ...opts })] });
 
 const front = [];
-if (cfg) {
+if (cfg && cfg.compact) {
+  // A short report does not get a page to itself for a title and another for a
+  // three-line contents. The block sits at the top of page one instead, which
+  // is what a five-page document actually looks like.
+  front.push(
+    centred(cfg.title, { size: 40, bold: true, after: 40 }),
+    centred(cfg.subtitle, { size: 22, italics: true, after: 200 }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER, spacing: { after: 60 },
+      border: { top: { style: BorderStyle.SINGLE, size: 6, color: "999999", space: 6 },
+                bottom: { style: BorderStyle.SINGLE, size: 6, color: "999999", space: 6 } },
+      children: [new TextRun({ text: cfg.documentType.toUpperCase(), size: 21, bold: true, characterSpacing: 30 })],
+    }),
+    centred(`${cfg.period}  ·  Reference: ${cfg.reference}`, { size: 18, color: "555555", after: 200 }),
+    centred([cfg.author, cfg.rollNumber].filter(Boolean).join("  ·  "), { size: 19, bold: true, after: 40 }),
+    centred([cfg.programme, cfg.institution].filter(Boolean).join(", "), { size: 18, color: "555555", after: 40 }),
+    centred(cfg.date, { size: 18, color: "555555", after: 320 }),
+  );
+  front.push(new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 120, after: 120 },
+                             children: [new TextRun("Contents")] }));
+  front.push(new TableOfContents("Contents", { hyperlink: true, headingStyleRange: "1-2" }));
+  front.push(new Paragraph({ children: [new PageBreak()] }));
+} else if (cfg) {
   front.push(
     new Paragraph({ text: "", spacing: { after: 1400 } }),
     centred(cfg.title, { size: 56, bold: true, after: 60 }),
@@ -225,7 +250,6 @@ if (cfg) {
 
   front.push(new Paragraph({ heading: HeadingLevel.HEADING_1, spacing: { after: 200 },
                              children: [new TextRun("Contents")] }));
-  // Word fills this in on open. It will ask to update fields, or F9 forces it.
   front.push(new TableOfContents("Contents", { hyperlink: true, headingStyleRange: "1-2" }));
   front.push(new Paragraph({ children: [new PageBreak()] }));
 
