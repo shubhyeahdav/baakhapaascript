@@ -14,6 +14,7 @@ from database import (
     supabase, get_project_by_id, get_versions_by_script,
 )
 import membership
+import voice
 from auth import (
     get_current_user, require_script_access, require_project_access,
     require_paid_tier, is_paid_tier,
@@ -162,7 +163,16 @@ def cast(script_id: str, user_id: str = Depends(get_current_user)):
             c["voice"] = (match.get("voice") or "").strip()
             c["want"] = (match.get("want") or "").strip()
 
-    return {"characters": characters}
+    # Three numbers side by side are not a finding. A writer looking at
+    # `avg_words 8.2` next to `avg_words 8.4` has to already know that those
+    # being equal is the problem, and nobody arrives knowing that. `voice.py`
+    # turns the measurements into the sentence a script editor would say, and
+    # names the craft technique that answers it.
+    return {
+        "characters": characters,
+        "findings": voice.findings(characters),
+        "findings_by_character": voice.by_character(characters),
+    }
 
 
 @router.post("/add-scene")

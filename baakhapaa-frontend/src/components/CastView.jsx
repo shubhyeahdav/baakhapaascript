@@ -39,8 +39,37 @@ function Measure({ label, value, hint }) {
   );
 }
 
+/**
+ * A finding, in the writer's language.
+ *
+ * Placed inside the character it is about rather than in a list of its own,
+ * because a finding about RAAJA is only useful next to RAAJA's numbers — a
+ * separate panel would make the writer hold two things in their head to read
+ * one sentence.
+ */
+function Finding({ finding }) {
+  const serious = finding.severity === "high";
+  return (
+    <div
+      className={`mt-2 pt-2 border-t border-borderSoft text-[11px] leading-snug ${
+        serious ? "text-gold" : "text-inkSoft"
+      }`}
+    >
+      {finding.message}
+      {finding.technique && (
+        <span className="block mt-1 font-mono text-[9.5px] uppercase tracking-wider text-inkMuted">
+          try: {finding.technique}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function CastView({ scriptId, onOpenLine }) {
   const [characters, setCharacters] = useState(null);
+  // Keyed by character name. A finding about two people appears under both,
+  // because a collapsed pair shown under neither is the same as not finding it.
+  const [findings, setFindings] = useState({});
   const [open, setOpen] = useState(null);
   const [error, setError] = useState("");
 
@@ -48,7 +77,11 @@ export default function CastView({ scriptId, onOpenLine }) {
     let live = true;
     scripts
       .cast(scriptId)
-      .then((res) => live && setCharacters(res.data.characters || []))
+      .then((res) => {
+        if (!live) return;
+        setCharacters(res.data.characters || []);
+        setFindings(res.data.findings_by_character || {});
+      })
       .catch(() => live && setError("Could not read the cast."));
     return () => { live = false; };
   }, [scriptId]);
@@ -112,6 +145,13 @@ export default function CastView({ scriptId, onOpenLine }) {
                   <span className="text-inkMuted">meant to sound: </span>{c.voice}
                 </p>
               )}
+
+              {/* Three numbers side by side are not a finding. A writer looking
+                  at 8.2 next to 8.4 has to already know that those being equal
+                  is the problem, and nobody arrives knowing that. */}
+              {(findings[c.name] || []).map((f) => (
+                <Finding key={`${f.rule}-${f.characters.join("-")}`} finding={f} />
+              ))}
             </button>
 
             {expanded && (

@@ -124,3 +124,84 @@ it("does not set state after it is unmounted", async () => {
 
   await waitFor(() => expect(scripts.cast).toHaveBeenCalled());
 });
+
+/**
+ * Findings, not numbers.
+ *
+ * The three measures have been on screen since this shipped, and a number is
+ * not a finding. A writer looking at 8.2 beside 8.4 has to already know that
+ * those being equal is the problem. These pin that the sentence appears, that
+ * it appears next to the character it is about, and that a finding about two
+ * people appears under both of them.
+ */
+describe("voice findings", () => {
+  const COLLAPSED = {
+    characters: [
+      { name: "RAAJA", line_count: 20, avg_words: 8, distinct_ratio: 0.7,
+        question_share: 0.1, lines: [] },
+      { name: "SANJANA", line_count: 20, avg_words: 8, distinct_ratio: 0.7,
+        question_share: 0.1, lines: [] },
+    ],
+    findings_by_character: {
+      RAAJA: [{
+        rule: "voices_collapsed", severity: "high",
+        characters: ["RAAJA", "SANJANA"],
+        message: "RAAJA and SANJANA are written at the same speed.",
+        technique: "Give a character one phrase they return to",
+      }],
+      SANJANA: [{
+        rule: "voices_collapsed", severity: "high",
+        characters: ["RAAJA", "SANJANA"],
+        message: "RAAJA and SANJANA are written at the same speed.",
+        technique: "Give a character one phrase they return to",
+      }],
+    },
+  };
+
+  it("says what the numbers mean, in words", async () => {
+    scripts.cast.mockResolvedValue({ data: COLLAPSED });
+    render(<CastView scriptId="s1" />);
+
+    expect(
+      await screen.findAllByText(/written at the same speed/i),
+    ).toHaveLength(2);
+  });
+
+  it("shows a shared finding under both characters, not one of them", async () => {
+    /* A collapsed pair is one finding about two people. Attaching it to
+       whichever name came first would leave the other looking clean. */
+    scripts.cast.mockResolvedValue({ data: COLLAPSED });
+    render(<CastView scriptId="s1" />);
+    await screen.findByText("RAAJA");
+
+    expect(screen.getAllByText(/written at the same speed/i)).toHaveLength(2);
+  });
+
+  it("names the technique that answers it", async () => {
+    scripts.cast.mockResolvedValue({ data: COLLAPSED });
+    render(<CastView scriptId="s1" />);
+
+    expect(
+      await screen.findAllByText(/try: Give a character one phrase/i),
+    ).toHaveLength(2);
+  });
+
+  it("says nothing when there is nothing to say", async () => {
+    /* Silence is the normal state. A panel that always has an opinion is one
+       writers learn to skip. */
+    scripts.cast.mockResolvedValue({
+      data: { characters: COLLAPSED.characters, findings_by_character: {} },
+    });
+    render(<CastView scriptId="s1" />);
+    await screen.findByText("RAAJA");
+
+    expect(screen.queryByText(/written at the same speed/i)).toBeNull();
+  });
+
+  it("survives an older response that carries no findings at all", async () => {
+    scripts.cast.mockResolvedValue({ data: { characters: COLLAPSED.characters } });
+    render(<CastView scriptId="s1" />);
+
+    expect(await screen.findByText("RAAJA")).toBeInTheDocument();
+  });
+});
