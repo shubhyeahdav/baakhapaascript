@@ -624,15 +624,72 @@ Format correctly:
 {_format_language_rule(language)}"""
 
 
-def improve_prompt(scene_text, instruction, language="English", bible=None, patterns=None):
+SELECTION_OPEN = "<<<SELECTED>>>"
+SELECTION_CLOSE = "<<</SELECTED>>>"
+
+
+def scoped_selection(scene_text, selection):
+    """The selection, if it is one that can safely be rewritten in place.
+
+    Returns "" — meaning fall back to rewriting the whole scene — when the
+    selection is blank, absent from the scene, or present more than once. The
+    last case is the one worth being strict about: if the selected words occur
+    twice there is no way to know which occurrence the writer highlighted, and
+    replacing the wrong one silently edits a part of the draft they were not
+    looking at. Falling back is visible and recoverable; editing the wrong line
+    is neither.
+    """
+    sel = selection or ""
+    if not sel.strip():
+        return ""
+    if scene_text.count(sel) != 1:
+        return ""
+    return sel
+
+
+def improve_prompt(scene_text, instruction, language="English", bible=None,
+                   patterns=None, selection=""):
+    grounding = f"{format_bible_for_prompt(bible)}{format_patterns_for_prompt(patterns)}"
+
+    sel = scoped_selection(scene_text, selection)
+    if sel:
+        # Rewriting a whole scene to fix one line is the wrong unit of work. It
+        # costs a full generation, it takes back every other decision the writer
+        # made in that scene, and it makes the change impossible to read AS a
+        # change. The scene still goes into the prompt, because a line cannot be
+        # rewritten without knowing what it answers and what answers it — but
+        # only the marked part comes back.
+        before, _, after = scene_text.partition(sel)
+        marked = f"{before}{SELECTION_OPEN}{sel}{SELECTION_CLOSE}{after}"
+        return f"""Here is a screenplay scene. The writer has selected one part of it to rewrite. Everything outside the markers is theirs and must not change.
+
+{marked}
+
+The selected text, on its own:
+
+{sel}
+
+Instruction: {instruction}
+Language: {language}
+{grounding}
+Rewrite ONLY the selected text, following the instruction exactly. It has to fit where it sits: the line before it and the line after it are staying, so the replacement must still answer the first and set up the second. Keep the same speaker, and keep the same screenplay element — dialogue stays dialogue, action stays action, a scene heading stays a scene heading.
+
+Return only the replacement text. No markers, no surrounding lines, no explanation, and no quotation marks around it."""
+
     return f"""Here is a screenplay scene:
 
 {scene_text}
 
 Instruction: {instruction}
 Language: {language}
-{format_bible_for_prompt(bible)}{format_patterns_for_prompt(patterns)}
+{grounding}
 Rewrite the scene following the instruction exactly. Keep the same characters, location, and core story beat. Return only the rewritten scene."""
+
+
+def strip_selection_markers(text):
+    """Models sometimes echo the markers back. Cheap to remove here, confusing
+    on the page if they survive."""
+    return (text or "").replace(SELECTION_OPEN, "").replace(SELECTION_CLOSE, "")
 
 
 def stream_scene(**kw):
@@ -641,24 +698,34 @@ def stream_scene(**kw):
 
 
 def stream_improvement(**kw):
-    """Stream a rewrite. Same prompt as `improve_scene`."""
-    return _stream_llm(BAAKHAPAA_STYLE, improve_prompt(**kw), max_tokens=2000)
+    """Stream a rewrite. Same prompt as `improve_scene`.
+
+    A scoped rewrite is short, so the token budget comes down with it. A line
+    does not need a scene's allowance, and the cap is what the request is billed
+    against if the model decides to keep writing.
+    """
+    scoped = scoped_selection(kw.get("scene_text", ""), kw.get("selection", ""))
+    return _stream_llm(BAAKHAPAA_STYLE, improve_prompt(**kw),
+                       max_tokens=400 if scoped else 2000)
 
 
-def improve_scene(scene_text, instruction, language="English", bible=None, patterns=None):
+def improve_scene(scene_text, instruction, language="English", bible=None,
+                  patterns=None, selection=""):
+    scoped = scoped_selection(scene_text, selection)
+
+    if scoped and MOCK_AI:
+        # The caller replaces the selection with whatever comes back, so demo
+        # mode has to return the selection itself. Appending the usual demo
+        # notice here would write it into the middle of the writer's draft.
+        return scoped
+
     if MOCK_AI:
         return scene_text.rstrip() + "\n\n[Demo mode: showing your scene unchanged. Add a real ANTHROPIC_API_KEY to .env for AI rewrites following: \"" + instruction + "\"]"
 
-    prompt = f"""Here is a screenplay scene:
-
-{scene_text}
-
-Instruction: {instruction}
-Language: {language}
-{format_bible_for_prompt(bible)}{format_patterns_for_prompt(patterns)}
-Rewrite the scene following the instruction exactly. Keep the same characters, location, and core story beat. Return only the rewritten scene."""
-
-    return _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=2000)
+    prompt = improve_prompt(scene_text, instruction, language,
+                            bible=bible, patterns=patterns, selection=selection)
+    text = _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=400 if scoped else 2000)
+    return strip_selection_markers(text).strip() if scoped else text
 
 
 def suggest_continuations(scene_text, genre, tone):

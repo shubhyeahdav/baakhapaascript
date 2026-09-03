@@ -313,8 +313,7 @@ def cast_lines(text: str) -> list:
     Sorted by line count, because the character with the most to say is the one
     whose voice costs the most when it is wrong.
     """
-    doc = parse_document(text) if "parse_document" in globals() else None
-    elements = doc.elements if doc else parse(text)
+    elements = parse(text)
 
     by_speaker = {}
     for el in elements:

@@ -909,6 +909,101 @@ describe("generation streams", () => {
     expect(streamSSE.mock.calls[0][0]).toBe("/scripts/improve/stream");
   });
 
+  /**
+   * Improving one line rather than the whole scene.
+   *
+   * A writer asking for a rewrite almost always means one line. Rewriting the
+   * scene around it costs a full generation, takes back every other decision
+   * they made in that scene, and hands them a wall of new text to diff in their
+   * head. So a highlighted selection is sent, and the answer lands back exactly
+   * where it came from.
+   *
+   * Two things have to hold or the feature is worse than not having it: the
+   * replacement goes in the right place, and an ambiguous selection is refused
+   * rather than guessed at.
+   */
+  const SCENE = "INT. PASAL - DAY\n\nRAAJA\nI am very sad.\n\nSANJANA\nI know.";
+
+  const highlight = (el, text) => {
+    const start = el.value.indexOf(text);
+    el.setSelectionRange(start, start + text.length);
+    fireEvent.select(el, {
+      target: { selectionStart: start, selectionEnd: start + text.length,
+                value: el.value },
+    });
+  };
+
+  const improveWithSelection = async (scene, selected) => {
+    stubApi();
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.change(editor(), { target: { value: scene } });
+    if (selected) highlight(editor(), selected);
+    fireEvent.click(screen.getByRole("button", { name: /^improve/i }));
+    return editor();
+  };
+
+  it("sends the highlighted line, not just the scene", async () => {
+    await improveWithSelection(SCENE, "I am very sad.");
+    fireEvent.click(screen.getByRole("button", { name: /execute ai action/i }));
+
+    await waitFor(() => expect(streamSSE).toHaveBeenCalled());
+    expect(streamSSE.mock.calls[0][1].selection).toBe("I am very sad.");
+    expect(streamSSE.mock.calls[0][1].scene_text).toContain("SANJANA");
+  });
+
+  it("sends no selection when nothing is highlighted", async () => {
+    await improveWithSelection(SCENE, null);
+    fireEvent.click(screen.getByRole("button", { name: /execute ai action/i }));
+
+    await waitFor(() => expect(streamSSE).toHaveBeenCalled());
+    expect(streamSSE.mock.calls[0][1].selection).toBe("");
+  });
+
+  it("says which one it is about to do", async () => {
+    await improveWithSelection(SCENE, "I am very sad.");
+
+    expect(screen.getByText(/rewriting your selection/i)).toBeInTheDocument();
+  });
+
+  it("offers the other option when nothing is highlighted", async () => {
+    await improveWithSelection(SCENE, null);
+
+    expect(screen.getByText(/rewriting the whole scene/i)).toBeInTheDocument();
+    expect(screen.getByText(/highlight a line first/i)).toBeInTheDocument();
+  });
+
+  it("puts the rewrite back where the line was, leaving the rest alone", async () => {
+    const ta = await improveWithSelection(SCENE, "I am very sad.");
+    // After improveWithSelection, which calls stubApi and would otherwise
+    // reinstate the default two-chunk scene.
+    streamSSE.mockImplementation(async (_p, _b, onText) => {
+      onText("Baba is dying.");
+      return "Baba is dying.";
+    });
+    fireEvent.click(screen.getByRole("button", { name: /execute ai action/i }));
+    await screen.findByText(/Baba is dying/);
+    fireEvent.click(screen.getByRole("button", { name: /^accept$/i }));
+
+    await waitFor(() => expect(ta.value).toContain("Baba is dying."));
+    expect(ta.value).not.toContain("I am very sad.");
+    // Everything the writer did not select is untouched — including the line
+    // after it, which a whole-scene rewrite would have replaced.
+    expect(ta.value).toContain("INT. PASAL - DAY");
+    expect(ta.value).toContain("SANJANA");
+    expect(ta.value).toContain("I know.");
+  });
+
+  it("refuses to guess when the selected words appear twice", async () => {
+    /* "I know." is exactly the kind of short line a screenplay repeats.
+       Picking the first occurrence would rewrite one the writer was not
+       looking at, so this falls back to the whole scene instead. */
+    const doubled = SCENE + "\n\nRAAJA\nI know.";
+    await improveWithSelection(doubled, "I know.");
+
+    expect(screen.getByText(/rewriting the whole scene/i)).toBeInTheDocument();
+  });
+
   it("reports a failure that happens mid-stream", async () => {
     stubApi();
     streamSSE.mockRejectedValue({

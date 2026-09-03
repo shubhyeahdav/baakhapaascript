@@ -448,9 +448,16 @@ def improve(req: ImproveSceneRequest, user_id: str = Depends(require_paid_tier))
     )
     with ai_unavailable_as_503():
         text = script_engine.improve_scene(
-            req.scene_text, req.instruction, req.language, bible=bible, patterns=patterns,
+            req.scene_text, req.instruction, req.language, bible=bible,
+            patterns=patterns, selection=req.selection,
         )
-    return {"improved_text": text}
+    # The caller needs to know which it got back: a replacement for the
+    # selection, or a whole new scene. It cannot tell from the text alone, and
+    # guessing wrong either duplicates the scene or deletes it.
+    return {
+        "improved_text": text,
+        "scoped": bool(script_engine.scoped_selection(req.scene_text, req.selection)),
+    }
 
 
 @router.post("/improve/stream")
@@ -476,6 +483,7 @@ def improve_stream(req: ImproveSceneRequest, user_id: str = Depends(require_paid
     return _sse(script_engine.stream_improvement(
         scene_text=req.scene_text, instruction=req.instruction,
         language=req.language, bible=bible, patterns=patterns,
+        selection=req.selection,
     ))
 
 

@@ -163,7 +163,7 @@ def golden_set():
 
 def _entries_from_json(path="knowledge_base.json"):
     raw = json.load(io_open(path))
-    return raw if isinstance(raw, list) else (raw.get("patterns") or list(raw.values())[0])
+    return raw if isinstance(raw, list) else (raw.get("patterns") or next(iter(raw.values())))
 
 
 def io_open(path):

@@ -86,7 +86,7 @@ import { useAuth } from "../context/AuthContext";
 // tab is going to be visible, it should describe the feature and offer the plan.
 const PAID_MODES = {
   generate: "Write a full scene from a description — correctly formatted, in your project's language.",
-  improve: "Rewrite the scene you're on against an instruction, keeping the characters and the beat.",
+  improve: "Rewrite a line you have highlighted, or the whole scene if you have not, keeping the characters and the beat.",
   suggest: "Three different ways this scene could continue, read from what you've written so far.",
 };
 
@@ -335,6 +335,16 @@ export default function ScriptEditor() {
   }, [typewriter]);
   const [activeScene, setActiveScene] = useState(0);
   const textareaRef = useRef(null);
+  // What the writer has highlighted on the page, verbatim. Held as text rather
+  // than as offsets because offsets go stale the moment anything is typed while
+  // a request is in flight, and a stale offset replaces the wrong words
+  // silently. Text can be re-located, or found to be gone, which is the honest
+  // outcome.
+  const [selection, setSelection] = useState("");
+  // The selection as it was when Improve was pressed. The writer can keep
+  // working while the rewrite streams, so this is what the answer belongs to,
+  // not whatever is highlighted by the time it arrives.
+  const improveScope = useRef("");
 
   const [loadError, setLoadError] = useState("");
 
@@ -922,6 +932,25 @@ export default function ScriptEditor() {
     // eslint-disable-next-line
   }, [aiMode, script]);
 
+  /**
+   * Where a selection sits in the draft, or null if it cannot be acted on.
+   *
+   * This is the same rule the server applies in `script_engine.scoped_selection`,
+   * and the two have to agree: the server decides what to rewrite, this decides
+   * what to replace, and if they disagree the writer gets a line pasted over a
+   * scene or a scene pasted over a line.
+   *
+   * Ambiguity is refused rather than guessed. "I know." is exactly the kind of
+   * short line a screenplay repeats, and picking the first occurrence would
+   * rewrite one three pages from where the writer is looking.
+   */
+  const selectionRange = (text, sel) => {
+    if (!sel || !sel.trim()) return null;
+    const first = text.indexOf(sel);
+    if (first === -1 || text.indexOf(sel, first + 1) !== -1) return null;
+    return { start: first, end: first + sel.length };
+  };
+
   const handleAI = async () => {
     setAiLoading(true);
     try {
@@ -942,9 +971,17 @@ export default function ScriptEditor() {
         // This one matters more: the writer is watching their OWN words being
         // replaced, and seeing it land line by line is what lets them stop it
         // when it goes somewhere they did not want.
+        // A writer asking for a rewrite usually means one line, not the scene
+        // around it. Sending the highlighted text lets the server rewrite only
+        // that, and `improveScope` remembers what was asked so the answer can
+        // land back in the same place.
+        improveScope.current = selection;
         await streamSSE(
           "/scripts/improve/stream",
-          { scene_text: content, instruction, language, script_id: id },
+          {
+            scene_text: content, instruction, language, script_id: id,
+            selection,
+          },
           setAiResponse,
         );
       } else {
@@ -976,6 +1013,32 @@ export default function ScriptEditor() {
   const acceptAI = () => {
     const ta = textareaRef.current;
     const value = ta?.value ?? content;
+
+    // A scoped rewrite replaces the words it was asked about, in place. It is
+    // re-located in the CURRENT text rather than trusted from when the request
+    // was sent, because the writer can keep working while it streams — and if
+    // those words are now gone, or now appear twice, there is no safe place to
+    // put the answer and this falls back to inserting at the caret.
+    const scope = selectionRange(value, improveScope.current);
+    if (aiMode === "improve" && scope) {
+      const text = aiResponse.trim();
+      if (ta) {
+        replaceRange(scope.start, scope.end, text);
+        const caret = scope.start + text.length;
+        requestAnimationFrame(() => {
+          ta.setSelectionRange(caret, caret);
+          scrollCaretIntoView(typewriter || zenMode);
+        });
+      } else {
+        setContent(value.slice(0, scope.start) + text + value.slice(scope.end));
+      }
+      improveScope.current = "";
+      setSelection("");
+      setAiResponse("");
+      setInstruction("");
+      return;
+    }
+
     const at = ta ? ta.selectionStart : value.length;
     // Land as its own block, but don't stack blank lines if one is already there.
     const gap = at > 0 && !value.slice(0, at).endsWith("\n\n") ? "\n\n" : "";
@@ -1684,6 +1747,20 @@ export default function ScriptEditor() {
                 // of alignment and the next keystroke snaps it back.
                 if (typewriter && NAV_KEYS.has(e.key)) scrollCaretIntoView(true);
               }}
+              /* Fires for every way a selection can change: dragging,
+                 shift-arrows, double-click, select-all. Cheaper and more
+                 complete than trying to catch each of those separately. */
+              onSelect={(e) => {
+                const { selectionStart, selectionEnd, value } = e.target;
+                setSelection(
+                  selectionStart === selectionEnd
+                    ? ""
+                    : value.slice(selectionStart, selectionEnd),
+                );
+              }}
+              /* Deliberately NOT clearing the selection on blur. Pressing
+                 Improve moves focus off the page, and the whole feature depends
+                 on what was highlighted a moment earlier still being known. */
               onBlur={() => setSuggest(null)}
               />
             </div>
@@ -1887,6 +1964,32 @@ export default function ScriptEditor() {
               <UpgradePrompt mode={aiMode} onUpgrade={() => navigate("/pricing")} />
             ) : (
               <>
+                {/* What Improve is about to touch. A writer who has highlighted
+                    a line and a writer who has highlighted nothing are asking
+                    for very different amounts of change, and until this said so
+                    the only way to find out which you had asked for was to
+                    press the button and read the result. */}
+                {aiMode === "improve" && (
+                  <div className="mb-3 rounded-lg border border-border bg-surface/60 px-3 py-2">
+                    {selectionRange(content, selection) ? (
+                      <>
+                        <div className="font-mono text-[9.5px] uppercase tracking-wider text-gold mb-1">
+                          Rewriting your selection
+                        </div>
+                        <div className="text-[11.5px] text-inkSoft leading-snug line-clamp-2 font-mono">
+                          {selection.trim()}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-[11.5px] text-inkMuted leading-snug">
+                        Rewriting the whole scene.{" "}
+                        <span className="text-inkSoft">
+                          Highlight a line first to change only that.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <textarea
                   className="field h-28 mb-4 text-sm"
                   placeholder={

@@ -291,6 +291,13 @@ class ImproveSceneRequest(BaseModel):
     instruction: str
     language: str = "English"
     script_id: Optional[str] = None
+    # The part of `scene_text` the writer highlighted, verbatim. When it is
+    # present exactly once in the scene, only it is rewritten and only it comes
+    # back; otherwise the whole scene is rewritten, as before. Sending the text
+    # rather than an offset pair is deliberate: offsets go stale the moment the
+    # writer types anything while the request is in flight, and a stale offset
+    # replaces the wrong words silently.
+    selection: str = ""
 
 class SuggestRequest(BaseModel):
     scene_text: str
