@@ -166,22 +166,94 @@ html, body {
   position: relative;
 }
 
+/* Touch targets in the editor header.
+   Measured on a 375px screen: twenty-six controls under 32px tall, and two of
+   them — Back at 20px and Setup at 22px — under the 24px floor WCAG 2.2 sets
+   for a pointer target. On a phone that is the difference between pressing
+   Back and pressing the project title next to it.
+
+   The hit area grows; the layout does not. A min-height on the buttons
+   themselves would push the header from 56px to 88px and take that space off
+   the page, which on a 375px screen is about four lines of screenplay. An
+   overlay pseudo-element gets the same 44px of reachable target for nothing:
+   it is a child of the button, so a press anywhere on it is a press on the
+   button.
+
+   Height only, deliberately. A min-width would widen narrow controls into
+   their neighbours, and two adjacent 44px targets that overlap are worse than
+   one small one — the writer would press the wrong control rather than
+   nothing. Vertical space above and below a header control is empty. */
+@media (pointer: coarse) {
+  header button,
+  header a[href] {
+    position: relative;
+  }
+
+  header button::after,
+  header a[href]::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 44px;
+    /* Behind the button's own content, so an icon or label still paints. */
+    z-index: 0;
+  }
+}
+
 /* On a phone the page's own margins are the problem. 4rem/5rem of padding
    leaves about 215px of text on a 375px screen, which is a column too narrow
    to write a slugline in. The page keeps its proportions and gives up its
-   generous margins, because the margins are the part a writer does not read. */
+   generous margins, because the margins are the part a writer does not read.
+
+   That fix was not enough, and the measurement says why. With 1.25rem of
+   padding at 14px, a 375px screen held 35 of the 61 columns a screenplay line
+   is measured in. Thirty-five columns is not a narrow page, it is a different
+   format: every line of dialogue wraps, and a character cue — indented
+   twenty-two spaces before the name even starts — is past the right edge
+   before it has said anything. The one thing a screenplay page is FOR is that
+   the line breaks fall where the page says they fall.
+
+   So the font is sized to the column count instead of being chosen. Courier
+   Prime measures 0.5993em per character, so 61 columns need
+   61 x 0.5993 = 36.56em of width; inverting that gives the font size at which
+   a given width holds exactly a screenplay line. At 375px this lands at about
+   9.8px, which is small — and small-but-correct beats comfortable-but-wrong
+   for the only surface in the product whose job is to be a page. It returns to
+   15px as soon as there is room, and the floor stops it disappearing on the
+   narrowest phones still in use.
+
+   Verified in the browser at 375x812: 61 columns, no horizontal overflow. */
 @media (max-width: 767px) {
+  /* The dark surround costs columns too. 1rem each side here plus 0.5rem each
+     side on the page is 40px of a 375px screen — nearly seven columns of
+     screenplay spent on background. */
+  .screenplay-container {
+    padding: 1rem 0.25rem;
+  }
+
   .screenplay-page {
-    padding: 1.5rem 1.25rem;
+    /* Horizontal padding is deliberately small: on a phone every pixel of it
+       is a column of screenplay that does not fit. */
+    padding: 1.5rem 0.5rem;
     min-height: 60vh;
-    font-size: 14px;
+    /* 1.5rem is the whole horizontal budget above: 0.25rem of container and
+       0.5rem of page, either side. Keep this in step with those two if either
+       changes, or the page quietly stops holding a screenplay line.
+
+       36.8 rather than the exact 36.56 (61 x 0.5993em): sub-pixel rounding of
+       the glyph advance costs about a column, and being one column short is
+       the same failure as being twenty short — the line wraps. */
+    font-size: clamp(9.4px, calc((100vw - 1.5rem) / 36.8), 15px);
     box-shadow: none;
   }
   /* Same asymmetry as the desktop rule: a real top margin, deep bottom. On a
      phone the viewport is short enough that a centred first line filled the
      whole screen with nothing. */
   .screenplay-page.zen-page {
-    padding: 5vh 1.25rem 40vh;
+    padding: 5vh 0.5rem 40vh;
   }
 }
 
