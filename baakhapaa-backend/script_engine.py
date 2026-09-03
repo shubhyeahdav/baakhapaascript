@@ -144,8 +144,29 @@ def _demo_structure(duration_minutes):
     }
 
 
-def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> str:
-    """Single choke point for every text generation call."""
+def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
+              usage_sink=None) -> str:
+    """Single choke point for every text generation call.
+
+    `usage_sink`, when given, is a list that receives one
+    `{"input_tokens", "output_tokens"}` dict per call. It exists so a caller
+    that knows WHO is generating — the routes do; this module does not — can
+    charge the tokens against a monthly ceiling. Passing a sink rather than
+    returning a tuple keeps every existing call site working, and passing a
+    list rather than setting a module global keeps it correct when several
+    generations run at once.
+
+    The numbers come from the provider's own `usage` block, never from an
+    estimate of prompt length. Estimates drift, and they drift in the direction
+    that costs money.
+
+    On prompt caching, since it is the obvious next thought and the answer is
+    no: the stable prefix here is `BAAKHAPAA_STYLE`, measured at about 131
+    tokens, and the minimum cacheable prefix is 1024. Even with the story bible
+    and the retrieved craft patterns folded into the system block it comes to
+    roughly 820, and the patterns are not stable between requests anyway.
+    Adding `cache_control` would read like an optimisation and cache nothing.
+    """
     if PROVIDER == "groq":
         try:
             resp = _groq_client.chat.completions.create(
@@ -156,6 +177,11 @@ def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> s
                     {"role": "user", "content": user_prompt},
                 ],
             )
+            if usage_sink is not None and getattr(resp, "usage", None):
+                usage_sink.append({
+                    "input_tokens": getattr(resp.usage, "prompt_tokens", 0) or 0,
+                    "output_tokens": getattr(resp.usage, "completion_tokens", 0) or 0,
+                })
             return resp.choices[0].message.content or ""
         except Exception as e:
             raise RuntimeError(f"Groq API error: {str(e)}") from e
@@ -167,6 +193,11 @@ def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> s
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
         )
+        if usage_sink is not None and getattr(message, "usage", None):
+            usage_sink.append({
+                "input_tokens": getattr(message.usage, "input_tokens", 0) or 0,
+                "output_tokens": getattr(message.usage, "output_tokens", 0) or 0,
+            })
         # Filter by type rather than indexing [0]: with thinking enabled a
         # thinking block comes first and content[0].text would raise.
         return next((b.text for b in message.content if b.type == "text"), "")
@@ -179,7 +210,8 @@ def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> s
 _call_claude = _call_llm
 
 
-def _stream_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000):
+def _stream_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
+                usage_sink=None):
     """Yield the model's answer in pieces, as it is written.
 
     Why this exists: `_call_llm` blocks until the whole response is composed, so
@@ -212,6 +244,12 @@ def _stream_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000):
                 piece = event.choices[0].delta.content
                 if piece:
                     yield piece
+                usage = getattr(event, "usage", None)
+                if usage_sink is not None and usage:
+                    usage_sink.append({
+                        "input_tokens": getattr(usage, "prompt_tokens", 0) or 0,
+                        "output_tokens": getattr(usage, "completion_tokens", 0) or 0,
+                    })
         except Exception as e:
             raise RuntimeError(f"Groq API error: {str(e)}") from e
         return
@@ -224,6 +262,18 @@ def _stream_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000):
             messages=[{"role": "user", "content": user_prompt}],
         ) as stream:
             yield from stream.text_stream
+            # Read after the stream is drained: usage is only complete on the
+            # final message. A generator the caller abandons half-way never
+            # reaches this, and that is correct — the caller stopped reading,
+            # but the tokens were still bought, so an abandoned stream is a
+            # known small under-count rather than a wrong one.
+            if usage_sink is not None:
+                final = stream.get_final_message()
+                if getattr(final, "usage", None):
+                    usage_sink.append({
+                        "input_tokens": getattr(final.usage, "input_tokens", 0) or 0,
+                        "output_tokens": getattr(final.usage, "output_tokens", 0) or 0,
+                    })
     except Exception as e:
         raise RuntimeError(f"Claude API error: {str(e)}") from e
 
@@ -568,7 +618,7 @@ def _format_language_rule(language: str) -> str:
 
 
 def generate_scene(scene_description, genre, tone, language, character_names,
-                   act_number=1, bible=None, patterns=None):
+                   act_number=1, bible=None, patterns=None, usage_sink=None):
     if MOCK_AI:
         return _DEMO_SCENE
 
@@ -594,7 +644,7 @@ Format correctly:
 - Dialogue below character name
 {_format_language_rule(language)}"""
 
-    return _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=2000)
+    return _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=2000, usage_sink=usage_sink)
 
 
 # The prompt builders below exist so the streaming and blocking paths cannot
@@ -692,12 +742,13 @@ def strip_selection_markers(text):
     return (text or "").replace(SELECTION_OPEN, "").replace(SELECTION_CLOSE, "")
 
 
-def stream_scene(**kw):
+def stream_scene(usage_sink=None, **kw):
     """Stream a generated scene. Same prompt as `generate_scene`."""
-    return _stream_llm(BAAKHAPAA_STYLE, scene_prompt(**kw), max_tokens=2000)
+    return _stream_llm(BAAKHAPAA_STYLE, scene_prompt(**kw), max_tokens=2000,
+                       usage_sink=usage_sink)
 
 
-def stream_improvement(**kw):
+def stream_improvement(usage_sink=None, **kw):
     """Stream a rewrite. Same prompt as `improve_scene`.
 
     A scoped rewrite is short, so the token budget comes down with it. A line
@@ -706,11 +757,11 @@ def stream_improvement(**kw):
     """
     scoped = scoped_selection(kw.get("scene_text", ""), kw.get("selection", ""))
     return _stream_llm(BAAKHAPAA_STYLE, improve_prompt(**kw),
-                       max_tokens=400 if scoped else 2000)
+                       max_tokens=400 if scoped else 2000, usage_sink=usage_sink)
 
 
 def improve_scene(scene_text, instruction, language="English", bible=None,
-                  patterns=None, selection=""):
+                  patterns=None, selection="", usage_sink=None):
     scoped = scoped_selection(scene_text, selection)
 
     if scoped and MOCK_AI:
@@ -724,7 +775,8 @@ def improve_scene(scene_text, instruction, language="English", bible=None,
 
     prompt = improve_prompt(scene_text, instruction, language,
                             bible=bible, patterns=patterns, selection=selection)
-    text = _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=400 if scoped else 2000)
+    text = _call_llm(BAAKHAPAA_STYLE, prompt, max_tokens=400 if scoped else 2000,
+                     usage_sink=usage_sink)
     return strip_selection_markers(text).strip() if scoped else text
 
 

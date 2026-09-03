@@ -119,13 +119,43 @@ def is_paid_tier(user_id: str) -> bool:
 
 def require_paid_tier(user_id: str = Depends(get_current_user)) -> str:
     """Dependency for Claude-powered endpoints. Free tier gets RAG pattern
-    recommendations only (zero marginal cost); Claude generation is Pro/Studio."""
+    recommendations only (zero marginal cost); Claude generation is Pro/Studio.
+
+    Also the monthly spend ceiling. Every AI route was gated by tier and by
+    nothing else, which is fine until it is not: a Pro subscription is Rs 999
+    and bought unmetered generation, so nothing stopped one account generating
+    continuously and the first anyone would learn of it was the provider
+    invoice. The ceiling is checked here rather than per route so a new AI route
+    cannot be added without it.
+
+    Checked before the call, not after — after is too late, the tokens are
+    already bought. That means the ceiling can be passed by at most one request,
+    which is the right amount of imprecision for something whose job is to stop
+    a runaway rather than to bill.
+    """
     if not is_paid_tier(user_id):
         raise HTTPException(
             status_code=403,
             detail="AI generation requires a Pro or Studio plan. Your free plan "
                    "includes structural pattern recommendations in the editor — "
                    "upgrade at /pricing for full AI writing.",
+        )
+
+    import ai_budget
+
+    tier = get_user_tier(user_id)
+    if ai_budget.over_ceiling(user_id, tier):
+        summary = ai_budget.summary(user_id, tier)
+        # 429, not 402. The account is in good standing and has paid; it has
+        # used this month's generation. Paying again would not help, and 402
+        # would send them to a checkout page that cannot fix it.
+        raise HTTPException(
+            status_code=429,
+            detail=f"You have used this month's AI generation on the {tier} plan. "
+                   f"It resets at the start of next month. Everything that does "
+                   f"not call a model — the craft panel, the linter, the review, "
+                   f"the whole course — keeps working. "
+                   f"(Used ${summary['spent_usd']:.2f} of ${summary['ceiling_usd']:.2f}.)",
         )
     return user_id
 

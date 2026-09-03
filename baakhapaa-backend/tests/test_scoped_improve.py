@@ -140,7 +140,7 @@ def test_a_scoped_rewrite_asks_for_a_smaller_budget(monkeypatch):
     monkeypatch.setattr(script_engine, "MOCK_AI", False)
     seen = {}
 
-    def record(system, prompt, max_tokens=3000):
+    def record(system, prompt, max_tokens=3000, **kw):
         seen["max_tokens"] = max_tokens
         return "x"
 
@@ -158,7 +158,7 @@ def test_a_scoped_stream_asks_for_a_smaller_budget_too(monkeypatch):
     monkeypatch.setattr(script_engine, "MOCK_AI", False)
     seen = {}
 
-    def record(system, prompt, max_tokens=3000):
+    def record(system, prompt, max_tokens=3000, **kw):
         seen["max_tokens"] = max_tokens
         return iter(())
 

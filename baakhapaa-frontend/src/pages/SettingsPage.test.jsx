@@ -28,6 +28,7 @@ vi.mock("react-router-dom", () => ({
 
 vi.mock("../services/api", () => ({
   projects: { getAll: vi.fn() },
+  subscription: { usage: vi.fn() },
   auth: { deleteAccount: vi.fn() },
 }));
 
@@ -45,7 +46,7 @@ vi.mock("../components/TeamPanel", () => ({
 // eslint-disable-next-line import/first
 import SettingsPage from "./SettingsPage";
 // eslint-disable-next-line import/first
-import { projects, auth as authApi } from "../services/api";
+import { projects, subscription, auth as authApi } from "../services/api";
 
 const logout = vi.fn();
 
@@ -59,6 +60,11 @@ beforeEach(() => {
     logout,
   };
   projects.getAll.mockResolvedValue({ data: [] });
+  // The default is a paid plan with nothing spent yet.
+  subscription.usage.mockResolvedValue({
+    data: { period: "2026-09", spent_usd: 0, ceiling_usd: 6, remaining_usd: 6,
+            metered: true },
+  });
   authApi.deleteAccount.mockResolvedValue({});
 });
 
@@ -297,10 +303,15 @@ describe("usage", () => {
     expect(screen.queryByText("NaN")).not.toBeInTheDocument();
   });
 
-  it("admits that per-call metering does not exist yet", async () => {
+  it("no longer claims per-call metering does not exist", async () => {
+    /* It did not, and the page said so, which was the honest thing at the
+       time. It does now, so the disclaimer had to go — a page describing a
+       feature the product lacks is honest; one describing a lack the product
+       no longer has is just wrong. */
     showUsage();
 
-    expect(await screen.findByText(/isn't tracked yet/)).toBeInTheDocument();
+    await screen.findByText("Minutes planned");
+    expect(screen.queryByText(/isn't tracked yet/)).toBeNull();
   });
 
   it("says so when the projects list cannot be loaded", async () => {
@@ -308,5 +319,58 @@ describe("usage", () => {
     showUsage();
 
     expect(await screen.findByText("Could not load usage data.")).toBeInTheDocument();
+  });
+});
+
+/**
+ * The monthly generation ceiling.
+ *
+ * This section used to say per-call AI metering "isn't tracked yet". It is now,
+ * and a page that describes a feature the product has is worse than one that
+ * describes a feature it lacks — the second is honest.
+ */
+describe("AI generation this month", () => {
+  const openUsage = async (usage) => {
+    if (usage === null) subscription.usage.mockRejectedValue(new Error("nope"));
+    else if (usage) subscription.usage.mockResolvedValue({ data: usage });
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("button", { name: /usage/i }));
+  };
+
+  it("shows what has been spent against the ceiling", async () => {
+    await openUsage({ period: "2026-09", spent_usd: 1.5, ceiling_usd: 6,
+                      remaining_usd: 4.5, metered: true });
+
+    expect(await screen.findByText(/\$1\.50 \/ \$6\.00/)).toBeInTheDocument();
+    expect(screen.getByText(/AI generation · 2026-09/)).toBeInTheDocument();
+  });
+
+  it("says what the ceiling does and does not stop", async () => {
+    /* The sentence a writer needs when they hit it: the parts of the product
+       that do not call a model keep working. */
+    await openUsage({ period: "2026-09", spent_usd: 6, ceiling_usd: 6,
+                      remaining_usd: 0, metered: true });
+
+    expect(
+      await screen.findByText(/craft panel, the linter, the review/i),
+    ).toBeInTheDocument();
+  });
+
+  it("tells a free user why there is nothing to meter", async () => {
+    /* Not 'you have used 0 of 0'. The free plan does not call a model at all,
+       and saying so explains why the craft panel is still free. */
+    await openUsage({ period: "2026-09", spent_usd: 0, ceiling_usd: 0,
+                     remaining_usd: 0, metered: false });
+
+    expect(
+      await screen.findByText(/not metered on the free plan/i),
+    ).toBeInTheDocument();
+  });
+
+  it("shows no spend figure at all when the request fails", async () => {
+    /* A spend figure that might be wrong is worse than none. */
+    await openUsage(null);
+
+    expect(screen.queryByText(/AI generation ·/)).toBeNull();
   });
 });

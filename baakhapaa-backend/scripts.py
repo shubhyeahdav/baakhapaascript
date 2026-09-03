@@ -15,6 +15,7 @@ from database import (
     supabase, get_project_by_id, get_versions_by_script,
 )
 import membership
+import ai_budget
 import recommendation_log
 import voice
 from auth import (
@@ -199,6 +200,30 @@ def add_scene(req: AddSceneRequest, user_id: str = Depends(get_current_user)):
         "characters_json": json.dumps(req.characters),
     }).execute()
     return result.data[0]
+
+
+def _charging(user_id, usage_sink, chunks):
+    """Pass a stream through, then charge what it cost.
+
+    The usage numbers only exist once the stream is finished, so the charge has
+    to happen after the last chunk — which means wrapping the generator rather
+    than calling `_charge` beside it.
+    """
+    yield from chunks
+    _charge(user_id, usage_sink)
+
+
+def _charge(user_id, usage_sink):
+    """Bill one generation's tokens against the account's monthly ceiling.
+
+    The provider's own numbers, never an estimate of prompt length. An empty
+    sink means the provider reported nothing — demo mode, or a failure — and
+    charging a guess for it would make the ceiling wrong in the direction that
+    costs a writer their month.
+    """
+    for use in usage_sink or []:
+        ai_budget.record(user_id, use.get("input_tokens", 0),
+                         use.get("output_tokens", 0))
 
 
 RECOMMENDATION_COUNT = 3
@@ -435,11 +460,13 @@ def _craft_for(query: str, genre: str, tone: str, scene_text: str = "") -> list:
 def generate_scene(req: GenerateSceneRequest, user_id: str = Depends(require_paid_tier)):
     bible = _bible_for(req.script_id, user_id)
     patterns = _craft_for(req.scene_description, req.genre, req.tone)
+    spend = []
     with ai_unavailable_as_503():
         text = script_engine.generate_scene(
             req.scene_description, req.genre, req.tone, req.language, req.character_names,
-            bible=bible, patterns=patterns,
+            bible=bible, patterns=patterns, usage_sink=spend,
         )
+    _charge(user_id, spend)
     return {"scene_text": text}
 
 
@@ -480,11 +507,16 @@ def generate_scene_stream(req: GenerateSceneRequest, user_id: str = Depends(requ
     """
     bible = _bible_for(req.script_id, user_id)
     patterns = _craft_for(req.scene_description, req.genre, req.tone)
-    return _sse(script_engine.stream_scene(
+    # The generator charges itself once the stream is drained. A stream the
+    # writer abandons half-way never gets there, which is a known small
+    # under-count rather than a wrong one: they stopped reading, but the tokens
+    # were bought.
+    spend = []
+    return _sse(_charging(user_id, spend, script_engine.stream_scene(
         scene_description=req.scene_description, genre=req.genre, tone=req.tone,
         language=req.language, character_names=req.character_names,
-        bible=bible, patterns=patterns,
-    ))
+        bible=bible, patterns=patterns, usage_sink=spend,
+    )))
 
 
 @router.post("/improve")
@@ -503,11 +535,13 @@ def improve(req: ImproveSceneRequest, user_id: str = Depends(require_paid_tier))
         project.get("tone") or "Emotional",
         scene_text=req.scene_text,
     )
+    spend = []
     with ai_unavailable_as_503():
         text = script_engine.improve_scene(
             req.scene_text, req.instruction, req.language, bible=bible,
-            patterns=patterns, selection=req.selection,
+            patterns=patterns, selection=req.selection, usage_sink=spend,
         )
+    _charge(user_id, spend)
     # The caller needs to know which it got back: a replacement for the
     # selection, or a whole new scene. It cannot tell from the text alone, and
     # guessing wrong either duplicates the scene or deletes it.
@@ -537,11 +571,12 @@ def improve_stream(req: ImproveSceneRequest, user_id: str = Depends(require_paid
         project.get("tone") or "Emotional",
         scene_text=req.scene_text,
     )
-    return _sse(script_engine.stream_improvement(
+    spend = []
+    return _sse(_charging(user_id, spend, script_engine.stream_improvement(
         scene_text=req.scene_text, instruction=req.instruction,
         language=req.language, bible=bible, patterns=patterns,
-        selection=req.selection,
-    ))
+        selection=req.selection, usage_sink=spend,
+    )))
 
 
 @router.post("/suggest")

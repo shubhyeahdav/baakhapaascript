@@ -67,6 +67,21 @@ def payment_history(user_id: str = Depends(get_current_user)):
     return {"payments": payments.history(user_id)}
 
 
+@router.get("/usage")
+def ai_usage(user_id: str = Depends(get_current_user)):
+    """What this account has spent on generation this month, and its ceiling.
+
+    Reported in dollars because that is what the ceiling is denominated in — a
+    token count means nothing to a screenwriter. Free plans report
+    `metered: false`: they never call a model, so there is nothing to meter and
+    a progress bar reading 0% of 0 would be worse than no bar at all.
+    """
+    import ai_budget
+    from auth import get_user_tier
+
+    return ai_budget.summary(user_id, get_user_tier(user_id))
+
+
 @router.post("/webhook")
 async def webhook(request: Request):
     # Stripe calls this directly (no auth). Verify against the raw body.

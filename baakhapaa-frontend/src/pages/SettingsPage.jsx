@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import TopNav from "../components/TopNav";
 import TeamPanel from "../components/TeamPanel";
-import { projects, auth as authApi } from "../services/api";
+import { projects, subscription, auth as authApi } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
 const TABS = ["Account", "Team Members", "API Usage"];
@@ -45,9 +45,21 @@ export default function SettingsPage() {
   const deepLink = TABS.find((t) => t.toLowerCase().replace(/\s+/g, "") === wanted);
   const [tab, setTab] = useState(deepLink || "Account");
   const [stats, setStats] = useState(null);
+  // What this account has spent on generation this month, against its ceiling.
+  // Null while loading or if the request fails; the section below simply does
+  // not render then, because a spend figure that might be wrong is worse than
+  // no spend figure.
+  const [aiUsage, setAiUsage] = useState(null);
 
-  // Lightweight usage stats derived from the projects list (no usage-metering
-  // backend yet — counts are the honest number we actually have).
+  useEffect(() => {
+    subscription
+      .usage()
+      .then((res) => setAiUsage(res.data))
+      .catch(() => setAiUsage(null));
+  }, []);
+
+  // Lightweight usage stats derived from the projects list. These are library
+  // counts, not metering — the metering is `aiUsage` above.
   useEffect(() => {
     projects
       .getAll()
@@ -205,11 +217,39 @@ export default function SettingsPage() {
                     </div>
                   ))}
                 </div>
-                <p className="text-inkMuted text-[12.5px] leading-relaxed max-w-md">
-                  Per-call AI usage metering isn't tracked yet — these counts come
-                  from your project library. Detailed usage reporting lands with
-                  tier limits.
-                </p>
+                {aiUsage?.metered ? (
+                  <div className="rounded-2xl border border-borderSoft bg-surface px-5 py-4 max-w-md">
+                    <div className="flex items-baseline justify-between gap-3 mb-2">
+                      <span className="text-inkMuted text-[11px] tracking-[0.14em] uppercase">
+                        AI generation · {aiUsage.period}
+                      </span>
+                      <span className="font-mono text-[12px] text-ink tabular-nums">
+                        ${aiUsage.spent_usd.toFixed(2)} / ${aiUsage.ceiling_usd.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-bgDeep overflow-hidden">
+                      <div
+                        className="h-full bg-gold"
+                        style={{
+                          width: `${Math.min(100, (aiUsage.spent_usd / (aiUsage.ceiling_usd || 1)) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="text-inkMuted text-[12px] leading-relaxed mt-3">
+                      A monthly ceiling on generation, so a runaway cannot quietly
+                      spend the month. It resets on the first. Everything that does
+                      not call a model — the craft panel, the linter, the review,
+                      the course — is unaffected by it.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-inkMuted text-[12.5px] leading-relaxed max-w-md">
+                    The counts above come from your project library. AI generation
+                    is not metered on the free plan, because the free plan does not
+                    call a model — the craft panel runs on retrieval, which costs
+                    nothing per use.
+                  </p>
+                )}
               </>
             ) : (
               <p className="text-inkMuted text-sm">Could not load usage data.</p>

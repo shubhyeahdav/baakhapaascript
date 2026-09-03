@@ -320,3 +320,26 @@ CREATE TABLE craft_recommendations (
   UNIQUE (script_id, technique)
 );
 CREATE INDEX craft_recommendations_script_idx ON craft_recommendations (script_id);
+
+-- What each account has spent on generation this calendar month.
+--
+-- Every AI route was gated by tier and by nothing else, which is fine until it
+-- is not: Pro is Rs 999 a month and bought unmetered generation, so nothing
+-- stopped one account generating continuously and the first anyone would learn
+-- of it was the provider invoice.
+--
+-- One row per user per month. `period` is 'YYYY-MM' rather than a timestamp
+-- range so a writer can look at a date and know when it resets. Holds token
+-- counts and a dollar total, never prompt or draft text.
+CREATE TABLE ai_usage (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  period TEXT NOT NULL,                       -- 'YYYY-MM'
+  input_tokens BIGINT NOT NULL DEFAULT 0,
+  output_tokens BIGINT NOT NULL DEFAULT 0,
+  cost_usd NUMERIC(12,6) NOT NULL DEFAULT 0,
+  calls INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, period)
+);
+CREATE INDEX ai_usage_user_idx ON ai_usage (user_id, period DESC);
