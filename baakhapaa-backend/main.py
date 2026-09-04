@@ -44,8 +44,25 @@ if _cors_origins:
 else:
     app.add_middleware(
         CORSMiddleware,
-        # Local dev only: CRA and the preview server pick varying ports.
-        allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+        # Local dev only, and only reachable at all when CORS_ORIGINS is unset
+        # — in production an unset CORS_ORIGINS is a boot error, not a fallback
+        # (see deploy_checks.collect), so widening this cannot widen anything
+        # deployed.
+        #
+        # Private LAN addresses are here so the app can be opened on a phone on
+        # the same WiFi, which is the only way to test the mobile layout on a
+        # real device: the browser then sends an origin like
+        # http://192.168.1.85:3000, which the localhost pattern rejects. The
+        # three ranges are the RFC 1918 private blocks and nothing else — a
+        # public address still fails.
+        allow_origin_regex=(
+            r"http://("
+            r"localhost|127\.0\.0\.1"
+            r"|10\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+            r"|192\.168\.\d{1,3}\.\d{1,3}"
+            r"|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}"
+            r"):\d+"
+        ),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
