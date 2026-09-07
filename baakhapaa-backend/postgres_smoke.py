@@ -80,6 +80,50 @@ def require_real_postgres():
     _ok(f"talking to real Postgres ({kind})")
 
 
+# --- 0b. every table the schema file defines ---------------------------------
+
+EXPECTED_TABLES = [
+    "users", "projects", "scripts", "scenes", "storyboard_frames", "versions",
+    "comments", "subscriptions", "project_members", "project_invites",
+    "payments", "access_log", "craft_recommendations", "ai_usage",
+    "script_patterns",
+]
+
+
+@_step("tables")
+def tables_exist():
+    """Check every table before touching any of them.
+
+    A paste into the SQL editor that hits an error stops there, leaving a
+    database that looks fine — the early tables exist — until the first request
+    reaches a late one. `project_invites` sits at line 199 of the schema file,
+    which is exactly the sort of place a half-finished run ends.
+
+    The mock creates tables on demand, so this class of problem cannot happen
+    locally and no test can catch it.
+    """
+    from database import supabase
+
+    missing = []
+    for name in EXPECTED_TABLES:
+        try:
+            supabase.table(name).select("*").limit(1).execute()
+        except Exception as e:
+            if "PGRST205" in str(e) or "Could not find the table" in str(e):
+                missing.append(name)
+            else:
+                _note(f"{name}: {str(e)[:80]}")
+
+    if missing:
+        _bad(f"missing from Postgres: {', '.join(missing)}. Re-run the SQL that "
+             f"creates them — a paste that errors part way stops there. "
+             f"script_patterns lives in pgvector_script_patterns.sql, "
+             f"everything else in supabase_schema.sql.")
+        return False
+    _ok(f"all {len(EXPECTED_TABLES)} tables exist")
+    return True
+
+
 # --- 1. the deploy gate -----------------------------------------------------
 
 @_step("deploy checks")
@@ -121,9 +165,20 @@ def register(client):
         return None
 
     _ok(f"account row is in Postgres ({email})")
-    body = r.json()
+
+    # `/auth/register` returns a UserResponse, not a token — registering and
+    # signing in are separate steps, which is what the frontend does too.
+    signin = client.post("/auth/login", json={
+        "email": email, "password": "Sm0ke!Test!2026",
+    })
+    if signin.status_code != 200:
+        _bad(f"registered but could not log in: {signin.status_code} "
+             f"{signin.text[:160]}")
+        return None
+    _ok("logged in with the account just created")
+
     return {"email": email, "id": rows[0]["id"],
-            "headers": {"Authorization": f"Bearer {body['token']}"}}
+            "headers": {"Authorization": f"Bearer {signin.json()['token']}"}}
 
 
 # --- 3. a draft reconciles into scene rows ----------------------------------
@@ -278,6 +333,7 @@ def main():
     client = TestClient(app_module.app)
     user = made = None
     try:
+        print("\ntables");        tables_exist()
         print("\ndeploy checks"); deploy_gate()
         print("\naccounts");      user = register(client)
         if user:

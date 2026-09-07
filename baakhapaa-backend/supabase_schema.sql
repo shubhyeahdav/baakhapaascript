@@ -1,3 +1,19 @@
+-- Every CREATE here is IF NOT EXISTS, so this file can be pasted again.
+--
+-- That is not tidiness. On 2026-09-07 a paste into the Supabase SQL editor
+-- stopped part way through: the first eight tables existed and the last six did
+-- not, and the app looked fine until a request reached a late one. The obvious
+-- recovery — paste it again — then failed on the FIRST statement with "relation
+-- users already exists", which stops the script and leaves the database exactly
+-- as broken as before.
+--
+-- `project_invites` was already written this way. The lesson had been learned
+-- once and applied in one place.
+--
+-- Re-running this on a populated database is safe: it creates what is missing
+-- and touches nothing that exists. It does NOT alter a table whose definition
+-- has changed — those are the commented migrations below.
+
 -- MIGRATION (run once, before deploying Google sign-in):
 --   ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
 --   ALTER TABLE users ADD COLUMN auth_provider TEXT NOT NULL DEFAULT 'password';
@@ -13,7 +29,7 @@
 -- delete the duplicate first. A case-insensitive index keeps it that way:
 --   CREATE UNIQUE INDEX users_email_lower_idx ON users (lower(email));
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
@@ -66,7 +82,7 @@ CREATE TABLE users (
 --
 -- For format = 'web_series', duration_minutes is ONE EPISODE, not the season.
 -- Season length is duration_minutes * episode_count.
-CREATE TABLE projects (
+CREATE TABLE IF NOT EXISTS projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -96,7 +112,7 @@ CREATE TABLE projects (
 -- bible_json holds the story bible (logline, dramatic question, theme,
 -- character sheets, locations) as a JSON string — one nullable column rather
 -- than a migration per field, same pattern as suggestions_json.
-CREATE TABLE scripts (
+CREATE TABLE IF NOT EXISTS scripts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   bible_json TEXT,
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
@@ -113,7 +129,7 @@ CREATE TABLE scripts (
 -- heading, time of day, speaking characters, a summary of the action — so a
 -- storyboard illustrates the page rather than the plan. One JSON column for the
 -- derived set, same pattern as suggestions_json.
-CREATE TABLE scenes (
+CREATE TABLE IF NOT EXISTS scenes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   script_id UUID REFERENCES scripts(id) ON DELETE CASCADE,
   act_number INTEGER,
@@ -133,7 +149,7 @@ CREATE TABLE scenes (
 -- ALTER TABLE scenes ADD COLUMN IF NOT EXISTS characters_json TEXT;
 -- ALTER TABLE scenes ADD COLUMN IF NOT EXISTS draft_json TEXT;
 
-CREATE TABLE storyboard_frames (
+CREATE TABLE IF NOT EXISTS storyboard_frames (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   scene_id UUID REFERENCES scenes(id) ON DELETE CASCADE,
   image_url TEXT,
@@ -142,7 +158,7 @@ CREATE TABLE storyboard_frames (
   order_index INTEGER
 );
 
-CREATE TABLE versions (
+CREATE TABLE IF NOT EXISTS versions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   script_id UUID REFERENCES scripts(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id),
@@ -151,7 +167,7 @@ CREATE TABLE versions (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE comments (
+CREATE TABLE IF NOT EXISTS comments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   script_id UUID REFERENCES scripts(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id),
@@ -160,7 +176,7 @@ CREATE TABLE comments (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   tier TEXT DEFAULT 'free',
@@ -175,7 +191,7 @@ CREATE TABLE subscriptions (
 -- The project's `user_id` remains the owner and is always an admin, so no row
 -- is needed for them — which is why every project created before this table
 -- existed keeps working untouched.
-CREATE TABLE project_members (
+CREATE TABLE IF NOT EXISTS project_members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -183,7 +199,7 @@ CREATE TABLE project_members (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (project_id, user_id)
 );
-CREATE INDEX idx_project_members_user ON project_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
 
 
 -- Invitations to people who do not have an account yet.
@@ -222,7 +238,7 @@ CREATE INDEX IF NOT EXISTS idx_project_invites_project ON project_invites(projec
 -- `reference` is ours (purchase_order_id for Khalti, transaction_uuid for
 -- eSewa, client_reference_id for Stripe). `provider_ref` is theirs, and is
 -- never returned to a client.
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   tier TEXT NOT NULL CHECK (tier IN ('pro', 'studio')),
@@ -238,8 +254,8 @@ CREATE TABLE payments (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   completed_at TIMESTAMPTZ
 );
-CREATE INDEX idx_payments_user ON payments(user_id);
-CREATE INDEX idx_payments_reference ON payments(reference);
+CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id);
+CREATE INDEX IF NOT EXISTS idx_payments_reference ON payments(reference);
 
 -- ---------------------------------------------------------------------------
 -- Atomic project deletion.
@@ -284,14 +300,14 @@ $$ LANGUAGE plpgsql;
 -- what: no draft text, no scene names, nothing about the content of a visit.
 -- Deleted with the project, so erasing a project leaves behind no record of
 -- who used to look at it.
-CREATE TABLE access_log (
+CREATE TABLE IF NOT EXISTS access_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   script_id UUID REFERENCES scripts(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   action TEXT NOT NULL,  -- opened | exported | imported
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX access_log_script_idx ON access_log (script_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS access_log_script_idx ON access_log (script_id, created_at DESC);
 
 -- What the craft panel has already recommended for a script, and whether the
 -- writer went and fixed it.
@@ -308,7 +324,7 @@ CREATE INDEX access_log_script_idx ON access_log (script_id, created_at DESC);
 --
 -- Holds no draft text: a technique name and two timestamps. Deleted with the
 -- script, so erasing a project leaves no record of what its writer was told.
-CREATE TABLE craft_recommendations (
+CREATE TABLE IF NOT EXISTS craft_recommendations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   script_id UUID REFERENCES scripts(id) ON DELETE CASCADE,
   technique TEXT NOT NULL,
@@ -319,7 +335,7 @@ CREATE TABLE craft_recommendations (
   resolved_at TIMESTAMPTZ,
   UNIQUE (script_id, technique)
 );
-CREATE INDEX craft_recommendations_script_idx ON craft_recommendations (script_id);
+CREATE INDEX IF NOT EXISTS craft_recommendations_script_idx ON craft_recommendations (script_id);
 
 -- What each account has spent on generation this calendar month.
 --
@@ -331,7 +347,7 @@ CREATE INDEX craft_recommendations_script_idx ON craft_recommendations (script_i
 -- One row per user per month. `period` is 'YYYY-MM' rather than a timestamp
 -- range so a writer can look at a date and know when it resets. Holds token
 -- counts and a dollar total, never prompt or draft text.
-CREATE TABLE ai_usage (
+CREATE TABLE IF NOT EXISTS ai_usage (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   period TEXT NOT NULL,                       -- 'YYYY-MM'
@@ -342,4 +358,4 @@ CREATE TABLE ai_usage (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (user_id, period)
 );
-CREATE INDEX ai_usage_user_idx ON ai_usage (user_id, period DESC);
+CREATE INDEX IF NOT EXISTS ai_usage_user_idx ON ai_usage (user_id, period DESC);
