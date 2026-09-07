@@ -15,8 +15,22 @@ os.environ["LOCAL_DB_PATH"] = os.path.join(
 os.environ["JWT_SECRET"] = "test-secret-" + "x" * 48
 os.environ["RATE_LIMITS_ENABLED"] = "false"  # per-process buckets would leak between tests
 os.environ["DEMO_SEED"] = "false"            # no known-credential account in tests
-os.environ.pop("SUPABASE_URL", None)         # force the local mock database
-os.environ.pop("SUPABASE_KEY", None)
+# SET, do not pop — the same trap the AI keys are guarded against below, and it
+# was left open here. `load_dotenv()` declines to overwrite a variable that
+# already exists but DOES fill in one that is missing, so popping these let the
+# real `.env` refill them on the next import. From the day Supabase keys were
+# added to `.env`, the entire suite silently ran against the PRODUCTION
+# database: 853 tests creating and deleting rows in the live project.
+#
+# It surfaced only because the key in use at the time was the anon key, which
+# row-level security refuses to write with, so the tests failed instead of
+# succeeding destructively. With a service_role key they would have passed, and
+# deleted real data doing it.
+#
+# `database.py` treats a URL containing "your-supabase" as absent, which is the
+# documented placeholder shape.
+os.environ["SUPABASE_URL"] = "https://your-supabase-project.example"
+os.environ["SUPABASE_KEY"] = "your-supabase-key-tests-never-connect-out"
 # eSewa publishes UAT credentials, so payments default to its real sandbox host.
 # A unit test must not depend on a third party being reachable, so the suite
 # pins the offline simulation instead. Tests that care about the sandbox set

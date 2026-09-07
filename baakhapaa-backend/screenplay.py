@@ -288,7 +288,21 @@ MAX_SUMMARY_CHARS = 400
 # corpus would put the draft and the library on two different scales and then
 # report the difference back as a finding about the writing. Rebuild, then
 # calibrate.
-PAGE_LINES = 45
+# 55 lines to the page. THE number in this craft, and it was 45.
+#
+# A screenplay page is 12pt Courier, single spaced, inside one-inch margins on
+# US Letter: nine inches of text at twelve points a line. That is 54 lines, and
+# the industry quotes 55. This held 45, which makes a Baakhapaa page 83% of a
+# real one — so every page count and every runtime this product reported was
+# inflated by about twenty per cent. A ninety-page screenplay read as 108 pages
+# and 108 minutes.
+#
+# That is not a rounding error in a screenwriting tool. One page to one minute
+# of screen time is the convention the whole craft schedules and budgets on, and
+# it is the unit `review.py` measures act balance in, the unit the corpus
+# percentiles compare against, and the unit the editor prints beside the caret.
+# All of them were wrong together, which is why none of them looked wrong.
+PAGE_LINES = 55
 
 
 def cast_lines(text: str) -> list:

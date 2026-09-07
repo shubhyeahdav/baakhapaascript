@@ -127,8 +127,9 @@ PAGE_W, PAGE_H = letter
 TOP_MARGIN = 72.0
 BOTTOM_MARGIN = 72.0
 FONT_SIZE = 12
-# 45 rows between one-inch margins. Derived rather than chosen, so the geometry
-# and `screenplay.PAGE_LINES` cannot drift apart.
+# Derived rather than chosen, so the geometry and `screenplay.PAGE_LINES`
+# cannot drift apart. At 55 lines this is 11.8pt of leading for 12pt Courier,
+# which is the tight single spacing a screenplay is actually set in.
 LEADING = (PAGE_H - TOP_MARGIN - BOTTOM_MARGIN) / screenplay.PAGE_LINES
 
 # Left edge of each element, in points from the page edge. The standard
@@ -141,6 +142,8 @@ INDENT = {
     "character": 266.0,
     "parenthetical": 223.0,
     "dialogue": 180.0,
+    # Kept for anything that measures from the left edge; the PDF draws
+    # transitions right-aligned rather than from this offset.
     "transition": 108.0,
     "blank": 108.0,
 }
@@ -200,7 +203,15 @@ def _draw_screenplay_pages(c, script_content: str) -> int:
                     if number:
                         c.drawString(INDENT["scene_heading"] - 36, y, str(number))
                         c.drawString(PAGE_W - 72 + 12, y, str(number))
-                c.drawString(INDENT.get(row.type, INDENT["action"]), y, row.text)
+                if row.type == "transition":
+                    # Right-aligned, ending at the right margin. CUT TO: and
+                    # FADE OUT: sit against the right edge in every screenplay
+                    # ever printed; drawing them flush left with the action is
+                    # something a reader notices before they notice anything
+                    # about the writing.
+                    c.drawRightString(PAGE_W - 72, y, row.text)
+                else:
+                    c.drawString(INDENT.get(row.type, INDENT["action"]), y, row.text)
             y -= LEADING
 
         # (MORE) under the last row when the speech continues overleaf.
