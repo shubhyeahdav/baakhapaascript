@@ -1317,3 +1317,115 @@ describe("escalating to a lesson", () => {
     expect(screen.queryByRole("button", { name: /there is a lesson/i })).toBeNull();
   });
 });
+
+/**
+ * The header on a phone.
+ *
+ * It was a single flex row of twelve controls totalling 817px inside a 375px
+ * viewport, set to `overflow-x-auto` — so it did not break, it scrolled
+ * sideways for 2.7 screens. Finalize sat 877px off-screen and so did the assist
+ * toggle, which is the one control that exists ONLY on mobile. Because the
+ * header scrolled as one unit, reaching either pushed Back and the project
+ * title off the left.
+ *
+ * What can be asserted here and what cannot: `vite.config.js` sets
+ * `css: false`, so the breakpoint itself is not testable in jsdom — whether
+ * `hidden lg:flex` actually hides anything was verified in a browser at 375px
+ * (header scrollWidth 375, clientWidth 375, nothing scrolling). What IS
+ * testable is the thing that would silently rot: that every control which left
+ * the row still exists in the menu, and that the two which must never be
+ * behind a menu are still rendered directly.
+ */
+describe("the phone header keeps everything reachable", () => {
+  const openMore = async () => {
+    stubApi();
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "⋯" }));
+  };
+
+  it("offers every control that left the row", async () => {
+    await openMore();
+
+    for (const label of [
+      /story bible and format/i,
+      /typing: english/i,
+      /format shortcuts/i,
+      /focus mode/i,
+      /import a screenplay/i,
+      /share this project/i,
+      /export pdf/i,
+      /export final draft/i,
+      /export word/i,
+      /export production package/i,
+    ]) {
+      expect(screen.getByRole("menuitem", { name: label })).toBeInTheDocument();
+    }
+  });
+
+  it("exposes them as menu items, not as anonymous buttons", async () => {
+    /* `role="menu"` requires its children to be menuitems. Getting that wrong
+       gives a screen-reader user a menu whose contents do not announce as its
+       contents — which matters more here than anywhere else in the app,
+       because this menu is now the ONLY way to reach eight controls on a
+       phone. */
+    await openMore();
+
+    expect(screen.getAllByRole("menuitem").length).toBeGreaterThanOrEqual(10);
+  });
+
+  it("names them, where the row showed unlabelled icons", async () => {
+    /* The row had twelve controls, most of them icons, and a writer opening
+       the page had no way to tell which were safe to press. A named menu item
+       explains itself. */
+    await openMore();
+
+    expect(screen.getByRole("menuitem", { name: /import a screenplay/i }))
+      .toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /export production package/i }))
+      .toBeInTheDocument();
+  });
+
+  it("leaves Finalize out of the menu, because it is the primary action", async () => {
+    /* The control that was furthest off-screen is the one the whole editor
+       exists to reach. It must never be the thing that gets moved into a
+       menu. */
+    stubApi();
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    expect(screen.getAllByRole("button", { name: /finalize/i })).not.toHaveLength(0);
+  });
+
+  it("leaves the assist toggle out of the menu, because it only exists here", async () => {
+    stubApi();
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    expect(screen.getByRole("button", { name: /open the assist panel/i }))
+      .toBeInTheDocument();
+  });
+
+  it("opens the file picker from the menu, not a second Import button", async () => {
+    /* Import owns a hidden file input and its own refusal message, so it is
+       rendered once and opened through a ref. Rendering it twice would give a
+       phone two file inputs and two places for an error to appear. */
+    await openMore();
+    const inputs = document.querySelectorAll('input[type="file"]');
+    const clicked = vi.fn();
+    inputs[0].addEventListener("click", clicked);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /import a screenplay/i }));
+
+    expect(inputs).toHaveLength(1);
+    expect(clicked).toHaveBeenCalled();
+  });
+
+  it("toggles the script from the menu and remembers it", async () => {
+    await openMore();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /typing: english/i }));
+
+    expect(window.localStorage.getItem("baakhapaa:nepali")).toBe("on");
+  });
+});

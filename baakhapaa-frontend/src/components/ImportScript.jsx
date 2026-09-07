@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { scripts } from "../services/api";
 import { authErrorMessage } from "../utils/apiError";
 
@@ -24,7 +24,22 @@ import { authErrorMessage } from "../utils/apiError";
  */
 const ACCEPT = ".fdx,.fountain,.txt,.docx,.pdf";
 
-export default function ImportScript({ scriptId, onImported, className = "" }) {
+/**
+ * `showButton={false}` renders the file input and the result messages without
+ * the trigger, so a caller can drive it from somewhere else — the phone header
+ * puts Import inside an overflow menu, where a component cannot render its own
+ * button. The imperative `open()` on the ref is that caller's way in.
+ *
+ * Deliberately not lifted into the parent: the hidden input, the busy state and
+ * the refusal message belong together, and the refusal in particular is the
+ * whole point of this component — the server writes a real sentence about what
+ * went wrong and it must not be flattened by whoever happens to be triggering
+ * it.
+ */
+const ImportScript = forwardRef(function ImportScript(
+  { scriptId, onImported, className = "", showButton = true },
+  ref,
+) {
   const input = useRef(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -50,6 +65,11 @@ export default function ImportScript({ scriptId, onImported, className = "" }) {
     }
   };
 
+  useImperativeHandle(ref, () => ({
+    open: () => input.current?.click(),
+    busy,
+  }), [busy]);
+
   return (
     <div className={className}>
       <input
@@ -62,15 +82,17 @@ export default function ImportScript({ scriptId, onImported, className = "" }) {
         tabIndex={-1}
       />
 
-      <button
-        type="button"
-        onClick={() => input.current?.click()}
-        disabled={busy}
-        className="text-xs py-1.5 px-3 rounded-lg border border-border text-inkMuted hover:text-ink transition disabled:opacity-50"
-        title="Import a screenplay from Final Draft, Fountain, Word, plain text or PDF"
-      >
-        {busy ? "Reading…" : "Import"}
-      </button>
+      {showButton && (
+        <button
+          type="button"
+          onClick={() => input.current?.click()}
+          disabled={busy}
+          className="text-xs py-1.5 px-3 rounded-lg border border-border text-inkMuted hover:text-ink transition disabled:opacity-50"
+          title="Import a screenplay from Final Draft, Fountain, Word, plain text or PDF"
+        >
+          {busy ? "Reading…" : "Import"}
+        </button>
+      )}
 
       {error && (
         <p role="alert" className="mt-2 text-[11.5px] text-red-300 leading-snug max-w-xs">
@@ -91,4 +113,6 @@ export default function ImportScript({ scriptId, onImported, className = "" }) {
       )}
     </div>
   );
-}
+});
+
+export default ImportScript;

@@ -433,6 +433,10 @@ export default function ScriptEditor() {
   }, [typewriter]);
   const [activeScene, setActiveScene] = useState(0);
   const textareaRef = useRef(null);
+  // Import is a button on desktop and a menu item on a phone, so the component
+  // that owns the file input is rendered once and opened through this rather
+  // than rendered twice.
+  const importRef = useRef(null);
   // What the writer has highlighted on the page, verbatim. Held as text rather
   // than as offsets because offsets go stale the moment anything is typed while
   // a request is in flight, and a stale offset replaces the wrong words
@@ -1361,8 +1365,20 @@ export default function ScriptEditor() {
           sitting above the page — most of the chrome, and all of the visual
           noise, still there. The status line inside the page is the deliberate
           replacement: page, session words, save state. Esc brings this back. */}
+      {/* No horizontal scroll below `lg`.
+          It used to be `overflow-x-auto`, and that is why this was not visibly
+          broken: twelve controls came to 817px in a 375px viewport, so the
+          header quietly scrolled sideways for 2.7 screens. Finalize sat 877px
+          off-screen, and so did the assist toggle — which is the one control
+          that exists ONLY on mobile. Because the header scrolled as a single
+          unit, reaching either pushed Back and the project title off the left.
+
+          Below `lg` the occasional controls now live in one overflow menu, so
+          there is nothing to scroll to. `gap-2` rather than `gap-4` because
+          four controls on a 375px screen need the twelve pixels more than they
+          need the air. */}
       {!zenMode && (
-      <header className="h-14 bg-surface border-b border-border flex items-center gap-4 px-4 md:px-6 shrink-0 relative z-20 overflow-x-auto lg:overflow-visible">
+      <header className="h-14 bg-surface border-b border-border flex items-center gap-1.5 lg:gap-4 px-2 md:px-6 shrink-0 relative z-20 lg:overflow-visible">
         <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1.5 shrink-0 text-inkMuted hover:text-ink transition duration-200 text-sm">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
           Back
@@ -1382,7 +1398,7 @@ export default function ScriptEditor() {
         <div className="flex items-center gap-2 shrink-0">
           <span
             className="font-display font-medium text-ink text-[15px] truncate
-                       max-w-[8rem] md:max-w-[12rem] lg:max-w-[18rem]"
+                       max-w-[4.5rem] sm:max-w-[8rem] md:max-w-[12rem] lg:max-w-[18rem]"
             title={script.project?.title || "Untitled"}
           >
             {script.project?.title || "Untitled"}
@@ -1392,14 +1408,29 @@ export default function ScriptEditor() {
               they realise the character's want was wrong. */}
           <button
             onClick={() => navigate(`/projects/${id}/setup`)}
-            className="shrink-0 text-[11px] font-sans text-inkMuted hover:text-gold border border-border hover:border-gold/40 rounded-full px-2.5 py-0.5 transition"
+            className="hidden lg:inline-block shrink-0 text-[11px] font-sans text-inkMuted hover:text-gold border border-border hover:border-gold/40 rounded-full px-2.5 py-0.5 transition"
             title="Story bible and project format"
           >
             Setup
           </button>
         </div>
-        <div className="flex gap-3 items-center ml-auto shrink-0">
-          <span className="text-[11px] font-semibold text-inkMuted uppercase tracking-wider whitespace-nowrap">{saving ? "Saving..." : "Synced"}</span>
+        {/* `gap-1.5` below `lg`: four controls with 12px between them spend
+            48px of a 359px budget on air. */}
+        <div className="flex gap-1.5 lg:gap-3 items-center ml-auto shrink-0">
+          {/* "Is my work saved" is the fact that breaks focus fastest, so it
+              stays on the surface at every width — but as a dot below `lg`,
+              because the word costs 42px and a phone header has none spare. */}
+          <span className="hidden lg:inline text-[11px] font-semibold text-inkMuted uppercase tracking-wider whitespace-nowrap">
+            {saving ? "Saving..." : "Synced"}
+          </span>
+          <span
+            className={`lg:hidden h-2 w-2 rounded-full shrink-0 ${
+              saving ? "bg-gold animate-pulse" : "bg-emerald-500/70"
+            }`}
+            role="status"
+            aria-label={saving ? "Saving" : "Saved"}
+            title={saving ? "Saving…" : "Saved"}
+          />
           {/* Where the writer is, in the unit their craft actually uses. A
               screenplay note is "cut ten pages", never "cut some words" — and
               until now the editor could not answer "what page am I on" at all.
@@ -1412,6 +1443,12 @@ export default function ScriptEditor() {
               p. {Math.min(caretPage, pageCount)} / {pageCount}
             </span>
           )}
+          {/* Everything from here to the closing tag is desktop only. Each of
+              these is used occasionally rather than while writing, which is the
+              rule `ToolbarMenu` already states — it was applied for desktop and
+              never extended down. On a phone they are in the overflow menu
+              below. */}
+          <div className="hidden lg:flex items-center gap-3">
           {/* Shortcut reference. A dropdown rather than a standing panel:
               you need it while learning the letters and never again, so it
               shouldn't hold editor width permanently. */}
@@ -1498,14 +1535,14 @@ export default function ScriptEditor() {
               ".fdx" never did. */}
           {/* Beside Export, because "get a script out" and "get a script in"
               are the same question asked in two directions. */}
-          <ImportScript
-            scriptId={id}
-            onImported={(data) => {
-              setContent(data.content || "");
-              if (data.scenes) setScript((prev) => (prev ? { ...prev, scenes: data.scenes } : prev));
-              if (data.pagination) setPagination(data.pagination);
-            }}
-          />
+          <button
+            type="button"
+            onClick={() => importRef.current?.open()}
+            className="text-xs py-1.5 px-3 rounded-lg border border-border text-inkMuted hover:text-ink transition"
+            title="Import a screenplay from Final Draft, Fountain, Word, plain text or PDF"
+          >
+            Import
+          </button>
 
           <button
             onClick={() => setShowShare(true)}
@@ -1570,6 +1607,93 @@ export default function ScriptEditor() {
               },
             ]}
           />
+          </div>
+
+          {/* The same controls on a phone, as one menu. A flat list rather than
+              nested menus: a submenu inside a dropdown on a touch screen is a
+              thing people close by accident. Grouped with dividers instead —
+              reading, then the page, then getting a script in and out. */}
+          <ToolbarMenu
+            label="⋯"
+            title="More"
+            align="right"
+            className="lg:hidden"
+            items={[
+              { key: "setup", label: "Story bible and format",
+                hint: "Logline, characters, what the story is for",
+                onSelect: () => navigate(`/projects/${id}/setup`) },
+              ...(suggestions
+                ? [{ key: "structure",
+                     label: showStructure ? "Hide the structure" : "Show the structure",
+                     hint: "The suggested three acts",
+                     active: showStructure,
+                     onSelect: () => setShowStructure((v) => !v) }]
+                : []),
+              { key: "d0", divider: true },
+              { key: "nepali",
+                label: nepaliMode ? "Typing: नेपाली" : "Typing: English",
+                hint: "Write ‘namaste’, get नमस्ते",
+                active: nepaliMode,
+                onSelect: () => {
+                  const next = !nepaliMode;
+                  setNepaliMode(next);
+                  window.localStorage.setItem("baakhapaa:nepali", next ? "on" : "off");
+                  textareaRef.current?.focus();
+                } },
+              { key: "shortcuts", label: "Format shortcuts",
+                hint: "Type the letter, press Tab",
+                active: showShortcuts,
+                onSelect: () => setShowShortcuts((v) => !v) },
+              { key: "zen", label: "Focus mode",
+                hint: "Nothing on screen but the page",
+                active: zenMode,
+                onSelect: () => {
+                  const next = !zenMode;
+                  setZenMode(next);
+                  if (next !== isFullPage) toggleFullPage();
+                } },
+              { key: "pagetheme",
+                label: pageTheme === "dark" ? "Light page" : "Dark page",
+                hint: "The colour of the paper, not the app",
+                onSelect: () => setPageTheme(pageTheme === "light" ? "dark" : "light") },
+              { key: "d1", divider: true },
+              { key: "import", label: "Import a screenplay",
+                hint: "Final Draft, Fountain, Word, text or PDF",
+                onSelect: () => importRef.current?.open() },
+              { key: "share", label: "Share this project",
+                hint: "Invite a reader or an editor",
+                onSelect: () => setShowShare(true) },
+              { key: "d2", divider: true },
+              { key: "pdf", label: "Export PDF", hint: "For reading and sending",
+                onSelect: () => handleExport("pdf") },
+              { key: "fdx", label: "Export Final Draft (.fdx)",
+                hint: "Opens in Final Draft, Celtx, Arc Studio",
+                onSelect: () => handleExport("fdx") },
+              { key: "word", label: "Export Word (.docx)",
+                hint: "For editing outside the app",
+                onSelect: () => handleExport("word") },
+              { key: "package", label: "Export production package",
+                hint: "Script, shot list and storyboard in one PDF",
+                onSelect: () => handleExport("package") },
+            ]}
+          />
+
+          {/* Rendered at every width with no button of its own: desktop has one
+              in the row above, the phone has a menu item, and both call
+              `open()` on it. What must not be behind a breakpoint is its error
+              — the server explains why a file could not be read, and that
+              sentence is the whole point of the component. */}
+          <ImportScript
+            ref={importRef}
+            showButton={false}
+            scriptId={id}
+            onImported={(data) => {
+              setContent(data.content || "");
+              if (data.scenes) setScript((prev) => (prev ? { ...prev, scenes: data.scenes } : prev));
+              if (data.pagination) setPagination(data.pagination);
+            }}
+          />
+
           {/* Only below lg. Above it the panel is always there and a button to
               open it would do nothing. */}
           <button
@@ -1584,7 +1708,15 @@ export default function ScriptEditor() {
           </button>
 
           <button onClick={handleFinalize} disabled={reviewing} className="btn-gold text-xs py-1.5 px-3.5 whitespace-nowrap">
-            {reviewing ? "Reviewing…" : "Finalize & Storyboard"}
+            {reviewing ? "Reviewing…" : (
+              <>
+                {/* 139px of label is a third of a phone screen. The word alone
+                    still says what the button does, and this is the one control
+                    that must never be the thing that gets moved into a menu. */}
+                <span className="lg:hidden">Finalize</span>
+                <span className="hidden lg:inline">Finalize &amp; Storyboard</span>
+              </>
+            )}
           </button>
         </div>
       </header>

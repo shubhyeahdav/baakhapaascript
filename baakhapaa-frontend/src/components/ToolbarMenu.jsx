@@ -14,7 +14,7 @@ import React, { useEffect, useRef, useState } from "react";
  * labelled menu, because a named menu item explains itself and an icon in a
  * row of twelve does not.
  */
-export default function ToolbarMenu({ label, title, items, align = "right" }) {
+export default function ToolbarMenu({ label, title, items, align = "right", className = "" }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -33,7 +33,7 @@ export default function ToolbarMenu({ label, title, items, align = "right" }) {
   }, [open]);
 
   return (
-    <div className="relative" ref={ref}>
+    <div className={`relative ${className}`} ref={ref}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
