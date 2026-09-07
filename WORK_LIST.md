@@ -1,11 +1,16 @@
 # Work list — mobile, performance, structure
 
-Written 2026-09-04, after measuring the codebase rather than guessing at it.
+Written 2026-09-04. Five working days, ordered so the measurement that judges a
+change comes before the change.
 
-Every item below exists because a number said so. The measurements are in the
-next section; each task names the one that produced it. Nothing here is a
-refactor for its own sake, and two things I expected to find turned out to be
-fine and are recorded as such.
+Companion to `MONTH_3_TASKS.md`, which is the month plan and stands at 82 of 200
+done. This is the narrower list that came out of measuring the frontend rather
+than guessing at it, and it should be worked first: two of the items here are
+worth more to a real user than anything left in Month 3 that is not blocked.
+
+Every task exists because a number said so. The numbers are below, and each day
+names the one that produced it. Two things I expected to be problems turned out
+to be fine and are recorded as fine, so nobody spends a day on them.
 
 ---
 
@@ -28,22 +33,19 @@ this project and nothing below should be allowed to spend it.
 
     ScriptEditor.jsx    2,228 lines    47 useState    76 hooks total
 
-Five times the next largest frontend file, and 19% of all frontend source. The
-draft text lives in its state, so every keystroke re-renders the whole
-component tree. In a product whose entire promise is keeping a writer in flow,
-typing latency is not a cosmetic concern.
+Five times the next largest frontend file. The draft text lives in its state, so
+every keystroke re-renders the whole tree. In a product whose promise is keeping
+a writer in flow, typing latency is not cosmetic.
 
 **The bundle is one chunk and nothing is lazy.**
 
-    build/assets/index-*.js     476,682 bytes    (146 kB gzipped)
-    build/assets/index-*.css     40,700 bytes
-    React.lazy / dynamic import occurrences in src/: 0
+    build/assets/index-*.js     476,682 bytes   (146 kB gzipped)
+    React.lazy / dynamic imports in src/: 0
 
-Someone opening `/login` downloads the editor, the storyboard viewer, the
-19-lesson course and the pricing page before they can type an email address. On
-a 3G connection — which is the market this product is being built for — that is
-several seconds of blank screen. This is the highest-value performance work
-available and it is also among the cheapest.
+Opening `/login` downloads the editor, the storyboard viewer and the 19-lesson
+course before you can type an email address. On the 3G connections this product
+is being built for, that is several seconds of blank screen. Highest-value
+performance work available, and among the cheapest.
 
 ### The editor header on a phone
 
@@ -54,46 +56,62 @@ Measured live at 375x812:
     "Open the assist panel"   left: 828  off-screen
     "Finalize & Storyboard"   left: 877  off-screen
 
-The header is `overflow-x-auto`, so it does not break the layout — it scrolls
-sideways for 2.7 screens. Two things are wrong with that. The primary action is
-877px off-screen, and so is the assist toggle, which is the one control that
-exists *only* on mobile. And because the header scrolls as a single unit,
-reaching them pushes Back and the project title off the left edge.
+`overflow-x-auto` means it scrolls rather than breaks — sideways, for 2.7
+screens. The primary action is off-screen, and so is the assist toggle, which is
+the one control that exists *only* on mobile. Because the header scrolls as one
+unit, reaching them pushes Back and the title off the left.
 
-`ToolbarMenu` already exists and its own docstring states the rule: "a control
-stays on the surface if it is used *while writing*… everything used
-occasionally goes behind a labelled menu." That rule was applied for desktop
-and never extended down.
+`ToolbarMenu` already exists and states the rule in its own docstring: a control
+stays on the surface if it is used *while writing*, everything occasional goes
+behind a labelled menu. Applied for desktop, never extended down.
 
 ### What turned out to be fine
 
-Recorded so nobody spends a day on them.
-
-- **Backend request cost.** Retrieval ranks 39 rows in Python per request,
-  which is microseconds, and switches to the pgvector RPC above 500 rows.
-- **Storyboard generation.** Already parallel at six frames at a time as of
-  `e664878`; a 24-frame board went from ~7.5 minutes to under 90 seconds.
-- **Voice findings.** `collapsed_voices` is O(n²) over the cast. A cast is ten
-  people. It is correct and it is not slow.
+- **Backend request cost.** 39 rows ranked in Python per request is
+  microseconds, and it switches to the pgvector RPC above 500 rows.
+- **Storyboard generation.** Already parallel at six frames (`e664878`); a
+  24-frame board went from ~7.5 minutes to under 90 seconds.
+- **Voice findings.** `collapsed_voices` is O(n²) over a cast of ten. Correct,
+  and not slow.
 
 ---
 
-## Part A — Mobile
+## Day 1 · Measure, then split the bundle
 
-The thing that was asked for.
+The biggest user-visible win in the list, and it comes first because it is
+independent of everything else. The baseline comes before it because without one
+the rest of the day is an opinion.
 
-### A1 · Editor header
+- [ ] Measure first contentful paint on a throttled 3G profile, cold cache
+- [ ] Record time-to-interactive on `/login` and on the editor
+- [ ] Record the initial JS transferred on each of those two routes
+- [ ] Commit all three numbers before changing anything
+- [ ] Wrap every route in `App.jsx` in `React.lazy`
+- [ ] Add one `Suspense` boundary with a real fallback, not a spinner on a blank page
+- [ ] Confirm `/login` no longer pulls the editor, the course or the storyboard viewer
+- [ ] Re-measure against the baseline and commit the comparison
+- [ ] Run the production build and confirm no route regressed
+- [ ] Run the frontend suite
+
+## Day 2 · The editor header on a phone
+
+The fastest fix in the list for the most obviously broken thing.
 
 - [ ] Keep four controls visible below `lg`: Back, truncated title, save state, Assist
 - [ ] Keep Finalize visible — it is the primary action and is currently 877px off-screen
-- [ ] Move shortcuts, script toggle, Import, Share, Export, View, Structure and Setup into one `⋯` menu, reusing `ToolbarMenu`
+- [ ] Move shortcuts and the script toggle into a `⋯` menu
+- [ ] Move Import, Share, Export and View into the same menu
+- [ ] Move Structure and Setup into it as well
+- [ ] Reuse `ToolbarMenu` rather than writing a second dropdown
 - [ ] Drop `overflow-x-auto` below `lg` so the header cannot scroll sideways at all
-- [ ] Leave the desktop header exactly as it is
-- [ ] Add a test that the mobile header's scrollWidth equals its clientWidth
+- [ ] Leave the desktop header exactly as it is, and prove it with the existing tests
+- [ ] Add a test asserting the mobile header's scrollWidth equals its clientWidth
+- [ ] Check the menu itself fits on a 375px screen and does not run off the right edge
 
-### A2 · The other pages
+## Day 3 · The other eight pages
 
 Not yet audited. One pass each at 375px, fixing whatever overflows or collides.
+The last two tasks are the ones that stop this being a one-off.
 
 - [ ] Dashboard
 - [ ] Settings
@@ -101,98 +119,67 @@ Not yet audited. One pass each at 375px, fixing whatever overflows or collides.
 - [ ] Pricing
 - [ ] Storyboard view
 - [ ] Exports and Storyboards index pages
-- [ ] Project setup / New project
+- [ ] Project setup and New project
 - [ ] Onboarding
+- [ ] Write one reusable check that reports horizontal overflow and sub-24px tap targets on any page
+- [ ] Run it across all nine routes and commit the report as the record of what was fixed
 
-### A3 · Verify on a real device
+## Day 4 · Split the editor, then stop the re-render
+
+The split has to come first, or the memoisation lands in a 2,228-line file and
+nobody can review it.
+
+- [ ] Extract the header as its own component
+- [ ] Extract the assist panel as its own component
+- [ ] Extract the page and its status line as its own component
+- [ ] Move each of the 47 pieces of state to whichever component actually owns it
+- [ ] Keep every existing test passing without editing it — a test that needs changing means the split changed behaviour
+- [ ] Commit the split on its own, with no behaviour change, so the diff is reviewable
+- [ ] Profile a typing session and record renders per keystroke
+- [ ] Either uncontrol the textarea or memoise the subtrees that do not depend on `content`
+- [ ] Confirm the undo stack, autosave, page count and craft panel all still work — `replaceRange` exists because `setContent` discards undo
+- [ ] Re-measure renders per keystroke, and revert if the number did not move
+
+## Day 5 · A real device, and the numbers again
 
 An emulated viewport is the weakest evidence there is for a layout claim. The
-dev servers now bind to the LAN (`033ba20`), so this is available.
+dev servers bind to the LAN as of `033ba20`, so this is available.
 
-- [ ] Is 9.5px Courier readable at arm's length? The page fits all 61 screenplay columns now, and that is what made it small — if it is genuinely unreadable the trade needs revisiting
+- [ ] Open the editor on the actual phone and write for ten minutes
+- [ ] Is 9.5px Courier readable at arm's length? The page fits all 61 screenplay columns now, and that is what made it small
+- [ ] If it is not readable, decide the trade: horizontal-scroll page, or a reduced-indent mobile mode
 - [ ] Do the 44px hit areas feel right under a thumb?
 - [ ] Does focus mode survive the address bar collapsing?
-- [ ] Write down anything emulation got wrong, because that is the useful output of this task
+- [ ] Check the craft panel sheet and the corkboard on the device, not just the editor
+- [ ] Write down everything emulation got wrong — that list is the useful output of this day
+- [ ] Collapse the three separate database reads in `recommendation_log` into one per request
+- [ ] Re-run both suites and the production build
+- [ ] Re-measure first paint on 3G and record the closing number against Day 1
 
 ---
 
-## Part B — Performance
+## Blocked, and on what
 
-Higher user value than Part A, and less visible. Ordered so the measurement
-comes before the work and again after it.
+Nothing here can be coded around, and all of it is calendar time rather than
+work. It is already the critical path.
 
-### B1 · Establish the baseline first
-
-- [ ] Measure first contentful paint on a throttled 3G profile, cold cache
-- [ ] Record time-to-interactive on `/login` and on the editor
-- [ ] Commit both numbers, so B2 and B3 are a before-and-after rather than a hope
-
-### B2 · Route-level code splitting
-
-- [ ] `React.lazy` every route in `App.jsx` behind a `Suspense` boundary
-- [ ] Give the boundary a real fallback, not a spinner on a blank page
-- [ ] Confirm the login route no longer pulls the editor, the course or the storyboard viewer
-- [ ] Re-measure against B1 — expect the initial chunk to more than halve
-- [ ] Check the production build still passes and no route regressed
-
-### B3 · Stop re-rendering 2,228 lines per keystroke
-
-- [ ] Confirm the cost first: profile a typing session and record renders per keystroke
-- [ ] Either uncontrol the textarea, or memoise the subtrees that do not depend on `content`
-- [ ] Keep the undo stack working — `replaceRange` exists precisely because `setContent` discards it
-- [ ] Keep autosave, page count and the craft panel in step with the draft
-- [ ] Re-measure, and revert if the number did not move
-
----
-
-## Part C — Structure
-
-Only worth doing because it makes Part B possible, not for tidiness.
-
-### C1 · Split ScriptEditor.jsx
-
-- [ ] Extract the header, the assist panel and the page as three components
-- [ ] Move the 47 pieces of state to whichever component actually owns each
-- [ ] Keep every existing test passing without editing it — if a test needs changing, the split changed behaviour
-- [ ] No behaviour change in this commit, so the diff is reviewable
-
-### C2 · One database read per recommendations request
-
-- [ ] `history`, `record` and `resolve` each fetch the same rows separately — three round trips where one would do
-- [ ] Pass the rows through instead
-- [ ] Confirm the 15 recommendation-loop tests still pass unchanged
-
----
-
-## Part D — Blocked, and on what
-
-Nothing in this section can be coded around.
-
-- [ ] **Supabase project** — `SUPABASE_URL` and `SUPABASE_KEY` are unset, so every environment to date is the SQLite mock. This blocks the whole of Month 3 Week 1, the pgvector migration, and the four schema migrations. It is also what let the pgvector schema drift undetected until it was read by hand
+- [ ] **Supabase project** — `SUPABASE_URL` and `SUPABASE_KEY` are unset, so every environment to date is the SQLite mock. Blocks all of Month 3 Week 1, the pgvector migration and the four schema migrations. It is also what let the pgvector schema drift undetected until it was read by hand
 - [ ] **Anthropic credit** — blocks the first real-key walk and the measured cost figure
-- [ ] **Deployment** — blocks the merchant applications, which need a live URL and take days of human review
-- [ ] **SMTP account** — blocks renewal emails; without it a lapsed Khalti or eSewa plan simply stops
+- [ ] **Deployment** — blocks the Khalti and eSewa applications, which need a live URL and take days of human review
+- [ ] **SMTP account** — blocks renewal emails; without it a lapsed Khalti or eSewa plan simply stops working
 - [ ] **Merge to `codebase`** — the branch is **45 commits ahead** and has never been merged. Deploying from a non-default branch is how the wrong thing gets deployed
 
 ---
 
-## Order, and why
+## Two standing rules
 
-1. **B1** before anything else. Without a baseline, B2 and B3 are opinions.
-2. **B2** next. It is the largest user-visible win, it is cheap, and it is
-   independent of everything else here.
-3. **A1**. The fastest fix in the list for the most obviously broken thing.
-4. **A2**, then **A3**. Audit before device testing, so the device session is
-   spent on what only a device can tell you.
-5. **C1**, then **B3**. The split has to come first or the memoisation lands in
-   a 2,228-line file and nobody can review it.
-6. **C2** whenever. It is small.
-7. **Part D** the moment the accounts exist. Everything there is calendar time
-   rather than work, and it is already the critical path.
+Both learned this week, both expensive to relearn.
 
-Two standing rules for this list, both learned this week. Measure before
-changing anything whose point is a number — the retrieval work found that the
-obvious fix was not the effective one, and that a larger embedding model bought
-nothing at all. And when a measurement says a task is unnecessary, delete the
-task and record the measurement, which is what the "turned out to be fine"
-section above is for.
+**Measure before changing anything whose point is a number.** The retrieval work
+found that the obvious fix was not the effective one — the defect was in the
+query, not the corpus — and that a larger embedding model bought nothing at all
+for 4.6x the cost. Neither would have been visible without a baseline.
+
+**When a measurement says a task is unnecessary, delete the task and keep the
+measurement.** That is what the "turned out to be fine" section above is for,
+and it is worth more than the tasks it replaced.
