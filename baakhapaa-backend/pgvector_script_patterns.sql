@@ -97,8 +97,24 @@ alter table script_patterns
   add column if not exists worked_example text,
   add column if not exists warning_sign text;
 
-alter table script_patterns alter column one_line_takeaway drop not null;
-alter table script_patterns alter column structural_pattern drop not null;
+-- These two columns exist only on a database created from the OLD version of
+-- this file, where they were NOT NULL and nothing wrote them. On a fresh
+-- database they do not exist at all, and a bare ALTER would fail the whole
+-- script — which is the worst possible moment for it, since this is the first
+-- thing anyone runs against a new project. Guarded rather than assumed.
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_name = 'script_patterns'
+               and column_name = 'one_line_takeaway') then
+    alter table script_patterns alter column one_line_takeaway drop not null;
+  end if;
+  if exists (select 1 from information_schema.columns
+             where table_name = 'script_patterns'
+               and column_name = 'structural_pattern') then
+    alter table script_patterns alter column structural_pattern drop not null;
+  end if;
+end $$;
 
 -- 'craft' was not in the original check constraint, so every entry written
 -- since the corpus moved to craft techniques would have been rejected.
