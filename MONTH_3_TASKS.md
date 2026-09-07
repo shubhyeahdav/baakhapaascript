@@ -70,12 +70,19 @@ Blocked, and not by anything that can be coded around:
 
 ### Day 2 · Boot against Postgres
 
+> `python postgres_smoke.py` runs steps 2 to 7 of this day in one command and
+> refuses to run against the SQLite mock. Written 2026-09-04 because every
+> environment to date has been the mock, which is what let the pgvector schema
+> drift undetected — and because ten hand-checked steps each fail in a way that
+> looks like the step before it.
+
+
 - [ ] Point the backend at Supabase and start it
 - [ ] Read every complaint `deploy_checks.py` makes and fix each, not the check
 - [ ] Register a fresh account and confirm the row lands in Postgres, not SQLite
 - [ ] Create a project, save a draft, confirm `scene_sync` writes scene rows
 - [ ] Run `load_knowledge_base.py` against Postgres, then restart the backend
-- [ ] Confirm `script_patterns` holds 29 rows
+- [ ] Confirm `script_patterns` holds 39 rows (was 29 when this was written; ten craft entries were added on 2026-09-03)
 - [ ] Open the Patterns tab and confirm retrieval returns results from Postgres
 - [ ] Run the backend suite once end to end and record the number
 - [ ] Note anything that behaved differently from the mock database
