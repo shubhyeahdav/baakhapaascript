@@ -359,3 +359,44 @@ CREATE TABLE IF NOT EXISTS ai_usage (
   UNIQUE (user_id, period)
 );
 CREATE INDEX IF NOT EXISTS ai_usage_user_idx ON ai_usage (user_id, period DESC);
+
+-- ---------------------------------------------------------------------------
+-- REPAIR: columns added to this file after a database was first created.
+--
+-- `CREATE TABLE IF NOT EXISTS` above protects an existing table by SKIPPING it
+-- entirely — including every column added to the definition since. So a project
+-- created from an older copy of this file keeps working, silently, until a
+-- request touches a newer column and gets `42703 column does not exist`.
+--
+-- That happened on 2026-09-07: four tables had been created from a copy of this
+-- file taken from the `codebase` branch, which was 45 commits behind, and
+-- nineteen columns were missing. Google sign-in, the story bible, scene sync,
+-- short-form projects, subscription expiry and the renewal mailer would each
+-- have failed later, separately, in ways that look unrelated.
+--
+-- Every statement is IF NOT EXISTS, so running this on a correct database does
+-- nothing. Run it whenever you pull.
+--
+-- UNIQUE and REFERENCES are deliberately not repeated here: adding a unique
+-- constraint to a populated table can fail, and a foreign key already exists
+-- wherever the table was created from a current file.
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider TEXT NOT NULL DEFAULT 'password';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences_json TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS renewal_notices_json TEXT;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS target_audience TEXT DEFAULT 'General';
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS format TEXT DEFAULT 'short';
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS episode_count INTEGER DEFAULT 1;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS duration_seconds INTEGER DEFAULT 45;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS hook_type TEXT DEFAULT 'relatable_pain';
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS short_form_category TEXT DEFAULT 'storytime';
+ALTER TABLE scripts ADD COLUMN IF NOT EXISTS bible_json TEXT;
+ALTER TABLE scripts ADD COLUMN IF NOT EXISTS suggestions_json TEXT;
+ALTER TABLE scripts ADD COLUMN IF NOT EXISTS finalized_at TIMESTAMP;
+ALTER TABLE scenes ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE scenes ADD COLUMN IF NOT EXISTS emotional_beat TEXT;
+ALTER TABLE scenes ADD COLUMN IF NOT EXISTS characters_json TEXT;
+ALTER TABLE scenes ADD COLUMN IF NOT EXISTS draft_json TEXT;

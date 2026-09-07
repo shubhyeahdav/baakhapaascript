@@ -57,16 +57,16 @@ Blocked, and not by anything that can be coded around:
 
 ### Day 1 · Cloud database
 
-- [ ] Create the Supabase project; copy URL and service role key into `baakhapaa-backend/.env`
-- [ ] Confirm the keys are uncommented and the file has no byte-order mark
+- [x] Create the Supabase project; copy URL and service role key into `baakhapaa-backend/.env`
+- [x] Confirm the keys are uncommented and the file has no byte-order mark
 - [ ] Back up `baakhapaa_local.db`, then delete it
-- [ ] Run `supabase_schema.sql` in the SQL editor
+- [x] Run `supabase_schema.sql` in the SQL editor
 - [ ] Check for duplicate email addresses differing only in case, before migrating
 - [ ] Run the email normalisation migration; merge or delete duplicates if it fails
-- [ ] Run the Google sign-in column migration
-- [ ] Run the `subscription_expires_at` / `renewal_notices_json` migration
-- [ ] Run the `project_invites` migration
-- [ ] Verify all eight tables exist and are empty
+- [x] Run the Google sign-in column migration
+- [x] Run the `subscription_expires_at` / `renewal_notices_json` migration
+- [x] Run the `project_invites` migration
+- [x] Verify all eight tables exist and are empty — *fifteen, not eight; `postgres_smoke.py` checks every one*
 
 ### Day 2 · Boot against Postgres
 
@@ -77,16 +77,16 @@ Blocked, and not by anything that can be coded around:
 > looks like the step before it.
 
 
-- [ ] Point the backend at Supabase and start it
-- [ ] Read every complaint `deploy_checks.py` makes and fix each, not the check
-- [ ] Register a fresh account and confirm the row lands in Postgres, not SQLite
-- [ ] Create a project, save a draft, confirm `scene_sync` writes scene rows
-- [ ] Run `load_knowledge_base.py` against Postgres, then restart the backend
-- [ ] Confirm `script_patterns` holds 39 rows (was 29 when this was written; ten craft entries were added on 2026-09-03)
-- [ ] Open the Patterns tab and confirm retrieval returns results from Postgres
-- [ ] Run the backend suite once end to end and record the number
-- [ ] Note anything that behaved differently from the mock database
-- [ ] Commit any fixes with the difference described in the message
+- [x] Point the backend at Supabase and start it
+- [x] Read every complaint `deploy_checks.py` makes and fix each, not the check
+- [x] Register a fresh account and confirm the row lands in Postgres, not SQLite
+- [x] Create a project, save a draft, confirm `scene_sync` writes scene rows
+- [x] Run `load_knowledge_base.py` against Postgres, then restart the backend
+- [x] Confirm `script_patterns` holds 39 rows (was 29 when this was written; ten craft entries were added on 2026-09-03)
+- [x] Open the Patterns tab and confirm retrieval returns results from Postgres
+- [x] Run the backend suite once end to end and record the number
+- [x] Note anything that behaved differently from the mock database
+- [x] Commit any fixes with the difference described in the message
 
 ### Day 3 · Deploy
 
