@@ -30,9 +30,13 @@ vi.mock("react-router-dom", () => ({
     seen.routes.push({
       path,
       protected: element?.type?.__isProtectedRoute === true,
-      page: element?.type?.__pageName
-        || element?.props?.children?.type?.__pageName
-        || null,
+      // The raw type, resolved to a page name in beforeAll below. It cannot be
+      // read here: every page is `React.lazy` now, so at the moment the route
+      // table is built the module has not been imported yet.
+      _type: element?.type?.__isProtectedRoute
+        ? element?.props?.children?.type
+        : element?.type,
+      page: null,
       // A <Navigate> route element carries its destination here.
       redirectTo: element?.props?.to ?? null,
     });
@@ -142,11 +146,46 @@ vi.mock("./pages/LegalPage", () => {
 // eslint-disable-next-line import/first
 import App from "./App";
 
-beforeEach(() => {
+beforeEach(async () => {
   seen.routes = [];
   seen.order = [];
   render(<App />);
+  // Resolve every lazy page to the component it will become. Has to happen
+  // here rather than once in a beforeAll, because this hook clears the route
+  // table and re-renders before each test.
+  for (const r of seen.routes) {
+    const resolved = await resolveLazy(r._type);
+    r.page = resolved?.__pageName ?? resolved?.default?.__pageName ?? null;
+  }
 });
+
+/**
+ * Turn a `React.lazy` type into the component it will eventually be.
+ *
+ * Every page became lazy when the bundle was split, which put a 476 kB chunk
+ * containing all fifteen pages behind fifteen chunks fetched on demand. That is
+ * the right thing for the product and it hides `__pageName` from this test: a
+ * lazy type is a placeholder object until its import resolves.
+ *
+ * This reaches into `_payload` / `_init`, which is React internals, and it is
+ * worth saying why that is acceptable here rather than in application code.
+ * The alternative is rendering all fifteen routes inside Suspense and reading a
+ * marker out of the DOM, which tests the stubs rather than the route table —
+ * and the route table is the thing worth pinning, because a page that should be
+ * behind ProtectedRoute and is not becomes reachable without a token.
+ *
+ * The first `_init` throws the pending thenable; awaiting it and calling again
+ * returns the module.
+ */
+async function resolveLazy(type) {
+  if (type?.$$typeof !== Symbol.for("react.lazy")) return type;
+  try {
+    return type._init(type._payload);
+  } catch (pending) {
+    await pending;
+    return type._init(type._payload);
+  }
+}
 
 const route = (path) => seen.routes.find((r) => r.path === path);
 
@@ -246,5 +285,49 @@ describe("the legal documents", () => {
 
   it.each(["/terms", "/privacy"])("leaves %s readable without an account", (path) => {
     expect(route(path).protected).toBe(false);
+  });
+});
+
+/**
+ * The bundle stays split.
+ *
+ * Every page was imported eagerly until 2026-09-04, which put fifteen of them
+ * into one 476 kB chunk: opening /login downloaded the editor, the storyboard
+ * viewer and the nineteen-lesson course before you could type an email address.
+ * At 146 kB gzipped that is several seconds of blank screen on a 3G connection,
+ * which is the connection this product is being built for.
+ *
+ * Splitting it took the login route to 85 kB, a 42% cut. That win is one
+ * careless `import Dashboard from "./pages/Dashboard"` away from being undone,
+ * and nothing would fail — the app would work perfectly and simply be slow
+ * again for everyone on a slow connection. So it is pinned here.
+ */
+describe("every page is loaded on demand", () => {
+  const LAZY = Symbol.for("react.lazy");
+
+  it("loads no page eagerly", () => {
+    /* Redirect routes are excluded: `/` renders <Navigate>, which is not a
+       page and has nothing to split. */
+    const eager = seen.routes
+      .filter((r) => r.redirectTo === null)
+      .filter((r) => r._type && r._type.$$typeof !== LAZY)
+      .map((r) => r.path);
+
+    expect(eager).toEqual([]);
+  });
+
+  it("still knows which page each route serves", () => {
+    /* The split must not cost the assertions above it. If lazy resolution ever
+       silently returns nothing, every page-name test would pass vacuously. */
+    const named = seen.routes.filter((r) => r.page !== null);
+
+    expect(named.length).toBeGreaterThanOrEqual(14);
+  });
+
+  it("keeps the route table itself in the shared chunk", () => {
+    /* Lazy pages, eager routing. If the route table were itself lazy the app
+       could not decide what to render without a network round trip. */
+    expect(seen.routes.length).toBeGreaterThan(10);
+    expect(seen.order).toContain("BrowserRouter");
   });
 });

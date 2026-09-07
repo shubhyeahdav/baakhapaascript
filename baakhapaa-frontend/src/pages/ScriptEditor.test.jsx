@@ -265,6 +265,32 @@ describe("ScriptEditor", () => {
     }
   });
 
+  it("refreshes the scene rail after a short typing pause", async () => {
+    scripts.save.mockResolvedValue({
+      data: { scenes: [{ id: "s1", title: "INT. PASAL - DAY", scene_type: "major", time_allocation: 1 }] },
+    });
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    fireEvent.change(editor(), { target: { value: "INT. PASAL - DAY\n\nSteam rises.\n" } });
+    await act(async () => { vi.advanceTimersByTime(1100); });
+    vi.useRealTimers();
+
+    expect(scripts.save).toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByText("INT. PASAL - DAY")).toBeInTheDocument());
+  });
+
+  it("shows a newly typed scene before the network save returns", async () => {
+    scripts.save.mockReturnValue(new Promise(() => {}));
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    fireEvent.change(editor(), { target: { value: "INT. PASAL - DAY\n\nSteam rises.\n" } });
+
+    expect(screen.getByText("INT. PASAL - DAY")).toBeInTheDocument();
+  });
+
   it("inserts an accepted AI scene at the caret, not at the end", async () => {
     // Appending put a scene written for act 1 after act 3.
     // Generation streams now, so the answer arrives through streamSSE

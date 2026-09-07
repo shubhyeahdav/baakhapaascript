@@ -116,6 +116,38 @@ function countWords(text) {
   return trimmed ? trimmed.split(/\s+/).length : 0;
 }
 
+function scenesFromDraft(text, existing = []) {
+  const headings = (text || "").split("\n")
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => /^\s*(INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s+.+/i.test(line));
+  if (!headings.length) return existing;
+
+  const byTitle = new Map(existing.map((scene) => [
+    String(scene.title || "").trim().toUpperCase(), scene,
+  ]));
+  return headings.map(({ line, index }, sceneIndex) => {
+    const title = line.trim().toUpperCase();
+    const previous = byTitle.get(title) || existing[sceneIndex];
+    let previousDraft = {};
+    try {
+      previousDraft = typeof previous?.draft_json === "string"
+        ? JSON.parse(previous.draft_json)
+        : previous?.draft_json || {};
+    } catch {}
+    const titleIsDerived = previous && previous.title === previousDraft.heading;
+    return {
+      ...(previous || {}),
+      id: previous?.id || `draft-scene-${sceneIndex}-${title}`,
+      title: !previous || titleIsDerived ? title : previous.title,
+      scene_type: previous?.scene_type || "minor",
+      draft_json: {
+        ...(typeof previous?.draft_json === "object" ? previous.draft_json : {}),
+        line_number: index,
+      },
+    };
+  });
+}
+
 /**
  * The way out of a loop, offered only once the loop is real.
  *
@@ -912,7 +944,7 @@ export default function ScriptEditor() {
     }
   }, [id, content]);
 
-  // Mirror the draft locally as it is typed. Autosave runs every 15s and a
+  // Mirror the draft locally as it is typed. Autosave runs after a short pause and a
   // render can throw at any point inside that window; without this, everything
   // typed since the last round trip dies with the component. `ErrorBoundary`
   // reads this back out and offers it to the writer.
@@ -931,7 +963,7 @@ export default function ScriptEditor() {
     }
     const timer = setTimeout(() => {
       if (content) saveContent();
-    }, 15000); // Save every 15s instead of 30s for higher reliability
+    }, 1000);
     return () => clearTimeout(timer);
   }, [content, saveContent]);
 
@@ -1799,7 +1831,12 @@ export default function ScriptEditor() {
               aria-label="Screenplay"
               value={content}
               onChange={(e) => {
-                setContent(e.target.value);
+                const nextContent = e.target.value;
+                setContent(nextContent);
+                setScript((prev) => prev ? {
+                  ...prev,
+                  scenes: scenesFromDraft(nextContent, prev.scenes || []),
+                } : prev);
                 setDismissed(false);
                 trackCaret(e);
                 // Ordinary typing needs this as much as Enter does: the caret

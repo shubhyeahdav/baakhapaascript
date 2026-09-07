@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { LanguageProvider } from "./i18n";
@@ -6,21 +6,65 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 import CommandPalette from "./components/CommandPalette";
 
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import Dashboard from "./pages/Dashboard";
-import Onboarding from "./pages/Onboarding";
-import NewProject from "./pages/NewProject";
-import ScriptEditor from "./pages/ScriptEditor";
-import ProjectSetup from "./pages/ProjectSetup";
-import StoryboardView from "./pages/StoryboardView";
-import PricingPage from "./pages/PricingPage";
-import PaymentReturn from "./pages/PaymentReturn";
-import SettingsPage from "./pages/SettingsPage";
-import StoryboardsPage from "./pages/StoryboardsPage";
-import ExportsPage from "./pages/ExportsPage";
-import LearnPage from "./pages/LearnPage";
-import LegalPage from "./pages/LegalPage";
+/**
+ * Every page is loaded on demand.
+ *
+ * They were all imported eagerly, which put fifteen pages into one 476 kB
+ * chunk: somebody opening /login downloaded the editor, the storyboard viewer
+ * and the nineteen-lesson course before they could type an email address. At
+ * 146 kB gzipped that is several seconds of blank screen on a 3G connection,
+ * which is the connection this product is being built for.
+ *
+ * Splitting here rather than deeper because the routes are the natural seam —
+ * they are already separate files and nothing shares mutable state across them.
+ * What stays in the shared chunk is what renders on every route: React, the
+ * router, the auth and language providers, the error boundary, the command
+ * palette.
+ *
+ * `LegalPage` is worth its own note. The Terms and Privacy documents are
+ * inlined into it through the `virtual:legal-documents` module — 14 kB of
+ * markdown that two routes out of fifteen ever read, and which every visitor
+ * was downloading.
+ *
+ * Measured before and after in `docs/perf/`.
+ */
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const NewProject = lazy(() => import("./pages/NewProject"));
+const ScriptEditor = lazy(() => import("./pages/ScriptEditor"));
+const ProjectSetup = lazy(() => import("./pages/ProjectSetup"));
+const StoryboardView = lazy(() => import("./pages/StoryboardView"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
+const PaymentReturn = lazy(() => import("./pages/PaymentReturn"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const StoryboardsPage = lazy(() => import("./pages/StoryboardsPage"));
+const ExportsPage = lazy(() => import("./pages/ExportsPage"));
+const LearnPage = lazy(() => import("./pages/LearnPage"));
+const LegalPage = lazy(() => import("./pages/LegalPage"));
+
+/**
+ * What is on screen while a route's chunk arrives.
+ *
+ * Deliberately not a spinner. On a fast connection this is never seen, and on
+ * a slow one a spinner says "something is wrong" where a page-shaped hold says
+ * "something is coming" — and the second is true. It carries the app's own
+ * background so the transition is not a white flash on a dark theme.
+ */
+function RouteLoading() {
+  return (
+    <div
+      className="h-screen bg-bg flex items-center justify-center"
+      role="status"
+      aria-live="polite"
+    >
+      <span className="font-display text-[13px] tracking-[0.3em] uppercase text-inkMuted animate-pulse">
+        Baakhapaa
+      </span>
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -35,6 +79,11 @@ export default function App() {
             because the flags being present in v6 is what made this upgrade a
             non-event — the app was already running v7 semantics. */}
         <BrowserRouter>
+          {/* One boundary around the whole route table rather than one per
+              route: a page is either the thing you asked for or it is still
+              arriving, and fifteen identical fallbacks would say the same
+              thing fifteen times. */}
+          <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/login" element={<LoginPage />} />
@@ -65,6 +114,7 @@ export default function App() {
             <Route path="/projects/:id/editor" element={<ProtectedRoute><ScriptEditor /></ProtectedRoute>} />
             <Route path="/projects/:id/storyboard" element={<ProtectedRoute><StoryboardView /></ProtectedRoute>} />
           </Routes>
+          </Suspense>
           <CommandPalette />
         </BrowserRouter>
       </AuthProvider>
