@@ -24,6 +24,14 @@ import sys
 import traceback
 import uuid
 
+from dotenv import load_dotenv
+
+# Before anything reads the environment. `database.py` calls this on import,
+# but the guard below runs BEFORE that import on purpose — it must decide
+# whether to talk to Postgres before connecting to anything — so without this
+# the guard read an empty environment and refused a correctly configured .env.
+load_dotenv()
+
 FAILURES = []
 NOTES = []
 

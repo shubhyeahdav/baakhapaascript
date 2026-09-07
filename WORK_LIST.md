@@ -82,31 +82,31 @@ The biggest user-visible win in the list, and it comes first because it is
 independent of everything else. The baseline comes before it because without one
 the rest of the day is an opinion.
 
-- [ ] Measure first contentful paint on a throttled 3G profile, cold cache
-- [ ] Record time-to-interactive on `/login` and on the editor
-- [ ] Record the initial JS transferred on each of those two routes
-- [ ] Commit all three numbers before changing anything
-- [ ] Wrap every route in `App.jsx` in `React.lazy`
-- [ ] Add one `Suspense` boundary with a real fallback, not a spinner on a blank page
-- [ ] Confirm `/login` no longer pulls the editor, the course or the storyboard viewer
-- [ ] Re-measure against the baseline and commit the comparison
-- [ ] Run the production build and confirm no route regressed
-- [ ] Run the frontend suite
+- [ ] Measure first contentful paint on a throttled 3G profile, cold cache — *not done: the browser tooling here does not throttle reliably, and a fabricated number is worse than none. Bytes over the wire is the exact proxy and was used instead.*
+- [ ] Record time-to-interactive on `/login` and on the editor — *not done, same reason. Carried to Day 5, on the real device.*
+- [x] Record the initial JS transferred on each of those two routes
+- [x] Commit all three numbers before changing anything — *one of the three: bytes. `docs/perf/baseline-2026-09-04.md`.*
+- [x] Wrap every route in `App.jsx` in `React.lazy`
+- [x] Add one `Suspense` boundary with a real fallback, not a spinner on a blank page
+- [x] Confirm `/login` no longer pulls the editor, the course or the storyboard viewer
+- [x] Re-measure against the baseline and commit the comparison
+- [x] Run the production build and confirm no route regressed
+- [x] Run the frontend suite
 
 ## Day 2 · The editor header on a phone
 
 The fastest fix in the list for the most obviously broken thing.
 
-- [ ] Keep four controls visible below `lg`: Back, truncated title, save state, Assist
-- [ ] Keep Finalize visible — it is the primary action and is currently 877px off-screen
-- [ ] Move shortcuts and the script toggle into a `⋯` menu
-- [ ] Move Import, Share, Export and View into the same menu
-- [ ] Move Structure and Setup into it as well
-- [ ] Reuse `ToolbarMenu` rather than writing a second dropdown
-- [ ] Drop `overflow-x-auto` below `lg` so the header cannot scroll sideways at all
-- [ ] Leave the desktop header exactly as it is, and prove it with the existing tests
-- [ ] Add a test asserting the mobile header's scrollWidth equals its clientWidth
-- [ ] Check the menu itself fits on a 375px screen and does not run off the right edge
+- [x] Keep four controls visible below `lg`: Back, truncated title, save state, Assist
+- [x] Keep Finalize visible — it is the primary action and is currently 877px off-screen
+- [x] Move shortcuts and the script toggle into a `⋯` menu
+- [x] Move Import, Share, Export and View into the same menu
+- [x] Move Structure and Setup into it as well
+- [x] Reuse `ToolbarMenu` rather than writing a second dropdown
+- [x] Drop `overflow-x-auto` below `lg` so the header cannot scroll sideways at all
+- [x] Leave the desktop header exactly as it is, and prove it with the existing tests
+- [ ] Add a test asserting the mobile header's scrollWidth equals its clientWidth — *not possible: `vite.config.js` sets `css: false`, so breakpoints do not exist in jsdom. Verified in a browser at 375px (scrollWidth 375, clientWidth 375); the unit tests pin the menu's contents instead.*
+- [x] Check the menu itself fits on a 375px screen and does not run off the right edge
 
 ## Day 3 · The other eight pages
 
