@@ -266,8 +266,26 @@ html, body {
 
        36.8 rather than the exact 36.56 (61 x 0.5993em): sub-pixel rounding of
        the glyph advance costs about a column, and being one column short is
-       the same failure as being twenty short — the line wraps. */
-    font-size: clamp(9.4px, calc((100vw - 1.5rem) / 36.8), 15px);
+       the same failure as being twenty short — the line wraps.
+
+       THE FLOOR IS THE TRADE, and it was decided on a phone rather than here.
+       Fitting all 61 columns at 375px means 9.5px type, and 9.5px Courier read
+       at arm's length was reported as too small to write in — which makes the
+       column fidelity worth nothing, because nobody is reading the page it is
+       preserving. The floor is now 12px: about 49 columns at 375px, so action
+       lines wrap earlier on screen than they will in the PDF.
+
+       That is the whole cost, and it is smaller than it looks. Page numbering
+       is counted from hard newlines (`pagination.page_lines`), not from where
+       the text visually wraps, so `p. N / M` and the exported PDF are both
+       unaffected — the same rule still lays out both. Only the on-screen line
+       break moves.
+
+       Landscape never had the problem: at 812px the calc already reaches the
+       15px cap. `--page-font-min` is the one number to change if 12px is still
+       wrong on the device. */
+    --page-font-min: 12px;
+    font-size: clamp(var(--page-font-min), calc((100vw - 1.5rem) / 36.8), 15px);
     box-shadow: none;
   }
   /* Same asymmetry as the desktop rule: a real top margin, deep bottom. On a

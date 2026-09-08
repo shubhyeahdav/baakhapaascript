@@ -686,6 +686,30 @@ export default function ScriptEditor() {
 
   // Which printed page the caret is on. Same rule as the rules drawn on the
   // page and as the PDF export, so all three agree.
+  /* Park the insertion point at the END of the draft the first time one loads.
+     A textarea starts every session with `selectionStart` at 0, so any focus
+     that carries no position — a phone keyboard opening, a Tab into the page,
+     an assistive tap — put the caret in front of the first slugline. On a
+     laptop that is a curiosity. On a phone it is the first thing that happens:
+     you open yesterday's script, the keyboard comes up, you type, and the words
+     go in before `INT.`
+
+     An effect rather than a callback after the fetch, because the textarea is
+     still holding the previous value when that resolves and the range would be
+     clamped to it. This runs after the commit that put the draft on the page.
+
+     It does not focus anything. Setting the range on an unfocused textarea only
+     decides where the caret WILL be, so opening the keyboard stays the writer's
+     move, and a tap still wins — tap placement was measured as exact and is
+     untouched. Once only: after the first draft, the caret is the writer's. */
+  const caretParked = useRef(false);
+  useEffect(() => {
+    if (caretParked.current || !content) return;
+    caretParked.current = true;
+    const ta = textareaRef.current;
+    if (ta) ta.setSelectionRange(content.length, content.length);
+  }, [content]);
+
   const updateCaretPage = (ta) => {
     if (!ta) return;
     const before = ta.value.slice(0, ta.selectionStart);

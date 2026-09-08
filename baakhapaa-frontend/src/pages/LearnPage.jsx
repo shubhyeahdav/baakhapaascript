@@ -81,6 +81,13 @@ export default function LearnPage() {
   const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState("");
+  /* Below `lg` the curriculum is a disclosure, not a column.
+     The grid collapses to one column on a phone, so all nineteen lesson titles
+     sat above the lesson itself: opening a lesson put it under a full screen
+     of list, and every lesson after the first began with a scroll past the
+     table of contents. Above `lg` this is ignored and the sidebar is always
+     there, which is what the two-column layout is for. */
+  const [curriculumOpen, setCurriculumOpen] = useState(false);
   // Which track's curriculum is showing. Following a lesson link (a linter
   // flag's "Learn this", or the resume-on-arrival pick) switches the track to
   // wherever that lesson lives, so the nav never shows a list the open lesson
@@ -171,6 +178,9 @@ export default function LearnPage() {
   const openLesson = (l) => {
     if (l.track) setTrack(l.track);
     setActiveId(l.id);
+    // Picking a lesson closes the list. On a phone the list IS the thing in
+    // the way; on a laptop this state is not rendered at all.
+    setCurriculumOpen(false);
   };
 
   /** Left/right (and Home/End) move between tracks, per the ARIA tabs pattern. */
@@ -265,12 +275,38 @@ export default function LearnPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 items-start">
+          {/* The way back to the list on a phone. It names where you are as
+              well as what it opens, because on a narrow screen the curriculum
+              is the only thing that says which lesson this is and how many
+              are left. */}
+          {/* The name says what the control does; the lesson title beside it is
+              context for whoever can see it, and is `aria-hidden` because the
+              lesson's own heading already announces it and the list below
+              carries it a second time. The progress count is not repeated here
+              either — the ring above this is where that number lives. */}
+          <button
+            type="button"
+            onClick={() => setCurriculumOpen((v) => !v)}
+            aria-expanded={curriculumOpen}
+            aria-controls="track-curriculum"
+            aria-label={curriculumOpen ? "Hide the lesson list" : "Show the lesson list"}
+            className="lg:hidden w-full flex items-center gap-2 bg-surface border border-borderSoft
+                       rounded-2xl px-4 py-3 text-left text-[13px] text-inkSoft hover:text-ink transition"
+          >
+            <span aria-hidden="true" className={`text-inkMuted transition-transform shrink-0 ${curriculumOpen ? "rotate-90" : ""}`}>›</span>
+            <span aria-hidden="true" className="min-w-0 truncate">
+              {active ? active.title : "All lessons"}
+            </span>
+          </button>
+
           {/* Curriculum */}
           <nav
             id="track-curriculum"
             role="tabpanel"
             aria-labelledby={`track-tab-${track}`}
-            className="bg-surface border border-borderSoft rounded-2xl p-4 space-y-4"
+            className={`bg-surface border border-borderSoft rounded-2xl p-4 space-y-4 lg:block ${
+              curriculumOpen ? "block" : "hidden"
+            }`}
           >
             {byModule.map((mod) => (
               <div key={mod.module}>

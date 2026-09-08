@@ -155,8 +155,18 @@ export default function AssistPanel({
         className="lg:hidden fixed inset-0 z-30 bg-black/50"
       />
     )}
+    {/* NO `animate-fade-up` here, and it is not a style preference.
+        That animation ends on `transform: translateY(0)` with
+        `animation-fill-mode: both`, so its final keyframe keeps overriding the
+        `translate-x-full` that parks this sheet off-canvas — an animated
+        transform outranks a declared one. Below `lg` the panel therefore sat
+        permanently open, 85vw of it on top of the page: at 375px it covered the
+        toolbar and every line of the script, and at 820px it cut the action
+        lines off mid-word. It looked like a z-index bug and was a specificity
+        one. Found on a phone; the responsive audit passed the editor because a
+        fixed overlay does not overflow anything. */}
     <aside
-      className={`bg-surface border-l border-border p-5 overflow-y-auto overflow-x-hidden shrink-0 animate-fade-up flex flex-col
+      className={`bg-surface border-l border-border p-5 overflow-y-auto overflow-x-hidden shrink-0 flex flex-col
         lg:static lg:z-auto lg:w-80 lg:translate-x-0
         fixed inset-y-0 right-0 z-40 w-[85vw] max-w-sm transition-transform
         ${panelOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}`}

@@ -228,15 +228,27 @@ export default function NewProject() {
                 default, one click away, and nothing is hidden that does not
                 already have a real answer behind it. */}
             <details className="group rounded-xl border border-borderSoft bg-surface/40">
+              {/* The summary of what is inside is a preview, so it truncates.
+                  Without `min-w-0` + `truncate` it wrapped instead, and on a
+                  375px screen "Bilingual" dropped onto a second line and sat
+                  outside the row beside the word "Details" — the disclosure
+                  looked broken before it had been opened. */}
               <summary className="cursor-pointer list-none px-4 py-3 flex items-center gap-2 text-sm text-inkSoft hover:text-ink">
-                <span className="text-inkMuted transition-transform group-open:rotate-90">›</span>
-                Details
-                <span className="ml-auto text-[11px] text-inkMuted font-mono">
+                <span className="text-inkMuted transition-transform group-open:rotate-90 shrink-0">›</span>
+                <span className="shrink-0">Details</span>
+                <span
+                  className="ml-auto min-w-0 truncate text-[11px] text-inkMuted font-mono"
+                  title={`${form.genre} · ${form.tone} · ${form.language}`}
+                >
                   {form.genre} · {form.tone} · {form.language}
                 </span>
               </summary>
               <div className="px-4 pb-4 pt-1 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              {/* One column on a phone. Side by side, each field was ~150px
+                  and clipped its own value: the Tone field read "Emotion",
+                  which is a different word. A field that cannot show what is
+                  in it is worse than a taller form. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <ComboField
                   label="Genre" listId="genre-options" options={GENRES}
                   value={form.genre} onChange={(v) => set({ genre: v })}
