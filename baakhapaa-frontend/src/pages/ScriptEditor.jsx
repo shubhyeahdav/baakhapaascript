@@ -1,21 +1,16 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { scripts, exportApi, learn, streamSSE } from "../services/api";
+import { scripts, exportApi, streamSSE } from "../services/api";
 import { downloadBlob, safeFilename } from "../utils/download";
-import VersionHistory from "../components/VersionHistory";
-import CommentThreads from "../components/CommentThreads";
-import CraftPanel from "../components/CraftPanel";
-import FormatShortcuts, { harvestVocabulary, suggestFor } from "../components/FormatShortcuts";
-import ToolbarMenu from "../components/ToolbarMenu";
-import GuidePanel from "../components/GuidePanel";
-import PenPrompt from "../components/PenPrompt";
-import ImportScript from "../components/ImportScript";
-import CoveragePanel from "../components/CoveragePanel";
-import AccessLog from "../components/AccessLog";
+import { harvestVocabulary, suggestFor } from "../components/FormatShortcuts";
 import ReviewModal from "../components/ReviewModal";
 import TeamPanel from "../components/TeamPanel";
 import SceneRail from "../components/SceneRail";
+import EditorHeader from "../components/EditorHeader";
+import AssistPanel, { FOCUSES } from "../components/AssistPanel";
+import ScriptPage from "../components/ScriptPage";
 import { enterText } from "../utils/screenplayFormat";
+import { countWords } from "../utils/draft";
 import { saveRescue, clearRescue } from "../utils/draftRescue";
 import { transliterateWord, WORD_PATTERN, DANDA } from "../utils/nepaliTransliterate";
 import { useT } from "../i18n";
@@ -23,18 +18,6 @@ import { useT } from "../i18n";
 // What the shortcuts dropdown lists. Kept beside the editor rather than in
 // FormatShortcuts so the reference and the engine can't silently disagree
 // about which letters do what — this is the one place a human reads them.
-const SHORTCUT_HINTS = [
-  { keys: "i", gives: "INT.", where: "line start" },
-  { keys: "e", gives: "EXT.", where: "line start" },
-  { keys: "c", gives: "CUT TO:", where: "line start" },
-  { keys: "f", gives: "FADE IN: / OUT.", where: "line start" },
-  { keys: "d", gives: "DAY / DAWN / DUSK", where: "after  - " },
-  { keys: "n", gives: "NIGHT", where: "after  - " },
-  { keys: "m", gives: "MORNING", where: "after  - " },
-  { keys: "a–z", gives: "a location", where: "after INT." },
-  { keys: "a–z", gives: "a character", where: "cue column" },
-  { keys: "(", gives: "(beat), (V.O.)…", where: "parenthetical" },
-];
 import StructureTimeline from "../components/StructureTimeline";
 import ShortFormTimeline from "../components/ShortFormTimeline";
 import CompactTimeline from "../components/CompactTimeline";
@@ -50,9 +33,7 @@ import CastView from "../components/CastView";
 // that carries nothing; rendering the real ones tells a writer in Kathmandu
 // that a technique comes from a cinema near them, which is the whole point of
 // having tagged them.
-const GENERIC_TRADITIONS = new Set(["screen craft", "shorts-general", "general"]);
-const namedTradition = (t) =>
-  t && !GENERIC_TRADITIONS.has(String(t).trim().toLowerCase()) ? t : null;
+
 
 // Caret moves that produce no text change, so `onChange` never sees them.
 const NAV_KEYS = new Set([
@@ -62,149 +43,10 @@ const NAV_KEYS = new Set([
 
 // The pointer over the page, as a cycle. `next` makes the menu entry a single
 // control rather than three that have to be kept mutually exclusive.
-const CURSORS = {
-  pen:  { label: "Pen",     next: "ring", hint: "The nib, as everywhere else in this product" },
-  ring: { label: "Ring",    next: "text", hint: "A small sight, for placing the caret exactly" },
-  text: { label: "Default", next: "pen",  hint: "Your system's own text pointer" },
-};
 
-const FOCUSES = [
-  // Alone among these, this one queries the DRAFT rather than a named problem.
-  // The label says "read" so the difference is visible without a legend.
-  { key: "scene", label: "Read my page", query: "" },
-  { key: "flat", label: "Feels flat", query: "this scene feels flat and skippable, nothing changes in it, the characters just talk and it drags" },
-  { key: "dialogue", label: "On the nose", query: "my dialogue is on the nose, characters say exactly what they feel, it sounds like a therapy transcript with no subtext" },
-  { key: "character", label: "Thin character", query: "my characters sound the same and feel predictable, thin, described rather than shown" },
-  { key: "structure", label: "Structure", query: "the middle sags and the ending feels unearned, the protagonist is passive and things just happen to them" },
-  { key: "melodrama", label: "Melodramatic", query: "the emotion is overwrought and melodramatic, it feels sentimental and false rather than restrained" },
-];
+
 import { useAuth } from "../context/AuthContext";
 
-// What each paid mode actually does. A free user pressing "Execute AI Action"
-// used to get `Error: AI generation requires a Pro or Studio plan` in the
-// response box — a refusal styled as a failure, with nothing to act on. If the
-// tab is going to be visible, it should describe the feature and offer the plan.
-const PAID_MODES = {
-  generate: "Write a full scene from a description — correctly formatted, in your project's language.",
-  improve: "Rewrite a line you have highlighted, or the whole scene if you have not, keeping the characters and the beat.",
-  suggest: "Three different ways this scene could continue, read from what you've written so far.",
-};
-
-function UpgradePrompt({ mode, onUpgrade }) {
-  return (
-    <div className="rounded-xl border border-gold/25 bg-goldDim/40 p-4 mb-4">
-      <div className="font-mono text-[9.5px] uppercase tracking-wider text-gold mb-1.5">
-        Pro / Studio
-      </div>
-      <p className="text-[12.5px] text-inkSoft leading-snug mb-3">{PAID_MODES[mode]}</p>
-      <button onClick={onUpgrade} className="btn-gold w-full text-xs py-2">
-        See plans
-      </button>
-      <p className="text-[11px] text-inkMuted mt-2.5 leading-snug">
-        Your free plan already includes the Patterns tab and the Craft checks —
-        both read the analysed script library, so neither costs a paid model call.
-      </p>
-    </div>
-  );
-}
-
-/** Words in a draft, counting the screenplay as a reader would rather than as a
- *  tokeniser would: runs of non-whitespace, so "INT." is one word and an em
- *  dash between two words is not a third. */
-function countWords(text) {
-  const trimmed = (text || "").trim();
-  return trimmed ? trimmed.split(/\s+/).length : 0;
-}
-
-function scenesFromDraft(text, existing = []) {
-  const headings = (text || "").split("\n")
-    .map((line, index) => ({ line, index }))
-    .filter(({ line }) => /^\s*(INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s+.+/i.test(line));
-  if (!headings.length) return existing;
-
-  const byTitle = new Map(existing.map((scene) => [
-    String(scene.title || "").trim().toUpperCase(), scene,
-  ]));
-  return headings.map(({ line, index }, sceneIndex) => {
-    const title = line.trim().toUpperCase();
-    const previous = byTitle.get(title) || existing[sceneIndex];
-    let previousDraft = {};
-    try {
-      previousDraft = typeof previous?.draft_json === "string"
-        ? JSON.parse(previous.draft_json)
-        : previous?.draft_json || {};
-    } catch {}
-    const titleIsDerived = previous && previous.title === previousDraft.heading;
-    return {
-      ...(previous || {}),
-      id: previous?.id || `draft-scene-${sceneIndex}-${title}`,
-      title: !previous || titleIsDerived ? title : previous.title,
-      scene_type: previous?.scene_type || "minor",
-      draft_json: {
-        ...(typeof previous?.draft_json === "object" ? previous.draft_json : {}),
-        line_number: index,
-      },
-    };
-  });
-}
-
-/**
- * The way out of a loop, offered only once the loop is real.
- *
- * A recommendation the writer has been given twice and has not acted on is no
- * longer a recommendation problem: either they do not believe it or they do not
- * know how, and both of those are what a lesson is for. A FIRST showing never
- * escalates — being sent to a course the moment you are first told something
- * reads as being told off.
- *
- * Nineteen lessons cannot cover thirty-nine craft entries, so most techniques
- * have none. That is the common case and it renders nothing at all, rather than
- * an empty box or an apology.
- */
-function LessonEscalation({ technique }) {
-  const [lesson, setLesson] = useState(null);
-  const [open, setOpen] = useState(false);
-  const [state, setState] = useState("idle");
-
-  useEffect(() => {
-    let live = true;
-    setState("loading");
-    learn
-      .forTechnique(technique)
-      .then((res) => {
-        if (!live) return;
-        setLesson(res.data);
-        setState("done");
-      })
-      .catch(() => live && setState("none"));
-    return () => { live = false; };
-  }, [technique]);
-
-  if (state !== "done" || !lesson) return null;
-
-  return (
-    <div className="pt-2 border-t border-borderSoft">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="text-[10.5px] text-gold hover:text-goldBright transition-colors underline decoration-dotted underline-offset-2"
-      >
-        {open ? "Hide the lesson" : "There is a lesson on this"}
-      </button>
-      {open && (
-        <div className="mt-1.5 rounded-lg border border-borderSoft bg-bgDeep/40 p-2.5">
-          <p className="text-[11px] text-gold/80 font-semibold mb-1 leading-snug">
-            {lesson.title}
-          </p>
-          <p className="text-[11.5px] text-inkSoft leading-relaxed">
-            {lesson.concept}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function ScriptEditor() {
   const { id } = useParams();
@@ -437,6 +279,12 @@ export default function ScriptEditor() {
   // that owns the file input is rendered once and opened through this rather
   // than rendered twice.
   const importRef = useRef(null);
+  // The header owns the file picker; this is the only thing it hands back.
+  const handleImported = useCallback((data) => {
+    setContent(data.content || "");
+    if (data.scenes) setScript((prev) => (prev ? { ...prev, scenes: data.scenes } : prev));
+    if (data.pagination) setPagination(data.pagination);
+  }, []);
   // What the writer has highlighted on the page, verbatim. Held as text rather
   // than as offsets because offsets go stale the moment anything is typed while
   // a request is in flight, and a stale offset replaces the wrong words
@@ -1378,348 +1226,41 @@ export default function ScriptEditor() {
           four controls on a 375px screen need the twelve pixels more than they
           need the air. */}
       {!zenMode && (
-      <header className="h-14 bg-surface border-b border-border flex items-center gap-1.5 lg:gap-4 px-2 md:px-6 shrink-0 relative z-20 lg:overflow-visible">
-        <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1.5 shrink-0 text-inkMuted hover:text-ink transition duration-200 text-sm">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          Back
-        </button>
-        {/* The only region allowed to shrink, because a truncated title still
-            identifies the project while a truncated control is just broken.
-            "Workspace /" used to sit in front of it — a label that told a
-            writer nothing they could not see, costing width that the view
-            switcher then had to give up, which is why "Outline" was rendering
-            as "Outl". */}
-        {/* `min-w-0` alone let flex crush this whole group to 24px — narrower
-            than the Setup button inside it, which then escaped its container and
-            collided with the SYNCED / page-number status beside it, rendering as
-            "SetuSYNCED". The group no longer shrinks; the TITLE truncates
-            instead, within a bounded width, and the header (already
-            `overflow-x-auto`) scrolls when there is genuinely not enough room. */}
-        <div className="flex items-center gap-2 shrink-0">
-          <span
-            className="font-display font-medium text-ink text-[15px] truncate
-                       max-w-[4.5rem] sm:max-w-[8rem] md:max-w-[12rem] lg:max-w-[18rem]"
-            title={script.project?.title || "Untitled"}
-          >
-            {script.project?.title || "Untitled"}
-          </span>
-          {/* The story bible moved out of the writing panel to its own screen.
-              This is the way back to it, from the one place a writer is when
-              they realise the character's want was wrong. */}
-          <button
-            onClick={() => navigate(`/projects/${id}/setup`)}
-            className="hidden lg:inline-block shrink-0 text-[11px] font-sans text-inkMuted hover:text-gold border border-border hover:border-gold/40 rounded-full px-2.5 py-0.5 transition"
-            title="Story bible and project format"
-          >
-            Setup
-          </button>
-        </div>
-        {/* `gap-1.5` below `lg`: four controls with 12px between them spend
-            48px of a 359px budget on air. */}
-        <div className="flex gap-1.5 lg:gap-3 items-center ml-auto shrink-0">
-          {/* "Is my work saved" is the fact that breaks focus fastest, so it
-              stays on the surface at every width — but as a dot below `lg`,
-              because the word costs 42px and a phone header has none spare. */}
-          <span className="hidden lg:inline text-[11px] font-semibold text-inkMuted uppercase tracking-wider whitespace-nowrap">
-            {saving ? "Saving..." : "Synced"}
-          </span>
-          <span
-            className={`lg:hidden h-2 w-2 rounded-full shrink-0 ${
-              saving ? "bg-gold animate-pulse" : "bg-emerald-500/70"
-            }`}
-            role="status"
-            aria-label={saving ? "Saving" : "Saved"}
-            title={saving ? "Saving…" : "Saved"}
-          />
-          {/* Where the writer is, in the unit their craft actually uses. A
-              screenplay note is "cut ten pages", never "cut some words" — and
-              until now the editor could not answer "what page am I on" at all.
-              Same page numbering as the exported PDF. */}
-          {view === "script" && (
-            <span
-              className="text-[11px] font-mono text-inkMuted tabular-nums whitespace-nowrap"
-              title="Page under the caret / pages in the draft — matches the PDF export"
-            >
-              p. {Math.min(caretPage, pageCount)} / {pageCount}
-            </span>
-          )}
-          {/* Everything from here to the closing tag is desktop only. Each of
-              these is used occasionally rather than while writing, which is the
-              rule `ToolbarMenu` already states — it was applied for desktop and
-              never extended down. On a phone they are in the overflow menu
-              below. */}
-          <div className="hidden lg:flex items-center gap-3">
-          {/* Shortcut reference. A dropdown rather than a standing panel:
-              you need it while learning the letters and never again, so it
-              shouldn't hold editor width permanently. */}
-          <div className="relative" data-shortcuts>
-            <button
-              onClick={() => setShowShortcuts((v) => !v)}
-              title="Format shortcuts"
-              className={`px-2.5 py-2 rounded-lg border transition duration-200 font-mono text-[11px] ${
-                showShortcuts ? "bg-goldDim border-gold text-gold" : "bg-bg border-border text-inkMuted hover:text-ink whitespace-nowrap"
-              }`}
-            >
-              ⌨ shortcuts
-            </button>
-            {showShortcuts && (
-              <div className="absolute right-0 top-full mt-1.5 w-72 z-30 rounded-xl border border-borderSoft bg-surface shadow-card p-3">
-                <p className="text-[11px] text-inkMuted mb-2.5 leading-snug">
-                  Type the letter, press <kbd className="px-1 py-0.5 rounded bg-elevated border border-borderSoft font-mono text-[10px]">Tab</kbd>.
-                </p>
-                <div className="space-y-1">
-                  {SHORTCUT_HINTS.map((s) => (
-                    <div key={s.keys + s.gives} className="flex items-baseline gap-2 text-[11.5px]">
-                      <span className="font-mono text-gold w-8 shrink-0">{s.keys}</span>
-                      <span className="font-mono text-inkSoft">{s.gives}</span>
-                      <span className="text-inkMuted text-[10.5px] ml-auto shrink-0">{s.where}</span>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[10.5px] text-inkMuted mt-2.5 pt-2 border-t border-borderSoft leading-snug">
-                  Character names and locations come from your draft and your
-                  Story tab.
-                </p>
-              </div>
-            )}
-          </div>
-          <div className="h-4 w-px bg-borderSoft mx-1" />
-          {/* Nepali phonetic input. Labelled in both scripts rather than with
-              an icon, because the thing it switches between IS the two scripts
-              — a glyph would need explaining and these explain themselves. */}
-          <div className="flex rounded-lg border border-border overflow-hidden shrink-0" role="group" aria-label="Typing script">
-            {[
-              { on: false, label: "A", title: "Type in English" },
-              { on: true, label: "अ", title: "Type Nepali phonetically — write ‘namaste’, get नमस्ते" },
-            ].map((opt) => (
-              <button
-                key={opt.label}
-                onClick={() => {
-                  setNepaliMode(opt.on);
-                  window.localStorage.setItem("baakhapaa:nepali", opt.on ? "on" : "off");
-                  textareaRef.current?.focus();
-                }}
-                aria-pressed={nepaliMode === opt.on}
-                title={opt.title}
-                className={`text-xs py-1.5 px-3 transition ${
-                  nepaliMode === opt.on
-                    ? "bg-goldDim text-gold"
-                    : "text-inkMuted hover:text-ink hover:bg-elevated/50"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          {/* Script / Corkboard / Outline moved into the left rail. They name
-              what you are LOOKING AT, and the left column is that thing; up
-              here they sat beside Import and Export, which are things you do
-              TO a script rather than ways of reading it. */}
-          <div className="h-4 w-px bg-borderSoft mx-1" />
-          {suggestions && (
-            <button
-              onClick={() => setShowStructure((s) => !s)}
-              className={`text-xs py-1.5 px-3 rounded-full border transition ${
-                showStructure
-                  ? "bg-goldDim border-gold/40 text-gold"
-                  : "border-border text-inkMuted hover:text-ink"
-              }`}
-              title="Show/hide the AI-suggested three-act structure"
-            >
-              Structure
-            </button>
-          )}
-          {/* One menu rather than a button per format. Two of the four were
-              only reachable from a different page entirely, and naming them
-              in a list says what each is FOR — which "Export PDF" beside
-              ".fdx" never did. */}
-          {/* Beside Export, because "get a script out" and "get a script in"
-              are the same question asked in two directions. */}
-          <button
-            type="button"
-            onClick={() => importRef.current?.open()}
-            className="text-xs py-1.5 px-3 rounded-lg border border-border text-inkMuted hover:text-ink transition"
-            title="Import a screenplay from Final Draft, Fountain, Word, plain text or PDF"
-          >
-            Import
-          </button>
-
-          <button
-            onClick={() => setShowShare(true)}
-            title="Share this project"
-            className="text-xs py-1.5 px-3 rounded-lg border border-border text-inkMuted
-                       hover:text-ink transition"
-          >
-            Share
-          </button>
-
-          <ToolbarMenu
-            label="Export"
-            title="Download this script"
-            items={[
-              { key: "pdf", label: "PDF", hint: "For reading and sending", onSelect: () => handleExport("pdf") },
-              { key: "fdx", label: "Final Draft (.fdx)", hint: "Opens in Final Draft, Celtx, Arc Studio", onSelect: () => handleExport("fdx") },
-              { key: "word", label: "Word (.docx)", hint: "For editing outside the app", onSelect: () => handleExport("word") },
-              { key: "d1", divider: true },
-              { key: "package", label: "Production package", hint: "Script, shot list and storyboard in one PDF", onSelect: () => handleExport("package") },
-            ]}
-          />
-
-          <ToolbarMenu
-            label="View"
-            title="Display options"
-            items={[
-              {
-                // Focus mode and Full page were separate entries — one hid the
-                // app's chrome, the other the browser's. True, and a
-                // distinction nobody standing at this menu wants to make: a
-                // writer asking for fewer things on screen means all of them.
-                // One control now does both, and leaving focus restores both.
-                key: "zen",
-                label: "Focus mode",
-                hint: "Nothing on screen but the page",
-                active: zenMode,
-                onSelect: () => {
-                  const next = !zenMode;
-                  setZenMode(next);
-                  if (next !== isFullPage) toggleFullPage();
-                },
-              },
-              {
-                // One entry, three states. The menu was just cut from four
-                // items to three and adding three more would undo that; a
-                // cycling control says what it is and what comes next.
-                key: "cursor",
-                label: `Cursor: ${CURSORS[cursor].label}`,
-                hint: CURSORS[cursor].hint,
-                onSelect: () => setCursor(CURSORS[cursor].next),
-              },
-              {
-                key: "typewriter",
-                label: typewriter ? "Typewriter mode: on" : "Typewriter mode",
-                hint: "Hold the caret at the middle of the page",
-                onSelect: () => setTypewriter((t) => !t),
-              },
-              {
-                label: pageTheme === "dark" ? "Light page" : "Dark page",
-                hint: "The colour of the paper, not the app",
-                onSelect: () => setPageTheme(pageTheme === "light" ? "dark" : "light"),
-              },
-            ]}
-          />
-          </div>
-
-          {/* The same controls on a phone, as one menu. A flat list rather than
-              nested menus: a submenu inside a dropdown on a touch screen is a
-              thing people close by accident. Grouped with dividers instead —
-              reading, then the page, then getting a script in and out. */}
-          <ToolbarMenu
-            label="⋯"
-            title="More"
-            align="right"
-            className="lg:hidden"
-            items={[
-              { key: "setup", label: "Story bible and format",
-                hint: "Logline, characters, what the story is for",
-                onSelect: () => navigate(`/projects/${id}/setup`) },
-              ...(suggestions
-                ? [{ key: "structure",
-                     label: showStructure ? "Hide the structure" : "Show the structure",
-                     hint: "The suggested three acts",
-                     active: showStructure,
-                     onSelect: () => setShowStructure((v) => !v) }]
-                : []),
-              { key: "d0", divider: true },
-              { key: "nepali",
-                label: nepaliMode ? "Typing: नेपाली" : "Typing: English",
-                hint: "Write ‘namaste’, get नमस्ते",
-                active: nepaliMode,
-                onSelect: () => {
-                  const next = !nepaliMode;
-                  setNepaliMode(next);
-                  window.localStorage.setItem("baakhapaa:nepali", next ? "on" : "off");
-                  textareaRef.current?.focus();
-                } },
-              { key: "shortcuts", label: "Format shortcuts",
-                hint: "Type the letter, press Tab",
-                active: showShortcuts,
-                onSelect: () => setShowShortcuts((v) => !v) },
-              { key: "zen", label: "Focus mode",
-                hint: "Nothing on screen but the page",
-                active: zenMode,
-                onSelect: () => {
-                  const next = !zenMode;
-                  setZenMode(next);
-                  if (next !== isFullPage) toggleFullPage();
-                } },
-              { key: "pagetheme",
-                label: pageTheme === "dark" ? "Light page" : "Dark page",
-                hint: "The colour of the paper, not the app",
-                onSelect: () => setPageTheme(pageTheme === "light" ? "dark" : "light") },
-              { key: "d1", divider: true },
-              { key: "import", label: "Import a screenplay",
-                hint: "Final Draft, Fountain, Word, text or PDF",
-                onSelect: () => importRef.current?.open() },
-              { key: "share", label: "Share this project",
-                hint: "Invite a reader or an editor",
-                onSelect: () => setShowShare(true) },
-              { key: "d2", divider: true },
-              { key: "pdf", label: "Export PDF", hint: "For reading and sending",
-                onSelect: () => handleExport("pdf") },
-              { key: "fdx", label: "Export Final Draft (.fdx)",
-                hint: "Opens in Final Draft, Celtx, Arc Studio",
-                onSelect: () => handleExport("fdx") },
-              { key: "word", label: "Export Word (.docx)",
-                hint: "For editing outside the app",
-                onSelect: () => handleExport("word") },
-              { key: "package", label: "Export production package",
-                hint: "Script, shot list and storyboard in one PDF",
-                onSelect: () => handleExport("package") },
-            ]}
-          />
-
-          {/* Rendered at every width with no button of its own: desktop has one
-              in the row above, the phone has a menu item, and both call
-              `open()` on it. What must not be behind a breakpoint is its error
-              — the server explains why a file could not be read, and that
-              sentence is the whole point of the component. */}
-          <ImportScript
-            ref={importRef}
-            showButton={false}
-            scriptId={id}
-            onImported={(data) => {
-              setContent(data.content || "");
-              if (data.scenes) setScript((prev) => (prev ? { ...prev, scenes: data.scenes } : prev));
-              if (data.pagination) setPagination(data.pagination);
-            }}
-          />
-
-          {/* Only below lg. Above it the panel is always there and a button to
-              open it would do nothing. */}
-          <button
-            onClick={() => setPanelOpen(true)}
-            aria-label="Open the assist panel"
-            title={t("Assist")}
-            className="lg:hidden text-xs py-1.5 px-2.5 rounded-lg border border-border text-inkMuted whitespace-nowrap shrink-0"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 6h16M4 12h10M4 18h13" />
-            </svg>
-          </button>
-
-          <button onClick={handleFinalize} disabled={reviewing} className="btn-gold text-xs py-1.5 px-3.5 whitespace-nowrap">
-            {reviewing ? "Reviewing…" : (
-              <>
-                {/* 139px of label is a third of a phone screen. The word alone
-                    still says what the button does, and this is the one control
-                    that must never be the thing that gets moved into a menu. */}
-                <span className="lg:hidden">Finalize</span>
-                <span className="hidden lg:inline">Finalize &amp; Storyboard</span>
-              </>
-            )}
-          </button>
-        </div>
-      </header>
+      <EditorHeader
+        id={id}
+        title={script.project?.title || "Untitled"}
+        navigate={navigate}
+        t={t}
+        saving={saving}
+        view={view}
+        caretPage={caretPage}
+        pageCount={pageCount}
+        nepaliMode={nepaliMode}
+        setNepaliMode={setNepaliMode}
+        textareaRef={textareaRef}
+        showShortcuts={showShortcuts}
+        setShowShortcuts={setShowShortcuts}
+        suggestions={suggestions}
+        showStructure={showStructure}
+        setShowStructure={setShowStructure}
+        zenMode={zenMode}
+        setZenMode={setZenMode}
+        isFullPage={isFullPage}
+        toggleFullPage={toggleFullPage}
+        cursor={cursor}
+        setCursor={setCursor}
+        typewriter={typewriter}
+        setTypewriter={setTypewriter}
+        pageTheme={pageTheme}
+        setPageTheme={setPageTheme}
+        handleExport={handleExport}
+        handleFinalize={handleFinalize}
+        reviewing={reviewing}
+        setShowShare={setShowShare}
+        setPanelOpen={setPanelOpen}
+        importRef={importRef}
+        onImported={handleImported}
+      />
       )}
 
       {/* FR07: what the review found, before finalizing. Reports, never blocks. */}
@@ -1875,148 +1416,42 @@ export default function ScriptEditor() {
         )}
 
         {/* Workspace: the screenplay, always. */}
-        <div className="flex-1 flex flex-col min-w-0">
-
-          <div
-            className={`flex-1 screenplay-container min-h-0 relative ${zenMode ? "zen-container" : ""}`}
-            /* No longer hidden in the other views. Corkboard and Outline moved
-               into the left rail, so the page is visible in all three — which
-               is also why the caret and the native undo stack now survive a
-               view switch by simply never being unmounted. */
-          >
-            {/* Focus mode's status line.
-                Hiding the chrome hides the save indicator too, and "is my work
-                saved" is the anxiety that pulls a writer out of focus faster
-                than any toolbar would. So the three facts that survive are the
-                three worth interrupting for: where you are in the script, what
-                you have written since you started, and whether it is safe.
-                Everything else stays gone. */}
-            {/* The Pen, only on a blank page and never in focus mode.
-                A new project now opens genuinely empty — the wizard stopped
-                generating a structure — which makes this the most stuck a
-                writer is ever going to be here. It disappears on the first
-                keystroke rather than waiting to be dismissed. */}
-            {view === "script" && !zenMode && !content.trim() && (
-              <PenPrompt
-                pageTheme={pageTheme}
-                onInsert={(line) => {
-                  insertAtPosition(0, `${line}
-
-`);
-                  textareaRef.current?.focus();
-                }}
-                onOpenGuide={() => {
-                  setPanelTab("guide");
-                  setPanelOpen(true);
-                }}
-              />
-            )}
-
-            {zenMode && (
-              <div className="zen-hint" aria-live="polite">
-                <span className="tabular-nums">
-                  p. {Math.min(caretPage, pageCount)} / {pageCount}
-                </span>
-                {sessionStart && (
-                  <span className="tabular-nums ml-4">
-                    +{Math.max(0, countWords(content) - sessionStart.words)} words
-                  </span>
-                )}
-                <span className="ml-4">{saving ? "Saving…" : "Saved"}</span>
-                {/* Clickable, because the toolbar that held the Focus mode
-                    toggle is now hidden and Esc would otherwise be the only way
-                    out — fine for anyone who knows, a trap for anyone who does
-                    not. The strip itself is pointer-events:none so it never
-                    steals a click meant for the page; this one control opts
-                    back in. */}
-                <button
-                  type="button"
-                  onClick={() => setZenMode(false)}
-                  className="ml-4 opacity-60 hover:opacity-100 hover:text-gold
-                             transition pointer-events-auto uppercase tracking-[0.08em]"
-                >
-                  Esc to leave
-                </button>
-              </div>
-            )}
-            {/* Page breaks used to be drawn in here as an overlay. Removed:
-                a textarea has one continuous flow, so the marker could only
-                ever sit ON the text rather than move it, and neither a rule
-                nor a gap earned the interruption. `p. N / M` in the toolbar
-                still says where you are, and the PDF still paginates for
-                real — the two places a page count is actually useful. */}
-            <div className="relative w-full max-w-[816px] flex">
-              <textarea
-              ref={textareaRef}
-              className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} ${typewriter && !zenMode ? "typewriter-page" : ""} ${cursor === "pen" ? "cursor-pen" : cursor === "ring" ? "cursor-ring" : ""} ${resting ? "cursor-resting" : ""} resize-none`}
-              /* Short, because the Pen now says the useful version on an empty
-                 page. This read "Type Scene Headings starting with INT. or
-                 EXT., and press TAB to format characters, parentheticals, and
-                 dialogue…" — accurate, and four pieces of vocabulary aimed at
-                 somebody who has none. */
-              placeholder="Start writing…"
-              /* A real name, not just a placeholder. A placeholder disappears
-                 the moment there is text, so a screen-reader user returning to
-                 a written draft previously met an unnamed textarea — and it
-                 also means the copy above can change without breaking every
-                 test that needs to find the page. */
-              aria-label="Screenplay"
-              value={content}
-              onChange={(e) => {
-                const nextContent = e.target.value;
-                setContent(nextContent);
-                setScript((prev) => prev ? {
-                  ...prev,
-                  scenes: scenesFromDraft(nextContent, prev.scenes || []),
-                } : prev);
-                setDismissed(false);
-                trackCaret(e);
-                // Ordinary typing needs this as much as Enter does: the caret
-                // leaves the container's visible window long before it leaves
-                // the textarea, and the browser only follows it out of the latter.
-                scrollCaretIntoView(typewriter || zenMode);
-              }}
-              onKeyDown={(e) => { setResting(true); handleKeyDown(e); }}
-              onClick={(e) => { trackCaret(e); updateCaretPage(e.currentTarget); }}
-              onKeyUp={(e) => {
-                trackCaret(e);
-                updateCaretPage(e.currentTarget);
-                // Typing is handled by onChange. This is for moving the caret
-                // WITHOUT typing — arrows, page keys, Home/End. In typewriter
-                // mode the line has to hold its position however the caret got
-                // there, or navigating up through a scene throws the page out
-                // of alignment and the next keystroke snaps it back.
-                if (typewriter && NAV_KEYS.has(e.key)) scrollCaretIntoView(true);
-              }}
-              /* Fires for every way a selection can change: dragging,
-                 shift-arrows, double-click, select-all. Cheaper and more
-                 complete than trying to catch each of those separately. */
-              onSelect={(e) => {
-                const { selectionStart, selectionEnd, value } = e.target;
-                setSelection(
-                  selectionStart === selectionEnd
-                    ? ""
-                    : value.slice(selectionStart, selectionEnd),
-                );
-              }}
-              /* Deliberately NOT clearing the selection on blur. Pressing
-                 Improve moves focus off the page, and the whole feature depends
-                 on what was highlighted a moment earlier still being known. */
-              onBlur={() => setSuggest(null)}
-              />
-            </div>
-          </div>
-
-          {/* Type-ahead strip. Hidden in zen mode — the point of focus mode is
-              that nothing appears while you write. */}
-          {!zenMode && !dismissed && (
-            <FormatShortcuts
-              options={suggest?.options}
-              activeIndex={suggestIndex}
-              onPick={applySuggestion}
-            />
-          )}
-        </div>
+        <ScriptPage
+          content={content}
+          setContent={setContent}
+          textareaRef={textareaRef}
+          handleKeyDown={handleKeyDown}
+          trackCaret={trackCaret}
+          updateCaretPage={updateCaretPage}
+          scrollCaretIntoView={scrollCaretIntoView}
+          insertAtPosition={insertAtPosition}
+          selection={selection}
+          setSelection={setSelection}
+          suggest={suggest}
+          setSuggest={setSuggest}
+          suggestIndex={suggestIndex}
+          dismissed={dismissed}
+          setDismissed={setDismissed}
+          applySuggestion={applySuggestion}
+          view={view}
+          saving={saving}
+          caretPage={caretPage}
+          pageCount={pageCount}
+          sessionStart={sessionStart}
+          script={script}
+          user={user}
+          zenMode={zenMode}
+          setZenMode={setZenMode}
+          pageTheme={pageTheme}
+          typewriter={typewriter}
+          cursor={cursor}
+          resting={resting}
+          setResting={setResting}
+          focus={focus}
+          setPanelOpen={setPanelOpen}
+          setPanelTab={setPanelTab}
+          setScript={setScript}
+        />
 
         {/* Format guide — sits between the page and the assistant so the
             example column lines up beside what you are typing. */}
@@ -2025,371 +1460,50 @@ export default function ScriptEditor() {
             phone, because 320px of permanent panel beside a 375px screen
             leaves nothing to write on. */}
         {!zenMode && (
-          <>
-          {panelOpen && (
-            <button
-              type="button"
-              aria-label="Close panel"
-              onClick={() => setPanelOpen(false)}
-              className="lg:hidden fixed inset-0 z-30 bg-black/50"
-            />
-          )}
-          <aside
-            className={`bg-surface border-l border-border p-5 overflow-y-auto overflow-x-hidden shrink-0 animate-fade-up flex flex-col
-              lg:static lg:z-auto lg:w-80 lg:translate-x-0
-              fixed inset-y-0 right-0 z-40 w-[85vw] max-w-sm transition-transform
-              ${panelOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}`}
-          >
-            {/* Three tabs, and they answer three different questions: write
-                this for me, tell me what is wrong with it, show me what changed.
-                There were five. "Story" was setup rather than feedback and moved
-                to the project setup screen; "Versions" and "Notes" are both the
-                document's history and now share one tab. Five 10.5px labels in a
-                320px panel had already forced the padding down until the row
-                still overflowed and clipped a label mid-word — the cramping was
-                the symptom, the wrong grouping was the cause. */}
-            <div className="flex gap-1 mb-4">
-              {[
-                { key: "ai", label: "Assist" },
-                { key: "craft", label: "Craft" },
-                { key: "guide", label: "Guide" },
-                { key: "history", label: "History" },
-              ].map((t) => (
-                <button
-                  key={t.key}
-                  onClick={() => setPanelTab(t.key)}
-                  aria-pressed={panelTab === t.key}
-                  className={`text-[11px] font-semibold uppercase tracking-wide px-2 py-1.5 rounded-lg flex-1 min-w-0 transition duration-200 border ${
-                    panelTab === t.key ? "bg-goldDim text-gold border-gold/30" : "text-inkMuted hover:text-ink border-transparent"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Remounts on open so it re-reads the current draft rather than
-                showing a check from three edits ago. */}
-            {/* Always here, never a popup that fires once and vanishes. A
-                writer who needs to be told how a parenthetical works needs it
-                in week three as much as on day one, and by then a dismissed
-                tour is unreachable. */}
-            {panelTab === "guide" && (
-              <GuidePanel
-                content={content}
-                onInsert={(text) => {
-                  const ta = textareaRef.current;
-                  const at = ta ? ta.selectionStart : content.length;
-                  insertAtPosition(at, `${text}
-`);
-                }}
-              />
-            )}
-
-            {panelTab === "craft" && (
-              <>
-                <CraftPanel content={content} genre={genre} tone={tone} />
-                {/* Coverage is the Craft tab's question asked about the whole
-                    draft rather than the line under the caret, so it belongs
-                    here rather than earning a fifth tab. */}
-                <div className="border-t border-borderSoft pt-5 mt-6">
-                  <p className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-2">
-                    Coverage
-                  </p>
-                  <CoveragePanel scriptId={id} />
-                </div>
-              </>
-            )}
-
-            {/* Versions and comments are one question — what happened to this
-                document — asked about the machine's record and about people. */}
-            {panelTab === "history" && (
-              <div className="space-y-6">
-                <VersionHistory scriptId={id} onRestore={(restored) => setContent(restored)} />
-                <div className="border-t border-borderSoft pt-5">
-                  <CommentThreads scriptId={id} caretLine={caretLine} />
-                </div>
-                {/* Versions answer what changed; this answers who was here.
-                    Renders nothing for anyone but a project admin. */}
-                <div className="border-t border-borderSoft pt-5">
-                  <AccessLog scriptId={id} />
-                </div>
-              </div>
-            )}
-
-            {panelTab === "ai" && (
-            <>
-            <div className="flex border-b border-borderSoft mb-4">
-              {["patterns", "generate", "improve", "suggest"].map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setAiMode(mode)}
-                  title={aiLocked && mode !== "patterns" ? "Pro / Studio feature" : undefined}
-                  className={`text-xs pb-2.5 font-semibold capitalize flex-1 border-b-2 transition duration-200 ${
-                    aiMode === mode
-                      ? "border-gold text-gold"
-                      : "border-transparent text-inkMuted hover:text-ink"
-                  }`}
-                >
-                  {mode}{aiLocked && mode !== "patterns" ? " ✦" : ""}
-                </button>
-              ))}
-            </div>
-
-            {aiMode === "patterns" ? (
-              <>
-                {/* One tap = the kind of help you need. Loads on open; each
-                    chip re-queries for that problem type. */}
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {FOCUSES.map((f, i) => (
-                    <React.Fragment key={f.key}>
-                      {/* A hairline after the first chip. It reads the draft;
-                          every chip after it names a problem instead. The rule
-                          shows that split without a sentence explaining it. */}
-                      {i === 1 && (
-                        <span
-                          aria-hidden="true"
-                          className="self-center h-3.5 w-px bg-borderSoft mx-0.5"
-                        />
-                      )}
-                      <button
-                        onClick={() => { setFocus(f.key); setOpenPattern(null); loadPatterns(f.key); }}
-                        title={
-                          f.key === "scene"
-                            ? "Match against what you have written so far"
-                            : `Match against: ${f.query}`
-                        }
-                        className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
-                          focus === f.key
-                            ? "bg-goldDim border-gold/40 text-gold"
-                            : "border-border text-inkMuted hover:text-ink"
-                        }`}
-                      >
-                        {f.label}
-                      </button>
-                    </React.Fragment>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-inkMuted">
-                    {genre} · {tone}
-                  </span>
-                  <button
-                    onClick={() => loadPatterns(focus)}
-                    disabled={patternsLoading}
-                    className="tap text-[11px] text-inkMuted hover:text-gold transition-colors disabled:opacity-50"
-                  >
-                    {patternsLoading ? "Matching…" : "↻ Refresh"}
-                  </button>
-                </div>
-
-                {/* Say why. Generic advice is the single most common complaint
-                    writers make about paid script coverage — naming the line
-                    that triggered each pattern is what separates this from it. */}
-                {patternSource === "diagnosis" && diagnosed.length > 0 && (
-                  <div className="mb-3 rounded-xl border border-gold/25 bg-goldDim/40 p-3">
-                    <div className="font-mono text-[9.5px] uppercase tracking-wider text-gold mb-1.5">
-                      Found in your draft
-                    </div>
-                    <ul className="space-y-1">
-                      {diagnosed.map((d) => (
-                        <li key={`${d.rule}-${d.line}`} className="text-[11.5px] text-inkSoft leading-snug">
-                          <span className="font-mono text-gold/80">L{d.line}</span> — {d.message}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </>
-            ) : aiLocked ? (
-              <UpgradePrompt mode={aiMode} onUpgrade={() => navigate("/pricing")} />
-            ) : (
-              <>
-                {/* What Improve is about to touch. A writer who has highlighted
-                    a line and a writer who has highlighted nothing are asking
-                    for very different amounts of change, and until this said so
-                    the only way to find out which you had asked for was to
-                    press the button and read the result. */}
-                {aiMode === "improve" && (
-                  <div className="mb-3 rounded-lg border border-border bg-surface/60 px-3 py-2">
-                    {selectionRange(content, selection) ? (
-                      <>
-                        <div className="font-mono text-[9.5px] uppercase tracking-wider text-gold mb-1">
-                          Rewriting your selection
-                        </div>
-                        <div className="text-[11.5px] text-inkSoft leading-snug line-clamp-2 font-mono">
-                          {selection.trim()}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-[11.5px] text-inkMuted leading-snug">
-                        Rewriting the whole scene.{" "}
-                        <span className="text-inkSoft">
-                          Highlight a line first to change only that.
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <textarea
-                  className="field h-28 mb-4 text-sm"
-                  placeholder={
-                    aiMode === "generate" ? "Describe the scene action or dialogue to generate..." :
-                    aiMode === "improve" ? "Instruction on how to improve the scene content..." :
-                    "Get suggestions and story directions based on current scene writing."
-                  }
-                  value={instruction}
-                  onChange={(e) => setInstruction(e.target.value)}
-                />
-                <button onClick={handleAI} disabled={aiLoading} className="btn-gold w-full text-sm py-2.5 mb-4">
-                  {aiLoading ? "Generating lines..." : "Execute AI Action"}
-                </button>
-              </>
-            )}
-
-            {aiMode === "patterns" && (
-              patternsLoading && !patterns ? (
-                <div className="space-y-2">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="h-16 rounded-xl bg-elevated/40 border border-borderSoft animate-pulse" />
-                  ))}
-                </div>
-              ) : patterns?.length === 0 ? (
-                <p className="text-inkMuted text-sm">No patterns matched — try writing a little more first.</p>
-              ) : (
-                <div className="space-y-2">
-                  {patterns?.map((p, i) => {
-                    // Three cards of apparently equal weight is a menu, and a
-                    // menu is what a writer skips. The first card has the
-                    // strongest evidence behind it — it is either a line the
-                    // linter found or the technique this script has been shown
-                    // and has not dealt with — so it leads, open, and the rest
-                    // fold behind one control.
-                    if (i > 0 && !showAllPatterns) return null;
-                    const open = openPattern === i || (i === 0 && openPattern === null);
-                    // An exact hit came from a linter flag, not from embedding
-                    // distance. Its similarity is a placeholder 1.0, so showing
-                    // "100%" would dress a diagnosis up as a perfect semantic
-                    // match. Show the line it answers instead.
-                    const hit = diagnosed.find((d) => d.technique === p.technique);
-                    return (
-                      <div
-                        key={i}
-                        className={`rounded-xl border transition-colors ${
-                          open ? "bg-elevated/60 border-gold/30" : "bg-elevated/40 border-borderSoft hover:border-gold/20"
-                        }`}
-                      >
-                      <button
-                        onClick={() => setOpenPattern(open ? null : i)}
-                        className="w-full text-left p-3.5"
-                      >
-                        <div className="flex items-baseline justify-between gap-2 mb-1.5">
-                          <span className="font-mono text-[10px] uppercase tracking-wider text-gold truncate">
-                            {p.craft_level || "craft"}
-                            {namedTradition(p.origin_tradition)
-                              ? ` · ${namedTradition(p.origin_tradition)}`
-                              : ""}
-                          </span>
-                          {/* Only a diagnosis earns this slot. The similarity
-                              score that used to sit here was a cosine distance
-                              a writer cannot act on, and it implied a precision
-                              that is not there — 78% is not better advice than
-                              72%. Worse, it shared the slot with "line 12", so
-                              one position meant both "here is exactly where you
-                              did this" and "here is a number about vectors". */}
-                          {hit && (
-                            <span className="font-mono text-[10px] text-gold shrink-0">
-                              line {hit.line}
-                            </span>
-                          )}
-                        </div>
-                        {/* Lead with the technique. The mechanics, the concrete
-                            steps and a worked example unfold only when asked. */}
-                        <p className="text-[13px] text-ink leading-snug font-medium">
-                          {p.technique || p.one_line_takeaway}
-                        </p>
-                        {/* Said before, and still true. This is the difference
-                            between advice and nagging: naming the repetition
-                            makes it evidence, where saying the same thing
-                            silently for the third time is just noise. */}
-                        {seen[p.technique]?.times_shown > 1 && (
-                          <p className="text-[10px] text-inkMuted mt-1">
-                            Suggested {seen[p.technique].times_shown} times — still on the page.
-                          </p>
-                        )}
-                        {open ? (
-                          <div className="mt-2 pt-2 border-t border-borderSoft space-y-2.5">
-                            {p.how_to_apply && (
-                              <div>
-                                <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-1">Do this</div>
-                                <p className="text-[12px] text-inkSoft leading-relaxed">{p.how_to_apply}</p>
-                              </div>
-                            )}
-                            {p.worked_example && (
-                              <div>
-                                <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-1">On the page</div>
-                                <p className="text-[12px] text-inkSoft leading-relaxed font-mono bg-bgDeep/40 border border-borderSoft rounded-lg p-2.5 whitespace-pre-wrap">
-                                  {p.worked_example}
-                                </p>
-                              </div>
-                            )}
-                            {p.warning_sign && (
-                              <div>
-                                <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-1">You need this if</div>
-                                <p className="text-[12px] text-inkMuted leading-relaxed italic">{p.warning_sign}</p>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-[10px] text-inkMuted mt-1.5 inline-block">How to use it ↓</span>
-                        )}
-                      </button>
-
-                      {/* Outside the card's own button, because a button inside
-                          a button is invalid and the browser takes it apart.
-                          Advice given twice and not taken is not a
-                          recommendation problem any more: either the writer
-                          does not believe it or does not know how, and both of
-                          those are what a lesson is for. A first showing never
-                          escalates — being sent to a course the moment you are
-                          first told something reads as being told off. */}
-                      {seen[p.technique]?.times_shown > 1 && (
-                        <div className="px-3.5 pb-3">
-                          <LessonEscalation technique={p.technique} />
-                        </div>
-                      )}
-                      </div>
-                    );
-                  })}
-
-                  {patterns?.length > 1 && (
-                    <button
-                      onClick={() => setShowAllPatterns((v) => !v)}
-                      className="w-full text-[11px] font-mono text-inkMuted hover:text-gold transition-colors py-1.5"
-                    >
-                      {showAllPatterns
-                        ? "Show only the strongest"
-                        : `${patterns.length - 1} more ${patterns.length === 2 ? "pattern" : "patterns"}`}
-                    </button>
-                  )}
-                </div>
-              )
-            )}
-            
-            {aiResponse && (
-              <div className="bg-elevated/40 border border-borderSoft rounded-xl p-4 mt-2">
-                <div className="text-xs text-inkMuted font-mono uppercase tracking-wider mb-2">AI Suggestion</div>
-                <div className="text-sm text-inkSoft whitespace-pre-wrap mb-4 font-mono leading-relaxed max-h-60 overflow-y-auto bg-bgDeep/40 p-3 rounded-lg border border-borderSoft">{aiResponse}</div>
-                <div className="flex gap-2">
-                  <button onClick={acceptAI} className="text-xs border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 px-3 py-2 rounded-lg flex-1 hover:bg-emerald-500/20 transition">Accept</button>
-                  <button onClick={() => setAiResponse("")} className="text-xs border border-red-500/20 bg-red-500/10 text-red-400 px-3 py-2 rounded-lg flex-1 hover:bg-red-500/20 transition">Reject</button>
-                </div>
-              </div>
-            )}
-            </>
-            )}
-          </aside>
-          </>
+          <AssistPanel
+            panelOpen={panelOpen}
+            setPanelOpen={setPanelOpen}
+            panelTab={panelTab}
+            setPanelTab={setPanelTab}
+            script={script}
+            id={id}
+            suggestions={suggestions}
+            genre={genre}
+            tone={tone}
+            navigate={navigate}
+            t={t}
+            content={content}
+            setContent={setContent}
+            textareaRef={textareaRef}
+            caretLine={caretLine}
+            selection={selection}
+            selectionRange={selectionRange}
+            insertAtPosition={insertAtPosition}
+            aiMode={aiMode}
+            setAiMode={setAiMode}
+            aiLocked={aiLocked}
+            aiLoading={aiLoading}
+            aiResponse={aiResponse}
+            setAiResponse={setAiResponse}
+            instruction={instruction}
+            setInstruction={setInstruction}
+            handleAI={handleAI}
+            acceptAI={acceptAI}
+            patterns={patterns}
+            patternsLoading={patternsLoading}
+            loadPatterns={loadPatterns}
+            patternSource={patternSource}
+            diagnosed={diagnosed}
+            focus={focus}
+            setFocus={setFocus}
+            openPattern={openPattern}
+            setOpenPattern={setOpenPattern}
+            showAllPatterns={showAllPatterns}
+            setShowAllPatterns={setShowAllPatterns}
+            seen={seen}
+            suggest={suggest}
+            dismissed={dismissed}
+          />
         )}
       </div>
     </div>
