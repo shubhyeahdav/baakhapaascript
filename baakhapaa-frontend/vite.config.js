@@ -58,6 +58,25 @@ export default defineConfig({
     // false` keeps that behaviour rather than failing to start.
     port: 3000,
     strictPort: false,
+    /* Same-origin API, for opening the app on a phone.
+       `--host` publishes this server on the LAN, but the app then still called
+       the backend on its own port and its own address, which needs a second
+       inbound hole in the firewall and a hardcoded LAN IP in the environment.
+       On this machine the Ethernet network is classified Public: `node.exe` has
+       an inbound allow rule and the backend's venv Python does not, so the page
+       loaded on the phone and every request from it failed.
+       Set `VITE_API_URL=/api` and the dev server forwards to the backend over
+       loopback instead. One port to reach, no CORS at all, and nothing to
+       reconfigure when the LAN address changes. `VITE_PROXY_TARGET` moves the
+       backend port. Dev only — the production build is served by Vercel and
+       uses an absolute `VITE_API_URL`. */
+    proxy: {
+      "/api": {
+        target: process.env.VITE_PROXY_TARGET || "http://127.0.0.1:8000",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+    },
   },
   build: {
     outDir: "build",  // Vercel's config and the CI workflow both expect this.
