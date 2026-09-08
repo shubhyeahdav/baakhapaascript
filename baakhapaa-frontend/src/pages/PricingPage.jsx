@@ -174,10 +174,10 @@ export default function PricingPage() {
     <div className="min-h-screen cine-bg text-ink px-6 py-12">
       {/* Top bar */}
       <div className="max-w-5xl mx-auto flex justify-between items-center mb-14">
-        <Link to="/" className="wordmark text-[15px]">BAAKHAPAA</Link>
+        <Link to="/" className="tap wordmark text-[15px]">BAAKHAPAA</Link>
         <Link
           to={isAuthenticated ? "/dashboard" : "/login"}
-          className="text-sm text-inkMuted hover:text-ink transition"
+          className="tap text-sm text-inkMuted hover:text-ink transition"
         >
           {isAuthenticated ? "Back to Dashboard" : "Sign In"}
         </Link>

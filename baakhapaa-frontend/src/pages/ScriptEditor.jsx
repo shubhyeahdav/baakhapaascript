@@ -2177,7 +2177,7 @@ export default function ScriptEditor() {
                   <button
                     onClick={() => loadPatterns(focus)}
                     disabled={patternsLoading}
-                    className="text-[11px] text-inkMuted hover:text-gold transition-colors disabled:opacity-50"
+                    className="tap text-[11px] text-inkMuted hover:text-gold transition-colors disabled:opacity-50"
                   >
                     {patternsLoading ? "Matching…" : "↻ Refresh"}
                   </button>

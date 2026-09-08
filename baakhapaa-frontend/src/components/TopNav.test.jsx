@@ -187,6 +187,25 @@ describe("what the menu offers", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/pricing");
   });
 
+  /* The bar below md holds three destinations, a "+" and the avatar, and that
+     is all it fits in 375px. The ⌘K button is the thing that left, so search
+     has to be reachable from somewhere — the menu is that somewhere. jsdom has
+     no breakpoints (`css: false` in vite.config.js), so what is pinned here is
+     the item existing and firing the same event the bar button fires; the
+     `md:hidden` that hides it on a laptop is verified in a browser. */
+  it("offers search, because the ⌘K button is not on the bar below md", () => {
+    const listener = vi.fn();
+    window.addEventListener("open-command-palette", listener);
+    render(<TopNav />);
+    openMenu();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Search" }));
+
+    expect(listener).toHaveBeenCalled();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    window.removeEventListener("open-command-palette", listener);
+  });
+
   it("signs out only from the menu item", () => {
     render(<TopNav />);
     openMenu();
@@ -234,6 +253,19 @@ describe("the right-hand region", () => {
     fireEvent.click(screen.getByRole("button", { name: "New project" }));
 
     expect(mockNavigate).toHaveBeenCalledWith("/projects/new");
+  });
+
+  /* Below md the label is replaced by a "+", so the only thing naming this
+     control is the aria-label. Without it the primary action on a phone
+     announces as "button" — and the existing test above passes either way,
+     because it finds the button by that same accessible name. */
+  it("names the new-project button even where its label is a +", () => {
+    render(<TopNav />);
+
+    const button = screen.getByRole("button", { name: "New project" });
+
+    expect(button).toHaveAttribute("aria-label", "New project");
+    expect(button.querySelector("span[aria-hidden='true']")).toHaveTextContent("+");
   });
 
   it("hands the whole region over when `right` is given", () => {

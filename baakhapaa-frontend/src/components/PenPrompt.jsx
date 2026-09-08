@@ -95,7 +95,7 @@ export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light" }
           <button
             type="button"
             onClick={onOpenGuide}
-            className={`underline decoration-dotted underline-offset-2
+            className={`tap underline decoration-dotted underline-offset-2
                         transition-colors ${ink.link}`}
           >
             walk me through a whole scene

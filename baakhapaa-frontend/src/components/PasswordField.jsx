@@ -55,7 +55,7 @@ export default function PasswordField({
           // submit should reach submit, not a visibility toggle.
           tabIndex={-1}
           aria-label={visible ? "Hide password" : "Show password"}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] uppercase tracking-wider text-inkMuted hover:text-gold transition-colors"
+          className="tap absolute right-3 top-1/2 -translate-y-1/2 text-[11px] uppercase tracking-wider text-inkMuted hover:text-gold transition-colors"
         >
           {visible ? t("Hide") : t("Show")}
         </button>

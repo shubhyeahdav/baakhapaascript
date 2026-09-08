@@ -63,13 +63,18 @@ export default function TopNav({ active = "Projects", right }) {
         is seen before the writer starts work rather than when a paid feature
         suddenly 403s. */}
     <PlanNotice />
-    <header className="flex-none flex items-center gap-9 px-8 md:px-14 pt-6 pb-5">
-      <Link to="/dashboard" className="wordmark text-[15px] shrink-0">BAAKHAPAA</Link>
+    <header className="flex-none flex items-center gap-4 md:gap-9 px-4 md:px-8 lg:px-14 pt-4 md:pt-6 pb-4 md:pb-5">
+      {/* 129px of a 375px viewport, for a link the "Projects" tab beside it
+          already provides. It is the first thing to go on a phone: the bar's
+          job there is navigation, and nothing becomes unreachable. */}
+      <Link to="/dashboard" className="wordmark text-[15px] shrink-0 hidden md:block tap">
+        BAAKHAPAA
+      </Link>
 
-      <nav className="flex gap-7 text-[13px] ml-3">
+      <nav className="flex gap-5 md:gap-7 text-[13px] md:ml-3">
         {items.map((it) => {
           const isActive = it.label === active;
-          const cls = `pb-[3px] transition-colors ${
+          const cls = `pb-[3px] transition-colors tap ${
             isActive
               ? "text-ink border-b border-gold"
               : "text-inkMuted hover:text-inkSoft"
@@ -78,21 +83,30 @@ export default function TopNav({ active = "Projects", right }) {
         })}
       </nav>
 
-      <div className="ml-auto flex items-center gap-6">
+      <div className="ml-auto flex items-center gap-3 md:gap-6">
         {right || (
           <>
+            {/* The label is a keyboard shortcut, and a phone has no ⌘K. The
+                palette itself is not lost below md — it is the first thing in
+                the account menu. */}
             <button
               onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
-              className="text-[12.5px] text-inkMuted hover:text-inkSoft transition-colors"
+              className="hidden md:block text-[12.5px] text-inkMuted hover:text-inkSoft transition-colors tap"
               title="Search — ⌘K"
             >
               ⌘K {t("Search")}
             </button>
+            {/* Below md the label is a "+". It is the primary action and stays
+                on the surface, but 76px of it is a word the icon already says
+                on the one screen where the width is spent. */}
             <button
               onClick={() => navigate("/projects/new")}
-              className="text-[13px] font-semibold text-bgDeep bg-ink hover:bg-gold px-[18px] py-2 rounded-full transition-colors"
+              aria-label={t("New project")}
+              title={t("New project")}
+              className="text-[13px] font-semibold text-bgDeep bg-ink hover:bg-gold w-[30px] h-[30px] md:w-auto md:h-auto md:px-[18px] md:py-2 rounded-full transition-colors flex items-center justify-center"
             >
-              {t("New project")}
+              <span aria-hidden="true" className="md:hidden text-[17px] leading-none">+</span>
+              <span className="hidden md:inline">{t("New project")}</span>
             </button>
 
             {/* Account menu — a single click opens the dropdown, it no longer
@@ -142,6 +156,16 @@ export default function TopNav({ active = "Projects", right }) {
                       </button>
                     ))}
                   </div>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      window.dispatchEvent(new Event("open-command-palette"));
+                    }}
+                    className="md:hidden w-full text-left px-4 py-2.5 text-[13px] text-inkSoft hover:bg-white/[0.03] hover:text-ink transition-colors"
+                  >
+                    {t("Search")}
+                  </button>
                   <button
                     role="menuitem"
                     onClick={() => go("/settings")}

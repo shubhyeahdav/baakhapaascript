@@ -141,7 +141,9 @@ export default function RegisterPage() {
       </div>
 
       {/* Form panel */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+      {/* min-w-0 — see LoginPage: without it this panel will not shrink below
+          its content and scrolls sideways on a 360px screen. */}
+      <div className="flex-1 min-w-0 flex items-center justify-center px-5 sm:px-6 py-12">
         <div className="w-full max-w-sm animate-fade-up">
           <div className="lg:hidden text-center mb-10">
             <span className="wordmark text-base">BAAKHAPAA</span>
@@ -254,12 +256,12 @@ export default function RegisterPage() {
             <p className="text-[11.5px] text-inkMuted leading-snug mt-4">
               {t("By creating an account you agree to our")}{" "}
               <Link to="/terms" target="_blank" rel="noopener noreferrer"
-                    className="text-gold hover:underline">
+                    className="tap text-gold hover:underline">
                 {t("Terms of Use")}
               </Link>{" "}
               {t("and")}{" "}
               <Link to="/privacy" target="_blank" rel="noopener noreferrer"
-                    className="text-gold hover:underline">
+                    className="tap text-gold hover:underline">
                 {t("Privacy Policy")}
               </Link>
               . {t("Your script text is stored without application-level encryption and is sent to our AI providers when you ask for generation.")}
@@ -277,7 +279,7 @@ export default function RegisterPage() {
 
           <p className="text-center text-inkMuted text-sm mt-8">
             {t("Already have an account?")}{" "}
-            <Link to="/login" className="text-gold hover:text-goldBright transition">
+            <Link to="/login" className="tap text-gold hover:text-goldBright transition">
               {t("Sign In")}
             </Link>
           </p>

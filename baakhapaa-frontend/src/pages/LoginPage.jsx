@@ -78,8 +78,11 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Form panel */}
-      <div className="relative flex-1 flex items-center justify-center px-6 py-12">
+      {/* Form panel. `min-w-0`: a flex item defaults to min-width:auto, so it
+          refuses to shrink below its content and the panel measured 368px on
+          any viewport narrower than that — a sideways scroll on every 360px
+          Android, which is most of this market. */}
+      <div className="relative flex-1 min-w-0 flex items-center justify-center px-5 sm:px-6 py-12">
         {/* The first screen the product shows anyone, and until now the one
             place a Nepali writer could not choose Nepali — the switcher was
             inside the signed-in account menu. */}
@@ -157,7 +160,7 @@ export default function LoginPage() {
 
           <p className="text-center text-inkMuted text-sm mt-8">
             {t("No account?")}{" "}
-            <Link to="/register" className="text-gold hover:text-goldBright transition">
+            <Link to="/register" className="tap text-gold hover:text-goldBright transition">
               {t("Create one")}
             </Link>
           </p>

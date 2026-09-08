@@ -47,7 +47,7 @@ export default function ProjectSetup() {
       <main className="flex-1 px-8 md:px-14 pb-20 max-w-3xl w-full">
         <Link
           to="/dashboard"
-          className="text-[12.5px] text-inkMuted hover:text-gold transition-colors"
+          className="tap text-[12.5px] text-inkMuted hover:text-gold transition-colors"
         >
           ← Projects
         </Link>

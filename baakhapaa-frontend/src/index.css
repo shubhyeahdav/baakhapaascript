@@ -37,6 +37,27 @@ html, body {
     color: #EDEAE3;
   }
 
+  /* A pointer target of at least 24x24 CSS pixels — WCAG 2.2 SC 2.5.8.
+     Several controls here are deliberately small: a 12.5px text button, a
+     "Skip for now" beside a primary action, a link sitting inside a sentence.
+     Growing them would coarsen a layout that is right on a laptop and wrong
+     nowhere, to fix a problem that only exists under a thumb.
+
+     `tap` leaves the control exactly the size it looks and hangs the missing
+     hit area off a pseudo-element, so a thumb gets its 24px and the design
+     does not move. It stretches vertically only — the element keeps its own
+     width — so in a row of controls it cannot steal a neighbour's clicks. */
+  .tap { position: relative; }
+  .tap::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 24px;
+    transform: translateY(-50%);
+  }
+
   /* Inputs — flat, hairline, sharp */
   .field {
     width: 100%;
@@ -317,27 +338,61 @@ html, body {
   min-height: 0;
 }
 
-/* Custom range input styling — flat gold thumb, no glow */
+/* Custom range input styling — flat gold thumb, no glow.
+
+   The 2px line is the *track*; the element around it is 24px and transparent.
+   It used to be the element itself that was 2px, which draws exactly the same
+   thing and leaves a 2px strip to press. A mouse lands on the 12px thumb and
+   never notices; a thumb on a phone has to hit a hairline, which is how the
+   runtime slider on /projects/new came to be undraggable on the device this
+   product is mostly used on. */
 input[type="range"].custom-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
+  height: 24px;
+  background: transparent;
+  border-radius: 0;
+  outline: none;
+}
+input[type="range"].custom-slider::-webkit-slider-runnable-track {
   height: 2px;
   background: #26241F;
   border-radius: 0;
-  outline: none;
+}
+input[type="range"].custom-slider::-moz-range-track {
+  height: 2px;
+  background: #26241F;
+  border-radius: 0;
 }
 input[type="range"].custom-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 12px;
   height: 12px;
+  /* Centres the 12px thumb on the 2px track. Webkit aligns a thumb to the top
+     of the track, not to its middle. */
+  margin-top: -5px;
   border-radius: 50%;
   background: #D4A843;
   cursor: pointer;
   transition: background 0.15s ease;
 }
+input[type="range"].custom-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: #D4A843;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+/* Separate rules: a selector list mixing -webkit- and -moz- pseudo-elements is
+   discarded whole by both engines. */
 input[type="range"].custom-slider::-webkit-slider-thumb:hover {
+  background: #E4BE64;
+}
+input[type="range"].custom-slider::-moz-range-thumb:hover {
   background: #E4BE64;
 }
 

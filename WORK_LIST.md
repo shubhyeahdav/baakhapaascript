@@ -113,16 +113,32 @@ The fastest fix in the list for the most obviously broken thing.
 Not yet audited. One pass each at 375px, fixing whatever overflows or collides.
 The last two tasks are the ones that stop this being a one-off.
 
-- [ ] Dashboard
-- [ ] Settings
-- [ ] Learn
-- [ ] Pricing
-- [ ] Storyboard view
-- [ ] Exports and Storyboards index pages
-- [ ] Project setup and New project
-- [ ] Onboarding
-- [ ] Write one reusable check that reports horizontal overflow and sub-24px tap targets on any page
-- [ ] Run it across all nine routes and commit the report as the record of what was fixed
+Report: `baakhapaa-frontend/docs/responsive/audit-2026-09-08.md`.
+
+- [x] Dashboard
+- [x] Settings
+- [x] Learn
+- [x] Pricing
+- [x] Storyboard view
+- [x] Exports and Storyboards index pages
+- [x] Project setup and New project
+- [x] Onboarding
+- [x] Write one reusable check that reports horizontal overflow and sub-24px tap targets on any page
+- [x] Run it across all nine routes and commit the report as the record of what was fixed — *fourteen routes, and at 375, 360 and 320. All clean.*
+
+Three things worth carrying forward:
+
+- **The script's first run measured nothing.** A freshly-registered account has
+  not answered onboarding, so every protected route redirected and the audit
+  read the same wizard nine times while printing eight other route names. It
+  reported faults, so it did not look broken. It answers onboarding now.
+- **360px, not 375.** Both auth pages scrolled sideways at 360 and 320 and were
+  clean at 375, because a flex panel with the default `min-width:auto` sat at a
+  constant 368px. 360 is the common low-end Android width and is most of this
+  market; a pass at one width finds one width's bugs.
+- **The runtime slider on `/projects/new` was undraggable on a phone** — a 2px
+  element with a 12px thumb drawn overflowing it. Found by the target check, not
+  by looking, and it would not have been found by looking.
 
 ## Day 4 · Split the editor, then stop the re-render
 

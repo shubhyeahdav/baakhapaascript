@@ -354,11 +354,11 @@ export default function Onboarding() {
                 <button
                   onClick={() => setStep((s) => Math.max(0, s - 1))}
                   disabled={step === 0 || saving}
-                  className="text-inkMuted hover:text-ink disabled:opacity-0 transition"
+                  className="tap text-inkMuted hover:text-ink disabled:opacity-0 transition"
                 >
                   ← Back
                 </button>
-                <button onClick={skip} disabled={saving} className="text-inkMuted hover:text-ink transition">
+                <button onClick={skip} disabled={saving} className="tap text-inkMuted hover:text-ink transition">
                   Skip for now
                 </button>
               </div>
