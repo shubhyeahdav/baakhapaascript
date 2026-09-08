@@ -1,19 +1,18 @@
-# Handover — 2026-08-27
+# Handover — 2026-09-08
 
-Supersedes the 2026-08-19 handover. That file's environment notes and Windows
-gotchas still hold; almost everything it says about test counts, collaboration
-and open decisions does not.
+Supersedes the 2026-08-27 handover. Its environment notes and Windows gotchas
+still hold and are repeated below; its test counts and its "next session" list
+do not.
 
 | It said | Actually |
 |---|---|
-| "364 backend tests / 23 files" | **731 across 41 files** |
-| "36 frontend tests / 3 files" | **995 across 54 files** — every component and page has one |
-| "Two decisions cannot be resolved by building" (FR10, tier names) | **Both closed**, plus NFR03. See §4 |
-| "invitations by email aren't built yet" | **Built.** Anyone can be invited; §3 |
-| "`updates.py` and `rag.py` have no coverage at all" | **Both covered** |
+| "731 backend / 995 frontend tests" | Frontend is **1060 across 54 files**. Backend is still **731 plus one uncommitted new test** — the suite has not been run since |
+| "Next session: run with real keys, deploy, pilot" | **None of it moved.** All six items are blocked on credentials or calendar time, and were blocked for this whole session too |
+| "`ScriptEditor.jsx` is 1,587 lines … expect the next serious regression here" | It had grown to **2,397**. Now **1,511**, split into three components |
+| — | The app has now been **opened on a real phone**, which is new, and it found five faults in ten minutes |
 
-**Read `ROADMAP.md` for the build queue** and `DATA_HANDLING.md` before touching
-anything that stores or transmits script text. This file is the narrative.
+**Read `WORK_LIST.md` for the build queue.** Days 1–4 are done, Day 5 is half
+done and the remaining half needs the device again. This file is the narrative.
 
 ---
 
@@ -28,266 +27,223 @@ cd baakhapaa-backend && ./venv/Scripts/python -m uvicorn main:app --port 8000   
 cd baakhapaa-frontend && npm start
 ```
 
-**Nothing has ever run with real keys.** This is still the single largest
-unknown in the project and it has not moved. Every integration — Claude,
-DALL·E, Supabase, all three payment gateways — is verified against demo or
-sandbox paths only.
+**Nothing has ever run with real keys.** Still the largest unknown in the
+project, and it has not moved for three sessions.
 
-Two gotchas that cost time this session:
+Three gotchas, the first two carried forward and still true:
 
-- **The backend does not hot-reload.** It is run without `--reload` (orphaned
-  processes squat on port 8000 otherwise), so **a backend edit needs a manual
-  restart**. A whole debugging detour went into an API that was serving old
-  code because of this.
-- **Vite's CSS hot-reload can silently serve a stale stylesheet.** A padding fix
-  was correct on disk and measurably not applied in the browser. If a style
-  change appears to do nothing, hard-reload (Ctrl+Shift+R) before investigating.
+- **The backend does not hot-reload.** It runs without `--reload`, so a backend
+  edit needs a manual restart.
+- **Vite's CSS hot-reload can serve a stale stylesheet.** Hard-reload
+  (Ctrl+Shift+R) before investigating a style change that appears to do nothing.
+- **`test@example.com` / `password` does not exist in this database.** The demo
+  seed only runs on an *empty* one (`database.py`, the `if not
+  data_store.get("users")` guard) and this DB has accounts. Delete
+  `baakhapaa_local.db` to get it back, or use a throwaway registration.
+
+### Serving to a phone
+
+New this session, and there is a trap in it. `--host` publishes the dev server
+on the LAN, but the app then still called the backend on its own port and its
+own address. This machine's Ethernet is classified a **Public** network, where
+`node.exe` has an inbound firewall allow rule and the backend's venv Python does
+not — so the page loaded on the phone and every request from it failed. The app
+running, and nothing in it working.
+
+The dev server now proxies `/api` to the backend over loopback (`f0a50fa`), so
+only one port has to be reachable and there is no CORS at all. Launch entries
+`backend-lan-8001` and `frontend-lan-3001`; the odd ports are only because 8000
+and 3000 were taken.
+
+    http://192.168.1.85:3001        the phone's URL
+    http://192.168.1.85:3001/api/health   check this first
+
+The LAN servers died once mid-session and the phone simply got nothing. Check
+`/api/health` before blaming the app.
 
 ---
 
 ## 2. What changed this session
 
-### Tests: 536 → 731 backend, 208 → 995 frontend
+Six commits on `fix/craft-and-patterns-ux`.
 
-Six new backend files covering what had none:
+### Every page now fits a phone (`05539c5`)
 
-| File | Why it mattered |
-|---|---|
-| `test_stripe_webhook.py` | The only unauthenticated endpoint that grants paid tiers, previously untested. Pins that the tier comes from our stored `payments` row and never from the webhook payload — a forged event claiming `studio` against a `pro` row grants `pro` |
-| `test_field_whitelist.py` | `updates.py` is 6 lines standing between a client dict and two `PUT` handlers. `projects.user_id` and `storyboard_frames.scene_id` are the fields it protects |
-| `test_diff.py` | FR11, which shipped broken once. Pins the moved-line case a set-based diff scored as "no change" |
-| `test_export_ssrf.py` | The one place the server fetches an attacker-influenceable URL |
-| `test_rag_retrieval.py` | The differentiator, and it fails *silently* by design — every path returns `[]` on error |
-| `test_env_documentation.py` | Guard: every setting the app reads must be in `.env.example`. Ships with an empty exception list |
-| `test_invites.py` | New in §3 |
+Day 2 had fixed the editor header by hand and left eight pages nobody had
+looked at. `baakhapaa-frontend/scripts/responsive-audit.mjs` now walks all
+fourteen routes at any width, reporting horizontal overflow and targets under
+WCAG 2.2's 24px floor. Clean at 375, 360 and 320. The report is
+`baakhapaa-frontend/docs/responsive/audit-2026-09-08.md`.
 
-All 26 untested frontend components and pages now have tests.
+**Its first run found nothing, and that was the first bug.** Every protected
+route reported the same two faults — a 20px "Back" and "Skip for now" — which
+exist on none of those pages. A freshly-registered account has not answered
+onboarding, so `ProtectedRoute` redirected all nine and the audit read the same
+wizard nine times while printing eight other route names beside it. It reported
+faults, so it did not look broken.
 
-### Two security fixes
+What the real run found: one shared header at 610px in a 343px budget, of which
+129px was a wordmark linking to `/dashboard` — which the `Projects` tab beside
+it already does; a runtime slider whose *element* was 2px tall with a 12px thumb
+drawn overflowing it, so it could not be dragged with a thumb at all; eleven
+controls under 24px; and both auth pages scrolling sideways at 360 and 320 while
+clean at 375, because a flex panel with the default `min-width: auto` sat at a
+constant 368px.
 
-- **`versions.py` id-probing oracle.** `require_script_access` ran *after* the
-  404 and the cross-script 400, so any logged-in user could learn whether two
-  arbitrary version ids existed and shared a script. Access check moved first;
-  proven by temporarily reverting it and watching the regression test fail.
-- **`CommandPalette.jsx`** guarded only its render, so ⌘K while signed out still
-  fired `GET /projects/`, 401'd, and bounced the visitor to `/login`.
+**360px, not 375.** That is the common low-end Android width and most of this
+market. A pass at one width finds one width's bugs.
 
-### Legal and consent
+### The editor is three files (`b0597dc`, `59646e5`)
 
-`/terms` and `/privacy` are now **served** — they existed at the repo root and
-were routed nowhere while the product collected accounts. Sign-up states what is
-being agreed to and names the specific fact a screenwriter cares about: script
-text is stored without application-level encryption and is sent to AI providers.
+`ScriptEditor.jsx` had grown to 2,397 lines. It is 1,511, plus `EditorHeader`
+(399), `AssistPanel` (515), `ScriptPage` (183) and `utils/draft.js` (47). Every
+one of the 92 ScriptEditor tests passes **unedited**, which was the standard set
+for the split.
 
-The markdown comes from the root files through a **build-time virtual module**
-(`vite.config.js`), so there is no second copy to drift. Both documents are
-still unreviewed templates and say so in a banner.
+The half that did not happen is the more useful half. The plan said to move each
+piece of state to whichever component owns it. Measured: of the fifteen
+candidates in the assist panel, every one is also read outside it, by
+`handleAI`, `acceptAI`, `loadPatterns` and three effects — all of which reach
+for the caret, the textarea and the draft. The panel takes forty-odd props
+because its state stayed behind, and the prop list is now the written record of
+that coupling rather than something invisible inside one file.
 
-### The Pen guides onboarding
+Then the toolbar stopped re-rendering on every keystroke: 2.64 renders per
+character to zero. `memo()` was not what did it — the header's two handlers
+close over the draft and were new functions every keystroke, so memo would never
+have hit. Neither is ever read, only called from a click, so a ref holding the
+latest version is exact rather than a cache. The numbers are in `WORK_LIST.md`.
 
-The biggest change in the session. Onboarding was four questions and a redirect
-to a blank editor; the nineteen-lesson course sat behind a nav item nobody had
-reason to press. **The best thing in the product was the thing nobody found.**
+### A phone found five things in ten minutes (`61e44ae`)
 
-A guide character — `ThePen.jsx` — now asks the four questions and then teaches
-lesson one *inside onboarding*. The writer produces a real scene heading and
-action line, graded by the same craft linter that runs everywhere else, before
-they have seen the editor. They arrive having already written something correct,
-and the lesson counts: `completed_lessons` is written, so the Learn page opens
-at 1/10 rather than 0.
+This is the part worth reading. Four of the five were invisible to every check
+in this repo.
 
-**Deliberately not copied from Duolingo**, and worth defending in review:
+**The assist panel was covering the page on every phone and tablet.** It is a
+sheet parked off-canvas with `translate-x-full`, and it was not parked: the same
+element carried `animate-fade-up`, which ends on `transform: translateY(0)` with
+`animation-fill-mode: both`. An animated transform outranks a declared one,
+permanently. At 375px it covered the toolbar and every line of the script; at
+820px it cut action lines off mid-word. It reads as a z-index bug and is a
+specificity one — and **the responsive audit had passed that route fourteen
+times**, because a fixed overlay does not overflow anything.
 
-- **No hearts or lives.** The course's own rule is "there is no penalty for
-  trying", and punishing a wrong first slugline is exactly the wrong lesson for
-  somebody who has never written one.
-- **No streaks.** They suit daily drilling. A screenwriter who writes hard for
-  three days and rests is not failing.
-- **No points or XP.** This product's discipline is that it reports
-  measurements, never scores.
+**The caret sat before `INT.`** A textarea starts every session with
+`selectionStart` at 0, so any focus carrying no position — a phone keyboard
+opening — put the insertion point in front of the first slugline. Open
+yesterday's script, the keyboard comes up, type, and the words go in before the
+scene heading. It is now parked at the end of the draft on load, once, in an
+effect after the commit that put it there. Nothing is focused; tap placement was
+measured first (off by zero) and is untouched.
 
-The Pen is a **nib, not a creature**. Duolingo's owl works because language
-learning is social; a cartoon congratulating a screenwriter on their craft reads
-as condescension quickly. Mood changes the nib's angle and its ink — never adds
-a face.
+**The script was too small to write in, and deliberately so.** The font is sized
+so all 61 screenplay columns fit, which at 375px means 9.5px. The floor is now
+12px, about 49 columns. The whole cost is that on-screen wraps no longer match
+the PDF's — page numbering counts hard newlines, not visual wraps, so `p. N / M`
+and the export are unaffected. `--page-font-min` in `index.css` is the one
+number to change if 12px is still wrong.
 
-Answers are saved *before* the lesson, so the lesson is a gift rather than a
-gate: closing the tab mid-exercise does not re-ask the four questions. A failed
-grading check lets the writer through rather than trapping them behind our own
-network.
+**The course had no sidebar on a phone.** The two-column grid collapses to one,
+so all nineteen lesson titles sat above the lesson and every lesson after the
+first began with a scroll past the table of contents. It is a disclosure below
+`lg` now. All 51 Learn tests pass unedited.
 
-### ...and then on the page itself
+**The new-project Details row broke twice.** The summary wrapped instead of
+truncating, dropping "Bilingual" outside the row; and Genre and Tone side by
+side clipped their own values, so the Tone field read "Emotion" — a different
+word.
 
-Onboarding alone would have made the Pen a thing that greets you once and is
-never seen again. It is now present at the two later moments that need it:
+### Serving the production build locally (`c0dcb63`)
 
-- **The blank page** (`PenPrompt.jsx`). Because the wizard no longer generates a
-  structure, a new project opens genuinely empty — the most stuck a writer is
-  ever going to be in this product, and what met them there was a placeholder
-  reading *"Type Scene Headings starting with INT. or EXT., and press TAB…"*:
-  four pieces of vocabulary aimed at somebody with none. The Pen now offers one
-  concrete line — `INT. CHIYA PASAL - DAY` — that inserts on click, and a way
-  into the walkthrough. Clicking it starts the whole downstream chain: the scene
-  card, the timeline, Act I, the sync indicator.
-- **`GuidePanel`**, which is what the blank-page prompt hands off to. It had no
-  Pen at all, so the handoff arrived at an anonymous panel. Its mood is driven by
-  the step's existing `check` against the draft — pleased when the draft meets
-  the step, nudging while it does not — so it is reading the page, not
-  performing.
-
-Three things here were found only by opening the browser, and are worth knowing
-before touching this component:
-
-1. **The prompt needs a `z-index`.** It is painted before the textarea and the
-   screenplay page has an opaque background, so without one the component works
-   perfectly and is completely invisible. It shipped that way for an hour.
-2. **It sits on the paper, not on the app.** `inkSoft`/`inkMuted` are tuned for
-   the near-black chrome and wash out to nearly nothing on a `#FAF9F6` page. The
-   paper has its own light/dark themes, so `PenPrompt` takes `pageTheme` and
-   picks page ink rather than inheriting app ink.
-3. **`ThePen` takes a `decorative` prop.** Where the Pen is the speaker
-   (onboarding) it earns an accessible name. Everywhere else it accompanies prose
-   that already says the same thing, and announcing "The Pen, nudging" reads out
-   an illustration and then repeats the sentence beside it.
-
-The prompt appears only on an empty draft, never in focus mode, and its wrapper
-is `pointer-events-none` — a writer who ignores it and types is never
-interrupted, and there is nothing to dismiss.
-
-### The course, in two tracks, in Nepali
-
-`lessons.py` went from 14 lessons in four modules to **19 in two tracks**:
-
-- **The Pen** (10) — the script page: format, action lines, dialogue, finishing.
-- **The Story** (9) — what the page is for. Five new lessons drawn from the
-  corpus playbook: cost of pursuit, the midpoint flip, progress-as-trap,
-  detonating at a celebration, redefining victory.
-
-All 19 are **translated into Nepali** (`lessons_ne.py`, 76 prose fields), served
-on `?lang=`, with fallback **per field** so an untranslated lesson added later
-still reads correctly. The interface had spoken Nepali for weeks; the course had
-not, which was the least defensible English in a product that lints Nepali.
-
-The login and register pages now carry a **language switcher** — it previously
-lived only in the signed-in account menu, so a Nepali writer met an English
-login page with no way out.
-
-### Editor and UX
-
-- **Structure suggests, it does not write.** The wizard used to generate a
-  three-act structure right after creating a project, so a writer's first sight
-  of a new script was a list of scenes nobody asked for. It now opens on a blank
-  page; structure is requested from inside the editor.
-- **Focus mode actually focuses.** It never hid the toolbar — it removed the
-  timeline and scene rail and left thirteen controls above the page. The toolbar
-  is now hidden, and the page carries a status line with page position, *this
-  session's* word count, and save state. Hiding chrome hid the save indicator,
-  and "is my work saved" is what breaks focus fastest.
-- **Full page** added to the View menu — the browser's own fullscreen, which is
-  a different wish from focus mode and composes with it.
-- **The toolbar stopped crushing its own title.** `min-w-0` let flex shrink the
-  title group to 24px — narrower than the Setup button inside it, which escaped
-  its container and collided with the status, rendering as "SetuSYNCED".
-- **Sharing moved onto the work.** A Share sheet in the editor mounts the same
-  `TeamPanel` Settings does, scoped to the open project.
-- The Learn nav tab highlights (it passed no `active` prop and lit up Projects).
-
-### Pricing, corrected against the code
-
-The pricing page was wrong in **both** directions. Studio advertised real-time
-collaboration that had been descoped, a ten-seat cap nothing enforced, and
-priority support with no channel. The free tier omitted the course, the linter,
-the benchmark, version history and Final Draft export entirely — selling a
-usable product as a trial.
-
-Both fixed, and there are now tests pinning the specific untrue sentences so
-restoring one is a decision made against a failing test.
+`npm start` serves modules through Vite and is not the artifact that ships.
+`frontend-preview` serves `build/` on 4173, which is where Day 1's route
+splitting is observable and where an SPA deep link either falls back to
+`index.html` or 404s. Verified end to end against the backend.
 
 ---
 
-## 3. Invitations — the new subsystem
+## 3. Open, and known
 
-`add_member` used to refuse an unknown address ("they need to register first"),
-so collaboration could only ever start between two people who had *both* already
-found the product. That made Studio's whole proposition unsellable.
+Three things were found and not closed. None is speculative; each has a trace
+behind it.
 
-**`invites.py`** now records an invitation for any address. The important
-property, and the one to defend in review:
-
-> **The link does not grant access.** It only describes the offer. Membership is
-> granted when somebody registers with the invited address. If that inverts, the
-> link becomes a bearer token in a forwarded WhatsApp message.
-
-**No email is sent, deliberately.** There is no SMTP account, and `renewals.py`
-already demonstrates the failure mode of pretending otherwise. The inviter gets
-a link and passes it on themselves — in this market far more likely by WhatsApp
-than mail. The UI says so rather than implying a message went out.
-
-`project_invites` is a **new table** — see §5.
-
----
-
-## 4. Decisions closed this session
-
-| Decision | Resolution |
-|---|---|
-| FR10 live co-editing | **Descoped** to async collaboration. `PRD.md` US4 and both scope lists amended |
-| NFR03 encryption claim | **Stated truthfully.** TLS in transit, provider disk encryption at rest, no application-level encryption. `PRD.md` §7 numbered; Privacy Policy says it plainly |
-| Tier names | **free / pro / studio.** The proposal is what changes |
-| Studio's differentiator | **Collaborator seats.** `membership.SEAT_LIMITS` — free 2, pro 5, studio unlimited, enforced against the project OWNER's plan. Previously `PAID_TIERS` held both paid tiers and *nothing* branched on studio |
-| Free project cap | **1 → 3.** One collided with the course, which ends by asking for a complete short — finishing it spent the entire allowance |
+1. **"Could not load this script." on roughly one open in eight.** StrictMode
+   fires two identical loads; the loser comes back as a bare network error with
+   no response on it, and `loadError` was never cleared again — so a script that
+   had loaded perfectly showed an error screen, permanently. That is also the
+   shape of every dropped request on a flaky connection, which is the connection
+   this product is for. A `live` guard plus clearing the error on entry is **in
+   the working tree, unverified and uncommitted.**
+2. **Autosave failed with "Script not found"** in one trace where the editor was
+   opened by *project* id rather than script id. `scripts.save` puts to
+   `/scripts/{id}` using the route param, and the load path deliberately accepts
+   either kind of id — so when it falls back, every later call using that param
+   is addressing the wrong resource. Observed once. Not confirmed, not fixed,
+   and worth confirming first: if it is real, a shared editor link silently
+   stops saving.
+3. **The `recommendation_log` read collapse is uncommitted.** Three identical
+   SELECTs per craft-panel request became one; a test counts the reads and was
+   proven to fail when the change is reverted. **The full backend suite has not
+   been run against it.** That is the first thing to do next session.
 
 ---
 
-## 5. What will bite you
+## 4. What will bite you
 
-1. **Four migrations now, not three.** `project_invites` joins the three already
+Carried forward, still true, plus what this session added.
+
+1. **Four migrations, not three.** `project_invites` joins the three already
    unapplied. `DEPLOYMENT.md` §1 has the order. The email-normalisation one is
-   the only one that can fail on real data — run it first and merge duplicate
-   addresses before retrying.
+   the only one that can fail on real data.
 2. **The mock DB is schemaless.** It stores rows as flat JSON, so it accepts
-   columns Postgres would reject. This has caused three schema-drift bugs
-   already and is why a real Postgres in CI plus a migration tool is the right
-   next infrastructure move.
+   columns Postgres would reject. Three schema-drift bugs so far.
 3. **Restart the backend after editing it.** See §1.
-4. **`ScriptEditor.jsx` is 1,587 lines** and owns the caret, autosave, AI panel,
-   three views and the toolbar. Everything cheap to extract has been; what
-   remains is genuinely interdependent. Expect the next serious regression here.
+4. ~~`ScriptEditor.jsx` is 1,587 lines~~ — split, §2. What remains genuinely is
+   interdependent: the draft is read by the scene sync, the pagination, the
+   linter, the benchmark and the exports.
 5. **CSS cannot be tested.** `vite.config.js` sets `css: false` for vitest, so
-   style changes are verified in a browser or not at all.
-6. **Test isolation:** the mock store is process-global and persists across
-   tests in a session. Tests that *register* an address must generate a unique
-   one — `tests/test_invites.py` has a `_address()` helper for exactly this,
-   after a literal reused across two tests silently became a real account.
+   every breakpoint is verified in a browser or not at all. This is not a
+   footnote: **four of the five faults the phone found were CSS**, and the two
+   automated suites are both green through all of them.
+6. **Test isolation:** the mock store is process-global. Tests that register an
+   address must generate a unique one — `tests/test_invites.py` has a
+   `_address()` helper.
+7. **An audit that passes is not a page that works.** `responsive-audit.mjs`
+   checks two properties: horizontal overflow and target size. It has nothing to
+   say about a fixed overlay, contrast, or text too small to read — and it
+   passed the editor while the assist panel was sitting on top of it.
 
 ---
 
-## 6. Next session — in order
+## 5. Next session — in order
 
-1. **Run the system once with real keys.** One environment, real Claude, DALL·E
+1. **Run the backend suite** and commit the `recommendation_log` change, or
+   revert it. Leaving it in the tree is the worst of both.
+2. **Confirm or dismiss the autosave/project-id bug** in §3.2. It is cheap to
+   check and expensive to ship.
+3. **Finish Day 5 on the device**: the 44px hit areas under a thumb, focus mode
+   against the collapsing address bar, and the craft panel sheet and corkboard —
+   none of which was reached. The five faults already found are the argument for
+   doing the rest.
+4. **Run the system once with real keys.** One environment, real Claude, DALL·E
    and Supabase, and one walk from register → structure → write → storyboard →
-   export. Apply the four migrations at the same time. Everything else on this
-   list assumes a system that works, and that assumption is untested.
-2. **Run the five-writer pilot.** `PILOT.md` specifies it and names what only a
-   writer can settle. Cheaper than another quarter of guessing.
-3. **Deploy** — Supabase, Railway, Vercel, in that order. `DEPLOYMENT.md` §1–3.
+   export. Apply the four migrations at the same time. Everything below assumes
+   a system that works, and that assumption is still untested.
+5. **Run the five-writer pilot** (`PILOT.md`).
+6. **Deploy** — Supabase, Railway, Vercel, in that order (`DEPLOYMENT.md` §1–3).
    Merchant accounts need a live URL, so they come after Vercel.
-4. **Reconsider pricing before taking money.** The market review argues Rs 999
-   is priced against Celtx while the market anchors on Netflix at Rs 499, and
-   that Baakhapaa Pro costs the same per year as WriterDuet — which *has* the
-   collaboration we descoped.
-5. **An annual price.** Khalti and eSewa have no subscription primitive, so
-   every month is a fresh chance to lapse. Annual turns twelve renewal risks
-   into one.
-6. **SMTP + cron for `renewals.py`.** Until then nothing renews on its own for
-   Khalti or eSewa customers.
+7. **Reconsider pricing before taking money**, and add an annual price: Khalti
+   and eSewa have no subscription primitive, so every month is a fresh chance to
+   lapse.
+8. **SMTP + cron for `renewals.py`.**
 
 ### Still open, smaller
 
 - `PROJECT_PLAN.md` §6/§7 carry the changelog; `MONTH_1_REPORT.md` and
-  `SESSION_SUMMARY.md` are historical records and were deliberately left as
-  written.
-- The corpus fingerprints task (E6) is still blocked — the script corpus is on
-  another machine.
-- A throwaway `ui-check@example.com` account and two test projects are in the
-  local SQLite DB. Delete `baakhapaa_local.db` to reset.
+  `SESSION_SUMMARY.md` are historical records, deliberately left as written.
+- The corpus fingerprints task (E6) is still blocked — the corpus is on another
+  machine.
+- The branch has never been merged to `codebase`. Deploying from a non-default
+  branch is how the wrong thing gets deployed.
+- Throwaway accounts (`ui-check@`, `probe-1@`, several `audit-*@`) and their
+  projects are in the local SQLite DB. Delete `baakhapaa_local.db` to reset.

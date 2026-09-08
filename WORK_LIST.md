@@ -145,32 +145,108 @@ Three things worth carrying forward:
 The split has to come first, or the memoisation lands in a 2,228-line file and
 nobody can review it.
 
-- [ ] Extract the header as its own component
-- [ ] Extract the assist panel as its own component
-- [ ] Extract the page and its status line as its own component
-- [ ] Move each of the 47 pieces of state to whichever component actually owns it
-- [ ] Keep every existing test passing without editing it — a test that needs changing means the split changed behaviour
-- [ ] Commit the split on its own, with no behaviour change, so the diff is reviewable
-- [ ] Profile a typing session and record renders per keystroke
-- [ ] Either uncontrol the textarea or memoise the subtrees that do not depend on `content`
-- [ ] Confirm the undo stack, autosave, page count and craft panel all still work — `replaceRange` exists because `setContent` discards undo
-- [ ] Re-measure renders per keystroke, and revert if the number did not move
+Done in two commits: `b0597dc` the split, `59646e5` the memoisation. The file
+was 2,397 lines by the time it was opened, and is 1,511 now.
+
+- [x] Extract the header as its own component — `EditorHeader.jsx`, 399 lines
+- [x] Extract the assist panel as its own component — `AssistPanel.jsx`, 515 lines
+- [x] Extract the page and its status line as its own component — `ScriptPage.jsx`, 183 lines
+- [ ] Move each of the 47 pieces of state to whichever component actually owns it — **not possible, and measured rather than assumed.** Of the fifteen candidates in the assist panel, every one is also read outside it: by `handleAI`, `acceptAI`, `loadPatterns` and three effects, all of which reach for the caret, the textarea and the draft. The panel takes forty-odd props because its state stayed behind. The prop list is now the written record of that coupling instead of it being invisible inside one file
+- [x] Keep every existing test passing without editing it — a test that needs changing means the split changed behaviour — *92 ScriptEditor tests, untouched*
+- [x] Commit the split on its own, with no behaviour change, so the diff is reviewable
+- [x] Profile a typing session and record renders per keystroke
+- [x] Either uncontrol the textarea or memoise the subtrees that do not depend on `content`
+- [x] Confirm the undo stack, autosave, page count and craft panel all still work — `replaceRange` exists because `setContent` discards undo — *verified in a browser, which is the only place it can be*
+- [x] Re-measure renders per keystroke, and revert if the number did not move
+
+### The number
+
+Typing 22 characters into an empty draft, with a counter in each component:
+
+    ScriptEditor   4.68/key  ->  4.68/key
+    EditorHeader   2.64/key  ->  0
+    ScriptPage     2.64/key  ->  2.64/key
+    AssistPanel    2.64/key  ->  2.64/key
+
+StrictMode double-invokes render in dev, so the real commit counts are half
+these. The comparison is what matters and both runs are the same build.
+
+`memo()` was not what did it. The header calls `handleExport`, which closes over
+the project title, and `handleFinalize`, which closes over `saveContent`, which
+closes over the draft — so both were new functions on every keystroke and memo
+would never have hit. Neither is ever *read*, only called from a click, so a ref
+holding the latest version is exact rather than a cache.
+
+The other two did not move and should not have: both take `content` by
+necessity. ScriptEditor's own 4.68 is about two commits per keystroke, because
+the change event and the caret-tracking event are separate DOM events — React
+batches within each and not across them. Merging them would mean routing arrow
+keys and clicks through `onChange`, which is a behaviour change, not a
+memoisation.
 
 ## Day 5 · A real device, and the numbers again
 
 An emulated viewport is the weakest evidence there is for a layout claim. The
 dev servers bind to the LAN as of `033ba20`, so this is available.
 
-- [ ] Open the editor on the actual phone and write for ten minutes
-- [ ] Is 9.5px Courier readable at arm's length? The page fits all 61 screenplay columns now, and that is what made it small
-- [ ] If it is not readable, decide the trade: horizontal-scroll page, or a reduced-indent mobile mode
-- [ ] Do the 44px hit areas feel right under a thumb?
-- [ ] Does focus mode survive the address bar collapsing?
-- [ ] Check the craft panel sheet and the corkboard on the device, not just the editor
-- [ ] Write down everything emulation got wrong — that list is the useful output of this day
-- [ ] Collapse the three separate database reads in `recommendation_log` into one per request
-- [ ] Re-run both suites and the production build
-- [ ] Re-measure first paint on 3G and record the closing number against Day 1
+**Partly done, and it paid for itself in the first ten minutes.** Five faults
+came off the phone, four of them invisible to every check in this repo.
+`61e44ae`.
+
+- [x] Open the editor on the actual phone and write for ten minutes
+- [x] Is 9.5px Courier readable at arm's length? — **no**
+- [x] If it is not readable, decide the trade — floor raised to 12px, about 49 columns instead of 61. The cost is that on-screen wraps no longer match the PDF's; page numbering counts hard newlines, so `p. N / M` and the export are unaffected. `--page-font-min` is the one number to change
+- [ ] Do the 44px hit areas feel right under a thumb? — not reported either way
+- [ ] Does focus mode survive the address bar collapsing? — not reached
+- [ ] Check the craft panel sheet and the corkboard on the device, not just the editor — not reached
+- [x] Write down everything emulation got wrong — below, and it is the useful output of the day
+- [x] Collapse the three separate database reads in `recommendation_log` into one per request — **written and uncommitted: the full backend suite has not been run against it.** A test counts the reads, and it was proven to fail when the change is reverted
+- [ ] Re-run both suites and the production build — frontend done (1060 across 54 files, build clean); **backend not run**
+- [ ] Re-measure first paint on 3G and record the closing number against Day 1 — still blocked for Day 1's reason
+
+### What emulation got wrong
+
+1. **The assist panel was covering the page on every phone and tablet.** It is a
+   sheet parked off-canvas with `translate-x-full`, and it was not parked: the
+   same element carried `animate-fade-up`, which ends on `transform:
+   translateY(0)` with `animation-fill-mode: both`, and an animated transform
+   outranks a declared one, permanently. At 375px it covered the toolbar and
+   every line of the script; at 820px it cut action lines off mid-word. **The
+   responsive audit passed this route fourteen times** — a fixed overlay does
+   not overflow anything. That script checks two properties and this was
+   neither.
+2. **The caret sat before `INT.`** A textarea starts every session with
+   `selectionStart` at 0, so any focus carrying no position — a phone keyboard
+   opening — put the insertion point in front of the first slugline. Open
+   yesterday's script, the keyboard comes up, type, and the words land before
+   the scene heading. Tap placement was measured first and is exact.
+3. **The script was too small to write in**, and deliberately so. See above.
+4. **The course had no sidebar on a phone.** The two-column grid collapses to
+   one, so all nineteen lesson titles sat above the lesson, and every lesson
+   after the first began with a scroll past the table of contents.
+5. **The new-project Details row broke in two ways.** The summary wrapped
+   instead of truncating, so "Bilingual" landed outside the row; and Genre and
+   Tone side by side clipped their own values — the Tone field read "Emotion",
+   which is a different word.
+
+### Found on the device, not yet fixed
+
+- **"Could not load this script." on roughly one open in eight.** Diagnosed:
+  StrictMode fires two identical loads, the loser comes back as a bare network
+  error with no response on it, and `loadError` was never cleared again — so a
+  script that had loaded perfectly showed an error screen, permanently. That is
+  also the shape of every dropped request on a flaky connection, which is the
+  connection this product is for. A `live` guard plus clearing the error on
+  entry is **in the working tree, unverified and uncommitted**.
+- **Autosave failed with "Script not found"** in one trace where the editor was
+  opened by *project* id rather than script id. `scripts.save` puts to
+  `/scripts/{id}` using the route param, and the load path deliberately accepts
+  either kind of id. Observed once, not confirmed, not fixed.
+- Serving to the phone needs the dev-server proxy (`f0a50fa`), not a second hole
+  in the firewall: this machine's Ethernet is a **Public** network on which
+  `node.exe` has an inbound allow rule and the backend's venv Python does not.
+- The LAN servers died once mid-session and the phone got nothing until they
+  were restarted. Check `/api/health` before blaming the app.
 
 ---
 
@@ -183,7 +259,7 @@ work. It is already the critical path.
 - [ ] **Anthropic credit** — blocks the first real-key walk and the measured cost figure
 - [ ] **Deployment** — blocks the Khalti and eSewa applications, which need a live URL and take days of human review
 - [ ] **SMTP account** — blocks renewal emails; without it a lapsed Khalti or eSewa plan simply stops working
-- [ ] **Merge to `codebase`** — the branch is **45 commits ahead** and has never been merged. Deploying from a non-default branch is how the wrong thing gets deployed
+- [ ] **Merge to `codebase`** — the branch has never been merged. Deploying from a non-default branch is how the wrong thing gets deployed
 
 ---
 
