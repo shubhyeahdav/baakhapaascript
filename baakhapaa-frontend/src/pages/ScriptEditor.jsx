@@ -1023,6 +1023,16 @@ export default function ScriptEditor() {
    * must not do is let them do it without being shown, which is what happened
    * while the reviewer sat in `script_engine` wired to nothing.
    */
+  /* Stable identities for the two handlers the header calls.
+     `handleExport` closes over the project title and `handleFinalize` over
+     `saveContent`, which closes over the draft — so both are new functions on
+     every keystroke, and a memoised header would never have hit. Neither is
+     ever READ, only called from a click, so a ref holding the latest version
+     is exact rather than a cache: the click always runs today's closure. */
+  const latestHandlers = useRef({});
+  const stableExport = useCallback((type) => latestHandlers.current.handleExport(type), []);
+  const stableFinalize = useCallback(() => latestHandlers.current.handleFinalize(), []);
+
   const handleFinalize = async () => {
     setReviewing(true);
     try {
@@ -1069,6 +1079,8 @@ export default function ScriptEditor() {
   // punctuation is here so a line ending in "?" converts its last word too,
   // which in dialogue is most of them.
   const WORD_BOUNDARY_KEYS = [" ", "Enter", ".", ",", "?", "!", ";", ":"];
+
+  latestHandlers.current = { handleExport, handleFinalize };
 
   const handleKeyDown = (e) => {
     // Nepali phonetic input, before anything else looks at the key. Not
@@ -1253,8 +1265,8 @@ export default function ScriptEditor() {
         setTypewriter={setTypewriter}
         pageTheme={pageTheme}
         setPageTheme={setPageTheme}
-        handleExport={handleExport}
-        handleFinalize={handleFinalize}
+        handleExport={stableExport}
+        handleFinalize={stableFinalize}
         reviewing={reviewing}
         setShowShare={setShowShare}
         setPanelOpen={setPanelOpen}

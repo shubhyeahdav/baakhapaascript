@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import ToolbarMenu from "./ToolbarMenu";
 import ImportScript from "./ImportScript";
 
@@ -38,7 +38,7 @@ const CURSORS = {
   text: { label: "Default", next: "pen",  hint: "Your system's own text pointer" },
 };
 
-export default function EditorHeader({
+function EditorHeader({
   // identity and navigation
   id, title, navigate, t,
   // save state and position
@@ -397,3 +397,10 @@ export default function EditorHeader({
     </header>
   );
 }
+
+/* The toolbar does not read the draft. Everything it shows either never
+   changes while you type (the title, the mode toggles) or changes on a page
+   boundary (`caretPage`, `pageCount`), so re-rendering all 342 lines of it on
+   every keystroke drew nothing new. Memoised, it renders when one of its own
+   props actually moves. */
+export default memo(EditorHeader);
