@@ -59,6 +59,23 @@
         "VITE_API_URL": "http://192.168.1.85:8000",
         "PATH": "C:\\Program Files\\nodejs;C:\\Windows\\System32;C:\\Windows"
       }
+    },
+    {
+      "name": "frontend-preview",
+      "runtimeExecutable": "C:/Program Files/nodejs/npm.cmd",
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "--",
+        "--port",
+        "4173"
+      ],
+      "cwd": "${workspaceFolder}/baakhapaa-frontend",
+      "port": 4173,
+      "env": {
+        "BROWSER": "none",
+        "PATH": "C:\\Program Files\\nodejs;C:\\Windows\\System32;C:\\Windows"
+      }
     }
   ]
 }
