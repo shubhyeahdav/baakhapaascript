@@ -200,8 +200,8 @@ came off the phone, four of them invisible to every check in this repo.
 - [ ] Does focus mode survive the address bar collapsing? — not reached
 - [ ] Check the craft panel sheet and the corkboard on the device, not just the editor — not reached
 - [x] Write down everything emulation got wrong — below, and it is the useful output of the day
-- [x] Collapse the three separate database reads in `recommendation_log` into one per request — **written and uncommitted: the full backend suite has not been run against it.** A test counts the reads, and it was proven to fail when the change is reverted
-- [ ] Re-run both suites and the production build — frontend done (1060 across 54 files, build clean); **backend not run**
+- [x] Collapse the three separate database reads in `recommendation_log` into one per request — `4b36ba6`. A test counts the reads, and it was proven to fail when the change is reverted
+- [x] Re-run both suites and the production build — **backend 869 across 51 files, frontend 1061 across 54, build clean.** The backend count had been recorded as 731/41 since the 27th and nobody had counted since
 - [ ] Re-measure first paint on 3G and record the closing number against Day 1 — still blocked for Day 1's reason
 
 ### What emulation got wrong
@@ -229,19 +229,24 @@ came off the phone, four of them invisible to every check in this repo.
    Tone side by side clipped their own values — the Tone field read "Emotion",
    which is a different word.
 
-### Found on the device, not yet fixed
+### Found on the device, and since fixed
 
-- **"Could not load this script." on roughly one open in eight.** Diagnosed:
-  StrictMode fires two identical loads, the loser comes back as a bare network
-  error with no response on it, and `loadError` was never cleared again — so a
-  script that had loaded perfectly showed an error screen, permanently. That is
-  also the shape of every dropped request on a flaky connection, which is the
-  connection this product is for. A `live` guard plus clearing the error on
-  entry is **in the working tree, unverified and uncommitted**.
-- **Autosave failed with "Script not found"** in one trace where the editor was
-  opened by *project* id rather than script id. `scripts.save` puts to
-  `/scripts/{id}` using the route param, and the load path deliberately accepts
-  either kind of id. Observed once, not confirmed, not fixed.
+Both closed 2026-09-09, each confirmed by a measurement first and each fix
+checked by reverting it and watching the check fail.
+
+- **"Could not load this script."** — `e96fc1f`. Measured at **7 in 20**, not
+  the 1 in 8 first guessed; **0 in 20** with the `live` guard. StrictMode fires
+  two identical loads, the loser returns a bare network error with no response
+  on it, and `loadError` was never cleared again. That is also the shape of a
+  dropped request on a flaky connection, which is the connection this product is
+  for. `scripts/editor-load-race.mjs` is the measurement, kept — a unit test
+  cannot reach a race between two mounts and a real network stack.
+- **Autosave was silently losing work** — `80407b8`, and worse than the one log
+  line suggested. Opening the editor from a link built out of the project list
+  put *every* request after the load against a script that does not exist, while
+  the page went on showing a save indicator. Confirmed by typing a marker,
+  forcing a save, and reading the script back from the API: not there. Fifteen
+  call sites now use `script.id`. This one is pinned in jsdom.
 - Serving to the phone needs the dev-server proxy (`f0a50fa`), not a second hole
   in the firewall: this machine's Ethernet is a **Public** network on which
   `node.exe` has an inbound allow rule and the backend's venv Python does not.

@@ -1,4 +1,4 @@
-# Handover — 2026-09-08
+# Handover — 2026-09-08, extended 09-09
 
 Supersedes the 2026-08-27 handover. Its environment notes and Windows gotchas
 still hold and are repeated below; its test counts and its "next session" list
@@ -63,9 +63,10 @@ The LAN servers died once mid-session and the phone simply got nothing. Check
 
 ---
 
-## 2. What changed this session
+## 2. What changed on the 8th
 
-Six commits on `fix/craft-and-patterns-ux`.
+Six commits on `fix/craft-and-patterns-ux`. Four more followed on the 9th and
+are in §3.
 
 ### Every page now fits a phone (`05539c5`)
 
@@ -162,29 +163,33 @@ splitting is observable and where an SPA deep link either falls back to
 
 ---
 
-## 3. Open, and known
+## 3. Closed on 2026-09-09
 
-Three things were found and not closed. None is speculative; each has a trace
-behind it.
+All three of the previous day's open items, in order. Each was confirmed with a
+measurement before being touched, and each fix was checked by reverting it and
+watching the check fail.
 
-1. **"Could not load this script." on roughly one open in eight.** StrictMode
-   fires two identical loads; the loser comes back as a bare network error with
-   no response on it, and `loadError` was never cleared again — so a script that
-   had loaded perfectly showed an error screen, permanently. That is also the
-   shape of every dropped request on a flaky connection, which is the connection
-   this product is for. A `live` guard plus clearing the error on entry is **in
-   the working tree, unverified and uncommitted.**
-2. **Autosave failed with "Script not found"** in one trace where the editor was
-   opened by *project* id rather than script id. `scripts.save` puts to
-   `/scripts/{id}` using the route param, and the load path deliberately accepts
-   either kind of id — so when it falls back, every later call using that param
-   is addressing the wrong resource. Observed once. Not confirmed, not fixed,
-   and worth confirming first: if it is real, a shared editor link silently
-   stops saving.
-3. **The `recommendation_log` read collapse is uncommitted.** Three identical
-   SELECTs per craft-panel request became one; a test counts the reads and was
-   proven to fail when the change is reverted. **The full backend suite has not
-   been run against it.** That is the first thing to do next session.
+1. **"Could not load this script."** — `e96fc1f`. StrictMode fires two identical
+   loads; the loser returns a bare network error with no `response` on it, and
+   `loadError` was never cleared again, so a script that had loaded perfectly
+   showed an error screen permanently. Measured at **7 in 20**, not the 1 in 8
+   first guessed. With the `live` guard: **0 in 20**.
+   `baakhapaa-frontend/scripts/editor-load-race.mjs` is that measurement, kept —
+   a unit test cannot reach a race between two mounts and a real network stack.
+2. **Autosave was silently losing work** — `80407b8`, and it was worse than the
+   single log line suggested. Opening the editor from a link built out of the
+   project list meant every request after the load addressed a script that does
+   not exist: autosave PUT to `/scripts/{projectId}`, took a 404, and the page
+   went on showing a save indicator. Confirmed by typing a marker, forcing a
+   save and reading the script back from the API — not there. Fifteen call sites
+   now use `script.id`. Pinned in jsdom, which this one does reach.
+3. **The `recommendation_log` read collapse** — `4b36ba6`. Backend suite run:
+   **869 across 51 files**, all passing.
+
+### Still open
+
+- Nothing from the device session. What remains is the half of Day 5 that was
+  never reached — see `WORK_LIST.md` — and it needs the phone, not the repo.
 
 ---
 
@@ -217,25 +222,22 @@ Carried forward, still true, plus what this session added.
 
 ## 5. Next session — in order
 
-1. **Run the backend suite** and commit the `recommendation_log` change, or
-   revert it. Leaving it in the tree is the worst of both.
-2. **Confirm or dismiss the autosave/project-id bug** in §3.2. It is cheap to
-   check and expensive to ship.
-3. **Finish Day 5 on the device**: the 44px hit areas under a thumb, focus mode
+1. **Finish Day 5 on the device**: the 44px hit areas under a thumb, focus mode
    against the collapsing address bar, and the craft panel sheet and corkboard —
-   none of which was reached. The five faults already found are the argument for
-   doing the rest.
-4. **Run the system once with real keys.** One environment, real Claude, DALL·E
+   none of which was reached. Also whether 12px in the script tab is now right;
+   that number was a judgement, not a measurement. Seven faults have come off
+   this phone in two days, every one of them past two green suites.
+2. **Run the system once with real keys.** One environment, real Claude, DALL·E
    and Supabase, and one walk from register → structure → write → storyboard →
    export. Apply the four migrations at the same time. Everything below assumes
    a system that works, and that assumption is still untested.
-5. **Run the five-writer pilot** (`PILOT.md`).
-6. **Deploy** — Supabase, Railway, Vercel, in that order (`DEPLOYMENT.md` §1–3).
+3. **Run the five-writer pilot** (`PILOT.md`).
+4. **Deploy** — Supabase, Railway, Vercel, in that order (`DEPLOYMENT.md` §1–3).
    Merchant accounts need a live URL, so they come after Vercel.
-7. **Reconsider pricing before taking money**, and add an annual price: Khalti
+5. **Reconsider pricing before taking money**, and add an annual price: Khalti
    and eSewa have no subscription primitive, so every month is a fresh chance to
    lapse.
-8. **SMTP + cron for `renewals.py`.**
+6. **SMTP + cron for `renewals.py`.**
 
 ### Still open, smaller
 
