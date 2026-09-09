@@ -10,8 +10,13 @@ Anthropic account with credit, a Supabase project, and a domain. Get those befor
 
 ## Where this stands (2026-09-03)
 
-**82 of 200 done.** Weeks 2 and 3 are complete except for the parts that need a
-real Postgres; Week 4 is partly done.
+**109 of 200 done** (2026-09-09). Weeks 2 and 3 are complete except for the parts
+that need a deployed system; Week 4 is partly done.
+
+**The Supabase project now exists**, so the line below about Week 1 being blocked
+on it is out of date and the four items that waited on it are unblocked — the
+pgvector migration is the next one worth doing. What is still genuinely blocked
+is deployment, Anthropic *credit* (the key is set), and an SMTP account.
 
 What the work actually found, in the order it was found:
 
@@ -40,11 +45,29 @@ What the work actually found, in the order it was found:
   a different format, where every line of dialogue wraps. Fixed by sizing the
   font to the column count. Two header controls were under the 24px WCAG floor.
 
+### What 2026-09-09 found
+
+- **Three of the editor's four views did not exist on a phone.** Corkboard,
+  Outline and Cast render as children of the scene rail, and the rail is
+  `hidden lg:flex` — so below 1024px they were hidden outright, along with the
+  switcher that reaches them. Measured: zero of four switches at 375px, four at
+  1280px. The rail now takes the whole width when the writer is reading rather
+  than writing. `29f1a96`.
+- **The command palette's project list was loaded once per tab**, so a project
+  created after the first ⌘K was missing until a reload — from the fastest route
+  to a project. `97d102f`.
+- **The email-normalisation migration is safe on this data.** No duplicates
+  differing only in case, and nothing that is not already lowercase.
+
 Blocked, and not by anything that can be coded around:
 
-- **All of Week 1** waits on a Supabase project. `SUPABASE_URL` and
-  `SUPABASE_KEY` are unset, so every environment to date is still the SQLite
-  mock — which is what let the pgvector schema drift in the first place.
+- ~~**All of Week 1** waits on a Supabase project~~ — **done.** `SUPABASE_URL`
+  and `SUPABASE_KEY` are set and the app runs against the real Postgres. Two
+  things came with that and are worth knowing: nobody updated the docs, so two
+  days of testing wrote into the real database believing it was a local file
+  (see `HANDOVER.md` §1); and the first thing real Supabase broke was
+  concurrency — `httpx.RemoteProtocolError: Server disconnected` on about one
+  request in eight, fixed by giving PostgREST an HTTP/1.1 client (`f7b84d3`).
 - **Days 4, 5, 20** wait on deployment and on Anthropic credit.
 - **Day 17** waits on an SMTP account.
 - Four items inside Weeks 2 and 4 wait on the same Supabase project: running the
@@ -61,7 +84,7 @@ Blocked, and not by anything that can be coded around:
 - [x] Confirm the keys are uncommented and the file has no byte-order mark
 - [ ] Back up `baakhapaa_local.db`, then delete it
 - [x] Run `supabase_schema.sql` in the SQL editor
-- [ ] Check for duplicate email addresses differing only in case, before migrating
+- [x] Check for duplicate email addresses differing only in case, before migrating — *none. 24 accounts, 24 distinct addresses once normalised, and every one already lowercase — so the migration that was flagged as the only one able to fail on real data is safe here*
 - [ ] Run the email normalisation migration; merge or delete duplicates if it fails
 - [x] Run the Google sign-in column migration
 - [x] Run the `subscription_expires_at` / `renewal_notices_json` migration
@@ -224,9 +247,9 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Keep it deterministic; no API call
 - [x] Write the finding in the writer's language, not in statistics
 - [x] Add tests for each rule
-- [ ] Run it against the sample screenplay and sanity-check the output
+- [x] Run it against the sample screenplay and sanity-check the output — *0 findings on `docs/samples/march.txt`, which is a pass rather than a silence: AARATI (30 lines), KANCHHA (15) and BABA (15) all clear `MIN_LINES`, and a synthetic cast of two characters given identical dialogue does fire `voices_collapsed` with its technique attached*
 - [x] Link each flag to the craft entry that addresses it
-- [ ] Commit
+- [x] Commit
 
 ### Day 13 · Remember what was recommended
 
@@ -239,7 +262,7 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Keep the write off the request path if it slows the response
 - [x] Backfill nothing; the history starts now
 - [x] Add a query for resolution rate per technique
-- [ ] Commit
+- [x] Commit
 
 ### Day 14 · Use what it remembers
 
@@ -263,7 +286,7 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Add a test that a resolved technique never escalates
 - [x] Confirm the Story track is still reachable directly
 - [x] Check the lesson opens in place rather than navigating away
-- [ ] Run both suites
+- [x] Run both suites — *backend 869 across 51, frontend 1068 across 54*
 - [ ] Deploy
 - [x] Write down what the loop cannot see, so nobody assumes it can
 
@@ -301,14 +324,14 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 
 - [x] Open the editor on a 375-pixel screen and write for five minutes
 - [x] Fix the screenplay column, which is too narrow to hold a slugline
-- [ ] Check the rail, the craft panel and the corkboard at that width
+- [x] Check the rail, the craft panel and the corkboard at that width — *and three of the four views were not there at all. See below*
 - [ ] Confirm focus mode fills the screen on a phone with a collapsing address bar
-- [ ] Refresh the project list when the command palette opens
-- [ ] Add a jump-to-scene action to the palette
+- [x] Refresh the project list when the command palette opens — *`97d102f`*
+- [x] Add a jump-to-scene action to the palette — *`97d102f`*
 - [x] Check every tap target is large enough to hit
-- [ ] Run the frontend suite
+- [x] Run the frontend suite — *1068 across 54 files*
 - [ ] Deploy and re-check on a real phone
-- [ ] Commit
+- [x] Commit
 
 ### Day 19 · Cost and speed
 
