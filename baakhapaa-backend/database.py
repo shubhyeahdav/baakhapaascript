@@ -173,8 +173,44 @@ if use_mock:
     supabase = MockSupabaseClient()
     print(f"WARNING: Running with local SQLite database at {LOCAL_DB_PATH} (no Supabase keys set). Data persists across restarts.")
 else:
+    import httpx
     from supabase import create_client, Client
+
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+    # Talk to PostgREST over HTTP/1.1, not HTTP/2.
+    #
+    # supabase-py builds its httpx client with `http2=True`, and under
+    # concurrency that produced `httpx.RemoteProtocolError: Server disconnected`
+    # on roughly one request in eight — 500s on whatever the editor happened to
+    # be asking for. The editor opens by firing eight requests at once (the
+    # script, versions, comments, the access log, the lint, the benchmark), so
+    # this landed on real page loads rather than on anything exotic.
+    #
+    # Measured before assuming: a 30-request burst down one connection never
+    # failed, and idle gaps of 30 to 120 seconds never failed either — httpx
+    # already expires a kept-alive connection after five seconds. Only
+    # concurrency reproduced it, at 8 failures in 64.
+    #
+    # The cause is many streams multiplexed onto one h2 connection that the
+    # server then closes; in-flight streams die with it, and httpx surfaces that
+    # as a protocol error rather than retrying. HTTP/1.1 gives each request its
+    # own connection out of the pool, so one closing takes nothing else with it.
+    # We gain nothing from h2 here: these are small sequential queries from a
+    # server, not a browser fetching a hundred assets.
+    #
+    # Replacing the session rather than the transport keeps every header
+    # PostgREST needs — `apikey`, `authorization`, `accept-profile` and the rest
+    # are on the client, and a bare transport swap would keep them but lose the
+    # base URL and timeout that were configured with them.
+    _pg = supabase.postgrest.session
+    supabase.postgrest.session = httpx.Client(
+        base_url=_pg.base_url,
+        headers=_pg.headers,
+        timeout=_pg.timeout,
+        follow_redirects=_pg.follow_redirects,
+        http2=False,
+    )
 
 
 def get_user_by_email(email: str):

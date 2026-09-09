@@ -74,9 +74,24 @@ machine). Then:
 > `raw_scripts_TEMP/`, no `D:\AkxyaRup`; this is a single repo at
 > `C:\baakhapaa` on branch `codebase`).
 >
-> Backend tests: **731 across 41 files, all passing** (the Devanagari font gate
+> **THIS MACHINE IS LIVE, NOT IN DEMO MODE (2026-09-09).** `.env` holds real
+> Anthropic, OpenAI and Supabase keys, so `database.use_mock` is False and
+> `script_engine.PROVIDER` is `anthropic`: reads and writes go to the real
+> Postgres, and a generation call is billed. `baakhapaa_local.db` is stale and
+> no longer the store. Check before you test anything against a running server:
+>
+> ```
+> ./venv/Scripts/python -c "import database,script_engine as s;
+> print(database.use_mock, s.PROVIDER)"
+> ```
+>
+> The known fault in this mode is `httpx.RemoteProtocolError: Server
+> disconnected` on the first request after an idle gap — a pooled connection
+> Supabase has already closed. See `HANDOVER.md`.
+>
+> Backend tests: **869 across 51 files, all passing** (the Devanagari font gate
 > no longer skips — the asset is bundled), `./venv/Scripts/python -m pytest`.
-> Frontend tests: **995 across 54 files**, `npm run test:ci`. Every component
+> Frontend tests: **1061 across 54 files**, `npm run test:ci`. Every component
 > and page has one; the 26 that had none were covered on 2026-08-26.
 > **CI runs lint, dependency audit, both suites and the production build** on
 > push and PR (`.github/workflows/ci.yml`), on Linux with
@@ -318,7 +333,9 @@ machine). Then:
   one rate-limit bucket) and `baakhapaa-frontend/vercel.json` (SPA rewrite, so a
   hard refresh on `/dashboard` is not a CDN 404, plus security headers)
 - Demo mode: local SQLite DB + mock AI + placeholder storyboards + mock payments
-  when `.env` has placeholder keys (test login: `test@example.com` / `password`)
+  when `.env` has placeholder keys (test login: `test@example.com` / `password`).
+  **This machine is no longer in it — see the warning at the top of Current
+  State.**
 
 **Not yet built / known broken:**
 - Tier enforcement is now **complete** — AI generation, Word/package export, the
@@ -348,8 +365,13 @@ machine). Then:
   `renewals.py` mails the writer who has *not* opened the app (plain SMTP, one
   reminder per expiry date, sends nothing until `SMTP_HOST` is set). What
   remains is an SMTP account and a cron entry
-- Real API keys / real Supabase — **all verification to date is demo-mode**,
-  payments included: the three-gateway flow is verified end to end against
+- ~~Real API keys / real Supabase — all verification to date is demo-mode~~ —
+  **no longer true as of 2026-09-09.** `.env` now holds real Anthropic, OpenAI
+  and Supabase credentials, and the app reports `PROVIDER=anthropic`,
+  `MOCK_AI=False`, storyboards live and `use_mock=False`. Nobody wrote that
+  down, so every doc still described demo mode and two days of testing wrote
+  into the real database believing it was a local file. **Payments are the one
+  thing still unproven** — the three-gateway flow is verified against
   sandbox/demo paths only, and no real money has moved
 - GENERATION_ARCHITECTURE.md: the RAG layer shipped; the 4-stage
   scaffold→expansion→critic→revision pipeline is still spec-only

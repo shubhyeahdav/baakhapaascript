@@ -16,19 +16,67 @@ done and the remaining half needs the device again. This file is the narrative.
 
 ---
 
-## 1. Environment (unchanged — still demo mode)
+## 1. Environment — NOT demo mode any more
 
-All `.env` keys are placeholders, so the app runs on local **SQLite**, **mock
-Claude**, **mock DALL-E**, **mock Stripe**. Embeddings are real, computed
-locally by fastembed with no API key.
+This changed under the documentation, and the documentation did not notice.
+`.env` now holds real Anthropic, OpenAI and Supabase credentials. Asked
+directly, the app says:
+
+    LLM provider   : anthropic | MOCK_AI = False | model claude-sonnet-5
+    storyboard     : MOCK = False
+    database       : REAL Supabase
+
+So reads and writes go to the real Postgres, and a generation call is billed to
+a real account. `baakhapaa_local.db` was last written on **7 September** and is
+no longer the store — which means two days of responsive-audit and probe runs
+created accounts and projects in the **real** database while every doc in the
+repo said they were going into a local file. Delete those before a pilot:
+`probe-1@example.com`, `local-deploy@example.com`, and several
+`audit-*@example.com`.
+
+Check the mode before testing against a running server, rather than trusting
+this file:
+
+    ./venv/Scripts/python -c "import database,script_engine as s; print(database.use_mock, s.PROVIDER)"
+
+**Payments are the one thing still unproven.** Sandbox and demo paths only, no
+real money has moved. Embeddings were always real — fastembed, local, no key.
+
+### The first thing real Supabase broke
+
+Opening a script 500'd about one request in eight, with
+`httpx.RemoteProtocolError: Server disconnected` underneath it. The editor fires
+eight requests at once on open — the script, versions, comments, the access log,
+the lint, the benchmark — and any of them could be the one that failed.
+
+Two likelier explanations were tested and were wrong. A 30-request burst down
+one connection never failed. Idle gaps of 30, 45, 60, 75, 90 and 120 seconds
+never failed either — httpx already expires a kept-alive connection after five
+seconds, so there is no stale connection to hit. **Only concurrency reproduced
+it**, at 8 failures in 64.
+
+supabase-py builds its httpx client with `http2=True`, and many streams
+multiplexed onto one h2 connection all die together when the server closes it.
+`database.py` now gives PostgREST an HTTP/1.1 client, so each request takes its
+own connection out of the pool and one closing takes nothing else with it.
+Nothing is lost: these are small sequential queries from a server, not a browser
+fetching a hundred assets. **0 failures in 96** after.
+
+`supabase_concurrency_check.py` is that measurement, kept. The suite cannot
+cover this — `tests/conftest.py` sets placeholder Supabase credentials before
+the app is imported, precisely so tests never connect out, so the real-client
+branch of `database.py` never executes there. Run the script after anything that
+touches the client construction.
 
 ```
 cd baakhapaa-backend && ./venv/Scripts/python -m uvicorn main:app --port 8000   # no --reload on Windows
 cd baakhapaa-frontend && npm start
 ```
 
-**Nothing has ever run with real keys.** Still the largest unknown in the
-project, and it has not moved for three sessions.
+**The first real-key walk still has not been done.** Having the keys is not the
+same as having walked register → structure → write → storyboard → export with
+them, and that walk is what turns "configured" into "works". It is also already
+failing at step zero: see the connection fault below.
 
 Three gotchas, the first two carried forward and still true:
 
@@ -188,8 +236,12 @@ watching the check fail.
 
 ### Still open
 
-- Nothing from the device session. What remains is the half of Day 5 that was
-  never reached — see `WORK_LIST.md` — and it needs the phone, not the repo.
+- **18 throwaway accounts are in the real database**, all `@example.com`, all
+  created on 8 September by the responsive-audit and probe scripts while every
+  doc said they were going into a local SQLite file. Five real accounts sit
+  beside them. They should go before a pilot; the command is in §5.
+- Nothing else from the device session. What remains is the half of Day 5 that
+  was never reached — see `WORK_LIST.md` — and it needs the phone, not the repo.
 
 ---
 
@@ -222,22 +274,33 @@ Carried forward, still true, plus what this session added.
 
 ## 5. Next session — in order
 
-1. **Finish Day 5 on the device**: the 44px hit areas under a thumb, focus mode
+1. **Delete the test accounts from the real database.** Eighteen
+   `@example.com` rows; the five real accounts must not be touched. Dry run
+   first — it prints what it would remove and changes nothing:
+
+   ```
+   cd baakhapaa-backend
+   ./venv/Scripts/python purge_test_accounts.py          # lists them
+   ./venv/Scripts/python purge_test_accounts.py --delete # removes them
+   ```
+
+2. **Finish Day 5 on the device**: the 44px hit areas under a thumb, focus mode
    against the collapsing address bar, and the craft panel sheet and corkboard —
    none of which was reached. Also whether 12px in the script tab is now right;
    that number was a judgement, not a measurement. Seven faults have come off
    this phone in two days, every one of them past two green suites.
-2. **Run the system once with real keys.** One environment, real Claude, DALL·E
+3. **Run the system once with real keys.** One environment, real Claude, DALL·E
    and Supabase, and one walk from register → structure → write → storyboard →
    export. Apply the four migrations at the same time. Everything below assumes
    a system that works, and that assumption is still untested.
-3. **Run the five-writer pilot** (`PILOT.md`).
-4. **Deploy** — Supabase, Railway, Vercel, in that order (`DEPLOYMENT.md` §1–3).
+4. **Run the five-writer pilot** (`PILOT.md`).
+5. **Deploy** — Railway, then Vercel (`DEPLOYMENT.md` §1–3). Supabase is
+   already real.
    Merchant accounts need a live URL, so they come after Vercel.
-5. **Reconsider pricing before taking money**, and add an annual price: Khalti
+6. **Reconsider pricing before taking money**, and add an annual price: Khalti
    and eSewa have no subscription primitive, so every month is a fresh chance to
    lapse.
-6. **SMTP + cron for `renewals.py`.**
+7. **SMTP + cron for `renewals.py`.**
 
 ### Still open, smaller
 
