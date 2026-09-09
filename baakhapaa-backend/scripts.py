@@ -40,18 +40,46 @@ import audit
 router = APIRouter(prefix="/scripts", tags=["scripts"])
 
 
+# What a writer is told when the model cannot be reached. Deliberately one
+# sentence about their work and one about what to do, because those are the two
+# things they need and the only two they can act on.
+AI_UNAVAILABLE = (
+    "The writing assistant could not be reached. Nothing you have written was "
+    "changed — try again in a moment."
+)
+
+
 @contextmanager
 def ai_unavailable_as_503():
-    """Convert a provider failure into 503.
+    """Convert a provider failure into 503, WITHOUT repeating what it said.
 
     `script_engine` raises RuntimeError for anything the upstream model did
-    wrong — network, auth, unparseable JSON. Callers need a clean status, not
-    a stack trace, so every AI-backed endpoint routes through here.
+    wrong — network, auth, unparseable JSON. Callers need a clean status, not a
+    stack trace, so every AI-backed endpoint routes through here.
+
+    The provider's own message used to be the response detail, and that was
+    wrong in a way only a live key exposes. On 2026-09-09, with the account out
+    of credit, a Pro writer pressing Generate was shown:
+
+        Claude API error: Error code: 400 - {'type': 'error', 'error':
+        {'type': 'invalid_request_error', 'message': 'Your credit balance is
+        too low to access the Anthropic API. Please go to Plans & Billing...'},
+        'request_id': 'req_011Ces...'}
+
+    Three things wrong with that, in order of how much they matter: it tells a
+    paying customer about the owner's billing state, which is nobody's business
+    but ours; it gives them an instruction they cannot follow, addressed to
+    somebody else; and it is a Python dict. None of it helps a writer decide
+    what to do with the scene in front of them.
+
+    The full error still goes to the server log, where the person who CAN act
+    on it is looking.
     """
     try:
         yield
     except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e)) from e
+        print(f"AI provider unavailable: {e}")
+        raise HTTPException(status_code=503, detail=AI_UNAVAILABLE) from e
 
 
 @router.post("/generate-structure")
