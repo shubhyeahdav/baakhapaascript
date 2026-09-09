@@ -36,6 +36,18 @@ database, the `ALTER TABLE` blocks in that file are the migrations. **There are
 four, and they must be run in this order** — this section named only the last
 until 2026-08-26, so a runbook followed before then under-ran the schema.
 
+> **On the project currently in `.env`, all four are already applied**, checked
+> 2026-09-09: `users` carries `google_sub`, `auth_provider`,
+> `subscription_expires_at` and `renewal_notices_json`, and `project_invites`,
+> `craft_recommendations` and `script_patterns` all exist. `script_patterns`
+> holds 39 rows in a real `vector` column and the `match_script_patterns` RPC
+> answers, so the pgvector migration is done too.
+>
+> Do not re-run migration 2 there. `CREATE UNIQUE INDEX users_email_lower_idx`
+> is not idempotent and will fail on the index that already exists — which reads
+> like a data problem and is not one. The rest are `IF NOT EXISTS` and are safe
+> to repeat. A different Supabase project of course needs all four.
+
 **1. Google sign-in** (`supabase_schema.sql`, top of file). Existing rows read as
 `'password'`, so this downgrades nobody:
 

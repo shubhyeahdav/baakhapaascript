@@ -249,9 +249,12 @@ watching the check fail.
 
 Carried forward, still true, plus what this session added.
 
-1. **Four migrations, not three.** `project_invites` joins the three already
-   unapplied. `DEPLOYMENT.md` §1 has the order. The email-normalisation one is
-   the only one that can fail on real data.
+1. ~~**Four migrations, not three.**~~ — **all four are applied** on the project
+   in `.env`, checked 2026-09-09, along with `craft_recommendations` and the
+   pgvector table and RPC. `DEPLOYMENT.md` §1 has the detail and the one warning
+   that survives: do not re-run the email-normalisation index there, because
+   `CREATE UNIQUE INDEX` is not idempotent and its failure reads like a data
+   problem when it is not. A fresh Supabase project still needs all four.
 2. **The mock DB is schemaless.** It stores rows as flat JSON, so it accepts
    columns Postgres would reject. Three schema-drift bugs so far.
 3. **Restart the backend after editing it.** See §1.
