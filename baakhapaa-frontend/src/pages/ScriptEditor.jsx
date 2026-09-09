@@ -514,6 +514,20 @@ export default function ScriptEditor() {
   // project's script instead. `getByProject` is get-or-create, so it is also
   // the path that opens a project which has no script row yet.
   useEffect(() => {
+    /* `live` is not ceremony. StrictMode mounts, unmounts and remounts, so two
+       identical loads go out and only the second one's result is wanted. The
+       first was still allowed to write, and what it usually wrote was a
+       failure: two simultaneous requests to the same URL, and the loser comes
+       back as a bare network error with no response on it — so the editor
+       showed "Could not load this script." over a script that had loaded
+       perfectly a moment earlier. Roughly one open in eight, and permanent,
+       because nothing ever cleared `loadError` again.
+
+       That is also the shape of every flaky connection, which is the one this
+       product is for. A dropped request on a phone should cost a reload, not
+       the session. */
+    let live = true;
+    setLoadError("");
     scripts
       .getById(id)
       .catch((err) => {
@@ -521,6 +535,7 @@ export default function ScriptEditor() {
         return scripts.getByProject(id);
       })
       .then((res) => {
+        if (!live) return;
         setScript(res.data);
         setContent(res.data.content || "");
         // Arrives with the script so the type-ahead has character names
@@ -537,7 +552,11 @@ export default function ScriptEditor() {
           setShowStructure(true);
         }
       })
-      .catch((err) => setLoadError(err.response?.data?.detail || "Could not load this script."));
+      .catch((err) => {
+        if (!live) return;
+        setLoadError(err.response?.data?.detail || "Could not load this script.");
+      });
+    return () => { live = false; };
   }, [id]);
 
   // A scene's length as the writer would state it. `draft_json.minutes` is what
