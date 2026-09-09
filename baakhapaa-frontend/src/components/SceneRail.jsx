@@ -160,7 +160,18 @@ export default function SceneRail({
           // container edge while the 16px of padding above it stays
           // transparent — so scrolled cards slid through the gap over the top
           // of the switcher.
-          className="sticky top-0 z-20 -mx-4 -mt-4 px-4 pt-4 pb-3 bg-surface mb-1"
+          // `mb-5`, not `mb-1`, and the 4px difference is not taste.
+          // `-mt-4` takes 16px out of this element's FLOW slot, while `top-0`
+          // pins where it PAINTS — so the painted box finished 16px below the
+          // slot the layout had reserved, and 12px of that (16 less the 4px
+          // gap) landed on whatever came next. Every view: "Scene Index Cards"
+          // was 12 of its 15 pixels under an opaque bar, and the Cast view's
+          // "Nobody has spoken yet" the same. Corkboard and Outline only looked
+          // right because their first child carries `p-6`, so the pixels being
+          // eaten were padding.
+          // 16px back for the negative margin, plus the 4px gap that was
+          // always intended.
+          className="sticky top-0 z-20 -mx-4 -mt-4 px-4 pt-4 pb-3 bg-surface mb-5"
         >
           <div className="flex rounded-lg border border-border overflow-hidden">
           {VIEWS.map((v) => (
