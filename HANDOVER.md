@@ -6,7 +6,7 @@ do not.
 
 | It said | Actually |
 |---|---|
-| "731 backend / 995 frontend tests" | Frontend is **1060 across 54 files**. Backend is still **731 plus one uncommitted new test** — the suite has not been run since |
+| "731 backend / 995 frontend tests" | **869 backend across 51 files**, **1060 frontend across 54**. The backend number had been stale for a while — nobody had counted since the 27th |
 | "Next session: run with real keys, deploy, pilot" | **None of it moved.** All six items are blocked on credentials or calendar time, and were blocked for this whole session too |
 | "`ScriptEditor.jsx` is 1,587 lines … expect the next serious regression here" | It had grown to **2,397**. Now **1,511**, split into three components |
 | — | The app has now been **opened on a real phone**, which is new, and it found five faults in ten minutes |

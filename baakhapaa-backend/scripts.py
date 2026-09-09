@@ -275,9 +275,14 @@ def recommendations(req: RecommendRequest, background: BackgroundTasks,
     # A viewer reading somebody else's script is not evidence about that
     # script's craft. `require_script_access` defaults to editor, so a viewer
     # falls out here with their recommendations intact and nothing recorded.
-    seen, writable = {}, False
+    # One read of the log, used for the ordering below and by both background
+    # writes. It was three identical SELECTs — `history` here, then `record`
+    # and `resolve` each running their own — on an endpoint that sits on the
+    # writing path and is free on every tier.
+    seen, writable, log_rows = {}, False, []
     if req.script_id:
-        seen = recommendation_log.history(req.script_id)
+        log_rows = recommendation_log.rows(req.script_id)
+        seen = recommendation_log.history(req.script_id, rows=log_rows)
         try:
             require_script_access(req.script_id, user_id)
             writable = True
@@ -327,10 +332,12 @@ def recommendations(req: RecommendRequest, background: BackgroundTasks,
             recommendation_log.record, req.script_id,
             [p["technique"] for p in patterns],
             [f["technique"] for f in ranked],
+            rows=log_rows,
         )
         background.add_task(
             recommendation_log.resolve, req.script_id,
             [f["technique"] for f in flags],
+            rows=log_rows,
         )
 
     return {

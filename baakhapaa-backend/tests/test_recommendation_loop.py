@@ -211,6 +211,37 @@ def test_the_route_reports_what_it_has_already_said(
     assert log.history(script_id)["Deny the scene privacy"]["times_shown"] == 2
 
 
+def test_the_log_is_read_once_per_request(
+    client, make_user, make_script, monkeypatch
+):
+    """Three identical SELECTs became one.
+
+    `history`, `record` and `resolve` each ran their own read of the same
+    handful of rows, and one call to the craft panel runs all three — on an
+    endpoint that is free on every tier and sits on the writing path. The
+    snapshot is now taken once and passed to all three.
+
+    Pinned by counting, not by reading the code: the reason there were three
+    was that nothing anywhere said there should be one.
+    """
+    import script_engine
+
+    monkeypatch.setattr(script_engine, "retrieve_relevant_patterns",
+                        lambda *a, **k: [dict(CARD)])
+    user = make_user()
+    _p, script_id = make_script(user)
+    _clear(script_id)
+
+    reads = []
+    real = log._rows
+    monkeypatch.setattr(log, "_rows", lambda sid: (reads.append(sid), real(sid))[1])
+
+    r = _recommend(client, user, script_id)
+
+    assert r.status_code == 200, r.text
+    assert reads == [script_id], f"expected one read, got {len(reads)}"
+
+
 def test_a_request_without_a_script_id_still_works(client, make_user):
     """The panel has to work on a draft nobody has saved yet."""
     user = make_user()

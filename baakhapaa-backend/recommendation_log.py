@@ -37,7 +37,37 @@ def _rows(script_id):
     return supabase.table(TABLE).select("*").eq("script_id", script_id).execute().data or []
 
 
-def history(script_id):
+def rows(script_id):
+    """This script's log, read once so a request need not read it three times.
+
+    `history`, `record` and `resolve` each used to run their own SELECT, and a
+    single call to the craft panel runs all three — so the recommendations
+    endpoint made three identical reads of the same handful of rows on the
+    writing path.
+
+    The snapshot is taken before the response and reused by the two background
+    writes, which is safe rather than merely convenient. `record` is the only
+    thing that changes these rows during the request, and the only change it can
+    make that `resolve` reads is flipping `diagnosed` from false to true — which
+    it does only for techniques the linter just flagged. `resolve` acts on a
+    diagnosed row in two cases: the technique is no longer flagged, which cannot
+    be true of one just flagged; or it is flagged and was previously resolved,
+    which requires it to have been diagnosed already. Neither case can differ
+    between the snapshot and a fresh read.
+
+    Returns [] on any failure — the same shape an empty log has, which every
+    caller already handles.
+    """
+    if not script_id:
+        return []
+    try:
+        return _rows(script_id)
+    except Exception as e:
+        print(f"Recommendation log unavailable ({e}).")
+        return []
+
+
+def history(script_id, rows=None):
     """{technique: {"times_shown", "resolved", "diagnosed"}} for one script.
 
     Returns {} on any failure, which reads as "no history" — the same state a
@@ -46,20 +76,21 @@ def history(script_id):
     if not script_id:
         return {}
     try:
+        source = _rows(script_id) if rows is None else rows
         return {
             r["technique"]: {
                 "times_shown": r.get("times_shown") or 0,
                 "resolved": bool(r.get("resolved_at")),
                 "diagnosed": bool(r.get("diagnosed")),
             }
-            for r in _rows(script_id) if r.get("technique")
+            for r in source if r.get("technique")
         }
     except Exception as e:
         print(f"Recommendation history unavailable ({e}).")
         return {}
 
 
-def record(script_id, techniques, diagnosed_techniques=()):
+def record(script_id, techniques, diagnosed_techniques=(), rows=None):
     """Note that these techniques were put in front of the writer.
 
     Called after the response has been sent, so a slow write cannot make the
@@ -70,7 +101,8 @@ def record(script_id, techniques, diagnosed_techniques=()):
         return
     try:
         from database import supabase
-        existing = {r["technique"]: r for r in _rows(script_id)}
+        existing = {r["technique"]: r for r in
+                    (_rows(script_id) if rows is None else rows)}
         diagnosed = set(diagnosed_techniques or ())
 
         for technique in techniques:
@@ -99,7 +131,7 @@ def record(script_id, techniques, diagnosed_techniques=()):
         print(f"Recommendation not recorded ({e}).")
 
 
-def resolve(script_id, still_flagged):
+def resolve(script_id, still_flagged, rows=None):
     """Close out every diagnosed technique the linter no longer reports.
 
     `still_flagged` is what the linter found in THIS draft. A recorded technique
@@ -116,7 +148,7 @@ def resolve(script_id, still_flagged):
     try:
         from database import supabase
         flagged = set(still_flagged or ())
-        for row in _rows(script_id):
+        for row in (_rows(script_id) if rows is None else rows):
             if not row.get("diagnosed"):
                 continue
             gone = row["technique"] not in flagged
