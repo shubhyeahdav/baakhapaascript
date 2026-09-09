@@ -32,10 +32,56 @@ _groq_key = os.getenv("GROQ_API_KEY")
 # demo content, which sends nothing anywhere.
 _requested = (os.getenv("LLM_PROVIDER") or "").strip().lower()
 
-if _requested == "groq":
-    if not _usable(_groq_key):
-        raise RuntimeError("LLM_PROVIDER=groq but GROQ_API_KEY is missing or a placeholder.")
-    PROVIDER = "groq"
+# Everything that is not Anthropic speaks the OpenAI wire format, so there is
+# one transport rather than one per vendor. A preset is only a remembered base
+# URL and default model; `custom` takes both from the environment.
+#
+# `PROVIDER` still holds the NAME, not the shape, because the name is the whole
+# point of the design below: it is the answer to "who is receiving this draft".
+_OPENAI_PRESETS = {
+    "groq": {
+        "base_url": "https://api.groq.com/openai/v1",
+        "key_env": "GROQ_API_KEY",
+        "model_env": "GROQ_MODEL",
+        "default_model": "llama-3.3-70b-versatile",
+        # Groq serves open-weight models on its own hardware, so the recipient
+        # is one company and it is the one named here.
+        "recipient": "Groq",
+    },
+    "tokenrouter": {
+        "base_url": "https://api.tokenrouter.com/v1",
+        "key_env": "LLM_API_KEY",
+        "model_env": "LLM_MODEL",
+        "default_model": "z-ai/glm-5.3-free",
+        # A ROUTER, not a provider: it forwards to whichever upstream serves the
+        # chosen model, so the company that ends up holding the text is decided
+        # per request and is not knowable from here. Free tiers on routers also
+        # commonly permit training on what passes through them.
+        "recipient": "TokenRouter and whichever upstream it routes to",
+    },
+    "custom": {
+        "base_url": None,          # from LLM_BASE_URL
+        "key_env": "LLM_API_KEY",
+        "model_env": "LLM_MODEL",
+        "default_model": None,
+        "recipient": "whoever runs LLM_BASE_URL",
+    },
+}
+
+if _requested in _OPENAI_PRESETS:
+    _preset = _OPENAI_PRESETS[_requested]
+    _oai_key = os.getenv(_preset["key_env"])
+    if not _usable(_oai_key):
+        raise RuntimeError(
+            f"LLM_PROVIDER={_requested} but {_preset['key_env']} is missing or a placeholder."
+        )
+    OPENAI_BASE_URL = _preset["base_url"] or os.getenv("LLM_BASE_URL")
+    if not OPENAI_BASE_URL:
+        raise RuntimeError(f"LLM_PROVIDER={_requested} needs LLM_BASE_URL.")
+    OPENAI_MODEL = os.getenv(_preset["model_env"]) or _preset["default_model"]
+    if not OPENAI_MODEL:
+        raise RuntimeError(f"LLM_PROVIDER={_requested} needs {_preset['model_env']}.")
+    PROVIDER = _requested
 elif _requested in ("anthropic", "claude"):
     if not _usable(_api_key):
         raise RuntimeError("LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY is missing or a placeholder.")
@@ -47,24 +93,39 @@ else:
 
 MOCK_AI = PROVIDER == "mock"
 
+# True when the transport is OpenAI-shaped. The two call sites branch on this;
+# nothing else needs to know which vendor is behind it.
+OPENAI_COMPATIBLE = PROVIDER in _OPENAI_PRESETS
+
 MODEL = "claude-sonnet-5"
+
+# Kept: `GROQ_MODEL` and `GROQ_BASE_URL` were public names before the presets
+# existed, and other modules and tests read them.
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_BASE_URL = _OPENAI_PRESETS["groq"]["base_url"]
+
+if not OPENAI_COMPATIBLE:
+    OPENAI_BASE_URL = None
+    OPENAI_MODEL = None
 
 client = anthropic.Anthropic(api_key=_api_key) if PROVIDER == "anthropic" else None
 
-_groq_client = None
-if PROVIDER == "groq":
-    from openai import OpenAI  # already a dependency (DALL-E); Groq is OpenAI-compatible
+_oai_client = None
+if OPENAI_COMPATIBLE:
+    from openai import OpenAI  # already a dependency (DALL-E)
 
-    _groq_client = OpenAI(api_key=_groq_key, base_url=GROQ_BASE_URL)
+    _oai_client = OpenAI(api_key=_oai_key, base_url=OPENAI_BASE_URL)
+
+# The name the Groq path used before the transport was generalised.
+_groq_client = _oai_client
 
 if PROVIDER == "mock":
     print("WARNING: Running with Mock AI (no ANTHROPIC_API_KEY set).")
-elif PROVIDER == "groq":
-    print(f"WARNING: LLM_PROVIDER=groq — user script text is being sent to Groq "
-          f"({GROQ_MODEL}), not Anthropic. Development only; the product ships on "
-          "Claude, and the privacy policy must name whoever actually receives it.")
+elif OPENAI_COMPATIBLE:
+    print(f"WARNING: LLM_PROVIDER={PROVIDER} — user script text is being sent to "
+          f"{_OPENAI_PRESETS[PROVIDER]['recipient']} ({OPENAI_MODEL}), not Anthropic. "
+          "Development only; the product ships on Claude, and the privacy policy "
+          "must name whoever actually receives it.")
 
 BAAKHAPAA_STYLE = """You are writing for Baakhapaa, a Nepali storytelling platform for young audiences.
 Style: emotional, authentic, youth focused.
@@ -167,10 +228,10 @@ def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
     roughly 820, and the patterns are not stable between requests anyway.
     Adding `cache_control` would read like an optimisation and cache nothing.
     """
-    if PROVIDER == "groq":
+    if OPENAI_COMPATIBLE:
         try:
-            resp = _groq_client.chat.completions.create(
-                model=GROQ_MODEL,
+            resp = _oai_client.chat.completions.create(
+                model=OPENAI_MODEL,
                 max_tokens=max_tokens,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -184,7 +245,7 @@ def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
                 })
             return resp.choices[0].message.content or ""
         except Exception as e:
-            raise RuntimeError(f"Groq API error: {str(e)}") from e
+            raise RuntimeError(f"{PROVIDER} API error: {str(e)}") from e
 
     try:
         message = client.messages.create(
@@ -232,11 +293,11 @@ def _stream_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
             yield chunk
         return
 
-    if PROVIDER == "groq":
-        # Groq's client is OpenAI-shaped, not Anthropic-shaped.
+    if OPENAI_COMPATIBLE:
+        # This client is OpenAI-shaped, not Anthropic-shaped.
         try:
-            stream = _groq_client.chat.completions.create(
-                model=GROQ_MODEL, max_tokens=max_tokens, stream=True,
+            stream = _oai_client.chat.completions.create(
+                model=OPENAI_MODEL, max_tokens=max_tokens, stream=True,
                 messages=[{"role": "system", "content": system_prompt},
                           {"role": "user", "content": user_prompt}],
             )
@@ -251,7 +312,7 @@ def _stream_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
                         "output_tokens": getattr(usage, "completion_tokens", 0) or 0,
                     })
         except Exception as e:
-            raise RuntimeError(f"Groq API error: {str(e)}") from e
+            raise RuntimeError(f"{PROVIDER} API error: {str(e)}") from e
         return
 
     try:
