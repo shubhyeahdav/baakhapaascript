@@ -241,6 +241,86 @@ describe("ScriptEditor", () => {
     expect(screen.queryByText(/structure suggestion didn't come back/i)).not.toBeInTheDocument();
   });
 
+  /* The editor's half of the ⌘K jump. The palette is mounted above the router
+     and outlives every page under it, so it cannot import anything from here —
+     the two talk over window events instead, and each side is tested where it
+     lives. */
+  it("announces its scenes so the palette can offer them", async () => {
+    const heard = [];
+    const onScenes = (e) => heard.push(e.detail.scenes);
+    window.addEventListener("editor-scenes", onScenes);
+    try {
+      render(<ScriptEditor />);
+      await waitFor(() => expect(editor()).toBeInTheDocument());
+
+      typeInto(editor(), "INT. CHIYA PASAL - MORNING\n\nShe waits.\n\nEXT. PATAN - NIGHT\n");
+
+      await waitFor(() => {
+        const last = heard[heard.length - 1] || [];
+        expect(last.map((sc) => sc.title)).toEqual([
+          "INT. CHIYA PASAL - MORNING",
+          "EXT. PATAN - NIGHT",
+        ]);
+      });
+    } finally {
+      window.removeEventListener("editor-scenes", onScenes);
+    }
+  });
+
+  it("reads the sluglines from the draft, not from the saved scene rows", async () => {
+    /* `goToScene` addresses the Nth slugline in the textarea. The saved rows
+       lag the draft by however long a save takes, so offering those would send
+       a writer to the wrong scene in exactly the moment they were typing. */
+    const heard = [];
+    const onScenes = (e) => heard.push(e.detail.scenes);
+    window.addEventListener("editor-scenes", onScenes);
+    try {
+      render(<ScriptEditor />);
+      await waitFor(() => expect(editor()).toBeInTheDocument());
+
+      typeInto(editor(), "INT. UNSAVED AND ONLY ON THE PAGE - DAY\n");
+
+      await waitFor(() => {
+        const last = heard[heard.length - 1] || [];
+        expect(last.map((sc) => sc.title)).toContain("INT. UNSAVED AND ONLY ON THE PAGE - DAY");
+      });
+    } finally {
+      window.removeEventListener("editor-scenes", onScenes);
+    }
+  });
+
+  it("moves the caret when the palette asks for a scene", async () => {
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    const draft = "INT. ONE - DAY\n\nA.\n\nINT. TWO - NIGHT\n\nB.\n";
+    typeInto(editor(), draft);
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("jump-to-scene", { detail: { index: 1 } }));
+    });
+
+    // The caret sits at the start of the second slugline, not at the first.
+    expect(editor().selectionStart).toBe(draft.indexOf("INT. TWO"));
+  });
+
+  it("stops listening once it is gone", async () => {
+    // The palette clears its scenes on `editor-closed`; this is the event that
+    // fires it. Without it the palette keeps offering scenes from a script the
+    // writer has navigated away from.
+    const gone = vi.fn();
+    window.addEventListener("editor-closed", gone);
+    try {
+      const { unmount } = render(<ScriptEditor />);
+      await waitFor(() => expect(editor()).toBeInTheDocument());
+
+      unmount();
+
+      expect(gone).toHaveBeenCalled();
+    } finally {
+      window.removeEventListener("editor-closed", gone);
+    }
+  });
+
   it("saves against the script's id, not the id in the URL", async () => {
     /* `/projects/:id/editor` is opened with a project id by anything that
        builds the URL from the project list rather than resolving the script

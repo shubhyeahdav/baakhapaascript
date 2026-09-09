@@ -12,7 +12,14 @@ export default function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [projList, setProjList] = useState([]);
-  const [loaded, setLoaded] = useState(false);
+  // The scenes of the script currently open, if one is. The editor publishes
+  // them; the palette never fetches them, because the draft on the page is
+  // ahead of anything the server would return.
+  const [scenes, setScenes] = useState([]);
+  // "We have never successfully loaded a list", not "we have never opened".
+  // A refetch sitting behind a list already on screen is not a loading state,
+  // and saying "Loading…" over real results would be a lie every reopen.
+  const [everLoaded, setEverLoaded] = useState(false);
   const [active, setActive] = useState(0);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef(null);
@@ -36,22 +43,54 @@ export default function CommandPalette() {
     };
   }, []);
 
-  // Load projects the first time the palette opens.
+  /* Which script is open, and what is in it.
+
+     The editor owns the draft, so it is the only thing that knows the scenes —
+     and it knows them a keystroke sooner than the server does. It announces
+     them; this listens. A custom event rather than context because the palette
+     sits above the router and outlives every page under it. */
   useEffect(() => {
-    // `isAuthenticated` guards the render below, but `open` still flips for a
-    // signed-out visitor — the login page listens for ⌘K too. Without this the
-    // palette showed nothing and still fired GET /projects/, which 401s, and
-    // the api client's interceptor answers a 401 by clearing the token and
-    // setting window.location to /login.
-    if (open && !loaded && isAuthenticated) {
-      projects.getAll().then((r) => setProjList(r.data)).catch(() => {}).finally(() => setLoaded(true));
+    const onScenes = (e) => setScenes(e.detail?.scenes || []);
+    const onGone = () => setScenes([]);
+    window.addEventListener("editor-scenes", onScenes);
+    window.addEventListener("editor-closed", onGone);
+    return () => {
+      window.removeEventListener("editor-scenes", onScenes);
+      window.removeEventListener("editor-closed", onGone);
+    };
+  }, []);
+
+  /* Load the projects EVERY time the palette opens, not once per session.
+
+     It used to load once and keep the answer for as long as the tab stayed
+     open, so a project created after the first ⌘K was not in the palette until
+     a reload — and the palette is the fastest way to a project, which makes
+     "the one I just made is missing" the worst case to get wrong.
+
+     The previous list stays on screen while the new one is fetched, so
+     reopening is never briefly empty. A failure leaves the old list rather than
+     blanking it: stale projects are more use than none.
+
+     `isAuthenticated` guards the render below, but `open` still flips for a
+     signed-out visitor — the login page listens for ⌘K too. Without this the
+     palette showed nothing and still fired GET /projects/, which 401s, and the
+     api client's interceptor answers a 401 by clearing the token and setting
+     window.location to /login. */
+  useEffect(() => {
+    if (!open) return;
+    if (isAuthenticated) {
+      projects
+        .getAll()
+        .then((r) => {
+          setProjList(r.data || []);
+          setEverLoaded(true);
+        })
+        .catch(() => {});
     }
-    if (open) {
-      setQuery("");
-      setActive(0);
-      setTimeout(() => inputRef.current?.focus(), 30);
-    }
-  }, [open, loaded, isAuthenticated]);
+    setQuery("");
+    setActive(0);
+    setTimeout(() => inputRef.current?.focus(), 30);
+  }, [open, isAuthenticated]);
 
   const openProject = async (projectId) => {
     setBusy(true);
@@ -75,6 +114,26 @@ export default function CommandPalette() {
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
     const acts = actions.filter((a) => !q || a.label.toLowerCase().includes(q));
+    /* Scenes first, and only when a script is open.
+
+       A writer with the editor in front of them is far more likely to want a
+       scene in it than a different project, and a long screenplay is exactly
+       where scrolling costs the most. `goToScene` takes the Nth slugline, so
+       the index is the address — the same one the scene rail uses. */
+    const scenesFound = scenes
+      .filter((sc) => !q || String(sc.title || "").toLowerCase().includes(q))
+      .slice(0, 8)
+      .map((sc) => ({
+        id: `s-${sc.index}`,
+        label: sc.title,
+        hint: "Jump to scene",
+        run: () => {
+          setOpen(false);
+          window.dispatchEvent(
+            new CustomEvent("jump-to-scene", { detail: { index: sc.index } }),
+          );
+        },
+      }));
     const projs = projList
       .filter((p) => !q || `${p.title} ${p.genre} ${p.language}`.toLowerCase().includes(q))
       .map((p) => ({
@@ -83,8 +142,8 @@ export default function CommandPalette() {
         hint: `${p.genre} · ${p.language}`,
         run: () => openProject(p.id),
       }));
-    return [...acts, ...projs];
-  }, [query, actions, projList]);
+    return [...scenesFound, ...acts, ...projs];
+  }, [query, actions, projList, scenes]);
 
   useEffect(() => { setActive(0); }, [query]);
 
@@ -121,7 +180,7 @@ export default function CommandPalette() {
         <div className="max-h-80 overflow-y-auto py-2">
           {items.length === 0 ? (
             <div className="px-4 py-6 text-center text-inkMuted text-sm">
-              {loaded ? "No matches." : "Loading…"}
+              {everLoaded ? "No matches." : "Loading…"}
             </div>
           ) : (
             items.map((it, i) => (

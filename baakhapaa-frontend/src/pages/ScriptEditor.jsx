@@ -389,6 +389,34 @@ export default function ScriptEditor() {
     scrollCaretIntoView(typewriter || zenMode);
   };
 
+  /* Tell the command palette what is on the page, so ⌘K can jump to a scene.
+
+     The palette is global and the draft is not, so the direction has to be
+     this way round: the editor announces, the palette listens. Sluglines are
+     read from the DRAFT rather than from `script.scenes`, because `goToScene`
+     addresses the Nth slugline in the textarea and the two can differ for as
+     long as it takes a save to come back — and a jump to the wrong scene is
+     worse than no jump.
+
+     `editor-closed` on unmount, or the palette would keep offering scenes from
+     a script the writer has left. */
+  useEffect(() => {
+    const titles = (content.match(/^\s*(?:INT|EXT|INT\/EXT|I\/E)\..*$/gim) || [])
+      .map((line, index) => ({ index, title: line.trim() }));
+    window.dispatchEvent(new CustomEvent("editor-scenes", { detail: { scenes: titles } }));
+  }, [content]);
+
+  useEffect(() => () => window.dispatchEvent(new Event("editor-closed")), []);
+
+  useEffect(() => {
+    const onJump = (e) => {
+      const index = e.detail?.index;
+      if (typeof index === "number") goToScene(index);
+    };
+    window.addEventListener("jump-to-scene", onJump);
+    return () => window.removeEventListener("jump-to-scene", onJump);
+  });
+
   const [showStructure, setShowStructure] = useState(false);
   // Sharing belongs on the work, not in an account screen. It used to live only
   // under Settings → Team Members, which asked a writer already inside a script

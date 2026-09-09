@@ -147,15 +147,34 @@ describe("opening and closing", () => {
     expect(screen.queryByPlaceholderText(/Search projects/)).not.toBeInTheDocument();
   });
 
-  it("loads the project list once, not on every open", async () => {
+  /* This used to assert the opposite — "once, not on every open" — and the
+     opposite was wrong. Loading once meant a project created after the first
+     ⌘K was missing from the palette until the tab was reloaded, and the palette
+     is the fastest route to a project, which makes "the one I just made is not
+     here" the worst case to get wrong. One list request per open is cheap; a
+     writer trusting a stale list is not. */
+  it("reloads the project list on every open, so a new project is there", async () => {
     await openPalette();
     await waitFor(() => expect(projects.getAll).toHaveBeenCalledTimes(1));
 
+    act(() => { commandKey(); });   // close
+    act(() => { commandKey(); });   // open again
+
+    await waitFor(() => expect(projects.getAll).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps the projects already on screen while it refetches", async () => {
+    // Reopening must not flash empty. The old list stays until the new one
+    // lands, and a failed refetch leaves it alone — stale projects beat none.
+    await openPalette();
+    await waitFor(() => expect(screen.getByText("Sapana")).toBeInTheDocument());
+
+    projects.getAll.mockRejectedValueOnce(new Error("offline"));
     act(() => { commandKey(); });
     act(() => { commandKey(); });
 
-    await waitFor(() => expect(screen.getByPlaceholderText(/Search projects/)).toBeInTheDocument());
-    expect(projects.getAll).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(projects.getAll).toHaveBeenCalledTimes(2));
+    expect(screen.getByText("Sapana")).toBeInTheDocument();
   });
 
   it("forgets the previous query on reopen", async () => {
@@ -205,6 +224,45 @@ describe("what it offers", () => {
 
     expect(screen.getByText("Go to dashboard")).toBeInTheDocument();
     expect(screen.queryByText("New project")).not.toBeInTheDocument();
+  });
+
+  /* The editor announces its scenes and the palette offers them. Only this
+     half is tested here; the editor's half — listening for `jump-to-scene` and
+     moving the caret — belongs to its own suite. */
+  it("offers the open script's scenes, and asks the editor to jump", async () => {
+    await openPalette();
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("editor-scenes", {
+        detail: { scenes: [
+          { index: 0, title: "INT. CHIYA PASAL - MORNING" },
+          { index: 1, title: "EXT. PATAN DURBAR - NIGHT" },
+        ] },
+      }));
+    });
+
+    const jumped = vi.fn();
+    window.addEventListener("jump-to-scene", jumped);
+    fireEvent.click(screen.getByText("EXT. PATAN DURBAR - NIGHT"));
+
+    expect(jumped).toHaveBeenCalled();
+    expect(jumped.mock.calls[0][0].detail).toEqual({ index: 1 });
+    window.removeEventListener("jump-to-scene", jumped);
+  });
+
+  it("stops offering scenes once the editor is closed", async () => {
+    // Otherwise the palette keeps offering scenes from a script the writer has
+    // navigated away from, and every one of them jumps into nothing.
+    await openPalette();
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("editor-scenes", {
+        detail: { scenes: [{ index: 0, title: "INT. CHIYA PASAL - MORNING" }] },
+      }));
+    });
+    expect(screen.getByText("INT. CHIYA PASAL - MORNING")).toBeInTheDocument();
+
+    await act(async () => { window.dispatchEvent(new Event("editor-closed")); });
+
+    expect(screen.queryByText("INT. CHIYA PASAL - MORNING")).not.toBeInTheDocument();
   });
 
   it("says so when nothing matches", async () => {
