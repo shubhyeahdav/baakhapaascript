@@ -66,7 +66,9 @@ function sceneRuntime(scene) {
   return `${whole}:${String(Math.round((minutes - whole) * 60)).padStart(2, "0")}`;
 }
 
-const VIEWS = [
+// Exported: below `lg` this rail is hidden, and the editor header's overflow
+// menu offers the same four. One list, so the two cannot drift apart.
+export const VIEWS = [
   { key: "script", label: "Script", hint: "Write the page" },
   { key: "corkboard", label: "Corkboard", hint: "Move scenes around" },
   { key: "outline", label: "Outline", hint: "Read the shape" },
@@ -124,8 +126,21 @@ export default function SceneRail({
   // silently vanished behind an empty box. `Children.toArray` drops false and
   // null, which is the question actually being asked: is anything in there.
   const hasReading = React.Children.toArray(children).length > 0;
+  /* Below `lg` this is either everything or nothing.
+
+     Corkboard, Outline and Cast are rendered as children of this rail, so
+     `hidden lg:flex` did not merely hide a column on a phone — it hid three of
+     the editor's four views outright, and the switch that reaches them with it.
+     Measured at 375px before this: zero of the four view switches were on the
+     page, against four at 1280px.
+
+     So on a narrow screen the rail takes the whole width whenever the writer is
+     reading rather than writing, and the page takes it back for `script`.
+     Above `lg` nothing changes: both are there, side by side, as before. */
+  const readingView = view !== "script";
   return (
-    <aside className={`hidden lg:flex flex-col ${hasReading ? "w-80 xl:w-96" : "w-64"}
+    <aside className={`${readingView ? "flex w-full" : "hidden"} lg:flex flex-col
+                       ${hasReading ? "lg:w-80 xl:w-96" : "lg:w-64"}
                        bg-surface border-r border-border overflow-y-auto p-4 shrink-0
                        animate-fade-up transition-[width] duration-200`}>
         {/* The three readings live here rather than in the toolbar.

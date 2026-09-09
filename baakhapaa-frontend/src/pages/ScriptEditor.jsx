@@ -1333,6 +1333,7 @@ export default function ScriptEditor() {
         t={t}
         saving={saving}
         view={view}
+        setView={setView}
         caretPage={caretPage}
         pageCount={pageCount}
         nepaliMode={nepaliMode}

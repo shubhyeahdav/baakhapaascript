@@ -36,8 +36,18 @@ export default function ScriptPage({
   // handing off to the panel
   setPanelOpen, setPanelTab, setScript,
 }) {
+  /* The other half of the same rule. On a phone the rail and the page cannot
+     both have the width, so exactly one of them is shown: the page while the
+     view is `script`, the rail while it is anything else. Above `lg` the page
+     is always there, because the rail is a column beside it rather than
+     instead of it.
+
+     The textarea is hidden, never unmounted — the caret, the native undo stack
+     and the scroll position all live in that DOM node, and remounting it would
+     silently throw away all three every time a writer glanced at the
+     corkboard. */
   return (
-    <div className="flex-1 flex flex-col min-w-0">
+    <div className={`${view === "script" ? "flex" : "hidden"} lg:flex flex-1 flex-col min-w-0`}>
 
       <div
         className={`flex-1 screenplay-container min-h-0 relative ${zenMode ? "zen-container" : ""}`}

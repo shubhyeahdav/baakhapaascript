@@ -1,6 +1,7 @@
 import React, { memo } from "react";
 import ToolbarMenu from "./ToolbarMenu";
 import ImportScript from "./ImportScript";
+import { VIEWS } from "./SceneRail";
 
 /**
  * The editor's toolbar, lifted out of `ScriptEditor` unchanged.
@@ -42,7 +43,7 @@ function EditorHeader({
   // identity and navigation
   id, title, navigate, t,
   // save state and position
-  saving, view, caretPage, pageCount,
+  saving, view, setView, caretPage, pageCount,
   // typing
   nepaliMode, setNepaliMode, textareaRef,
   showShortcuts, setShowShortcuts,
@@ -298,6 +299,21 @@ function EditorHeader({
           align="right"
           className="lg:hidden"
           items={[
+            /* Script / Corkboard / Outline / Cast.
+               These live in the scene rail, and the rail is `hidden lg:flex` —
+               so on a phone three of the editor's four views could not be
+               reached at all. Measured at 375px: zero of the four switches were
+               on the page, against four at 1280px. They lead the menu because
+               they name what you are LOOKING AT, which outranks anything you
+               might do to it. */
+            ...VIEWS.map((v) => ({
+              key: `view-${v.key}`,
+              label: v.label,
+              hint: v.hint,
+              active: view === v.key,
+              onSelect: () => setView?.(v.key),
+            })),
+            { key: "dv", divider: true },
             { key: "setup", label: "Story bible and format",
               hint: "Logline, characters, what the story is for",
               onSelect: () => navigate(`/projects/${id}/setup`) },

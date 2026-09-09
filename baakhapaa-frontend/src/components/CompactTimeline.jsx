@@ -242,7 +242,14 @@ export default function CompactTimeline({
                       : "bg-elevated text-inkMuted hover:text-ink"
                   }`}
                 >
-                  <span className="truncate">{b.index + 1}{dense ? "" : ` ${b.label}`}</span>
+                  {/* Room for the timecode, which is absolutely positioned on
+                      the right. Without the padding the title truncates to the
+                      full button width and the two print on top of each other —
+                      "INT. CHIYA PASAL - MOR..0:04" on a 375px screen, where
+                      the bar is narrow enough that every active scene collides. */}
+                  <span className={`truncate ${isActive ? "pr-9" : ""}`}>
+                    {b.index + 1}{dense ? "" : ` ${b.label}`}
+                  </span>
                   {isActive && (
                     <span className="absolute right-1.5 font-mono text-gold">
                       {timecode(b.mins)}
