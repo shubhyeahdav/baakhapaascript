@@ -229,7 +229,7 @@ export default function ScriptEditor() {
    */
   const setActMinutes = useCallback(async (actNumber, minutes) => {
     try {
-      const res = await scripts.setActDurations(id, { [actNumber]: minutes });
+      const res = await scripts.setActDurations(scriptId, { [actNumber]: minutes });
       if (res?.data?.structure) {
         setScript((prev) => (prev
           ? { ...prev, suggestions_json: JSON.stringify(res.data.structure) }
@@ -559,6 +559,23 @@ export default function ScriptEditor() {
     return () => { live = false; };
   }, [id]);
 
+  /* The route reads `/projects/:id/editor`, and that param is in practice a
+     SCRIPT id: the dashboard resolves project -> script before navigating, and
+     `ProjectSetup`, the storyboard, versions, comments and all four export
+     routes take a script id too. The `/projects/` in the path is historical.
+
+     The load effect above additionally TOLERATES a project id, so a URL built
+     honestly from the project list still opens — and that tolerance is what
+     made this a silent fault rather than a loud one. Everything after the load
+     kept using the route param, so opening the editor that way put every later
+     request against a script that does not exist: autosave PUT to
+     `/scripts/{projectId}`, took a 404, and the page carried on looking like it
+     was working while nothing at all reached the server.
+
+     `script.id` is the authority the moment there is one. Before that there is
+     nothing to load but the param. */
+  const scriptId = script?.id || id;
+
   // A scene's length as the writer would state it. `draft_json.minutes` is what
   // is on the page; `time_allocation` is what was planned for it.
   // AI suggestion set (persisted on the script row) + which are already added.
@@ -666,7 +683,7 @@ export default function ScriptEditor() {
     setAddingScene(key);
     try {
       const res = await scripts.addScene({
-        script_id: id,
+        script_id: scriptId,
         title: scene.title || "Untitled scene",
         description: scene.description || "",
         act_number: actNumber,
@@ -762,7 +779,7 @@ export default function ScriptEditor() {
     setContent(next);
     setActiveScene(Math.min(to, blocks.length - 1));
     scripts
-      .save(id, next)
+      .save(scriptId, next)
       .then((res) => {
         if (res?.data?.scenes) setScript((prev) => ({ ...prev, scenes: res.data.scenes }));
         if (res?.data?.pagination) setPagination(res.data.pagination);
@@ -788,7 +805,7 @@ export default function ScriptEditor() {
     try {
       const orderIndex = (script?.scenes || []).length;
       const res = await scripts.addScene({
-        script_id: id,
+        script_id: scriptId,
         title,
         description: "",
         act_number: actNumber,
@@ -820,7 +837,7 @@ export default function ScriptEditor() {
   const saveContent = useCallback(async () => {
     setSaving(true);
     try {
-      const res = await scripts.save(id, content);
+      const res = await scripts.save(scriptId, content);
       // The server reconciles the scene rows with the draft on every save and
       // returns them, so the index cards refresh from this same round trip
       // instead of going stale until the page is reloaded.
@@ -831,7 +848,7 @@ export default function ScriptEditor() {
       // The server has it now, so the local rescue copy has nothing left to
       // rescue. Dropped rather than left behind: a stale copy that outlives the
       // draft it mirrors is the thing that eventually overwrites good work.
-      clearRescue(id);
+      clearRescue(scriptId);
     } catch (err) {
       console.error("Auto-save failed:", err.response?.data?.detail || err.message);
     } finally {
@@ -844,7 +861,7 @@ export default function ScriptEditor() {
   // typed since the last round trip dies with the component. `ErrorBoundary`
   // reads this back out and offers it to the writer.
   useEffect(() => {
-    if (content) saveRescue(id, content);
+    if (content) saveRescue(scriptId, content);
   }, [id, content]);
 
   useEffect(() => {
@@ -904,7 +921,7 @@ export default function ScriptEditor() {
         // and whether the writer went and fixed it. Without it every request
         // is the first request, which is how the same three cards kept coming
         // back after the writer had acted on them.
-        script_id: id,
+        script_id: scriptId,
         scene_text: content || instruction,
         focus: f.key === "scene" ? "" : f.query,
         genre,
@@ -963,7 +980,7 @@ export default function ScriptEditor() {
         // nothing, in a product whose whole claim is keeping them in flow.
         await streamSSE(
           "/scripts/generate-scene/stream",
-          { scene_description: instruction, genre, tone, language, script_id: id },
+          { scene_description: instruction, genre, tone, language, script_id: scriptId },
           setAiResponse,
         );
       } else if (aiMode === "improve") {
@@ -978,7 +995,7 @@ export default function ScriptEditor() {
         await streamSSE(
           "/scripts/improve/stream",
           {
-            scene_text: content, instruction, language, script_id: id,
+            scene_text: content, instruction, language, script_id: scriptId,
             selection,
           },
           setAiResponse,
@@ -1080,7 +1097,7 @@ export default function ScriptEditor() {
     setReviewing(true);
     try {
       await saveContent();
-      const res = await scripts.review(id);
+      const res = await scripts.review(scriptId);
       if ((res.data.findings || []).length > 0) {
         setReview(res.data);
         return;
@@ -1095,9 +1112,9 @@ export default function ScriptEditor() {
 
   const confirmFinalize = async () => {
     try {
-      await scripts.finalize(id);
+      await scripts.finalize(scriptId);
       setReview(null);
-      navigate(`/projects/${id}/storyboard`);
+      navigate(`/projects/${scriptId}/storyboard`);
     } catch (err) {
       alert(err.response?.data?.detail || "Could not finalize the script.");
     }
@@ -1107,7 +1124,7 @@ export default function ScriptEditor() {
 
   const handleExport = async (type) => {
     try {
-      const res = await exportApi[type](id);
+      const res = await exportApi[type](scriptId);
       // Name the file after the project. Every export used to land as
       // `script.pdf`, so three projects produced three files a writer had to
       // open to tell apart — and the browser silently renamed the collisions.
@@ -1282,7 +1299,7 @@ export default function ScriptEditor() {
           need the air. */}
       {!zenMode && (
       <EditorHeader
-        id={id}
+        id={scriptId}
         title={script.project?.title || "Untitled"}
         navigate={navigate}
         t={t}
@@ -1438,7 +1455,7 @@ export default function ScriptEditor() {
             )}
             {view === "cast" && (
               <CastView
-                scriptId={id}
+                scriptId={scriptId}
                 onOpenLine={(line) => {
                   // Jump the caret to that line of the draft. Reading a voice
                   // and then fixing a line of it should not require finding it
@@ -1521,7 +1538,7 @@ export default function ScriptEditor() {
             panelTab={panelTab}
             setPanelTab={setPanelTab}
             script={script}
-            id={id}
+            id={scriptId}
             suggestions={suggestions}
             genre={genre}
             tone={tone}

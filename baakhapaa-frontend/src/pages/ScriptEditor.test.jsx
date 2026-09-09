@@ -35,9 +35,14 @@ const SCRIPT = {
 const mockNavigate = vi.fn();
 let mockQuery = {};
 let mockTier = "pro";
+// The route param. Usually the script's own id, because the dashboard resolves
+// project -> script before navigating; a link built from the project list makes
+// it a PROJECT id instead, which the editor tolerates and which used to break
+// everything downstream of the load. Mutable so one test can be that link.
+let mockParamId = "script-1";
 
 vi.mock("react-router-dom", () => ({
-  useParams: () => ({ id: "script-1" }),
+  useParams: () => ({ id: mockParamId }),
   useNavigate: () => mockNavigate,
   useSearchParams: () => [{ get: (key) => mockQuery[key] ?? null }],
   Link: ({ children, ...p }) => <a {...p}>{children}</a>,
@@ -136,6 +141,7 @@ describe("ScriptEditor", () => {
     stubApi();
     mockQuery = {};
     mockTier = "pro";
+    mockParamId = "script-1";
     errors = [];
     vi.spyOn(console, "error").mockImplementation((...a) => errors.push(a.join(" ")));
   });
@@ -233,6 +239,41 @@ describe("ScriptEditor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /dismiss/i }));
     expect(screen.queryByText(/structure suggestion didn't come back/i)).not.toBeInTheDocument();
+  });
+
+  it("saves against the script's id, not the id in the URL", async () => {
+    /* `/projects/:id/editor` is opened with a project id by anything that
+       builds the URL from the project list rather than resolving the script
+       first. The load effect handles that: `getById` 404s and `getByProject`
+       returns the script. Everything AFTER the load used the route param
+       anyway, so autosave PUT to `/scripts/{projectId}`, took a 404, and the
+       editor went on looking like it was working while nothing reached the
+       server. Confirmed in a browser before this was written: the typed text
+       was simply gone.
+
+       The load is deliberately left alone here — it is the one place the raw
+       param is correct, because it is what resolves it. */
+    mockParamId = "project-1";
+    scripts.getById.mockRejectedValue({ response: { status: 404 } });
+    scripts.getByProject.mockResolvedValue({ data: SCRIPT });
+    scripts.save.mockResolvedValue({ data: { id: "script-1" } });
+
+    try {
+      render(<ScriptEditor />);
+      await waitFor(() => expect(editor()).toBeInTheDocument());
+
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      fireEvent.change(editor(), { target: { value: "INT. PASAL - DAY\n\nSteam rises.\n" } });
+      await act(async () => { vi.advanceTimersByTime(16000); });
+      vi.useRealTimers();
+
+      expect(scripts.save).toHaveBeenCalled();
+      expect(scripts.save.mock.calls[0][0]).toBe("script-1");
+      // The whole point: never the thing that was in the URL.
+      expect(scripts.save).not.toHaveBeenCalledWith("project-1", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("refreshes the scene cards from what a save returns", async () => {
