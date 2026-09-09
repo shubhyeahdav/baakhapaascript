@@ -12,6 +12,7 @@ across both storage modes. Past ~500 entries, switch to the
 match_script_patterns RPC included in the migration file.
 """
 import json
+import time
 import os
 
 _model = None  # lazy: first call downloads/loads the ONNX model (~130 MB cached)
@@ -139,6 +140,64 @@ RPC_THRESHOLD = int(os.getenv("RAG_RPC_THRESHOLD", "500"))
 RPC_NAME = "match_script_patterns"
 
 
+# The corpus, held in memory between requests.
+#
+# Retrieval measured 484ms against real Supabase, and it is not the model:
+# embedding a query is 5ms, fetching the corpus is 611ms. Every Patterns
+# request — free on every tier, and sitting on the writing path — was
+# re-downloading all 39 rows WITH their 384-dimension embeddings, about 185KB,
+# and re-parsing each one out of the string PostgREST returns for a `vector`.
+# The corpus changes when `load_knowledge_base.py` runs and at no other time.
+#
+# A TTL rather than a permanent cache, because the loader can be run against a
+# database this process is not restarted for; five minutes of staleness in a
+# craft suggestion costs nothing, and the loader calls `invalidate_corpus_cache`
+# for the case where it is in-process.
+#
+# `RAG_CACHE_TTL=0` disables it. `tests/conftest.py` sets exactly that: the RAG
+# suite clears and reseeds `script_patterns` around every test, so a cache that
+# survived a clear would make "an empty library returns nothing" pass or fail
+# depending on what ran before it.
+CACHE_TTL = float(os.getenv("RAG_CACHE_TTL", "300"))
+_corpus_cache = {"rows": None, "at": 0.0}
+
+
+def invalidate_corpus_cache():
+    """Forget the cached corpus. Called by the loader after it writes."""
+    _corpus_cache["rows"] = None
+    _corpus_cache["at"] = 0.0
+
+
+def _corpus(supabase):
+    """Every pattern row, with its embedding already parsed into a list.
+
+    Parsing here rather than per request is the other half of the saving: the
+    embeddings come back from PostgREST as strings, and 39 of them is 39 JSON
+    parses of 384 floats on a path that runs while somebody is typing.
+    """
+    now = time.monotonic()
+    if CACHE_TTL > 0 and _corpus_cache["rows"] is not None \
+            and now - _corpus_cache["at"] < CACHE_TTL:
+        return _corpus_cache["rows"]
+
+    rows = supabase.table(TABLE).select("*").execute().data or []
+    for r in rows:
+        emb = r.get("embedding")
+        if isinstance(emb, str):
+            try:
+                r["embedding"] = json.loads(emb)
+            except (ValueError, TypeError):
+                r["embedding"] = None
+
+    # An empty read is not cached. It is the shape a misconfigured database and
+    # an unloaded one both have, and caching it would hold that answer for five
+    # minutes after somebody fixed it.
+    if CACHE_TTL > 0 and rows:
+        _corpus_cache["rows"] = rows
+        _corpus_cache["at"] = now
+    return rows
+
+
 def _rpc_search(supabase, qvec, top_k):
     """Server-side similarity search, or None if it is not available.
 
@@ -171,7 +230,7 @@ def retrieve_relevant_patterns(genre, tone, theme_description, top_k=3):
     generation proceeds ungrounded rather than breaking."""
     try:
         from database import supabase
-        rows = supabase.table(TABLE).select("*").execute().data
+        rows = _corpus(supabase)
         if not rows:
             return []
         # Only the symptom is embedded. `genre` and `tone` are accepted because

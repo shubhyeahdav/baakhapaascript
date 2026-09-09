@@ -73,6 +73,11 @@ def main():
     print(f"Loaded {len(good)} entries; table now holds {total} patterns.")
 
     # Lightweight spot-check: two canned probes with expected top-3 hits
+    # The rows just changed, so anything this process cached about them is
+    # wrong — including the probes below, which would otherwise verify the
+    # corpus as it was before this run.
+    rag.invalidate_corpus_cache()
+
     # Probes are stated as writing PROBLEMS, matching how the app queries.
     probes = [
         ("drama", "emotional", "my dialogue is on the nose, characters say exactly what they feel", "dialogue"),

@@ -14,6 +14,7 @@ os.environ["LOCAL_DB_PATH"] = os.path.join(
 )
 os.environ["JWT_SECRET"] = "test-secret-" + "x" * 48
 os.environ["RATE_LIMITS_ENABLED"] = "false"  # per-process buckets would leak between tests
+os.environ["RAG_CACHE_TTL"] = "0"            # the RAG suite reseeds script_patterns per test
 os.environ["DEMO_SEED"] = "false"            # no known-credential account in tests
 # SET, do not pop — the same trap the AI keys are guarded against below, and it
 # was left open here. `load_dotenv()` declines to overwrite a variable that
