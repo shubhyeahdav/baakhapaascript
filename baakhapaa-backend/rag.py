@@ -17,6 +17,8 @@ import os
 
 _model = None  # lazy: first call downloads/loads the ONNX model (~130 MB cached)
 
+import craft_query
+
 EMBED_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 TABLE = "script_patterns"
 
@@ -242,7 +244,15 @@ def retrieve_relevant_patterns(genre, tone, theme_description, top_k=3):
         # most generically emotional. One entry was coming back for 21 of 25
         # real queries. Dropping the prefix took that to 8 and moved
         # precision@1 from 56% to 72%. Measured in `eval_retrieval.py`.
-        qvec = embed_texts([theme_description])[0]
+        # Nepali is translated out of the query before it is embedded, never
+        # after. `bge-small-en-v1.5` cannot separate two Devanagari sentences
+        # at all (0.898 same-meaning against 0.877 different-meaning, a 0.02
+        # gap), and a romanised query sits closer to an unrelated romanised
+        # sentence than to its own English translation. An English query is
+        # returned byte-identical, so this cannot move the English scores.
+        # Measured in craft_query's docstring and gated by eval_retrieval.py.
+        query_text, _glossed = craft_query.normalise(theme_description)
+        qvec = embed_texts([query_text])[0]
 
         if len(rows) >= RPC_THRESHOLD:
             hit = _rpc_search(supabase, qvec, top_k)

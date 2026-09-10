@@ -68,8 +68,17 @@ CHIP_QUERIES = {
     # the only ground on which a golden label gets changed here.
     "my dialogue is on the nose, characters say exactly what they feel, it "
     "sounds like a therapy transcript with no subtext": "scene",
-    "my characters sound the same and feel predictable, thin, described rather "
-    "than shown": "character",
+    # Split, 2026-09-10. This chip used to read "my characters sound the same
+    # and feel predictable, thin, described rather than shown" and was the
+    # standing known miss below — it opened with the verbatim `problem` of a
+    # DIALOGUE entry under a character label, so retrieval could answer only
+    # half of it and p@1 was 0 no matter what changed underneath. Fixed in the
+    # chip, in `AssistPanel.FOCUSES`, not by relabelling the case.
+    "my main character is boring and predictable, likeable but nobody finds "
+    "them interesting, and my side characters only exist to move the story "
+    "along": "character",
+    "my characters all sound the same, I could swap their dialogue between "
+    "them and nothing would break": "dialogue",
     "the middle sags and the ending feels unearned, the protagonist is passive "
     "and things just happen to them": "structure",
     "the emotion is overwrought and melodramatic, it feels sentimental and "
@@ -95,22 +104,28 @@ CHIP_QUERIES = {
     "my comic premise is funny once and then the sketch just stops": "scene",
 }
 
-# Two cases below are known misses and are deliberately NOT relabelled, because
-# relabelling a test to match its output measures nothing:
+# Both of the standing known misses are now closed, and neither was closed by
+# relabelling a case — relabelling a test to match its output measures nothing.
 #
-#   "my characters sound the same and feel predictable, thin, described rather
-#   than shown" asks two different questions. It gets the dialogue entry for
-#   "all sound the same" first and the character entries second, which is a
-#   defensible answer to half of it. The defect is in the chip, not in
-#   retrieval: a focus button that carries two complaints can only be half
-#   answered. Worth splitting in the UI.
+#   The two-questions chip was split in the UI (`AssistPanel.FOCUSES`), which
+#   is where the defect was.
 #
-#   The romanised query meaning "my characters all sound the same" misses
-#   entirely. The corpus is embedded in English by an English model, so
-#   romanised Nepali is out of distribution — the score of 80% on the other
-#   four is better than that fact deserves. The real fix is a Nepali gloss
-#   field embedded alongside the English problem statement, which is corpus
-#   work, not retrieval work.
+#   Romanised Nepali was fixed in `craft_query.py`, but NOT the way the note
+#   here proposed. The plan was "a Nepali gloss field embedded alongside the
+#   English problem statement". Measurement killed it: `bge-small-en-v1.5`
+#   scores two Devanagari sentences at 0.898 same-meaning against 0.877
+#   different-meaning — a 0.02 gap, meaning it cannot read the script at all,
+#   so a Devanagari gloss would have been compared against an equally
+#   unreadable query. A romanised gloss would have worked. The query is now
+#   translated OUT of Nepali before embedding instead, which covers both
+#   scripts and needs no second copy of the corpus.
+#
+# One miss remains and is deliberately not relabelled: the melodrama chip is
+# labelled `dialogue` and retrieval answers it with `Put the feeling into a
+# physical thing that changes hands` (image) and `Deny the scene privacy`
+# (scene). Those are arguably the better answers — melodrama is fixed by
+# staging, not by rewriting lines — but "arguably" is not evidence, and the
+# label stays until a writer settles it. See PILOT.md.
 
 PLAIN_QUERIES = {
     "my people talk too much": "dialogue",
@@ -120,12 +135,42 @@ PLAIN_QUERIES = {
     "scene has no point": "scene",
 }
 
+# Thirteen, not five. Five cases cannot tell a fix from luck: one case is worth
+# twenty points, so any change at all moves the number and none of the movement
+# means anything. These were written the way the English ones were — from the
+# corpus's own `problem` statements, restated as a Nepali writer would type the
+# complaint on a phone.
 ROMANISED_QUERIES = {
     "mero scene ma kehi hunna, dialogue matra cha ra boring cha": "scene",
     "mero character haru sabai eutai jasto sunincha": "dialogue",
     "kathako beech ma story sustaucha ra ending ma kehi feel hunna": "structure",
     "mero emotion dialogue ma matra cha, screen ma dekhindaina": "image",
     "hero le jitcha tara ending jhuto lagcha": "structure",
+    "mero dialogue ekdam seedha cha, patra le man ko kura sabai bhanidincha": "dialogue",
+    "mero patra haru dherai bolchan, speech haru lamo cha": "dialogue",
+    "mero hero boring cha, ramro manche ho tara kasailai matlab chaina": "character",
+    "mero side character haru kaam pare matra auchan, aafno kehi chaina": "character",
+    "mero action line haru camera manual jastai cha, padhna boring cha": "image",
+    "emotional scene sabai eutai jasto cha, dui jana shanta kotha ma matra": "scene",
+    "teesro act ekdam chhoto cha, act haru ko balance milena": "structure",
+    "backstory ek chhin ma sabai aaucha ra scene ko momentum marcha": "structure",
+}
+
+# Devanagari, which the harness had none of.
+#
+# The linter reads Devanagari and the course is translated into it, so a writer
+# who types Nepali directly is a user this product has already committed to.
+# Nobody had ever asked whether retrieval works for them. It does not, and the
+# gap is not the one the romanised cases show — see the note under
+# `craft_query.NEPALI_COMPLAINTS` for the measurement. Kept as its own style so
+# the two failures stay separable in the report.
+DEVANAGARI_QUERIES = {
+    "मेरा पात्रहरू सबै उस्तै सुनिन्छन्": "dialogue",
+    "मेरा पात्रहरू धेरै बोल्छन्, संवाद लामो छ": "dialogue",
+    "मेरो कथाको बीच भाग सुस्त छ": "structure",
+    "मेरो नायक बोरिङ छ, कसैलाई मतलब छैन": "character",
+    "भावना संवादमा मात्र छ, पर्दामा देखिँदैन": "image",
+    "यो दृश्यमा केही हुँदैन": "scene",
 }
 
 REAL_QUERIES = [
@@ -134,6 +179,7 @@ REAL_QUERIES = [
         ("chip", CHIP_QUERIES),
         ("plain", PLAIN_QUERIES),
         ("romanised", ROMANISED_QUERIES),
+        ("devanagari", DEVANAGARI_QUERIES),
     )
     for q, lvl in group.items()
 ]
@@ -361,7 +407,7 @@ def report(summary, scores, real):
     # are the only ones where nobody already knows the answer. Reported by
     # style, because a corpus embedded in English can be fine for one style and
     # useless for another, and one average across all three would say neither.
-    real_kinds = [k for k in ("chip", "plain", "romanised") if k in kinds]
+    real_kinds = [k for k in ("chip", "plain", "romanised", "devanagari") if k in kinds]
     if real_kinds:
         print("  REAL QUERIES")
         hit1 = hit3 = tot = 0.0
