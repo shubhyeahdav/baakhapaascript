@@ -186,6 +186,14 @@ jobs:
         working-directory: baakhapaa-frontend
         run: npx playwright install --with-deps chromium
 
+      # No server, no login, no database — so this one runs before anything is
+      # started, and would still run if the rest of the job were removed. It
+      # measures the geometry the suite cannot see: jsdom has no layout engine
+      # and vite.config.js sets `css: false`.
+      - name: Page layout
+        working-directory: baakhapaa-frontend
+        run: node scripts/page-layout-check.mjs
+
       - name: Start frontend
         working-directory: baakhapaa-frontend
         run: |

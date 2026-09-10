@@ -119,7 +119,18 @@ export default function ScriptPage({
             nor a gap earned the interruption. `p. N / M` in the toolbar
             still says where you are, and the PDF still paginates for
             real — the two places a page count is actually useful. */}
-        <div className="relative w-full max-w-[816px] flex">
+        {/* ONE flex child, and that is load-bearing.
+            `.screenplay-container` is `display:flex` in ROW direction with
+            `justify-content:center`, so every direct child becomes a column
+            beside the page. The mid-draft note shipped as a second child and
+            the pair got centred together — which pushed the paper left of
+            centre and left the Pen's blank-page prompt, which centres on the
+            container rather than on the paper, sitting off the right edge of
+            the page. It looked like a PenPrompt bug and was a flex-direction
+            one. Anything that belongs UNDER the page goes inside this column,
+            never next to it. */}
+        <div className="w-full max-w-[816px] flex flex-col min-w-0">
+        <div className="relative w-full flex">
           <textarea
           ref={textareaRef}
           className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} ${typewriter && !zenMode ? "typewriter-page" : ""} ${cursor === "pen" ? "cursor-pen" : cursor === "ring" ? "cursor-ring" : ""} ${resting ? "cursor-resting" : ""} resize-none`}
@@ -187,16 +198,15 @@ export default function ScriptPage({
             further up never sees it. Never in focus mode, for the reason
             everything else is hidden there. */}
         {view === "script" && !zenMode && (
-          <div className="w-full max-w-[816px]">
-            <MilestoneNote
-              milestone={milestone}
-              facts={milestoneFacts}
-              pageTheme={pageTheme}
-              onAct={onMilestoneAct}
-              onDismiss={onMilestoneDismiss}
-            />
-          </div>
+          <MilestoneNote
+            milestone={milestone}
+            facts={milestoneFacts}
+            pageTheme={pageTheme}
+            onAct={onMilestoneAct}
+            onDismiss={onMilestoneDismiss}
+          />
         )}
+        </div>
       </div>
 
       {/* Type-ahead strip. Hidden in zen mode — the point of focus mode is
