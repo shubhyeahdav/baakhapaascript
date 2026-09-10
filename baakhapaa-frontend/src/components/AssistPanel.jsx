@@ -37,7 +37,16 @@ export const FOCUSES = [
   { key: "scene", label: "Read my page", query: "" },
   { key: "flat", label: "Feels flat", query: "this scene feels flat and skippable, nothing changes in it, the characters just talk and it drags" },
   { key: "dialogue", label: "On the nose", query: "my dialogue is on the nose, characters say exactly what they feel, it sounds like a therapy transcript with no subtext" },
-  { key: "character", label: "Thin character", query: "my characters sound the same and feel predictable, thin, described rather than shown" },
+  // This chip used to open with "my characters sound the same", which is
+  // verbatim the `problem` field of a DIALOGUE entry ("Give a character one
+  // phrase they return to"). Retrieval returned that entry and was right to;
+  // the chip was asking a dialogue question under a character label, so it
+  // could only ever be half answered. The voice half now has its own chip
+  // below, and this one asks what the character-level entries actually
+  // address: a protagonist nobody finds interesting, and side characters with
+  // no life of their own.
+  { key: "character", label: "Thin character", query: "my main character is boring and predictable, likeable but nobody finds them interesting, and my side characters only exist to move the story along" },
+  { key: "voice", label: "Same voice", query: "my characters all sound the same, I could swap their dialogue between them and nothing would break" },
   { key: "structure", label: "Structure", query: "the middle sags and the ending feels unearned, the protagonist is passive and things just happen to them" },
   { key: "melodrama", label: "Melodramatic", query: "the emotion is overwrought and melodramatic, it feels sentimental and false rather than restrained" },
 ];
@@ -85,6 +94,7 @@ function UpgradePrompt({ mode, onUpgrade }) {
  * an empty box or an apology.
  */
 function LessonEscalation({ technique }) {
+
   const [lesson, setLesson] = useState(null);
   const [open, setOpen] = useState(false);
   const [state, setState] = useState("idle");
@@ -145,6 +155,15 @@ export default function AssistPanel({
   focus, setFocus, openPattern, setOpenPattern,
   showAllPatterns, setShowAllPatterns, seen, suggest, dismissed,
 }) {
+  // What the writer types when no chip fits. The chips reach at most eighteen
+  // of the corpus's thirty-nine entries, so more than half the library had no
+  // door in the interface at all — a writer whose problem was "my flashback
+  // kills the momentum" could press six buttons and never be asked. The
+  // backend has always accepted an arbitrary string here; this only stops the
+  // UI choosing the question on the writer's behalf. Nepali works in it, in
+  // both scripts, as of `craft_query.normalise`.
+  const [asked, setAsked] = useState("");
+
   return (
     <>
     {panelOpen && (
@@ -301,12 +320,49 @@ export default function AssistPanel({
               </React.Fragment>
             ))}
           </div>
+          {/* The writer's own words. A form, so Enter submits and the mobile
+              keyboard shows a Search key instead of a newline. Submitting an
+              empty box would silently re-run whichever chip was last selected,
+              which reads as the button being broken, so it is a no-op. */}
+          <form
+            className="mb-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = asked.trim();
+              if (!q) return;
+              setFocus("asked");
+              setOpenPattern(null);
+              loadPatterns("asked", q);
+            }}
+          >
+            <label htmlFor="craft-ask" className="sr-only">
+              Describe what is wrong with your script
+            </label>
+            <div className="flex gap-1.5">
+              <input
+                id="craft-ask"
+                type="search"
+                value={asked}
+                onChange={(e) => setAsked(e.target.value)}
+                placeholder="…or say it in your own words"
+                className="flex-1 min-w-0 bg-surface border border-border rounded-full px-3 py-1.5 text-[11px] text-ink placeholder:text-inkMuted focus:outline-none focus:border-gold/40"
+              />
+              <button
+                type="submit"
+                disabled={!asked.trim() || patternsLoading}
+                className="tap text-[11px] px-3 py-1.5 rounded-full border border-border text-inkMuted hover:text-gold disabled:opacity-40 transition-colors"
+              >
+                Ask
+              </button>
+            </div>
+          </form>
+
           <div className="flex items-center justify-between mb-3">
             <span className="font-mono text-[10px] uppercase tracking-wider text-inkMuted">
               {genre} · {tone}
             </span>
             <button
-              onClick={() => loadPatterns(focus)}
+              onClick={() => loadPatterns(focus, focus === "asked" ? asked.trim() : undefined)}
               disabled={patternsLoading}
               className="tap text-[11px] text-inkMuted hover:text-gold transition-colors disabled:opacity-50"
             >

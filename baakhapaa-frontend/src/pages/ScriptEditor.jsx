@@ -706,6 +706,30 @@ export default function ScriptEditor() {
     });
   };
 
+  /* Which scenes carry the turning points, answered by the writer.
+
+     Optimistic, and deliberately: the badge is a two-state toggle the writer
+     will press while reading their board, and a round trip before the label
+     changes makes a card feel broken. On failure the row is put back exactly
+     as it was rather than left showing a value the server does not hold. */
+  const setSceneType = useCallback(async (scene, next) => {
+    const previous = scene.scene_type;
+    setScript((prev) => prev ? {
+      ...prev,
+      scenes: (prev.scenes || []).map((s) =>
+        s.id === scene.id ? { ...s, scene_type: next } : s),
+    } : prev);
+    try {
+      await scripts.setSceneType(scene.id, next);
+    } catch {
+      setScript((prev) => prev ? {
+        ...prev,
+        scenes: (prev.scenes || []).map((s) =>
+          s.id === scene.id ? { ...s, scene_type: previous } : s),
+      } : prev);
+    }
+  }, []);
+
   const handleAddScene = async (scene, actNumber, orderIndex) => {
     const key = `${actNumber}:${scene.title}`;
     setAddingScene(key);
@@ -930,7 +954,12 @@ export default function ScriptEditor() {
   // Fetch pattern recommendations. `focus` steers what KIND of pattern comes
   // back (see FOCUSES) — the library is indexed by the problem a technique
   // solves, so naming the problem is what makes retrieval land.
-  const loadPatterns = useCallback(async (focusKey) => {
+  //
+  // `typedQuery` is the writer's own words, from the Ask box. It is passed
+  // explicitly rather than smuggled in as a fake FOCUSES entry, because a
+  // typed question is not a chip: it has no key, no label, and it changes on
+  // every submit, so caching or comparing it against `focus` would be wrong.
+  const loadPatterns = useCallback(async (focusKey, typedQuery) => {
     setPatternsLoading(true);
     try {
       const f = FOCUSES.find((x) => x.key === focusKey) || FOCUSES[0];
@@ -951,7 +980,12 @@ export default function ScriptEditor() {
         // back after the writer had acted on them.
         script_id: scriptId,
         scene_text: content || instruction,
-        focus: f.key === "scene" ? "" : f.query,
+        // A typed question wins over the chip. "Read my page" is the one
+        // focus that deliberately sends an empty string — it means "diagnose
+        // the draft", not "no query" — so the chip fallback keeps that.
+        focus: typedQuery !== undefined
+          ? typedQuery
+          : (f.key === "scene" ? "" : f.query),
         genre,
         tone,
       });
@@ -1474,6 +1508,7 @@ export default function ScriptEditor() {
                 view either — the page is already there, so it just jumps. */}
             {view === "corkboard" && (
               <Corkboard
+                onSetSceneType={setSceneType}
                 scenes={script.scenes || []}
                 activeScene={activeScene}
                 onOpen={goToScene}
