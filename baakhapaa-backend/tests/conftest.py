@@ -50,6 +50,22 @@ os.environ["PAYMENT_SANDBOX"] = "false"
 os.environ["ANTHROPIC_API_KEY"] = "your-anthropic-key-tests-never-call-out"
 os.environ["OPENAI_API_KEY"] = "your-openai-key-tests-never-call-out"
 os.environ["GROQ_API_KEY"] = "your-groq-key-tests-never-call-out"
+# The OpenAI-compatible transport reads its OWN pair, and this guard did not
+# cover them when that transport landed. With `LLM_PROVIDER=tokenrouter` and a
+# real `LLM_API_KEY` in `.env`, every AI test made a live billed call to a
+# reasoning model that spends its whole token budget thinking and returns an
+# empty answer — so the suite did not fail, it hung. Fifty minutes with no
+# output is what that looks like from outside.
+#
+# `LLM_PROVIDER` is pinned too, not just the key. Leaving the provider set and
+# only breaking the key turns every one of those tests into a boot-time
+# RuntimeError from `script_engine`, which is a different lie about what the
+# product does. Unset provider is the documented default and the state the
+# suite is written against. Tests that exercise a provider set both themselves
+# and reload the module — see `tests/test_llm_provider.py`.
+os.environ["LLM_PROVIDER"] = ""
+os.environ["LLM_API_KEY"] = "your-llm-key-tests-never-call-out"
+os.environ["LLM_BASE_URL"] = ""
 # ---------------------------------------------------------------------------
 
 import pytest  # noqa: E402
