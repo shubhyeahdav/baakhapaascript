@@ -1,5 +1,6 @@
 import React from "react";
 import PenPrompt from "./PenPrompt";
+import MilestoneNote from "./MilestoneNote";
 import FormatShortcuts from "./FormatShortcuts";
 import Corkboard from "./Corkboard";
 import OutlineView from "./OutlineView";
@@ -30,6 +31,7 @@ export default function ScriptPage({
   suggest, setSuggest, suggestIndex, dismissed, setDismissed, applySuggestion,
   // where we are, and whether it is safe
   view, saving, caretPage, pageCount, sessionStart, script, user,
+  milestone, milestoneFacts, onMilestoneAct, onMilestoneDismiss,
   // how the page looks
   zenMode, setZenMode, pageTheme, typewriter, cursor, resting, setResting,
   focus,
@@ -177,6 +179,24 @@ export default function ScriptPage({
           onBlur={() => setSuggest(null)}
           />
         </div>
+
+        {/* The Pen, mid-draft. Under the last line rather than over it: there
+            are pages of the writer's own words here, and a character on top of
+            them is the interruption this is trying not to be. A writer
+            scrolling to where they stopped arrives at it; a writer working
+            further up never sees it. Never in focus mode, for the reason
+            everything else is hidden there. */}
+        {view === "script" && !zenMode && (
+          <div className="w-full max-w-[816px]">
+            <MilestoneNote
+              milestone={milestone}
+              facts={milestoneFacts}
+              pageTheme={pageTheme}
+              onAct={onMilestoneAct}
+              onDismiss={onMilestoneDismiss}
+            />
+          </div>
+        )}
       </div>
 
       {/* Type-ahead strip. Hidden in zen mode — the point of focus mode is

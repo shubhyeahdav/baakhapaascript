@@ -8,6 +8,7 @@ import TeamPanel from "../components/TeamPanel";
 import SceneRail from "../components/SceneRail";
 import EditorHeader from "../components/EditorHeader";
 import AssistPanel, { FOCUSES } from "../components/AssistPanel";
+import { readFacts, milestoneFor, dismissKey } from "../lib/milestones";
 import ScriptPage from "../components/ScriptPage";
 import { enterText } from "../utils/screenplayFormat";
 import { countWords } from "../utils/draft";
@@ -607,10 +608,69 @@ export default function ScriptEditor() {
   // A scene's length as the writer would state it. `draft_json.minutes` is what
   // is on the page; `time_allocation` is what was planned for it.
   // AI suggestion set (persisted on the script row) + which are already added.
+  /* The Pen, mid-draft.
+     `PenPrompt` meets a writer on an empty page and vanishes on the first
+     keystroke; `review.py` speaks at finalize. Between them — which is where a
+     screenplay actually gets written — the product said nothing unless the
+     writer pressed a tab they had no reason to press. When to speak lives in
+     `lib/milestones.js` and is tested there; this is the wiring.
+
+     Dismissals are read once per script rather than on every render: this runs
+     on every keystroke through `pageCount`, and localStorage is synchronous. */
+  const [milestonesOff, setMilestonesOff] = useState([]);
+  useEffect(() => {
+    if (!script?.id) return;
+    try {
+      const raw = localStorage.getItem(dismissKey(script.id));
+      setMilestonesOff(raw ? JSON.parse(raw) : []);
+    } catch {
+      // A private window, or storage disabled. A writer who cannot be
+      // remembered is shown the note again, which is the harmless direction.
+      setMilestonesOff([]);
+    }
+  }, [script?.id]);
+
+  const dismissMilestone = useCallback((m) => {
+    setMilestonesOff((prev) => {
+      const next = prev.includes(m.key) ? prev : [...prev, m.key];
+      try {
+        if (script?.id) localStorage.setItem(dismissKey(script.id), JSON.stringify(next));
+      } catch { /* nothing to do; the note simply returns next time */ }
+      return next;
+    });
+  }, [script?.id]);
+
   const suggestions = React.useMemo(() => {
     try { return script?.suggestions_json ? JSON.parse(script.suggestions_json) : null; }
     catch { return null; }
   }, [script?.suggestions_json]);
+
+  // Deliberately narrow inputs — see `readFacts`. A milestone that could read
+  // the draft text would drift into being a second linter, and there is
+  // already one that does that job deterministically.
+  const milestoneFacts = React.useMemo(
+    () => readFacts({ pageCount, scenes: script?.scenes || [], suggestions }),
+    [pageCount, script?.scenes, suggestions],
+  );
+  const milestone = React.useMemo(
+    () => milestoneFor(milestoneFacts, milestonesOff),
+    [milestoneFacts, milestonesOff],
+  );
+
+  // What the note's one button does. `corkboard` is the only action that
+  // changes the view, because it is the only note whose fix is a thing to do
+  // rather than a thing to read.
+  const actOnMilestone = useCallback((m) => {
+    if (m.cta.action === "corkboard") {
+      setView("corkboard");
+      return;
+    }
+    // `?lesson=`, not a path segment: there is no `/learn/:id` route, and
+    // LearnPage already reads this param — it is what a linter flag's
+    // "Learn this" uses. A path would have been a 404 at the one moment the
+    // product finally has a writer's attention.
+    navigate(`/learn?lesson=${encodeURIComponent(m.lesson)}`);
+  }, [navigate]);
   const addedKeys = React.useMemo(
     () => new Set((script?.scenes || []).map((s) => `${s.act_number}:${s.title}`)),
     [script?.scenes]
@@ -1573,6 +1633,10 @@ export default function ScriptEditor() {
           saving={saving}
           caretPage={caretPage}
           pageCount={pageCount}
+          milestone={milestone}
+          milestoneFacts={milestoneFacts}
+          onMilestoneAct={actOnMilestone}
+          onMilestoneDismiss={dismissMilestone}
           sessionStart={sessionStart}
           script={script}
           user={user}
