@@ -167,6 +167,11 @@ export const scripts = {
   generateStructure: (data, projectId) =>
     instance.post("/scripts/generate-structure", { ...data, project_id: projectId }),
   addScene: (data) => instance.post("/scripts/add-scene", data),
+  // Only `scene_type` is accepted. A scene's title is its slugline in the
+  // draft and `scene_sync` rebuilds the row from the page on every save, so
+  // a rename has to be a rewrite of the line, not a field update.
+  setSceneType: (sceneId, sceneType) =>
+    instance.put(`/scripts/scenes/${sceneId}`, { scene_type: sceneType }),
   recommendations: (data) => instance.post("/scripts/recommendations", data),
   // Deterministic craft diagnostics — every tier, no AI cost, works on a
   // partial draft. Returns flags with line numbers plus by_craft_level.

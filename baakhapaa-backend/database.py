@@ -253,6 +253,11 @@ def get_script_by_id(script_id: str):
     return result.data[0] if result.data else None
 
 
+def get_scene_by_id(scene_id: str):
+    result = supabase.table("scenes").select("*").eq("id", scene_id).execute()
+    return result.data[0] if result.data else None
+
+
 def get_scenes_by_script(script_id: str):
     result = (
         supabase.table("scenes")

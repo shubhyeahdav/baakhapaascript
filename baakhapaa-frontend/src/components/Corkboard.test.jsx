@@ -321,3 +321,53 @@ describe("adding a scene", () => {
     expect(screen.getByText("Adding…").closest("button")).toBeDisabled();
   });
 });
+
+describe("marking the turning points", () => {
+  /* The badge said `major` or `minor` and could not be changed anywhere in the
+     product. A generated structure chose once; a scene the writer typed was
+     created `minor` and stayed that way — so on the blank-page path, which is
+     the default, every script was uniformly minor. Three things read this
+     field: the rail's count, the outline's act balance, and the shot the
+     storyboard assigns. */
+
+  const MINOR = [scene({ id: "m", scene_type: "minor" })];
+
+  it("turns a transition into a turning point", () => {
+    const onSetSceneType = vi.fn();
+    render(<Corkboard scenes={MINOR} onSetSceneType={onSetSceneType} />);
+
+    fireEvent.click(screen.getByText("minor"));
+
+    expect(onSetSceneType).toHaveBeenCalledTimes(1);
+    expect(onSetSceneType.mock.calls[0][1]).toBe("major");
+  });
+
+  it("and takes it back", () => {
+    // A mark that cannot be undone is a worse trap than one that could never
+    // be made: writers change their mind about structure constantly.
+    const onSetSceneType = vi.fn();
+    render(<Corkboard scenes={[scene({ id: "j" })]} onSetSceneType={onSetSceneType} />);
+
+    fireEvent.click(screen.getByText("major"));
+
+    expect(onSetSceneType.mock.calls[0][1]).toBe("minor");
+  });
+
+  it("does not open the scene when the badge is pressed", () => {
+    // The badge sits inside a card whose whole surface opens the scene. Without
+    // stopPropagation, marking a turning point would also navigate away from
+    // the board the writer is reading.
+    const open = vi.fn();
+    render(<Corkboard scenes={MINOR} onOpen={open} onSetSceneType={vi.fn()} />);
+
+    fireEvent.click(screen.getByText("minor"));
+
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it("is inert when no handler is given, rather than looking pressable", () => {
+    render(<Corkboard scenes={MINOR} />);
+
+    expect(screen.getByText("minor")).toBeDisabled();
+  });
+});

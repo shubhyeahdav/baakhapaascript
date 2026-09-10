@@ -33,7 +33,8 @@ function mins(n) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export default function Corkboard({ scenes = [], activeScene, onOpen, onMove, onAdd, adding }) {
+export default function Corkboard({ scenes = [], activeScene, onOpen, onMove, onAdd,
+                                   adding, onSetSceneType }) {
   const [dragging, setDragging] = useState(null);
   const [over, setOver] = useState(null);
   // Composing in place rather than through `window.prompt`, which some
@@ -156,15 +157,43 @@ export default function Corkboard({ scenes = [], activeScene, onOpen, onMove, on
               </p>
 
               <div className="flex items-center justify-between text-[10px]">
-                <span
-                  className={`uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${
+                {/* The badge is now the control.
+                    This said `major` or `minor` and could not be changed —
+                    anywhere. A generated structure chose once; a scene the
+                    writer typed was created `minor` and stayed that way, so on
+                    the blank-page path every script was uniformly minor and the
+                    rail's "major" count read zero. The one person who knows
+                    which scene is the turning point was the only one who could
+                    not say so.
+
+                    A button rather than a select: there are exactly two values
+                    and the label already names the current one, so the whole
+                    interaction is "press the word to change it". It stops the
+                    card's drag from starting, or marking a scene would move
+                    it. */}
+                <button
+                  type="button"
+                  draggable={false}
+                  onDragStart={(e) => e.preventDefault()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSetSceneType?.(scene, scene.scene_type === "major" ? "minor" : "major");
+                  }}
+                  disabled={!onSetSceneType}
+                  title={
                     scene.scene_type === "major"
-                      ? "text-skyAccent bg-skyDim"
-                      : "text-inkMuted bg-borderSoft"
-                  }`}
+                      ? "A turning point. Press to make it a transition."
+                      : "A transition. Press to mark it a turning point."
+                  }
+                  className={`uppercase font-bold tracking-wider px-1.5 py-0.5 rounded transition ${
+                    scene.scene_type === "major"
+                      ? "text-skyAccent bg-skyDim hover:brightness-125"
+                      : "text-inkMuted bg-borderSoft hover:text-inkSoft"
+                  } ${onSetSceneType ? "cursor-pointer" : "cursor-default"}`}
                 >
                   {scene.scene_type}
-                </span>
+                </button>
                 {/* Written against planned. A scene running well over or under
                     its allocation is the single most useful thing an index card
                     can tell a writer, and it was not being shown anywhere. */}
