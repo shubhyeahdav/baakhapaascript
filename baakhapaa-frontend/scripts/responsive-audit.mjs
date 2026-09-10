@@ -122,7 +122,45 @@ const AUDIT = () => {
   };
 };
 
+/**
+ * Refuse to write to a real database.
+ *
+ * This script registers an account and creates a project to reach the
+ * protected routes. Pointed at a backend holding real Supabase credentials it
+ * creates real users in the production project — which is exactly what
+ * `baakhapaa-backend/purge_test_accounts.py` was written to clean up after,
+ * and how that need was discovered. The backend now says which mode it booted
+ * in, so a script that writes can ask before it does.
+ *
+ * `--allow-live` is the deliberate override. It exists because auditing a
+ * staging deploy is a real thing to want; it is a flag rather than a prompt so
+ * that CI never blocks on it, and CI never needs it.
+ */
+async function refuseIfLive(api) {
+  if (process.argv.includes("--allow-live")) return;
+  let health;
+  try {
+    health = await (await fetch(`${api}/health`)).json();
+  } catch {
+    console.error(`Cannot reach ${api}. Start the backend first.`);
+    process.exit(1);
+  }
+  if (health.demo === false) {
+    console.error(
+      `Refusing to run: ${api} is NOT in demo mode (env=${health.env}, ` +
+        `ai_provider=${health.ai_provider}).
+` +
+        `This script registers an account and creates a project, and they ` +
+        `would be written to the real database.
+` +
+        `Use a demo-mode backend, or pass --allow-live if you mean it.`,
+    );
+    process.exit(1);
+  }
+}
+
 async function main() {
+  await refuseIfLive(API);
   const browser = await chromium.launch();
   const ctx = await browser.newContext({
     viewport: { width: WIDTH, height: HEIGHT },

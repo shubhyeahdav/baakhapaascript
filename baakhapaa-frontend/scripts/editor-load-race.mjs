@@ -35,6 +35,42 @@ const N = Number(process.argv[2] || 20);
 // A throwaway account reused across runs, so repeated runs do not each add one.
 const EMAIL = "probe-1@example.com", PASSWORD = "Aud1t!Pass!2026";
 
+/**
+ * Refuse to write to a real database.
+ *
+ * This script registers `probe-1@example.com`, creates a project and PUTs a
+ * draft. Pointed at a backend holding real Supabase credentials those are real
+ * rows in the production project — which is what
+ * `baakhapaa-backend/purge_test_accounts.py` exists to clean up after, and how
+ * the need for it was found. The backend now reports which mode it booted in,
+ * so a script that writes can ask before it does.
+ *
+ * `--allow-live` is the deliberate override, a flag rather than a prompt so CI
+ * never blocks on it. CI never needs it: it has no Supabase keys, so the
+ * backend there boots on the local SQLite mock.
+ */
+if (!process.argv.includes("--allow-live")) {
+  let health;
+  try {
+    health = await (await fetch(`${API}/health`)).json();
+  } catch {
+    console.error(`Cannot reach ${API}. Start the backend first.`);
+    process.exit(1);
+  }
+  if (health.demo === false) {
+    console.error(
+      `Refusing to run: ${API} is NOT in demo mode (env=${health.env}, ` +
+        `ai_provider=${health.ai_provider}).
+` +
+        `This script registers an account, creates a project and saves a ` +
+        `draft, and they would be written to the real database.
+` +
+        `Use a demo-mode backend, or pass --allow-live if you mean it.`,
+    );
+    process.exit(1);
+  }
+}
+
 const j = async (r) => {
   const t = await r.text();
   if (!r.ok) throw new Error(`${r.status} ${t.slice(0, 160)}`);

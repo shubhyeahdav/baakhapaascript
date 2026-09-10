@@ -76,7 +76,14 @@ jobs:
         working-directory: baakhapaa-backend
         run: |
           python load_knowledge_base.py
-          python eval_retrieval.py --min-p1 0.80
+          python eval_retrieval.py --min-p1 0.85
+          # Raised from 0.80 on 2026-09-10, when the golden set grew from 25
+          # real queries to 40 (romanised 5 -> 13, Devanagari 0 -> 6) and
+          # `craft_query.py` started translating Nepali out of the query before
+          # embedding. Combined real-query p@1 went 71.8% -> 90.0%. Note that
+          # the widened set scored 71.8% BEFORE that fix: this gate would have
+          # been red, correctly, and the old floor of 0.80 was only green
+          # because the set had almost no Nepali in it.
 
   frontend:
     runs-on: ubuntu-latest
@@ -113,3 +120,86 @@ jobs:
         # ignore it. Vite replaced react-scripts and the count is zero, so the
         # step can fail the build again and mean something when it does.
         run: npm audit --audit-level=moderate
+
+  # Layout, and the load race. Neither suite can see either of these.
+  #
+  # `vite.config.js` sets `css: false`, so jsdom renders every component with no
+  # stylesheet at all — no test in this repository has ever been able to see a
+  # layout. Every responsive defect found so far (the editor header at 817px in
+  # a 375px viewport, the assist sheet parked on top of the page by an animation
+  # fill-mode, a sticky rail header covering 12px of content in all four views)
+  # was found by a person on a phone, and each one shipped past a green suite.
+  #
+  # The load race needs a real network stack and two real mounts: React
+  # StrictMode fires the editor's load effect twice, and before the `live`
+  # guard the loser of that race rendered "Could not load this script." over a
+  # script that had loaded. Measured at 7/20 opens. jsdom has neither half of
+  # that, which is why this runs a browser against a dev server rather than a
+  # test runner. `npm run dev` and not `preview`, deliberately — StrictMode's
+  # double mount is a development behaviour, and it is the thing under test.
+  layout:
+    runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: ci-secret-------------------------------------------
+      # No Supabase or AI keys exist in CI, so the backend boots on its local
+      # SQLite mock with canned AI. That is what these scripts want: they
+      # measure pixels and a race, and a billed generation call would make the
+      # job slow, flaky and expensive without measuring anything more.
+      DEMO_SEED: "false"
+      APP_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: baakhapaa-backend/requirements.txt
+
+      - name: Install backend
+        working-directory: baakhapaa-backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start backend
+        working-directory: baakhapaa-backend
+        run: |
+          python -m uvicorn main:app --port 8000 --log-level warning &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8000/health && break
+            sleep 1
+          done
+          curl -sf http://localhost:8000/health
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: baakhapaa-frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: baakhapaa-frontend
+        run: npm ci
+
+      - name: Install browser
+        working-directory: baakhapaa-frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Start frontend
+        working-directory: baakhapaa-frontend
+        run: |
+          npm run dev -- --port 3000 --host 127.0.0.1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:3000 >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://localhost:3000 >/dev/null
+
+      - name: Responsive audit
+        working-directory: baakhapaa-frontend
+        run: node scripts/responsive-audit.mjs
+
+      - name: Editor load race
+        working-directory: baakhapaa-frontend
+        run: node scripts/editor-load-race.mjs

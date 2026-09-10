@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
@@ -92,7 +94,30 @@ app.include_router(learn.router)
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "app": "Baakhapaa", "version": "1.0"}
+    """Liveness, plus the one fact a caller cannot otherwise discover: whether
+    this backend is writing to a real database or to the local SQLite mock.
+
+    `demo` was added because `scripts/responsive-audit.mjs` registers a
+    throwaway account to reach the protected routes, and nothing told it where
+    that account would land. Run against this machine it created real users in
+    the production Supabase project — which is what `purge_test_accounts.py`
+    exists to clean up after. A script that writes should be able to ask first.
+
+    Nothing sensitive is exposed: no keys, no hostnames, no counts. It reports
+    which of two documented modes the process booted in — the boot log already
+    prints it and `deploy_checks.py` already enforces it.
+    """
+    import database
+    import script_engine
+
+    return {
+        "status": "ok",
+        "app": "Baakhapaa",
+        "version": "1.0",
+        "env": os.getenv("APP_ENV", "development"),
+        "demo": bool(database.use_mock),
+        "ai_provider": script_engine.PROVIDER,
+    }
 
 
 @app.get("/")
