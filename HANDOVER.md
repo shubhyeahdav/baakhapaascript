@@ -1,247 +1,190 @@
-# Handover — 2026-09-08, extended 09-09
+# Handover — 2026-09-10
 
-Supersedes the 2026-08-27 handover. Its environment notes and Windows gotchas
-still hold and are repeated below; its test counts and its "next session" list
-do not.
+Supersedes the 2026-09-08/09 handover. Its environment notes and its "what will
+bite you" list still hold and are carried forward below; its test counts and its
+next-session list are updated.
 
 | It said | Actually |
 |---|---|
-| "731 backend / 995 frontend tests" | **869 backend across 51 files**, **1060 frontend across 54**. The backend number had been stale for a while — nobody had counted since the 27th |
-| "Next session: run with real keys, deploy, pilot" | **None of it moved.** All six items are blocked on credentials or calendar time, and were blocked for this whole session too |
-| "`ScriptEditor.jsx` is 1,587 lines … expect the next serious regression here" | It had grown to **2,397**. Now **1,511**, split into three components |
-| — | The app has now been **opened on a real phone**, which is new, and it found five faults in ten minutes |
-
-**Read `WORK_LIST.md` for the build queue.** Days 1–4 are done, Day 5 is half
-done and the remaining half needs the device again. This file is the narrative.
+| "869 backend across 51 files, 1060 frontend across 54" | **907 backend across 55 files**, **1105 frontend across 57** |
+| "CI runs lint, dependency audit, both suites and the production build" | Plus a **third job** now: the layout audit and the editor load race, the two checks no suite can perform |
+| Retrieval "88%" precision@1 | That was measured on a golden set with five Nepali queries in twenty-five. Widened to forty, the honest figure was **71.8%**. It is **90.0%** now |
+| "Every component and page has a test" (CLAUDE.md) | Stopped being true as components were extracted. `AssistPanel` had none until today |
 
 ---
 
-## 1. Environment — NOT demo mode any more
+## 1. The thing to know before anything else
 
-This changed under the documentation, and the documentation did not notice.
-`.env` now holds real Anthropic, OpenAI and Supabase credentials. Asked
-directly, the app says:
+**The backend test suite takes 3.5 minutes. If it takes an hour, something is
+calling out.**
 
-    LLM provider   : anthropic | MOCK_AI = False | model claude-sonnet-5
-    storyboard     : MOCK = False
-    database       : REAL Supabase
+`tests/conftest.py` has always neutralised `ANTHROPIC_API_KEY`,
+`OPENAI_API_KEY` and `GROQ_API_KEY` before the app is imported, with a long
+comment explaining exactly why: `script_engine` picks its provider at import
+time, so the day real keys landed in `.env` the suite silently started spending
+money.
 
-So reads and writes go to the real Postgres, and a generation call is billed to
-a real account. `baakhapaa_local.db` was last written on **7 September** and is
-no longer the store — which means two days of responsive-audit and probe runs
-created accounts and projects in the **real** database while every doc in the
-repo said they were going into a local file. Delete those before a pilot:
-`probe-1@example.com`, `local-deploy@example.com`, and several
-`audit-*@example.com`.
-
-Check the mode before testing against a running server, rather than trusting
-this file:
-
-    ./venv/Scripts/python -c "import database,script_engine as s; print(database.use_mock, s.PROVIDER)"
-
-**Payments are the one thing still unproven.** Sandbox and demo paths only, no
-real money has moved. Embeddings were always real — fastembed, local, no key.
-
-### The first thing real Supabase broke
-
-Opening a script 500'd about one request in eight, with
-`httpx.RemoteProtocolError: Server disconnected` underneath it. The editor fires
-eight requests at once on open — the script, versions, comments, the access log,
-the lint, the benchmark — and any of them could be the one that failed.
-
-Two likelier explanations were tested and were wrong. A 30-request burst down
-one connection never failed. Idle gaps of 30, 45, 60, 75, 90 and 120 seconds
-never failed either — httpx already expires a kept-alive connection after five
-seconds, so there is no stale connection to hit. **Only concurrency reproduced
-it**, at 8 failures in 64.
-
-supabase-py builds its httpx client with `http2=True`, and many streams
-multiplexed onto one h2 connection all die together when the server closes it.
-`database.py` now gives PostgREST an HTTP/1.1 client, so each request takes its
-own connection out of the pool and one closing takes nothing else with it.
-Nothing is lost: these are small sequential queries from a server, not a browser
-fetching a hundred assets. **0 failures in 96** after.
-
-`supabase_concurrency_check.py` is that measurement, kept. The suite cannot
-cover this — `tests/conftest.py` sets placeholder Supabase credentials before
-the app is imported, precisely so tests never connect out, so the real-client
-branch of `database.py` never executes there. Run the script after anything that
-touches the client construction.
+The OpenAI-compatible transport (`8bb9288`, 2026-09-09) introduced its own pair
+— `LLM_PROVIDER` and `LLM_API_KEY` — and that guard was not extended to cover
+them. With `LLM_PROVIDER=tokenrouter` and a real key in `.env`, every AI test
+made a live billed call to a reasoning model that spends its whole budget
+thinking and returns an empty answer. So the suite did not fail. It hung.
 
 ```
-cd baakhapaa-backend && ./venv/Scripts/python -m uvicorn main:app --port 8000   # no --reload on Windows
-cd baakhapaa-frontend && npm start
+before   75 minutes, no output
+after    907 passed in 213s
 ```
 
-**The first real-key walk still has not been done.** Having the keys is not the
-same as having walked register → structure → write → storyboard → export with
-them, and that walk is what turns "configured" into "works". It is also already
-failing at step zero: see the connection fault below.
+Fixed in `b4996b4`. `LLM_PROVIDER` is pinned to empty, not just the key —
+breaking only the key turns every one of those tests into a boot-time
+RuntimeError, which is a different lie about what the product does.
 
-Three gotchas, the first two carried forward and still true:
-
-- **The backend does not hot-reload.** It runs without `--reload`, so a backend
-  edit needs a manual restart.
-- **Vite's CSS hot-reload can serve a stale stylesheet.** Hard-reload
-  (Ctrl+Shift+R) before investigating a style change that appears to do nothing.
-- **`test@example.com` / `password` does not exist in this database.** The demo
-  seed only runs on an *empty* one (`database.py`, the `if not
-  data_store.get("users")` guard) and this DB has accounts. Delete
-  `baakhapaa_local.db` to get it back, or use a throwaway registration.
-
-### Serving to a phone
-
-New this session, and there is a trap in it. `--host` publishes the dev server
-on the LAN, but the app then still called the backend on its own port and its
-own address. This machine's Ethernet is classified a **Public** network, where
-`node.exe` has an inbound firewall allow rule and the backend's venv Python does
-not — so the page loaded on the phone and every request from it failed. The app
-running, and nothing in it working.
-
-The dev server now proxies `/api` to the backend over loopback (`f0a50fa`), so
-only one port has to be reachable and there is no CORS at all. Launch entries
-`backend-lan-8001` and `frontend-lan-3001`; the odd ports are only because 8000
-and 3000 were taken.
-
-    http://192.168.1.85:3001        the phone's URL
-    http://192.168.1.85:3001/api/health   check this first
-
-The LAN servers died once mid-session and the phone simply got nothing. Check
-`/api/health` before blaming the app.
+**The general lesson: this guard is a list of variable names, and a list of
+names goes stale the moment somebody adds a provider.** Anything that adds one
+must add it here too.
 
 ---
 
-## 2. What changed on the 8th
+## 2. Environment — still NOT demo mode
 
-Six commits on `fix/craft-and-patterns-ux`. Four more followed on the 9th and
-are in §3.
+Unchanged from the last handover and still the most dangerous fact about this
+machine. `.env` holds real Anthropic, OpenAI, Supabase and TokenRouter keys.
+Reads and writes go to the real Postgres and a generation call is billed.
 
-### Every page now fits a phone (`05539c5`)
+```
+cd baakhapaa-backend
+./venv/Scripts/python -c "import database,script_engine as s; print(database.use_mock, s.PROVIDER)"
+```
 
-Day 2 had fixed the editor header by hand and left eight pages nobody had
-looked at. `baakhapaa-frontend/scripts/responsive-audit.mjs` now walks all
-fourteen routes at any width, reporting horizontal overflow and targets under
-WCAG 2.2's 24px floor. Clean at 375, 360 and 320. The report is
-`baakhapaa-frontend/docs/responsive/audit-2026-09-08.md`.
+`/health` now answers this too, which is new and is what the audit scripts use:
 
-**Its first run found nothing, and that was the first bug.** Every protected
-route reported the same two faults — a 20px "Back" and "Skip for now" — which
-exist on none of those pages. A freshly-registered account has not answered
-onboarding, so `ProtectedRoute` redirected all nine and the audit read the same
-wizard nine times while printing eight other route names beside it. It reported
-faults, so it did not look broken.
+```json
+{"status":"ok","env":"development","demo":false,"ai_provider":"tokenrouter"}
+```
 
-What the real run found: one shared header at 610px in a 343px budget, of which
-129px was a wordmark linking to `/dashboard` — which the `Projects` tab beside
-it already does; a runtime slider whose *element* was 2px tall with a 12px thumb
-drawn overflowing it, so it could not be dragged with a thumb at all; eleven
-controls under 24px; and both auth pages scrolling sideways at 360 and 320 while
-clean at 375, because a flex panel with the default `min-width: auto` sat at a
-constant 368px.
+`LLM_PROVIDER=tokenrouter` is currently set for testing, so **script text is
+going to TokenRouter and whichever upstream it routes to**, not to Anthropic.
+The boot log says so on every start. The privacy policy names Anthropic. Those
+two facts have to be reconciled before anyone outside this machine uses it.
 
-**360px, not 375.** That is the common low-end Android width and most of this
-market. A pass at one width finds one width's bugs.
-
-### The editor is three files (`b0597dc`, `59646e5`)
-
-`ScriptEditor.jsx` had grown to 2,397 lines. It is 1,511, plus `EditorHeader`
-(399), `AssistPanel` (515), `ScriptPage` (183) and `utils/draft.js` (47). Every
-one of the 92 ScriptEditor tests passes **unedited**, which was the standard set
-for the split.
-
-The half that did not happen is the more useful half. The plan said to move each
-piece of state to whichever component owns it. Measured: of the fifteen
-candidates in the assist panel, every one is also read outside it, by
-`handleAI`, `acceptAI`, `loadPatterns` and three effects — all of which reach
-for the caret, the textarea and the draft. The panel takes forty-odd props
-because its state stayed behind, and the prop list is now the written record of
-that coupling rather than something invisible inside one file.
-
-Then the toolbar stopped re-rendering on every keystroke: 2.64 renders per
-character to zero. `memo()` was not what did it — the header's two handlers
-close over the draft and were new functions every keystroke, so memo would never
-have hit. Neither is ever read, only called from a click, so a ref holding the
-latest version is exact rather than a cache. The numbers are in `WORK_LIST.md`.
-
-### A phone found five things in ten minutes (`61e44ae`)
-
-This is the part worth reading. Four of the five were invisible to every check
-in this repo.
-
-**The assist panel was covering the page on every phone and tablet.** It is a
-sheet parked off-canvas with `translate-x-full`, and it was not parked: the same
-element carried `animate-fade-up`, which ends on `transform: translateY(0)` with
-`animation-fill-mode: both`. An animated transform outranks a declared one,
-permanently. At 375px it covered the toolbar and every line of the script; at
-820px it cut action lines off mid-word. It reads as a z-index bug and is a
-specificity one — and **the responsive audit had passed that route fourteen
-times**, because a fixed overlay does not overflow anything.
-
-**The caret sat before `INT.`** A textarea starts every session with
-`selectionStart` at 0, so any focus carrying no position — a phone keyboard
-opening — put the insertion point in front of the first slugline. Open
-yesterday's script, the keyboard comes up, type, and the words go in before the
-scene heading. It is now parked at the end of the draft on load, once, in an
-effect after the commit that put it there. Nothing is focused; tap placement was
-measured first (off by zero) and is untouched.
-
-**The script was too small to write in, and deliberately so.** The font is sized
-so all 61 screenplay columns fit, which at 375px means 9.5px. The floor is now
-12px, about 49 columns. The whole cost is that on-screen wraps no longer match
-the PDF's — page numbering counts hard newlines, not visual wraps, so `p. N / M`
-and the export are unaffected. `--page-font-min` in `index.css` is the one
-number to change if 12px is still wrong.
-
-**The course had no sidebar on a phone.** The two-column grid collapses to one,
-so all nineteen lesson titles sat above the lesson and every lesson after the
-first began with a scroll past the table of contents. It is a disclosure below
-`lg` now. All 51 Learn tests pass unedited.
-
-**The new-project Details row broke twice.** The summary wrapped instead of
-truncating, dropping "Bilingual" outside the row; and Genre and Tone side by
-side clipped their own values, so the Tone field read "Emotion" — a different
-word.
-
-### Serving the production build locally (`c0dcb63`)
-
-`npm start` serves modules through Vite and is not the artifact that ships.
-`frontend-preview` serves `build/` on 4173, which is where Day 1's route
-splitting is observable and where an SPA deep link either falls back to
-`index.html` or 404s. Verified end to end against the backend.
+**Windows gotchas** (carried forward, all still true): `uvicorn --reload` is
+unreliable here — run without it and restart manually; venv at
+`baakhapaa-backend/venv`; `bcrypt` pinned to `4.0.1`; PowerShell 5.1 has **no
+`&&`** — use `;`.
 
 ---
 
-## 3. Closed on 2026-09-09
+## 3. What changed on the 10th
 
-All three of the previous day's open items, in order. Each was confirmed with a
-measurement before being touched, and each fix was checked by reverting it and
-watching the check fail.
+Eight commits on `fix/craft-and-patterns-ux`.
 
-1. **"Could not load this script."** — `e96fc1f`. StrictMode fires two identical
-   loads; the loser returns a bare network error with no `response` on it, and
-   `loadError` was never cleared again, so a script that had loaded perfectly
-   showed an error screen permanently. Measured at **7 in 20**, not the 1 in 8
-   first guessed. With the `live` guard: **0 in 20**.
-   `baakhapaa-frontend/scripts/editor-load-race.mjs` is that measurement, kept —
-   a unit test cannot reach a race between two mounts and a real network stack.
-2. **Autosave was silently losing work** — `80407b8`, and it was worse than the
-   single log line suggested. Opening the editor from a link built out of the
-   project list meant every request after the load addressed a script that does
-   not exist: autosave PUT to `/scripts/{projectId}`, took a 404, and the page
-   went on showing a save indicator. Confirmed by typing a marker, forcing a
-   save and reading the script back from the API — not there. Fifteen call sites
-   now use `script.id`. Pinned in jsdom, which this one does reach.
-3. **The `recommendation_log` read collapse** — `4b36ba6`. Backend suite run:
-   **869 across 51 files**, all passing.
+### The craft library now answers a Nepali writer (`cce321b`)
 
-### Still open
+The product's differentiator was working worst for the market it exists for. The
+corpus is English, embedded by an English model, so a writer describing their
+problem in Nepali got close to a guess.
 
-- **18 throwaway accounts are in the real database**, all `@example.com`, all
-  created on 8 September by the responsive-audit and probe scripts while every
-  doc said they were going into a local SQLite file. Five real accounts sit
-  beside them. They should go before a pilot; the command is in §5.
-- Nothing else from the device session. What remains is the half of Day 5 that
-  was never reached — see `WORK_LIST.md` — and it needs the phone, not the repo.
+That number did not exist before this session, because the golden set had five
+romanised queries and no Devanagari ones at all:
+
+```
+                before   after
+romanised        69.2%    84.6%      p@3  92.3% -> 100%
+devanagari       16.7%    83.3%      p@3  33.3% -> 100%
+chip             86.7%    93.8%
+plain           100.0%   100.0%
+combined         71.8%    90.0%      p@3  84.6% -> 97.5%
+dialogue level      44%      78%
+```
+
+**The obvious fix was wrong, and measurement is what said so.** The plan
+written down in `eval_retrieval.py` was "a Nepali gloss field embedded alongside
+the English problem statement". Cosine similarities on the model retrieval
+actually runs:
+
+```
+romanised <-> romanised, same meaning        0.817
+romanised <-> romanised, DIFFERENT meaning   0.635
+romanised <-> its own English translation    0.586   <- lower than a miss
+
+devanagari <-> devanagari, same meaning      0.898
+devanagari <-> devanagari, DIFFERENT meaning 0.877   <- a 0.02 gap
+```
+
+A romanised gloss would have worked. A Devanagari one cannot: the model cannot
+read the script at all, so gloss and query would both be noise. And nothing that
+leaves the query in Nepali can work, because cross-language similarity is below
+the level of an unrelated sentence.
+
+So `craft_query.py` translates the query OUT of Nepali before embedding. One
+lexicon of the forty-odd words people use to say what is wrong with a script; no
+API call, no second copy of the corpus. Glosses are appended, never substituted,
+so an English query comes back byte-identical — that property is a test, and it
+is what makes this safe in front of every retrieval call.
+
+### The writer can mark a turning point (`19ec36f`)
+
+The product asks writers to think in majors and minors and reads that answer in
+three places — the scene rail's count, the outline's act balance,
+`assign_shot_type` — and nothing could set one. A generated structure chose
+once; a hand-typed scene was `minor` for ever. Since structure stopped
+generating on project creation, the default path is a blank page, so **every
+script was uniformly minor and the rail's major count read zero.**
+
+The corkboard badge is now the control.
+
+### Two more doors into the craft library (`09070db`)
+
+The "Thin character" chip sent a query opening with "my characters sound the
+same" — verbatim the `problem` of a *dialogue* entry. Retrieval returned that
+entry and was right to; the chip was asking a dialogue question under a
+character label. Split.
+
+The deeper limit: six chips × three cards reach at most eighteen of thirty-nine
+entries, so more than half the library was unreachable from the interface. There
+is now a box to type the complaint. The backend always accepted an arbitrary
+string; this stops the UI choosing the question.
+
+### Something to say mid-draft (`291937b`)
+
+`PenPrompt` speaks on an empty page and vanishes on the first keystroke;
+`review.py` speaks at finalize. In between — where a screenplay actually gets
+written — nothing, unless the writer pressed a tab they had no reason to press.
+
+Four notes, one at a time, dismissible per script. **Only one reports a fact**
+(scenes written, none marked a turning point). The other three are convention
+and are documented as one — nothing in this repo can tell a writer their
+midpoint does not flip, so they ask and link the lesson rather than assert a
+fault. A test pins that they never assert. Whether writers find them useful or
+patronising is a `PILOT.md` question; deleting an entry from the array removes
+one.
+
+### The two checks no suite can perform, in CI (`171b081`)
+
+`responsive-audit.mjs` and `editor-load-race.mjs` existed and ran nowhere.
+
+Both scripts **write** — they register an account and create a project. Nothing
+told them where those rows would land, and pointed at this machine they went
+into production Supabase, which is what `purge_test_accounts.py` exists to clean
+up after. Both now refuse unless `/health` reports `demo: true`. **Verified by
+running them against this machine's live backend: both refused.**
+`--allow-live` is the override; CI never needs it.
+
+Retrieval floor raised `0.80` → `0.85`. Worth noting the widened set scored
+71.8% before `craft_query` — that gate would have been red, correctly, and the
+old floor was only green because the set had almost no Nepali in it.
+
+### The model's failures name themselves (`6ba50b2`)
+
+Three different faults arrived at one message, "AI response could not be parsed
+as JSON. Try again.", and only one was worth retrying.
+
+`z-ai/glm-5.3-free` is a reasoning model, and `max_tokens` there is reasoning
+PLUS output. Asked for a scene at 3000 it returns `finish_reason="length"` with
+zero characters. Measured at 3000 and again at 8000: same result, twice the
+cost. The empty string then travelled to `_extract_json`, which blamed the JSON
+— so `finish_reason`, the one fact that explained it, was known at the call site
+and thrown away there.
 
 ---
 
@@ -249,37 +192,33 @@ watching the check fail.
 
 Carried forward, still true, plus what this session added.
 
-1. ~~**Four migrations, not three.**~~ — **all four are applied** on the project
-   in `.env`, checked 2026-09-09, along with `craft_recommendations` and the
-   pgvector table and RPC. `DEPLOYMENT.md` §1 has the detail and the one warning
-   that survives: do not re-run the email-normalisation index there, because
-   `CREATE UNIQUE INDEX` is not idempotent and its failure reads like a data
-   problem when it is not. A fresh Supabase project still needs all four.
-2. **The mock DB is schemaless.** It stores rows as flat JSON, so it accepts
-   columns Postgres would reject. Three schema-drift bugs so far.
-3. **Restart the backend after editing it.** See §1.
-4. ~~`ScriptEditor.jsx` is 1,587 lines~~ — split, §2. What remains genuinely is
-   interdependent: the draft is read by the scene sync, the pagination, the
-   linter, the benchmark and the exports.
-5. **CSS cannot be tested.** `vite.config.js` sets `css: false` for vitest, so
-   every breakpoint is verified in a browser or not at all. This is not a
-   footnote: **four of the five faults the phone found were CSS**, and the two
-   automated suites are both green through all of them.
-6. **Test isolation:** the mock store is process-global. Tests that register an
-   address must generate a unique one — `tests/test_invites.py` has a
-   `_address()` helper.
+1. **The AI-key guard in `conftest.py` is a list of names.** See §1. Adding a
+   provider means adding it there, or the suite starts spending money.
+2. **All four migrations are applied** on the project in `.env`, checked
+   2026-09-09. Do not re-run the email-normalisation index — `CREATE UNIQUE
+   INDEX` is not idempotent and its failure reads like a data problem. A fresh
+   Supabase project still needs all four.
+3. **The mock DB is schemaless.** Flat JSON rows, so it accepts columns Postgres
+   would reject. Three schema-drift bugs so far.
+4. **Restart the backend after editing it.**
+5. **CSS cannot be tested.** `vite.config.js` sets `css: false`, so every
+   breakpoint is verified in a browser or not at all. Four of the five faults
+   the phone found were CSS, past two green suites. The CI layout job is a
+   floor, not a substitute — see 7.
+6. **Test isolation:** the mock store is process-global. Tests registering an
+   address must generate a unique one (`tests/test_invites.py::_address`).
 7. **An audit that passes is not a page that works.** `responsive-audit.mjs`
-   checks two properties: horizontal overflow and target size. It has nothing to
-   say about a fixed overlay, contrast, or text too small to read — and it
-   passed the editor while the assist panel was sitting on top of it.
+   checks two properties, overflow and target size. It has nothing to say about
+   a fixed overlay, contrast, or text too small to read — it passed the editor
+   while the assist panel sat on top of it.
+8. **Anything in this repo that writes should ask `/health` first.** Two scripts
+   did not, and their rows are in production.
 
 ---
 
 ## 5. Next session — in order
 
-1. **Delete the test accounts from the real database.** Eighteen
-   `@example.com` rows; the five real accounts must not be touched. Dry run
-   first — it prints what it would remove and changes nothing:
+1. **Delete the test accounts from the real database.** Dry run first:
 
    ```
    cd baakhapaa-backend
@@ -287,31 +226,33 @@ Carried forward, still true, plus what this session added.
    ./venv/Scripts/python purge_test_accounts.py --delete # removes them
    ```
 
-2. **Finish Day 5 on the device**: the 44px hit areas under a thumb, focus mode
-   against the collapsing address bar, and the craft panel sheet and corkboard —
-   none of which was reached. Also whether 12px in the script tab is now right;
-   that number was a judgement, not a measurement. Seven faults have come off
-   this phone in two days, every one of them past two green suites.
-3. **Run the system once with real keys.** One environment, real Claude, DALL·E
-   and Supabase, and one walk from register → structure → write → storyboard →
-   export. Apply the four migrations at the same time. Everything below assumes
-   a system that works, and that assumption is still untested.
-4. **Run the five-writer pilot** (`PILOT.md`).
-5. **Deploy** — Railway, then Vercel (`DEPLOYMENT.md` §1–3). Supabase is
-   already real.
-   Merchant accounts need a live URL, so they come after Vercel.
-6. **Reconsider pricing before taking money**, and add an annual price: Khalti
-   and eSewa have no subscription primitive, so every month is a fresh chance to
-   lapse.
-7. **SMTP + cron for `renewals.py`.**
+2. **Decide the two business questions** in `FEATURE_SUGGESTIONS.md` §A — what
+   a paid tier is actually for, and whether the free cap should be measured in
+   projects started or scripts finished. Both block pricing, and pricing blocks
+   the merchant accounts.
+3. **Set `LLM_PROVIDER` back to `anthropic`** before anyone else uses this
+   machine, or reconcile the privacy policy with TokenRouter.
+4. **Finish Day 5 on the device**: 44px hit areas under a thumb, focus mode
+   against the collapsing address bar, the craft panel sheet and corkboard.
+   Also whether 12px in the script tab is right — that was a judgement, not a
+   measurement.
+5. **Run the system once with real keys**, one walk from register → structure →
+   write → storyboard → export.
+6. **Run the five-writer pilot** (`PILOT.md`). Three things this session built
+   are pilot questions, not engineering ones: the mid-draft notes, the melodrama
+   chip's craft level, and whether the Ask box gets used at all.
+7. **Deploy** — Railway then Vercel. Merchant accounts need a live URL.
+8. **SMTP + cron for `renewals.py`.**
 
 ### Still open, smaller
 
+- `FEATURE_SUGGESTIONS.md` is the new build queue, ordered by evidence.
+- The branch has never been merged to `codebase`. Deploying from a non-default
+  branch is how the wrong thing gets deployed.
 - `PROJECT_PLAN.md` §6/§7 carry the changelog; `MONTH_1_REPORT.md` and
   `SESSION_SUMMARY.md` are historical records, deliberately left as written.
 - The corpus fingerprints task (E6) is still blocked — the corpus is on another
   machine.
-- The branch has never been merged to `codebase`. Deploying from a non-default
-  branch is how the wrong thing gets deployed.
-- Throwaway accounts (`ui-check@`, `probe-1@`, several `audit-*@`) and their
-  projects are in the local SQLite DB. Delete `baakhapaa_local.db` to reset.
+- Five corpus entries are never retrieved by any of the forty real queries.
+  Four of them are dialogue-level. That is either dead weight in the corpus or a
+  gap in the golden set, and nothing currently distinguishes those.

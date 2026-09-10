@@ -61,6 +61,9 @@ machine). Then:
 - `DEPLOYMENT.md` — **the deploy runbook**: order of operations, the boot checks
   that now enforce production config, and how the three payment gateways work
 - `HANDOVER.md` — latest session test results
+- `FEATURE_SUGGESTIONS.md` — the build queue, ordered by evidence, with
+  the two business decisions that block pricing stated as options rather
+  than guessed at
 - `UI_Inspiration.md` — dark-UI references (Linear/Cursor/etc.) for design prompts
 - Legal (templates, unreviewed): `Terms_of_Use.md`, `Privacy_Policy.md`,
   `Data_Compliance_Checklist.md` (Nepal law), `Trademark_Check_Guide.md`
@@ -89,14 +92,31 @@ machine). Then:
 > disconnected` on the first request after an idle gap — a pooled connection
 > Supabase has already closed. See `HANDOVER.md`.
 >
-> Backend tests: **869 across 51 files, all passing** (the Devanagari font gate
+> Backend tests: **907 across 55 files, all passing** (the Devanagari font gate
 > no longer skips — the asset is bundled), `./venv/Scripts/python -m pytest`.
-> Frontend tests: **1061 across 54 files**, `npm run test:ci`. Every component
-> and page has one; the 26 that had none were covered on 2026-08-26.
+> Frontend tests: **1105 across 57 files**, `npm run test:ci`.
+>
+> **The suite takes 3.5 minutes. If it takes an hour, something is calling
+> out.** Until 2026-09-10 `conftest.py` neutralised `ANTHROPIC_API_KEY`,
+> `OPENAI_API_KEY` and `GROQ_API_KEY` but not `LLM_PROVIDER` / `LLM_API_KEY`,
+> which the OpenAI-compatible transport reads — so with a real TokenRouter key
+> in `.env` every AI test made a live billed call to a reasoning model that
+> returns nothing. The suite did not fail, it hung: 75 minutes, no output.
+>
+> "Every component and page has a test" was true on 2026-08-26 and stopped
+> being true as components were extracted afterwards — `AssistPanel` had none
+> until 2026-09-10. Treat it as a thing to check, not a thing that holds.
+>
 > **CI runs lint, dependency audit, both suites and the production build** on
 > push and PR (`.github/workflows/ci.yml`), on Linux with
 > `REQUIRE_SHIPPABLE_FONT=true` — the only place the Devanagari font gate is
-> meaningful, since this Windows box always has Nirmala to fall back on.
+> meaningful, since this Windows box always has Nirmala to fall back on. A
+> third job runs the two checks no suite can perform: `responsive-audit.mjs`
+> (no test in this repo can see a layout — `vite.config.js` sets `css: false`)
+> and `editor-load-race.mjs`. Both scripts WRITE — they register an account and
+> create a project — so both now refuse unless `/health` reports `demo: true`.
+> On this machine they would land in production Supabase; `--allow-live` is the
+> deliberate override.
 > Config is documented in `baakhapaa-backend/.env.example`.
 >
 > **Tooling** (`requirements-dev.txt`, kept out of the runtime install):
@@ -231,14 +251,24 @@ machine). Then:
   (`/payment/return/{provider}`), never a query string: every gateway appends
   its own parameters and eSewa's docs do not say what it does when one is
   already there
-- **RAG craft grounding** — `knowledge_base.json` (**29 craft entries** across
+- **RAG craft grounding** — `knowledge_base.json` (**39 craft entries** across
   five levels: structure, scene, dialogue, character, image) →
   `load_knowledge_base.py` → `script_patterns`; `rag.retrieve_relevant_patterns()`
   injects the top-3 semantic matches into `generate_structure`. Retrieval embeds
   the entry's **problem** first, since writers arrive with a symptom, not a genre
   tag. Embeddings are local (fastembed `bge-small-en-v1.5`, 384-dim), so this
   needs no API key. Every `worked_example` is original prose — that's what keeps
-  the corpus publishable by construction
+  the corpus publishable by construction.
+  **A Nepali complaint is translated OUT of Nepali before it is embedded**
+  (`craft_query.py`). The corpus is English and the model is English, so a
+  Devanagari query scored precision@1 of 16.7% — the product's differentiator
+  working worst for the market it is for. The obvious fix, a Nepali gloss field
+  in the corpus, was killed by measurement: `bge-small-en-v1.5` scores two
+  Devanagari sentences at 0.898 same-meaning against 0.877 different-meaning, a
+  0.02 gap, so it cannot read the script at all. Real-query p@1 is now **90.0%**
+  (`eval_retrieval.py`, gated in CI at 0.85). Note that the headline was "88%"
+  for a while on a golden set with five Nepali queries in twenty-five; widening
+  it to forty put the honest figure at 71.8% before any of this landed
 - **The course, in two tracks** (`lessons.py`, `learn.py`, `LearnPage.jsx`) —
   19 lessons, free on every tier, each graded by the craft linter rather than by
   a Next button. **The Pen** (10) teaches the script page: format, action lines,
