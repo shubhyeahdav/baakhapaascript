@@ -205,6 +205,18 @@ def _demo_structure(duration_minutes):
     }
 
 
+def _reasoning_tokens(resp):
+    """How many tokens a reasoning model spent thinking, if it says.
+
+    Not every OpenAI-compatible provider reports this, and the ones that do
+    nest it differently, so this is best-effort and returns 0 when unknown —
+    the error message it feeds reads correctly either way.
+    """
+    usage = getattr(resp, "usage", None)
+    details = getattr(usage, "completion_tokens_details", None)
+    return getattr(details, "reasoning_tokens", 0) or 0
+
+
 def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
               usage_sink=None) -> str:
     """Single choke point for every text generation call.
@@ -243,7 +255,30 @@ def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
                     "input_tokens": getattr(resp.usage, "prompt_tokens", 0) or 0,
                     "output_tokens": getattr(resp.usage, "completion_tokens", 0) or 0,
                 })
-            return resp.choices[0].message.content or ""
+            choice = resp.choices[0]
+            text = choice.message.content or ""
+
+            # A reasoning model spends `max_tokens` on reasoning FIRST and
+            # writes the answer out of whatever is left. Ask GLM-5.3 through
+            # TokenRouter for a scene at 3000 and it returns `finish_reason
+            #="length"` with zero characters of answer; at 8000 it does the
+            # same. The request succeeded, cost money, and produced nothing.
+            #
+            # Without this the empty string travels on to `_extract_json`,
+            # which reports "AI response could not be parsed as JSON. Try
+            # again." — advice that cannot work, because the next attempt
+            # spends the budget the same way. Name the cause where it is
+            # visible instead.
+            if not text.strip() and getattr(choice, "finish_reason", None) == "length":
+                spent = _reasoning_tokens(resp)
+                raise RuntimeError(
+                    f"{OPENAI_MODEL} used its entire {max_tokens}-token budget "
+                    f"{f'on reasoning ({spent} tokens) ' if spent else ''}"
+                    "and returned no answer. `max_tokens` on a reasoning model "
+                    "is reasoning PLUS output, not an output budget. Raise it, "
+                    "or set LLM_MODEL to a non-reasoning model."
+                )
+            return text
         except Exception as e:
             raise RuntimeError(f"{PROVIDER} API error: {str(e)}") from e
 
@@ -394,7 +429,27 @@ def _extract_json(raw: str):
         except json.JSONDecodeError:
             pass
 
-    raise RuntimeError("AI response could not be parsed as JSON. Try again.")
+    # Three different failures reached this line with one message, and only
+    # one of them was worth retrying. "Try again" told an operator to repeat a
+    # request that would fail the same way and bill them for it again.
+    if not text:
+        raise RuntimeError(
+            "The model returned an empty response. Nothing was parsed because "
+            "there was nothing to parse — this is usually a reasoning model "
+            "spending its whole token budget before it writes anything, or a "
+            "refusal. Check the provider's finish_reason; retrying will not "
+            "change it."
+        )
+    if text.count("{") > text.count("}"):
+        raise RuntimeError(
+            f"The model's response was cut off mid-JSON ({len(text)} chars, "
+            "unbalanced braces). Raise max_tokens for this call; retrying at "
+            "the same limit will truncate in the same place."
+        )
+    raise RuntimeError(
+        f"AI response could not be parsed as JSON ({len(text)} chars, "
+        f"starts {text[:40]!r}). Try again."
+    )
 
 
 def rag_only_structure(genre, tone, duration_minutes, language, target_audience):
