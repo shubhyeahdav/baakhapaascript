@@ -10,8 +10,17 @@ Anthropic account with credit, a Supabase project, and a domain. Get those befor
 
 ## Where this stands (2026-09-03)
 
-**109 of 200 done** (2026-09-09). Weeks 2 and 3 are complete except for the parts
+**117 of 200 done** (2026-09-11). Weeks 2 and 3 are complete except for the parts
 that need a deployed system; Week 4 is partly done.
+
+Everything closed on 2026-09-11 was closed by **measuring**, and two of the eight
+were closed by measuring and then not doing the thing: diversity reranking made
+coverage worse, and prompt caching does not apply at this prompt size. A task
+list is allowed to be finished by a negative result, and those are the cheapest
+results on it — see `RECOMMENDATION_ARCHITECTURE.md`.
+
+What is still genuinely blocked has not changed: deployment, Anthropic *credit*
+(the key is set), an SMTP account, merchant accounts, and a real phone.
 
 **The Supabase project now exists**, so the line below about Week 1 being blocked
 on it is out of date and the four items that waited on it are unblocked — the
@@ -82,7 +91,7 @@ Blocked, and not by anything that can be coded around:
 
 - [x] Create the Supabase project; copy URL and service role key into `baakhapaa-backend/.env`
 - [x] Confirm the keys are uncommented and the file has no byte-order mark
-- [ ] Back up `baakhapaa_local.db`, then delete it
+- [x] Back up `baakhapaa_local.db`, then delete it — *copied to `C:/Users/User/baakhapaa_local.db.2026-09-11.bak` and verified readable (188 rows) before deleting. It was last written 7 September and had not been the store since the Supabase keys landed, so every hour it stayed was an hour somebody could mistake it for one*
 - [x] Run `supabase_schema.sql` in the SQL editor
 - [x] Check for duplicate email addresses differing only in case, before migrating — *none. 24 accounts, 24 distinct addresses once normalised, and every one already lowercase — so the migration that was flagged as the only one able to fail on real data is safe here*
 - [ ] Run the email normalisation migration; merge or delete duplicates if it fails
@@ -202,8 +211,8 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Re-run the eval; keep the change only if precision@1 improves
 - [x] Measure the cost in load time and memory
 - [ ] If it improves, update the dimension in the pgvector schema
-- [ ] Try retrieving five and reranking to three by craft level
-- [ ] Re-run the eval on that
+- [x] Try retrieving five and reranking to three by craft level — *measured and **rejected**. Rank 1 left untouched, the other two filled preferring an unseen level: p@1 and p@3 both unchanged at 90.0% / 97.5%, and coverage got **worse** — 32 of 39 entries reached against 34. Forcing level diversity pulls in the same few entries that sit near the top across many levels; the natural top-3 varies more. Written up in `RECOMMENDATION_ARCHITECTURE.md` because it will look like an obvious win again next month*
+- [x] Re-run the eval on that — *above; all forty real queries, not a sample*
 - [x] Try weighting the `technique` field alongside `problem`
 - [x] Keep whichever combination scores best and revert the rest
 - [x] Write down what did not work, so it is not retried next month
@@ -214,8 +223,8 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Publish the before-and-after numbers in the repository
 - [x] Check the Patterns tab returns the improved results in the browser
 - [x] Confirm the free tier still gets retrieval with no API call
-- [ ] Measure how long a Patterns request takes on the deployed system
-- [ ] Cache the embedding model load if the first request is slow
+- [ ] Measure how long a Patterns request takes on the deployed system — *blocked on deployment; the server-side half is 0.007s locally once warm*
+- [x] Cache the embedding model load if the first request is slow — *it was: 0.96-1.37s for the first embed against 0.005s for every one after, measured in a fresh process three times. `rag.warm_model()` now runs in a daemon thread at startup. End to end through the app: first retrieval **0.686s -> 0.007s**, boot not slower (3.59s vs 4.31s). `RAG_WARM_MODEL=false` turns it off and the suite sets exactly that*
 - [x] Add ten new craft entries in the weakest level
 - [x] Reload, re-measure, keep only what helps
 - [x] Re-run both suites
@@ -272,7 +281,7 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Keep the other two reachable behind a single control
 - [x] Confirm the free tier still gets all of this
 - [x] Add tests for the ranking rules
-- [ ] Check the panel still loads in under a second
+- [x] Check the panel still loads in under a second — *server side only, which is the half that can be measured without a deploy: 0.686s -> 0.007s after the warm-up. The round trip and the render are still unmeasured and belong with the deployed measurement above*
 - [ ] Try a full writing session and see whether the advice stops repeating
 - [ ] Adjust the thresholds based on what that session showed
 - [ ] Commit
@@ -315,9 +324,9 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [ ] Confirm nobody is mailed twice for the same expiry date
 - [ ] Schedule it daily
 - [ ] Confirm a lapsed plan actually reads as free everywhere
-- [ ] Test the whole expiry path with a backdated row
+- [x] Test the whole expiry path with a backdated row — *`tests/test_expiry_end_to_end.py`, ten tests. `test_payments.py` already checked that `effective_tier()` returns free for an expired row; that is the unit, this is the consequence — a route reading `subscription_tier` directly would pass every existing test and still serve a lapsed account for ever. Covers both directions (lapsed refused, inside-month not refused, so an over-eager fix that refuses everybody fails too), the NULL-expiry Stripe case, studio dropping to free rather than pro, the free project limit coming back, and the boundary. All pass, so the gates are correct — this is a verification, not a fix*
 - [ ] Confirm the in-app notice appears before the email does
-- [ ] Add a test for the once-per-expiry rule
+- [x] Add a test for the once-per-expiry rule — *already covered: `test_renewals.py::test_a_warning_already_sent_is_not_repeated` and `::test_lapsing_after_a_renewal_is_a_new_reminder`*
 - [ ] Commit
 
 ### Day 18 · The screen most of Nepal owns
@@ -339,8 +348,8 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [ ] Compare it against the $0.44 estimate and correct the estimate
 - [x] Lower `max_tokens` where the output is routinely shorter than the cap
 - [ ] Re-measure and confirm quality did not drop
-- [ ] Add prompt caching to the stable part of the prompt
-- [ ] Confirm the cache is actually hit rather than silently invalidated
+- [x] Add prompt caching to the stable part of the prompt — *measured and **deliberately not implemented**: the stable prefix is 131 tokens against Anthropic's 1024-token minimum, so `cache_control` would read like an optimisation and cache nothing. The measurement is in `script_engine`'s docstring so nobody adds it later*
+- [ ] ~~Confirm the cache is actually hit rather than silently invalidated~~ — *moot; there is no cache, see above*
 - [ ] Time a storyboard on the deployed system
 - [ ] Tune `STORYBOARD_CONCURRENCY` against the provider's rate limit
 - [x] Add a per-account monthly spend ceiling

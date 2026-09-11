@@ -461,6 +461,15 @@ Two known misses were left in place rather than tuned away:
   fact deserves. The fix is a Nepali gloss field embedded alongside the English
   problem statement — corpus work, not retrieval work.
 
+  **Superseded 2026-09-10.** The gloss-field plan was wrong for half the
+  problem: `bge-small-en-v1.5` scores two Devanagari sentences at 0.898
+  same-meaning against 0.877 different-meaning, a 0.02 gap, so a Devanagari
+  gloss would have been compared against an equally unreadable query. The query
+  is translated OUT of Nepali instead (`craft_query.py`). Romanised 69.2% ->
+  84.6%, Devanagari 16.7% -> 83.3%, combined 71.8% -> 90.0%. Note also that the
+  "80% on the other four" above was five romanised queries in a golden set of
+  twenty-five; it is thirteen and six now.
+
 ### A bigger embedding model is not the answer (measured, 2026-09-03)
 
 The RAG skill said the intended fix, when relevant entries stop surfacing, is a
@@ -479,6 +488,34 @@ moving to 768 dimensions would mean changing `vector(384)` in the schema and
 re-embedding the corpus. The small model stays. What actually moved the number
 was the query text, the document text, and the ten missing entries — none of
 which is a model problem, and all of which were cheaper.
+
+### Reranking five to three by craft level buys nothing (measured, 2026-09-11)
+
+`MONTH_3_TASKS.md` Day 9 proposed retrieving five and reranking to three by
+craft level. The worry it answers is real and is the one `coverage()` names: a
+small library can return the same three cards for twenty-five different
+complaints, so spreading the three across levels sounds like it should widen
+what a writer sees.
+
+Measured over all forty real queries, rank 1 left untouched and the remaining
+two filled preferring a level not already shown:
+
+| | p@1 | p@3 | distinct entries reached | most-repeated entry |
+|---|---|---|---|---|
+| top-3 (current) | **90.0%** | **97.5%** | **34 / 39** | 12x |
+| top-5 reranked to 3 | 90.0% | 97.5% | 32 / 39 | 12x |
+
+Precision does not move, and **coverage gets worse** — two fewer entries
+reached. Forcing level diversity pulls in the handful of entries that sit near
+the top across many different levels, and those are the same few every time;
+the natural top-3 within a level varies more. So the change costs coverage to
+buy nothing, and is not applied.
+
+Worth stating plainly because it is counter-intuitive and will look like an
+obvious win again next month: **diversity reranking makes a small corpus less
+diverse, not more.** The real lever on coverage is the interface — six chips
+times three cards can only ever reach eighteen entries, which is why the Ask
+box was added instead.
 
 ### The pgvector schema was wrong, and nothing would have caught it
 
