@@ -56,6 +56,10 @@ machine). Then:
 - `ROADMAP.md` — the remaining six weeks and the decisions that block them
 - `PILOT.md` — the five-writer pilot protocol: what only a writer can settle,
   what to measure rather than ask, and what counts as a failed pilot
+- `HYPOTHESES.md` — what we believe and have not checked, each with the number
+  that would prove it wrong, written before the test. Holds the six beliefs
+  nothing currently measures (retention, free→paid, the untested price) and the
+  weekly review template. `PILOT.md`'s four kill criteria are not repeated there
 - `LEGAL_REVIEW.md` — what was factually wrong in the Terms and Privacy Policy
   (fixed), and what still needs a Nepal-qualified lawyer
 - `DEPLOYMENT.md` — **the deploy runbook**: order of operations, the boot checks
