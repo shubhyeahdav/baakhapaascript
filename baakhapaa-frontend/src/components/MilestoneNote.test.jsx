@@ -66,6 +66,20 @@ describe("MilestoneNote", () => {
     expect(onDismiss).toHaveBeenCalledWith(midpoint);
   });
 
+  it("the dismiss is big enough to press with a thumb", () => {
+    /* `tap` stretches VERTICALLY only — its overlay keeps the element's own
+       width so it cannot steal a neighbour's clicks. So `tap` alone was not
+       enough here: at px-1.5 this measured 22px wide, still 2px under the 24px
+       floor. The padding carries the width, `tap` carries the height, and both
+       have to stay. */
+    render(<MilestoneNote milestone={midpoint} facts={readFacts()} onDismiss={vi.fn()} />);
+
+    const close = screen.getByRole("button", { name: /dismiss/i });
+    const classes = close.className.split(/\s+/);
+    expect(classes).toContain("tap");
+    expect(classes).toContain("px-2");
+  });
+
   it("is announced as a note, not as an alert", () => {
     // It is an aside with a name. A live region would interrupt a screen
     // reader mid-sentence to deliver something that is not urgent, which is

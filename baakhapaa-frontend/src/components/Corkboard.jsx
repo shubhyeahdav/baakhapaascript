@@ -186,7 +186,14 @@ export default function Corkboard({ scenes = [], activeScene, onOpen, onMove, on
                       ? "A turning point. Press to make it a transition."
                       : "A transition. Press to mark it a turning point."
                   }
-                  className={`uppercase font-bold tracking-wider px-1.5 py-0.5 rounded transition ${
+                  // `tap`, because this badge became a CONTROL and kept the
+                  // size it had as a label: 49x19, under the 24px pointer
+                  // floor WCAG 2.2 sets. It sits inside a card whose whole
+                  // surface opens the scene, so a thumb that misses it does
+                  // not do nothing — it navigates away from the board the
+                  // writer is reading. `tap` hangs the missing height off a
+                  // pseudo-element so the card's layout does not move.
+                  className={`tap uppercase font-bold tracking-wider px-1.5 py-0.5 rounded transition ${
                     scene.scene_type === "major"
                       ? "text-skyAccent bg-skyDim hover:brightness-125"
                       : "text-inkMuted bg-borderSoft hover:text-inkSoft"

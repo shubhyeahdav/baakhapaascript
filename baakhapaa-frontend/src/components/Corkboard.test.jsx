@@ -365,6 +365,23 @@ describe("marking the turning points", () => {
     expect(open).not.toHaveBeenCalled();
   });
 
+  it("is big enough to press with a thumb", () => {
+    /* Measured at 49x19 after the badge became a control: it kept the size it
+       had as a label, 5px under the 24px pointer floor WCAG 2.2 sets. That
+       matters more here than most places, because the badge sits inside a card
+       whose whole surface opens the scene — a thumb that misses it does not do
+       nothing, it navigates away from the board the writer is reading.
+
+       `tap` is the repo's answer (index.css): the control keeps the size it
+       looks and the missing hit area hangs off a pseudo-element, so nothing in
+       the card moves. jsdom computes no layout, so what is asserted here is the
+       class; the pixels were measured in a real engine against the built
+       stylesheet, and came back clean at 320, 375 and 768. */
+    render(<Corkboard scenes={MINOR} onSetSceneType={vi.fn()} />);
+
+    expect(screen.getByText("minor").className.split(/\s+/)).toContain("tap");
+  });
+
   it("is inert when no handler is given, rather than looking pressable", () => {
     render(<Corkboard scenes={MINOR} />);
 

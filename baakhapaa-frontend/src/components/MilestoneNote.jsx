@@ -82,7 +82,11 @@ export default function MilestoneNote({
         onClick={() => onDismiss?.(milestone)}
         aria-label="Dismiss this note"
         title="Dismiss this note"
-        className={`tap text-[15px] leading-none px-1.5 py-1 shrink-0 transition-colors ${c.close}`}
+        // `tap` fixes the HEIGHT only — its overlay keeps the element's own
+        // width so it cannot steal a neighbour's clicks. At px-1.5 this was
+        // 22px wide, still 2px under the 24px floor, so the padding carries
+        // the width and `tap` carries the height.
+        className={`tap text-[15px] leading-none px-2 py-1 shrink-0 transition-colors ${c.close}`}
       >
         ×
       </button>
