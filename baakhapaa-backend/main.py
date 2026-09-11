@@ -27,6 +27,18 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Prints and continues otherwise, so local development is unaffected.
 deploy_checks.run()
 
+# The embedding model takes about a second to load and five milliseconds to use
+# after that, so somebody pays for it — and without this it is the first person
+# to open the Patterns tab. `RAG_WARM_MODEL=false` turns it off; the test suite
+# sets exactly that, because 55 test files each paying a second to load a model
+# they never call is a minute of nothing.
+if os.getenv("RAG_WARM_MODEL", "true").lower() not in ("false", "0", "no"):
+    import threading
+
+    import rag as _rag
+
+    threading.Thread(target=_rag.warm_model, daemon=True, name="rag-warm").start()
+
 # Production: set CORS_ORIGINS to a comma-separated allowlist, e.g.
 #   CORS_ORIGINS=https://baakhapaa.com,https://www.baakhapaa.com
 # Falling back to the localhost regex in production would let any page served

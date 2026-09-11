@@ -36,6 +36,35 @@ def embed_texts(texts):
     return [list(map(float, v)) for v in _get_model().embed(texts)]
 
 
+def warm_model():
+    """Load the embedding model now, off the request path.
+
+    Measured on this machine, fresh process, three runs:
+
+        import rag        0.02s
+        first embed       1.37 / 0.96 / 0.96s   <- the model loading
+        second embed      0.005s
+
+    So the first person to open the Patterns tab after a restart waits about a
+    second for something every later request gets for five milliseconds. On the
+    free tier that tab IS the product — retrieval is the whole of what a free
+    user gets — so the slowest request in the system was the first impression.
+
+    Called from a daemon thread at startup rather than at import: loading it at
+    import would move the same second onto the boot, and a deploy that takes a
+    second longer to accept traffic is worse than one that takes a second longer
+    to be fast. Failure is swallowed on purpose — a warm-up that cannot run is
+    not a reason to refuse the boot, it is a reason for the first request to be
+    slow, which is exactly where this started.
+    """
+    try:
+        _get_model().embed(["warm"])
+        return True
+    except Exception as e:  # noqa: BLE001 - see docstring
+        print(f"RAG warm-up skipped ({e}); the first retrieval will load the model.")
+        return False
+
+
 def pattern_to_text(entry: dict) -> str:
     """The text that gets embedded for a craft entry.
 
