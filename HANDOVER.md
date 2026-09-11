@@ -1,4 +1,4 @@
-# Handover — 2026-09-10
+# Handover — 2026-09-10, extended 09-11
 
 Supersedes the 2026-09-08/09 handover. Its environment notes and its "what will
 bite you" list still hold and are carried forward below; its test counts and its
@@ -188,12 +188,55 @@ and thrown away there.
 
 ---
 
+## 3b. The 11th — one bug, and what it says about the checks
+
+**The mid-draft note broke the editor's layout, and 1105 green tests said
+nothing.** Reported from a screenshot: on a blank draft the Pen's prompt sat off
+the right edge of the paper, its text on the app background.
+
+`.screenplay-container` is `display:flex` / `justify-content:center` in the
+default ROW direction, so every direct child becomes a column beside the page.
+It had one. `291937b` made it two. The pair got centred together, the paper
+moved left, and PenPrompt — absolutely positioned across the container — stayed
+put. Measured at 1100px: paper centre 550 -> 283, and 224px of prompt hanging
+off the paper.
+
+Fixed in `ba74def`, with the check split in two, which is the pattern worth
+copying:
+
+  * `ScriptPage.test.jsx` pins the CAUSE against the real component — the
+    container holds exactly one in-flow child. Verified by running it against
+    the broken version: 4 of 6 fail there. A regression test that has not been
+    seen to fail is a guess.
+  * `scripts/page-layout-check.mjs` measures the CONSEQUENCE in a real engine,
+    with no server, no login and no database. It asserts it can still reproduce
+    the bug before claiming the fix works, so it cannot quietly go vacuous.
+
+Then every component changed this session was swept the same way — real
+components rendered to HTML, loaded in a real browser against the real built
+stylesheet, measured at 320/375 and their natural width. **No overflow
+anywhere**, so nothing else regressed. Two pointer targets under the 24px WCAG
+floor, both new this session, fixed in `50ee82e`: the corkboard badge kept the
+size it had as a label after becoming a control (49x19), and the note's dismiss
+had `tap` — which stretches vertically only — but was 2px narrow.
+
+One false positive is worth remembering: the sweep first flagged `↻ Refresh` at
+48x17. It has `tap`, and `getBoundingClientRect` measures the element, not the
+pseudo-element carrying the hit area. **A check that reports every tap-ed
+control as broken is a check everyone learns to ignore.** The harness reads
+`::after` now.
+
+---
+
 ## 4. What will bite you
 
 Carried forward, still true, plus what this session added.
 
 1. **The AI-key guard in `conftest.py` is a list of names.** See §1. Adding a
    provider means adding it there, or the suite starts spending money.
+1b. **`.screenplay-container` holds exactly ONE in-flow child.** It is a flex
+   ROW, so a second child moves the page out from under the Pen's prompt. See
+   §3b. Anything that belongs under the page goes inside that column.
 2. **All four migrations are applied** on the project in `.env`, checked
    2026-09-09. Do not re-run the email-normalisation index — `CREATE UNIQUE
    INDEX` is not idempotent and its failure reads like a data problem. A fresh
@@ -226,7 +269,10 @@ Carried forward, still true, plus what this session added.
    ./venv/Scripts/python purge_test_accounts.py --delete # removes them
    ```
 
-2. **Decide the two business questions** in `FEATURE_SUGGESTIONS.md` §A — what
+2. **Open a PR.** The branch is pushed (`fix/craft-and-patterns-ux`, 31 commits
+   ahead of `codebase`) but CI watches `push` on `codebase`/`main` plus
+   `pull_request` only — so the new layout job has still never run.
+3. **Decide the two business questions** in `FEATURE_SUGGESTIONS.md` §A — what
    a paid tier is actually for, and whether the free cap should be measured in
    projects started or scripts finished. Both block pricing, and pricing blocks
    the merchant accounts.

@@ -98,7 +98,7 @@ machine). Then:
 >
 > Backend tests: **907 across 55 files, all passing** (the Devanagari font gate
 > no longer skips — the asset is bundled), `./venv/Scripts/python -m pytest`.
-> Frontend tests: **1105 across 57 files**, `npm run test:ci`.
+> Frontend tests: **1113 across 58 files**, `npm run test:ci`.
 >
 > **The suite takes 3.5 minutes. If it takes an hour, something is calling
 > out.** Until 2026-09-10 `conftest.py` neutralised `ANTHROPIC_API_KEY`,
@@ -120,7 +120,12 @@ machine). Then:
 > and `editor-load-race.mjs`. Both scripts WRITE — they register an account and
 > create a project — so both now refuse unless `/health` reports `demo: true`.
 > On this machine they would land in production Supabase; `--allow-live` is the
-> deliberate override.
+> deliberate override. A third, `page-layout-check.mjs`, needs no server at all
+> and measures geometry the suite structurally cannot see.
+>
+> **CI does not run on a feature branch.** The workflow watches `push` to
+> `codebase`/`main` plus any `pull_request`, so pushing a branch proves nothing
+> — open a PR, or the layout job stays unexercised.
 > Config is documented in `baakhapaa-backend/.env.example`.
 >
 > **Tooling** (`requirements-dev.txt`, kept out of the runtime install):
