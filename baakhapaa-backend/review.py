@@ -198,8 +198,21 @@ def check_act_balance(text: str, scenes: list) -> list:
     return findings
 
 
-def check_total_runtime(text: str, duration_minutes) -> list:
-    """Estimated runtime against the length the project was set up for."""
+def check_total_runtime(text: str, duration_minutes, project_format=None) -> list:
+    """Estimated runtime against the length the project was set up for.
+
+    HOW the runtime is estimated depends on what is being written, and getting
+    that wrong is worse than not checking at all. A screenplay runs at roughly
+    one page a minute, which is what `screenplay.statistics` measures. Narration
+    read aloud has no relationship to page count — the same words as one
+    paragraph or ten short lines take the same time to say.
+
+    Measured before this was format-aware: a six-minute video with three
+    sections and real narration was reported as "estimates 0.16 min against the
+    6 min this project was set up for — under by 97%". Every part of that
+    sentence was confident and wrong. A check that speaks from a measurement
+    that does not apply is worse than silence, because it gets believed.
+    """
     try:
         planned = float(duration_minutes or 0)
     except (TypeError, ValueError):
@@ -207,7 +220,11 @@ def check_total_runtime(text: str, duration_minutes) -> list:
     if planned <= 0:
         return []
 
-    estimated = screenplay.statistics(text)["estimated_minutes"]
+    if project_format == "long_form":
+        import videoscript
+        estimated = round(videoscript.runtime_seconds(text) / 60, 2)
+    else:
+        estimated = screenplay.statistics(text)["estimated_minutes"]
     if estimated <= 0:
         return []
 
@@ -220,7 +237,10 @@ def check_total_runtime(text: str, duration_minutes) -> list:
         "runtime_drift", "low",
         f"The draft estimates {estimated:g} min against the {planned:g} min "
         f"this project was set up for — {direction} by {round(drift * 100)}%.",
-        "One page is roughly one minute, so this tracks page count, not pacing.",
+        "One page is roughly one minute, so this tracks page count, not pacing."
+        if project_format != "long_form" else
+        "Measured from the words at a speaking rate, so this tracks how much "
+        "there is to say, not how it is paced.",
     )]
 
 
@@ -235,8 +255,14 @@ def review(text: str, scenes: list, project: dict) -> dict:
     findings = (
         check_character_names(text)
         + check_scene_timing(text, scenes)
-        + check_act_balance(text, scenes)
-        + check_total_runtime(text, (project or {}).get("duration_minutes"))
+        # Act balance is a screenplay idea. A long-form video has no acts — it
+        # has sections — so running this produces a reading of a structure the
+        # writer never claimed to have. The retention shape in the Outline is
+        # the equivalent instrument, and it draws what is actually there.
+        + ([] if (project or {}).get("format") == "long_form"
+           else check_act_balance(text, scenes))
+        + check_total_runtime(text, (project or {}).get("duration_minutes"),
+                              (project or {}).get("format"))
     )
 
     counts = {level: sum(1 for f in findings if f["severity"] == level)
