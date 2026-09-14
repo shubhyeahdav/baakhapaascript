@@ -73,6 +73,10 @@ export default function ScriptPage({
         {view === "script" && !zenMode && !content.trim() && (
           <PenPrompt
             pageTheme={pageTheme}
+            /* Without this the guide offers a slugline to a video writer, and
+               videoscript parses a slugline as narration — so following the
+               product's own advice produced a draft with no sections at all. */
+            format={script?.project?.format || script?.format}
             onInsert={(line) => {
               insertAtPosition(0, `${line}
 

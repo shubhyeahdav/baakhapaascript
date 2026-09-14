@@ -18,7 +18,7 @@
  * in a real engine — the two together are the regression test.
  */
 import React from "react";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import ScriptPage from "./ScriptPage";
 
@@ -152,5 +152,37 @@ describe("what shares the page's column", () => {
     const absolute = [...container.children]
       .filter((el) => el.className.includes("absolute"));
     expect(absolute.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("what the blank page offers", () => {
+  /* A writer creating a YouTube project met the guide telling them to type
+     `INT. CHIYA PASAL - DAY`. `videoscript.py` parses a slugline as narration,
+     so doing what the product said produced a draft with NO SECTIONS — an
+     empty Outline, an empty Corkboard, no retention shape, and nothing saying
+     why.
+
+     The component knowing both formats is worth nothing if the format never
+     reaches it, which is what these cover. */
+
+  it("offers a slugline on a screenplay", () => {
+    page({ content: "", script: { id: "s1", scenes: [], project: { format: "short" } } });
+
+    expect(screen.getByText("INT. CHIYA PASAL - DAY")).toBeInTheDocument();
+  });
+
+  it("offers a section heading on a long-form video", () => {
+    page({ content: "", script: { id: "s1", scenes: [], project: { format: "long_form" } } });
+
+    expect(screen.getByText("## HOOK - 0:15")).toBeInTheDocument();
+    expect(screen.queryByText("INT. CHIYA PASAL - DAY")).not.toBeInTheDocument();
+  });
+
+  it("reads the format off the project, not off the script row", () => {
+    // `script.project` is a field SUBSET — CLAUDE.md records it having no
+    // `id`, which cost a bug once. `format` is on it; this pins that.
+    page({ content: "", script: { id: "s1", scenes: [], project: { format: "long_form" } } });
+
+    expect(screen.getByText("## HOOK - 0:15")).toBeInTheDocument();
   });
 });

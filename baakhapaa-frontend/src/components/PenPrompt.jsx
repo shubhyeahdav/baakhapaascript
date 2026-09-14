@@ -39,7 +39,44 @@ import ThePen from "./ThePen";
  * chosen per page theme rather than inherited from the surrounding app.
  */
 
-const FIRST_LINE = "INT. CHIYA PASAL - DAY";
+/* The one line the product puts in a new writer's hands, per format.
+ *
+ * This was a single constant, written when every project was a screenplay. So
+ * when `long_form` landed, a writer creating a YouTube project met the guide
+ * telling them to type a slugline — and `videoscript.py` parses a slugline as
+ * narration, so doing what they were told produced a draft with NO SECTIONS:
+ * an empty Outline, an empty Corkboard, no retention shape, and nothing saying
+ * why. The one moment the product has a new writer's full attention, spent
+ * teaching them the wrong format.
+ *
+ * The video line is pinned against the parser's own syntax in
+ * `PenPrompt.test.jsx`, because a heading that does not match `## NAME - M:SS`
+ * silently produces nothing. */
+export const FIRST_LINE = {
+  screenplay: "INT. CHIYA PASAL - DAY",
+  long_form: "## HOOK - 0:15",
+};
+
+// What the line IS, in the writer's own terms. A video has sections, not
+// scenes, and calling a section a scene is the same category error as offering
+// the slugline was.
+const COPY = {
+  screenplay: {
+    lead: "Every scene starts by saying where we are and when.",
+    sub: "Type a line like this one, then what the camera sees.",
+    walk: "walk me through a whole scene",
+  },
+  long_form: {
+    lead: "Every video is a run of sections, each with a job and a length.",
+    sub: "Start with the hook — fifteen seconds to earn the next minute.",
+    walk: "walk me through a whole video",
+  },
+};
+
+// Anything unrecognised is a screenplay: every project that existed before
+// long_form is one, and a stored format nobody recognises is far more likely to
+// be one of those than to be a video.
+const voiceFor = (format) => (format === "long_form" ? "long_form" : "screenplay");
 
 // Ink for the page, not for the app around it.
 const PAPER = {
@@ -59,8 +96,11 @@ const PAPER = {
   },
 };
 
-export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light" }) {
+export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light", format }) {
   const ink = PAPER[pageTheme] || PAPER.light;
+  const voice = voiceFor(format);
+  const copy = COPY[voice];
+  const firstLine = FIRST_LINE[voice];
   return (
     <div
       // A fixed offset, not a percentage. The page it sits on is ~1056px tall
@@ -75,19 +115,19 @@ export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light" }
         <ThePen mood="idle" size={44} className={`${ink.nib} mx-auto mb-4`} decorative />
 
         <p className={`text-[14.5px] ${ink.lead} leading-relaxed mb-1`}>
-          Every scene starts by saying where we are and when.
+          {copy.lead}
         </p>
         <p className={`text-[13px] ${ink.sub} leading-relaxed mb-5`}>
-          Type a line like this one, then what the camera sees.
+          {copy.sub}
         </p>
 
         <button
           type="button"
-          onClick={() => onInsert(FIRST_LINE)}
+          onClick={() => onInsert(firstLine)}
           className={`font-mono text-[13px] border rounded-lg px-4 py-2
                       transition-colors ${ink.action}`}
         >
-          {FIRST_LINE}
+          {firstLine}
         </button>
 
         <p className={`text-[12px] ${ink.sub} mt-5`}>
@@ -98,7 +138,7 @@ export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light" }
             className={`tap underline decoration-dotted underline-offset-2
                         transition-colors ${ink.link}`}
           >
-            walk me through a whole scene
+            {copy.walk}
           </button>
         </p>
       </div>
