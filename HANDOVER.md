@@ -280,17 +280,23 @@ Carried forward, still true, plus what this session added.
    ./venv/Scripts/python purge_test_accounts.py --delete # removes them
    ```
 
-1b. **Run the two outstanding migrations**, or the product is broken and the
-   video craft library is absent:
+1b. **Ask the database whether it matches the code**, before believing a green
+   suite:
 
-   ```sql
-   ALTER TABLE projects ADD COLUMN IF NOT EXISTS video_category TEXT DEFAULT 'essay';
-   ALTER TABLE script_patterns ADD COLUMN IF NOT EXISTS applies_to text[];
+   ```
+   cd baakhapaa-backend
+   ./venv/Scripts/python check_schema.py
    ```
 
-   Then `./venv/Scripts/python load_knowledge_base.py` to load the six video
-   craft entries, and **restart the backend** — a stale process caused three
-   separate false alarms on 2026-09-14 on its own.
+   Read-only, safe against production, and it prints the exact `ALTER` to run
+   when something is missing. Both 2026-09-14 migrations have been applied and
+   it reports clean; it exists because five schema-drift bugs got past the
+   suite, which cannot see them — the local mock is schemaless.
+
+   Still outstanding: `./venv/Scripts/python load_knowledge_base.py`, to put
+   the six long-form video craft entries in the table. Until that runs a video
+   writer gets screenplay advice. **Restart the backend afterwards** — a stale
+   process caused three separate false alarms on 2026-09-14 on its own.
 
 2. **Open a PR.** The branch is pushed (`fix/craft-and-patterns-ux`, 31 commits
    ahead of `codebase`) but CI watches `push` on `codebase`/`main` plus
