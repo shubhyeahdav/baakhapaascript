@@ -300,8 +300,20 @@ machine). Then:
   and a test pins that it never asserts a fault — the same rule `MilestoneNote`
   follows. Bands carry `min-w-[24px]`, a PIXEL floor: the proportional floor in
   `retention.MIN_SHARE` guarantees nothing in pixels and rendered a 15-second
-  hook 7px wide at 320px. The format-aware craft layer is designed but NOT
-  built — see `docs/superpowers/specs/2026-09-14-long-form-video-design.md`
+  hook 7px wide at 320px. **The craft library answers it in its own craft**
+  (`rag.craft_for_format`, `applies_to`) — six long-form video entries, and a
+  ONE-WAY exclusion: video entries stay out of a screenwriter's results,
+  nothing is kept out of a video writer's. Story craft transfers, and narrowing
+  the existing 39 by hand would be a judgement with no evidence behind it. That
+  asymmetry buys the property worth having — **screenplay retrieval is
+  numerically unchanged, 90.0% p@1 before and after**. CI now holds TWO floors
+  (`--min-p1 0.80 --min-screenplay-p1 0.85`), because averaging a weak new
+  craft into one number is how an 82% headline sat on top of a 20% reality
+  last time.
+  **`applies_to` needs a MIGRATION** — `pgvector_script_patterns.sql`, applied
+  by hand in the SQL editor — and until it is run plus `load_knowledge_base.py`
+  re-run, the six video entries are not in the database and a video writer gets
+  screenplay advice. See `docs/superpowers/specs/2026-09-14-long-form-video-design.md`
 - **The course, in two tracks** (`lessons.py`, `learn.py`, `LearnPage.jsx`) —
   19 lessons, free on every tier, each graded by the craft linter rather than by
   a Next button. **The Pen** (10) teaches the script page: format, action lines,

@@ -22,6 +22,37 @@ import craft_query
 EMBED_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 TABLE = "script_patterns"
 
+# Which craft a pattern is for. An entry that does not say applies to both,
+# which is what every entry written before long-form video existed means: story
+# craft transfers, and a want, a turn, a cost and a payoff are the same in a
+# video essay as in a film.
+#
+# The exclusion runs ONE WAY. Video-only entries stay out of a screenwriter's
+# results, because that is the direction with a real failure behind it — a
+# screenwriter asking about a sagging middle should not be told about retention
+# curves. Nothing is excluded from a video writer's results, because narrowing
+# the existing 39 by hand would be a craft judgement with no evidence behind it
+# while shrinking the pool that produces the current numbers.
+DEFAULT_APPLIES_TO = ("screenplay", "video")
+SCREENPLAY_CRAFT = "screenplay"
+VIDEO_CRAFT = "video"
+
+
+def craft_for_format(project_format) -> str:
+    """Which craft a project's format is written in."""
+    return VIDEO_CRAFT if project_format == "long_form" else SCREENPLAY_CRAFT
+
+
+def _serves(row: dict, craft: str) -> bool:
+    applies = row.get("applies_to") or DEFAULT_APPLIES_TO
+    if isinstance(applies, str):
+        # Postgres hands a text[] back as a string on some client versions.
+        try:
+            applies = json.loads(applies)
+        except (ValueError, TypeError):
+            applies = DEFAULT_APPLIES_TO
+    return craft in applies
+
 
 def _get_model():
     global _model
@@ -110,6 +141,7 @@ def _pattern_payload(row: dict, similarity=None) -> dict:
         "how_to_apply": row.get("how_to_apply"),
         "worked_example": row.get("worked_example"),
         "warning_sign": row.get("warning_sign"),
+        "applies_to": row.get("applies_to") or list(DEFAULT_APPLIES_TO),
         # Legacy field kept so older callers/rows keep working.
         "one_line_takeaway": row.get("technique") or row.get("one_line_takeaway"),
         "similarity": similarity,
@@ -254,7 +286,7 @@ def _rpc_search(supabase, qvec, top_k):
             for r in rows]
 
 
-def retrieve_relevant_patterns(genre, tone, theme_description, top_k=3):
+def retrieve_relevant_patterns(genre, tone, theme_description, top_k=3, craft=SCREENPLAY_CRAFT):
     """Embed the current request and return the top_k most semantically
     similar stored patterns — regardless of exact genre tag. Returns a list of
     payload dicts sorted by similarity. Never raises: any failure returns [] so
@@ -283,10 +315,19 @@ def retrieve_relevant_patterns(genre, tone, theme_description, top_k=3):
         query_text, _glossed = craft_query.normalise(theme_description)
         qvec = embed_texts([query_text])[0]
 
-        if len(rows) >= RPC_THRESHOLD:
+        # The RPC does not know about `applies_to` — adding that needs a
+        # migration to a function run by hand in the SQL editor, which has
+        # drifted from the loader once already. Until then the RPC is used only
+        # where no narrowing applies, rather than quietly returning entries for
+        # the wrong craft. Correctness over the faster path.
+        if len(rows) >= RPC_THRESHOLD and craft == SCREENPLAY_CRAFT:
             hit = _rpc_search(supabase, qvec, top_k)
             if hit is not None:
                 return hit
+
+        # Narrow to the craft being written BEFORE scoring, so a filtered-out
+        # entry cannot take a slot from one that serves this writer.
+        rows = [r for r in rows if _serves(r, craft)]
 
         scored = []
         for r in rows:

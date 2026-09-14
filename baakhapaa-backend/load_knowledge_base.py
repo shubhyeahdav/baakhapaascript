@@ -43,6 +43,32 @@ def validate(entry, idx):
     return None
 
 
+def row_for(entry: dict, vec=None) -> dict:
+    """Exactly what gets written to `script_patterns`, as one dict.
+
+    Extracted so it can be ASKED rather than guessed at.
+    `tests/test_pattern_schema.py` compares the schema against what the loader
+    writes, and it used to do that by reading the `REQUIRED` tuple — a
+    hand-maintained list that is only PART of the insert. A field written
+    outside it was invisible to the guard, which is how `applies_to` reached
+    the loader without reaching the schema.
+
+    That is the same drift class the guard exists to catch, arriving through
+    the guard itself. Deriving the answer from the real payload closes the
+    class instead of the instance.
+    """
+    return {
+        **{k: entry[k] for k in REQUIRED},
+        # Which craft this serves. Absent means both, which is what every entry
+        # written before long-form video existed means — see
+        # `rag.DEFAULT_APPLIES_TO`. Written explicitly rather than left null, so
+        # the stored row says what it means.
+        "applies_to": entry.get("applies_to") or list(rag.DEFAULT_APPLIES_TO),
+        "embed_text": rag.pattern_to_text(entry),
+        "embedding": vec,
+    }
+
+
 def main():
     with open(KB_PATH, encoding="utf-8") as fh:
         entries = json.load(fh)
@@ -63,11 +89,7 @@ def main():
 
     for entry, vec in zip(good, vectors, strict=True):
         supabase.table(rag.TABLE).delete().eq("title_ref", entry["title_ref"]).execute()
-        supabase.table(rag.TABLE).insert({
-            **{k: entry[k] for k in REQUIRED},
-            "embed_text": rag.pattern_to_text(entry),
-            "embedding": vec,
-        }).execute()
+        supabase.table(rag.TABLE).insert(row_for(entry, vec)).execute()
 
     total = len(supabase.table(rag.TABLE).select("*").execute().data)
     print(f"Loaded {len(good)} entries; table now holds {total} patterns.")

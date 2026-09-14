@@ -10,7 +10,11 @@
     "how_it_works": "When the protagonist chooses the thing that dooms them, the audience roots for a deception they know will collapse. Every success now doubles as a debt. Tension compounds instead of resetting, because the character cannot ask for help without confessing.",
     "how_to_apply": "Find the thing your protagonist wants most. Make the story's engine an offer of exactly that, with one concealed condition. Do not let them be tricked — let them see the risk and take it anyway. Then make each subsequent win raise what exposure would cost.",
     "worked_example": "Instead of Raaja being forced to drop out, a producer offers him an assistant job that starts Monday — the exact break he's begged for. He accepts, then tells his father he's still attending classes. Every day at work is a day of lying, and a good day at work is a worse day at home.",
-    "warning_sign": "Your protagonist keeps reacting. If you can summarise your act two as 'and then this happened to them', the engine is missing."
+    "warning_sign": "Your protagonist keeps reacting. If you can summarise your act two as 'and then this happened to them', the engine is missing.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Victory redefinition (Hollywood underdog tradition)",
@@ -23,7 +27,11 @@
     "how_it_works": "The audience is tracking two contests: the visible one and the private one. If you establish the private stake early (being taken seriously, standing up once), the visible loss can deliver a full emotional win. It also frees the plot from wish-fulfilment.",
     "how_to_apply": "In act one, have someone name the protagonist's real doubt out loud — usually a dismissal. Make the climax test that doubt, not the scoreboard. Let the final image answer the dismissal, not the competition.",
     "worked_example": "Sita's coach says she'll quit the first time she's hit properly. She loses the bout on points — but the final shot is her walking back to the corner on her own feet, refusing the towel. The scoreboard is irrelevant; the dismissal has been answered.",
-    "warning_sign": "You're dreading the ending because a win feels unearned and a loss feels bleak. That means only one contest exists."
+    "warning_sign": "You're dreading the ending because a win feels unearned and a loss feels bleak. That means only one contest exists.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Institutional antagonist (Bollywood social-drama tradition)",
@@ -36,7 +44,11 @@
     "how_it_works": "If the opposing force is a system (exam culture, marriage timelines, respectability), then each person enforcing it can be loving and still cause harm. That produces the hardest kind of conflict: nobody is wrong on purpose, and nobody can simply be defeated.",
     "how_to_apply": "Give the blocking character one scene where their fear is legitimate and stated plainly, ideally about a real cost they personally paid. Never let them enjoy the harm. Let the protagonist win against the pressure without humiliating the person.",
     "worked_example": "Baba doesn't forbid film school — he quietly shows Raaja the ledger from the year his own shop failed and says, 'I'm not saying no. I'm saying I know what no money looks like, and I don't want you to learn it the way I did.'",
-    "warning_sign": "Your antagonist has no scene where the audience would agree with them."
+    "warning_sign": "Your antagonist has no scene where the audience would agree with them.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Withheld-truth detonation (Western prestige tradition)",
@@ -49,7 +61,11 @@
     "how_it_works": "Fragments create an itch the audience scratches for you — they build the theory, so the reveal lands as confirmation plus shame rather than information. Placing it second-to-last leaves one whole beat to live with consequences instead of ending on shock.",
     "how_to_apply": "Decide the buried fact. Seed three fragments that are each explicable innocently on their own. Never let a character explain; let behaviour leak. Detonate at the penultimate beat, then spend the last beat on aftermath, not surprise.",
     "worked_example": "Maya flinches at the sound of a scooter horn (fragment 1), refuses to ride pillion (2), lies about why she left Pokhara (3). The reveal isn't the accident — it's that she was driving.",
-    "warning_sign": "You have a scene where one character tells another what happened, and you're bored writing it."
+    "warning_sign": "You have a scene where one character tells another what happened, and you're bored writing it.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Accumulated disappointment (Japanese slow-cinema tradition)",
@@ -62,7 +78,11 @@
     "how_it_works": "Politeness is a pressure container. When disappointment arrives as a series of small deferrals — a shortened visit, a rescheduled dinner, an over-polite thank you — the audience does the accumulating. The absent confrontation becomes the subject.",
     "how_to_apply": "Replace the argument with five ordinary transactions where someone is slightly less available than they should be. Keep everyone impeccably courteous. Let one tiny break in courtesy near the end carry the entire weight.",
     "worked_example": "Aama visits for a week. Each day someone is busier: a call taken mid-meal, a promised outing postponed, money offered instead of time. She never complains. On the last day she folds the blanket she was given and leaves it on the bed instead of taking it home.",
-    "warning_sign": "You've written a screaming argument between people who, in life, would never raise their voices."
+    "warning_sign": "You've written a screaming argument between people who, in life, would never raise their voices.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Pairwise reconciliation (Malayalam ensemble tradition)",
@@ -75,7 +95,11 @@
     "how_it_works": "Groups don't reconcile; pairs do. Sequencing pairwise repairs turns a mush of goodwill into a chain of causes — each repair gives one character the standing or information to attempt the next, so the finale is a consequence, not a group hug.",
     "how_to_apply": "Map every pair and their specific unspoken grievance. Order them easiest to hardest. Let each repair hand the next pair something concrete — a fact, an apology to relay, permission. Reserve the hardest pair for last.",
     "worked_example": "The youngest brother fixes the roof with the middle one (labour, no talking). That earns him the standing to tell the eldest what the middle one actually said the night he left. Only then can the eldest face their mother.",
-    "warning_sign": "Your climax has more than three people forgiving each other in one room."
+    "warning_sign": "Your climax has more than three people forgiving each other in one room.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Late entry, early exit (screen craft)",
@@ -88,7 +112,11 @@
     "how_it_works": "Audiences infer setup effortlessly and resent watching it. Entering after the situation is already loaded puts the first line under pressure; cutting on the turn leaves the reaction to the viewer, which is always stronger than showing it.",
     "how_to_apply": "Find the moment the scene's question becomes unavoidable and delete everything before it. Find the line that answers it and delete everything after. If a scene opens with a greeting or closes with a goodbye, cut both.",
     "worked_example": "Not: Raaja knocks, is let in, tea is poured, small talk, then the ask. Instead: open on Baba's hand stopping mid-pour — 'Say that again.' Cut out on Raaja's silence, before any reply.",
-    "warning_sign": "Your scene's first line could be spoken by anyone to anyone. Or you've written the characters agreeing to a decision already made."
+    "warning_sign": "Your scene's first line could be spoken by anyone to anyone. Or you've written the characters agreeing to a decision already made.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "The scene turn (screen craft)",
@@ -101,7 +129,11 @@
     "how_it_works": "Drama is change. If the emotional charge at the end matches the start (safe→safe, tense→tense), no information has moved and the scene is decorative. A turn — hopeful to exposed, distant to complicit — is what makes the next scene necessary.",
     "how_to_apply": "Label the charge in one word at the top and bottom of the scene. If they match, find the line where someone learns or risks something and build to it. If nothing can change, the scene belongs inside another scene.",
     "worked_example": "Opens: Sita and her mother folding clothes, easy (warm). Her mother finds the hand-wraps in the laundry. Closes: neither says anything, folding continues (warm on the surface, exposed underneath). The charge flipped without a word.",
-    "warning_sign": "You could delete the scene and the next one still plays identically."
+    "warning_sign": "You could delete the scene and the next one still plays identically.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Crossed purposes (screen craft)",
@@ -114,7 +146,11 @@
     "how_it_works": "Conflict comes from incompatible objectives, not opposing opinions. When each character needs a specific outcome from the other in this room, subtext appears automatically — everyone is manoeuvring, so nothing is said straight.",
     "how_to_apply": "Write each character's want as a verb aimed at the other: 'to get her to admit it', 'to leave without being asked'. Make them mutually exclusive. Then let neither state their want directly.",
     "worked_example": "Raaja wants money for camera rental without saying what it's for. Baba wants to know why his son is home on a weekday without asking outright. The scene is about a leaking tap, and both of them are lying about the tap.",
-    "warning_sign": "Both characters want the same thing, or one of them wants nothing and is only there to listen."
+    "warning_sign": "Both characters want the same thing, or one of them wants nothing and is only there to listen.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Displacement argument (screen craft)",
@@ -127,7 +163,11 @@
     "how_it_works": "People argue about the dishes when the issue is respect. The mismatch between trivial subject and enormous heat is legible to any audience, and it protects the characters' dignity — they never have to be articulate about their pain.",
     "how_to_apply": "Identify the real grievance and forbid anyone from naming it. Choose a petty, physically present surrogate — an unwashed plate, a missing charger, a chair. Let the intensity be wildly disproportionate. Allow exactly one line to nearly touch the truth, then retreat.",
     "worked_example": "The fight is about Raaja leaving the gate unlatched. It escalates viciously. Baba: 'You think someone else will close it. You think someone else will always close it.' Beat. 'Eat your food.'",
-    "warning_sign": "A character says something like 'you never supported my dreams' out loud."
+    "warning_sign": "A character says something like 'you never supported my dreams' out loud.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "The object that carries it (screen craft)",
@@ -140,7 +180,11 @@
     "how_it_works": "Film is behaviour. An object gives the audience something to watch and gives actors something to do instead of emoting. Because the object is neutral, the meaning is inferred — and inferred emotion is felt far more strongly than stated emotion.",
     "how_to_apply": "Choose one ordinary object touched by the relationship. Establish it early doing nothing special. At the emotional peak, let it move — given, withheld, broken, returned — and cut the line you were going to write.",
     "worked_example": "Baba's old light meter sits unused on a shelf for three scenes. After the fight, without discussion, it's in Raaja's bag. Neither mentions it. That is the apology.",
-    "warning_sign": "Your action lines contain '(tearfully)' or 'she looks at him meaningfully'."
+    "warning_sign": "Your action lines contain '(tearfully)' or 'she looks at him meaningfully'.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Interruption as pressure (screen craft)",
@@ -153,7 +197,11 @@
     "how_it_works": "A scene with a witness or a deadline forces compression and indirection. Characters must say the dangerous thing in code, or race to say it at all. Location and interruption do dramatic work that dialogue otherwise has to carry alone.",
     "how_to_apply": "Move the scene somewhere it shouldn't happen — a shared room, a shop, a bus. Add either a third person who must not hear, or a hard clock. Let the interruption arrive exactly when the truth is closest.",
     "worked_example": "The confession happens in the kitchen while relatives are in the next room for a puja. Every line is half-volume. The aunt walks in for a spoon at the worst possible moment, and the sentence is never finished.",
-    "warning_sign": "Three consecutive scenes are two people alone talking."
+    "warning_sign": "Three consecutive scenes are two people alone talking.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Answering the wrong question (dialogue craft)",
@@ -166,7 +214,11 @@
     "how_it_works": "Real speech is full of dodges, deflections and non-sequiturs, and each dodge tells the audience what the speaker is protecting. A sideways answer carries two pieces of information: the evasion, and what's worth evading.",
     "how_to_apply": "Take your exchange and let at least one answer miss on purpose — answer a different question, ask one back, or respond to the accusation buried under the question. Reserve the direct answer for the single moment it should hurt.",
     "worked_example": "AAMA: Did you eat? / RAAJA: The bus was late. / AAMA: I asked if you ate. / RAAJA: (beat) There's a screening on Friday.",
-    "warning_sign": "Every question in your scene receives a matching answer."
+    "warning_sign": "Every question in your scene receives a matching answer.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Code-switch as emotional register (Baakhapaa house craft)",
@@ -179,7 +231,11 @@
     "how_it_works": "For urban Nepali speakers the language choice carries register: English for performance, deflection, professional armour, jokes; Nepali for the thing that's actually true, for family, for what can't be performed. The switch itself becomes a dramatic event the audience feels without analysis.",
     "how_to_apply": "Assign each character a default register and a truth register. Keep them in their default under pressure. Time the switch to the exact line where the mask drops — and use it only once or twice per scene, or it stops registering.",
     "worked_example": "Raaja pitches his film entirely in English — confident, rehearsed, funny. His father listens. Then, quietly, in Nepali: 'Mero paisa sakinchha bhane, timi ke garchhau?' The pitch stops. The English has nowhere to go.",
-    "warning_sign": "Your characters switch languages mid-sentence with no pattern, or the Nepali lines are all just greetings and address terms."
+    "warning_sign": "Your characters switch languages mid-sentence with no pattern, or the Nepali lines are all just greetings and address terms.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Specificity over eloquence (dialogue craft)",
@@ -192,7 +248,11 @@
     "how_it_works": "General statements ask the audience to agree; specific ones make them see. A precise, slightly odd detail proves the speaker's experience is real, and lets the audience arrive at the emotion themselves rather than being told the conclusion.",
     "how_to_apply": "Find your most 'moving' line and ask what concrete memory produced it. Replace the sentiment with the object, number, smell or time of day. If the line could be embroidered on a cushion, cut it.",
     "worked_example": "Not: 'You never noticed how hard I worked.' Instead: 'I painted the shutter three times that year. Blue, then green, then blue again because you didn't like green. You never asked who painted it.'",
-    "warning_sign": "A line of your dialogue would work perfectly as a caption on a motivational post."
+    "warning_sign": "A line of your dialogue would work perfectly as a caption on a motivational post.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "The unfinished sentence (dialogue craft)",
@@ -205,7 +265,11 @@
     "how_it_works": "An interrupted or abandoned sentence hands the completion to the audience, and what they complete is more damning than anything written. It also plays truer — under real strain people run out of sentence.",
     "how_to_apply": "Locate your most explicit emotional line and cut it at the point where the meaning is already inevitable. Let a physical action or another character's interruption take the rest. Use sparingly; three in a row becomes a tic.",
     "worked_example": "SITA: If Aama finds out, she'll — / (she doesn't finish; she just re-tapes her hands)",
-    "warning_sign": "Every line in your scene ends with a full stop and a complete thought."
+    "warning_sign": "Every line in your scene ends with a full stop and a complete thought.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "What they repeat (dialogue craft)",
@@ -218,7 +282,11 @@
     "how_it_works": "A repeated phrase is a free measuring stick. The audience remembers it, so when the same words arrive in a new context — or from a different mouth — the shift registers instantly and wordlessly.",
     "how_to_apply": "Give one character a small verbal habit tied to their worldview. Plant it twice, casually. Third use should land at the emotional peak, ideally inverted or spoken by someone else.",
     "worked_example": "Baba says 'Paisa aaudaina, jaandaina' ('money doesn't come, doesn't go') whenever anything is spent — a shrug. In the last scene, handing Raaja rental cash, Raaja says it back to him. It now means something closer to permission.",
-    "warning_sign": "You could swap your characters' dialogue between them and nothing would break."
+    "warning_sign": "You could swap your characters' dialogue between them and nothing would break.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Introduce under pressure (character craft)",
@@ -231,7 +299,11 @@
     "how_it_works": "We judge people by choices under constraint. A first appearance that contains a small decision with a cost tells the audience who this person is faster and more durably than any paragraph of description or exposition.",
     "how_to_apply": "Drop the character into a tiny dilemma in their first thirty seconds — something with a visible trade-off. No dialogue required. Let the choice imply the history.",
     "worked_example": "Not: 'SANJANA (23), sharp and loyal.' Instead: Sanjana is short for the bus fare. The conductor waits. She pays it, then walks the last two stops home rather than ask the friend beside her.",
-    "warning_sign": "Your character description contains adjectives about their personality rather than an action."
+    "warning_sign": "Your character description contains adjectives about their personality rather than an action.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Contradiction as depth (character craft)",
@@ -244,7 +316,11 @@
     "how_it_works": "People are bundles of contradictions, and contradiction is what makes a character unpredictable without being arbitrary. Two competing truths mean every scene has genuine uncertainty about which one wins.",
     "how_to_apply": "Name your character's dominant trait, then give them one credible opposite rooted in a different part of their life. Put them in a scene that forces both to be true at once.",
     "worked_example": "Baba is scrupulously honest in business — famous for it — and lies constantly to his own mother about money, tenderly, to protect her. The film's hardest scene makes him choose which honesty to keep.",
-    "warning_sign": "You can predict every choice your character makes from their one-line description."
+    "warning_sign": "You can predict every choice your character makes from their one-line description.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Want versus need (character craft)",
@@ -257,7 +333,11 @@
     "how_it_works": "The want drives plot; the need drives meaning. Keeping them distinct lets the climax force a trade — the character must sacrifice one to get the other, which is what makes an ending feel like it cost something.",
     "how_to_apply": "Write the want as an external, achievable object ('get the film finished'). Write the need as a relational lack the character would deny ('to be taken seriously by his father'). Build a climax where pursuing the want fully would forfeit the need.",
     "worked_example": "Raaja wants the film screened. He needs Baba to see him as serious. The festival slot clashes with his father's shop reopening — and only one of them can be attended.",
-    "warning_sign": "Your protagonist's goal and their emotional lack are the same sentence."
+    "warning_sign": "Your protagonist's goal and their emotional lack are the same sentence.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Right for the wrong reason (character craft)",
@@ -270,7 +350,11 @@
     "how_it_works": "When the blocking character is demonstrably right once, every later disagreement carries real doubt — the audience can no longer dismiss them automatically. It also forces the protagonist to earn their position rather than inherit it.",
     "how_to_apply": "Find one practical judgement where the opposing character is simply correct, and let events prove it. Don't have them gloat. The protagonist should absorb it silently and continue anyway.",
     "worked_example": "Baba says the rented camera will be a problem. The rental shop reports it missing and Kanchha never had permission — exactly as predicted. Baba says nothing about it, which is worse.",
-    "warning_sign": "Every prediction your antagonist makes turns out false."
+    "warning_sign": "Every prediction your antagonist makes turns out false.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Externalise the internal (image craft)",
@@ -283,7 +367,11 @@
     "how_it_works": "Cinema only records behaviour and image. Converting interiority into an observable act keeps the writing shootable and, because the audience decodes it, makes the emotion active rather than announced.",
     "how_to_apply": "Take each internal description and ask what this person would physically do while feeling it, given where they are. Prefer small, task-based actions over expressions. Never write what cannot be photographed.",
     "worked_example": "Not: 'Sita is terrified but determined.' Instead: 'Sita re-tapes her left hand. The tape is already fine. She does it again.'",
-    "warning_sign": "Your action lines contain 'thinks', 'realises', 'remembers', or 'feels'."
+    "warning_sign": "Your action lines contain 'thinks', 'realises', 'remembers', or 'feels'.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "The image that returns changed (image craft)",
@@ -296,7 +384,11 @@
     "how_it_works": "A repeated image is a container the audience has already filled. Returning to it with the situation changed lets the viewer measure the entire distance travelled in a single shot, with no line required.",
     "how_to_apply": "Choose one strong early composition tied to the protagonist's lack. Reproduce it near the end with one element altered — who is present, what direction they face, what's in their hands. Do not comment on it.",
     "worked_example": "Act one: Raaja watches the shop's shutter come down from outside, alone on the street. Final scene: the identical frame — except he's inside pulling it down, and Baba is on the street waiting for him.",
-    "warning_sign": "Your final scene introduces a brand-new location and image the film has never used."
+    "warning_sign": "Your final scene introduces a brand-new location and image the film has never used.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Action lines with a point of view (prose craft)",
@@ -309,7 +401,11 @@
     "how_it_works": "A script has to seduce a reader before it becomes a film. Selecting only details that carry attitude — and using rhythm, fragments and white space — makes the page feel like the film feels, which is what gets it made.",
     "how_to_apply": "Cut every detail that doesn't do emotional or plot work. Keep paragraphs under three lines. Use sentence fragments for tension and longer lines for calm. Choose verbs that carry the mood.",
     "worked_example": "Not: 'It is a small tea shop with four tables. There are three customers. Steam rises from the glasses.' Instead: 'A four-table shop, three of them wrong for talking. Steam. The kind of quiet that's really listening.'",
-    "warning_sign": "Your action paragraphs run more than four lines, or list furniture."
+    "warning_sign": "Your action paragraphs run more than four lines, or list furniture.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Cold open at the crisis (shorts craft)",
@@ -322,7 +418,11 @@
     "how_it_works": "Starting at maximum tension creates an open loop the viewer must close, which buys you the setup time you couldn't otherwise afford. The rewind is now consumed as explanation rather than exposition.",
     "how_to_apply": "Find the single most alarming moment and make it your first line, mid-sentence. Rewind immediately with a hard cut. Return to the opening moment with new meaning, then push past it to a payoff that exceeds what the open implied.",
     "worked_example": "Opens on: 'So the landlord is holding my camera and my whole film is on it —' Hard cut to three days earlier. Everything now runs toward that hand on that camera.",
-    "warning_sign": "Your first three seconds contain a greeting, your name, or the word 'today'."
+    "warning_sign": "Your first three seconds contain a greeting, your name, or the word 'today'.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Retention function per beat (shorts craft)",
@@ -335,7 +435,11 @@
     "how_it_works": "Short-form attention is renewed continuously, not granted once. Auditing each beat against a specific retention job — stop the scroll, open a loop, pay something off, trigger a rewatch — turns a vague 'it drags' into a locatable defect.",
     "how_to_apply": "Break the script into 3–5 second blocks and label each with one function: stop_scroll, open_loop, payoff, rewatch_trigger, share_trigger. Any block you can't label is your drop-off point. Cut or reload it.",
     "worked_example": "0–3s bold claim (stop_scroll). 3–8s 'and it's costing you money' (open_loop). 8–25s the mechanism with one example (payoff). 25–30s callback to the claim, reframed (rewatch_trigger).",
-    "warning_sign": "You have five or more consecutive seconds that only exist to explain context."
+    "warning_sign": "You have five or more consecutive seconds that only exist to explain context.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Rule-of-three escalation (comedy craft)",
@@ -348,7 +452,11 @@
     "how_it_works": "Three is the minimum to establish a pattern and the maximum before tedium. Shortening each beat accelerates the rhythm, and breaking the pattern on the fourth converts anticipation into surprise — which is the shareable moment.",
     "how_to_apply": "State the absurd premise in the first line. Escalate the same mechanism three times, each beat shorter than the last. On the fourth, violate the established rule rather than escalating it further. No outro.",
     "worked_example": "Aunty asks about marriage at the wedding (beat, 6s). At the funeral (4s). Over video call during load-shedding, lit by candle (2s). Fourth: she says nothing at all — and that's terrifying.",
-    "warning_sign": "Your sketch escalates four or more times, or ends by explaining the joke."
+    "warning_sign": "Your sketch escalates four or more times, or ends by explaining the joke.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Episode hook as unresolved anxiety (TVF-style tradition)",
@@ -361,7 +469,11 @@
     "how_it_works": "In relatable, low-plot storytelling the pull to the next episode is emotional debt rather than plot suspense. An unresolved anxiety — a decision deferred, a lie still standing, an unanswered message — keeps the viewer holding something they want put down.",
     "how_to_apply": "End the episode after the character has made things slightly worse in a small, ordinary way. Deny relief. No music sting, no reveal — just the discomfort left running.",
     "worked_example": "Raaja tells his father the results are delayed. They aren't. Episode ends on him putting his phone face-down on the table and going to eat dinner normally.",
-    "warning_sign": "Your episode ends with someone opening a door and gasping."
+    "warning_sign": "Your episode ends with someone opening a door and gasping.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Structural obstacle over misunderstanding (K-drama tradition)",
@@ -374,7 +486,11 @@
     "how_it_works": "If the obstacle is external and genuine — a duty, a distance, a debt — intimacy can grow steadily while the threat stays untouched by conversation. That lets you write closeness and impossibility at the same time instead of alternating.",
     "how_to_apply": "Replace the misunderstanding with a fact both characters fully understand and cannot change. Let them discuss it openly and early. Then build intimacy through small acts of care performed inside that constraint.",
     "worked_example": "They both know she leaves for Dubai in six weeks on a contract her family has already spent. Nothing is hidden. Every gentle thing they do for each other is measured against that date.",
-    "warning_sign": "Your couple's problem would be solved by one of them finishing a sentence."
+    "warning_sign": "Your couple's problem would be solved by one of them finishing a sentence.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "The closing-doors middle (screen craft)",
@@ -387,7 +503,11 @@
     "how_it_works": "A second act does not gain momentum from events being added. It gains momentum from options being removed. If the protagonist could still walk away, quit, apologise or go home, the audience is not yet worried, however much is happening. Each sequence in the middle should take one of those exits away, so that the person who had five choices in the opening has one by the time the ending arrives. Pressure is the count of remaining doors, not the count of scenes.",
     "how_to_apply": "Write down every way your protagonist could still stop and be fine, as of the end of your opening. Usually there are three or four: the money, the other job, the friend who would take them in, the version of the truth nobody has checked. Assign each one a scene in the middle whose only job is to remove it. Order them so the cheapest exit closes first and the one that costs most closes last.",
     "warning_sign": "The scenes in your middle could be reordered without breaking anything, and none of them ends with the protagonist having fewer options than when it started.",
-    "worked_example": "A driver takes an unlicensed fare to cover his sister's fees. Scene: his regular employer calls and he lets it ring out, so the salaried job is gone. Scene: he asks his cousin for a loan and is offered it on a condition he cannot accept, so the clean exit is gone. Scene: the passenger learns his name, so anonymity is gone. Nothing has exploded. He simply has one door left, and the audience counted them closing."
+    "worked_example": "A driver takes an unlicensed fare to cover his sister's fees. Scene: his regular employer calls and he lets it ring out, so the salaried job is gone. Scene: he asks his cousin for a loan and is offered it on a condition he cannot accept, so the clean exit is gone. Scene: the passenger learns his name, so anonymity is gone. Nothing has exploded. He simply has one door left, and the audience counted them closing.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Competence under threat (screen craft)",
@@ -400,7 +520,11 @@
     "how_it_works": "Audiences attach to skill before they attach to need. Watching somebody be good at a specific thing is the fastest route to interest, and it is what makes their later helplessness cost something. A character defined only by what they lack has nothing to lose, so the story can only pity them. Give them one demonstrable competence, show it early doing real work, then put the story somewhere that competence does not reach.",
     "how_to_apply": "Name one thing your protagonist can do that most people cannot, and keep it small and concrete rather than heroic: reading a room, fixing a specific machine, remembering faces, undercutting a price. Put it on screen in their first or second scene solving a real problem, not as a party trick. Then make sure the central difficulty of the story is precisely the kind that skill cannot solve.",
     "warning_sign": "Your protagonist is described by circumstances rather than abilities, and their first scene shows something happening to them rather than something they do well.",
-    "worked_example": "A tailor can tell a customer's weight change from a month-old measurement, and does, kindly, in her first scene. When her landlord raises the rent the skill is worthless: there is no seam to let out. The audience already knows she is good at something, so watching her be useless is a loss rather than a description."
+    "worked_example": "A tailor can tell a customer's weight change from a month-old measurement, and does, kindly, in her first scene. When her landlord raises the rent the skill is worthless: there is no seam to let out. The audience already knows she is good at something, so watching her be useless is a loss rather than a description.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Trim the approach and the exit (screen craft)",
@@ -413,7 +537,11 @@
     "how_it_works": "Most overwritten dialogue is not overwritten in the middle. A speech typically begins with the character orienting themselves to the topic and ends with them summarising what they just said, and both halves are the writer thinking on the page rather than the character speaking. Removing them rarely loses information, because the middle carries it, and what is gained is the sense that these people were already talking before the scene arrived.",
     "how_to_apply": "Take any speech longer than two lines and delete its opening clause and its closing sentence. Read the scene again. If nothing is lost, the cut stands. Where something is genuinely lost it is usually one noun, which can be moved into the middle. Do this to the whole scene before adjusting anything else; scenes commonly lose a third of their length and gain pace without a single new line.",
     "warning_sign": "Most of your speeches run past three lines, they open with words like well or look or the thing is, and they close by restating the point.",
-    "worked_example": "Before: Look, the thing is, I have been thinking about the shop, and honestly I do not think we can keep it open past Dashain, that is just where we are. After: We cannot keep it open past Dashain. The hesitation the first version was reaching for now belongs to the pause before the line, where an actor can play it."
+    "worked_example": "Before: Look, the thing is, I have been thinking about the shop, and honestly I do not think we can keep it open past Dashain, that is just where we are. After: We cannot keep it open past Dashain. The hesitation the first version was reaching for now belongs to the pause before the line, where an actor can play it.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "The resented repetition (screen craft)",
@@ -426,7 +554,11 @@
     "how_it_works": "Exposition is unbearable when both characters need it and unremarkable when neither does. The fix is not to hide the information but to change who it is for. If one character already knows and is being told anyway, the scene stops being about the facts and starts being about the insult of being told, which is drama. The audience gets the information in full while watching two people fight about something else.",
     "how_to_apply": "Find the speech that carries your exposition and give the listener full prior knowledge of it. Now they can interrupt, finish sentences, correct a detail, or ask the speaker to stop. Write their impatience rather than their comprehension. Keep every fact you needed and deliver it through the friction of repetition.",
     "warning_sign": "Two characters exchange facts they would both already have, and neither of them interrupts, contradicts or looks away.",
-    "worked_example": "Instead of a brother explaining the debt to his sister, she says the figure before he reaches it, then corrects his interest rate, then asks whether he is telling her or telling himself. The audience learns the amount, the term and the lender, and watches a woman who is tired of being managed."
+    "worked_example": "Instead of a brother explaining the debt to his sister, she says the figure before he reaches it, then corrects his interest rate, then asks whether he is telling her or telling himself. The audience learns the amount, the term and the lender, and watches a woman who is tired of being managed.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "The wrong completion (screen craft)",
@@ -439,7 +571,11 @@
     "how_it_works": "Real speech overlaps because people are predicting each other, and prediction is characterisation: what someone assumes you were about to say tells the audience what they think of you. A wrong completion does three jobs in one line. It breaks the turn-taking rhythm, it reveals an assumption, and it forces the first speaker to decide whether to correct it. That decision is usually the most revealing beat in the exchange.",
     "how_to_apply": "Choose one exchange per scene where a character is building to something. Have the other cut in and complete it incorrectly, in a way that is plausible given what they believe. Then let the first character either accept the wrong version or fight it. Use it sparingly: once or twice a scene reads as life, and every line reads as a gimmick.",
     "warning_sign": "Every line in your dialogue ends in a full stop, no speech is ever cut off mid-clause, and no character ever answers a question that was not the one asked.",
-    "worked_example": "She starts to say she went to see him because, and he finishes it for her: because you want the shop. She corrects him. Because he is dying. She could have let the accusation stand and kept the argument she was winning. She gives up her advantage to be understood."
+    "worked_example": "She starts to say she went to see him because, and he finishes it for her: because you want the shop. She corrects him. Because he is dying. She could have let the accusation stand and kept the argument she was winning. She gives up her advantage to be understood.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "The refused answer (screen craft)",
@@ -452,7 +588,11 @@
     "how_it_works": "A question creates an obligation and the audience feels it. Meeting the obligation with a line discharges it immediately. Meeting it with an action leaves it open, and the audience holds the question while watching the character do something else. That gap is where an actor works and where subtext lives. It also characterises silently: what someone does instead of answering says what the answer would cost.",
     "how_to_apply": "Find the three most loaded questions in your script. Replace one answer with a physical action that is neither agreement nor refusal: pouring the tea, closing the shutter, handing something over. Do not follow it with a line that explains the action. Let the next beat move on and trust the audience to keep holding the question.",
     "warning_sign": "Every question mark in your script is followed by a spoken answer, and no character ever leaves one hanging.",
-    "worked_example": "Asked whether he is going to tell her, he picks up the two cups, washes one, and puts the other back on the table. The scene moves on. Nobody in the audience has forgotten the question, and they now know it will be answered badly."
+    "worked_example": "Asked whether he is going to tell her, he picks up the two cups, washes one, and puts the other back on the table. The scene moves on. Nobody in the audience has forgotten the question, and they now know it will be answered badly.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "The unserved want (screen craft)",
@@ -465,7 +605,11 @@
     "how_it_works": "A supporting character reads as furniture when every want they have happens to be served by the protagonist's story. Give them one want the plot has no intention of satisfying and they acquire a life that continues off screen, because the audience can feel a thread the film is not following. It costs almost nothing in running time, since a want can be established in two lines, and it is the difference between a world and a set.",
     "how_to_apply": "For each supporting character write one sentence naming something they want that your story will never deliver. Plant it once, early, in a line that is not about the plot. Then let it surface exactly once more, at a moment when the protagonist is too preoccupied to notice. Do not resolve it.",
     "warning_sign": "Every supporting character's dialogue is about the protagonist's problem, and none of them wants anything the story does not eventually hand them.",
-    "worked_example": "The neighbour who keeps the spare key mentions, once, that her son has not called since Tihar. She never mentions it again. In the last act she is still holding the key and still not called, and the audience understands that this street will go on after the story ends."
+    "worked_example": "The neighbour who keeps the spare key mentions, once, that her son has not called since Tihar. She never mentions it again. In the last act she is still holding the key and still not called, and the audience understands that this street will go on after the story ends.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "The place being lost (screen craft)",
@@ -478,7 +622,11 @@
     "how_it_works": "Specificity of place becomes characterisation only when the place is at stake. A character who merely lives somewhere carries local colour. A character who is losing somewhere carries a want the audience can see in every wide shot. It also solves exposition about setting, because a room someone is about to lose gets looked at differently, and the camera can do the describing.",
     "how_to_apply": "Pick one specific place your protagonist is attached to, and not the city: a room, a stall, a stretch of road. Establish what they do there that they do nowhere else. Then make the story's pressure fall on that place through rent, redevelopment, a sibling's claim, a road widening. Every later scene set there now carries the loss without a line of dialogue about it.",
     "warning_sign": "Your locations could be swapped for one another without changing a single line, and no character would be worse off if any of them disappeared.",
-    "worked_example": "She does her accounts on the third step of the shop, never inside, because the light is better and her mother did the same. When the notice goes up the film does not need to say what she is losing. It only needs to hold on the step."
+    "worked_example": "She does her accounts on the third step of the shop, never inside, because the light is better and her mother did the same. When the notice goes up the film does not need to say what she is losing. It only needs to hold on the step.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "Understanding held back from the dialogue (screen craft)",
@@ -491,7 +639,11 @@
     "how_it_works": "An ending lands when the audience completes it. If a character states the theme the audience is a recipient. If the final piece is withheld and they assemble it themselves they are a participant, and the feeling is theirs rather than reported to them. The confidence problem is real, but it is almost never solved by the summarising line. It is solved earlier, by planting the two facts the audience needs to put together.",
     "how_to_apply": "Delete the line that states the meaning. Then find the two concrete facts a viewer needs in order to reach it themselves, and make sure each is shown once, clearly, well before the end and away from each other. The ending then only has to place them side by side. Test it on one reader and ask what they think it was about, not whether they understood.",
     "warning_sign": "Your final scene contains a line that could be lifted out and used as the film's synopsis, and nothing in the ending would change if you cut it except your confidence.",
-    "worked_example": "Cut the line where he tells her she was never doing it for him. Keep instead, twenty minutes earlier, the moment he refuses the money once, quietly. Keep at the end the moment he takes it. Nobody says anything. The audience assembles the sentence."
+    "worked_example": "Cut the line where he tells her she was never doing it for him. Keep instead, twenty minutes earlier, the moment he refuses the money once, quietly. Keep at the end the moment he takes it. Nobody says anything. The audience assembles the sentence.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
   },
   {
     "title_ref": "The last small decision (screen craft)",
@@ -504,6 +656,106 @@
     "how_it_works": "An ending reads as earned when the final change in the situation is caused by the person the story has been about. The decision does not have to be large or successful. It has to be theirs and it has to be visible. This is why endings where the world simply relents feel hollow even when everything the audience wanted has happened: the story spent its length making somebody capable of choosing, and then chose for them.",
     "how_to_apply": "Find the last thing in your script that changes the situation and ask who caused it. If the answer is circumstance or a secondary character, look for a smaller action the protagonist can take immediately afterwards which accepts or refuses what has happened. Put the camera on that. It can be one gesture and it can fail. What it cannot be is absent.",
     "warning_sign": "In your last five pages the protagonist has no line or action that changes anything, and the outcome would be identical if they were not in the room.",
-    "worked_example": "The buyer withdraws on his own and the shop is saved without her. That is where the draft ended. Now she takes down the FOR SALE board herself, folds it, and keeps it. She did not save the shop. She decided what to do about having nearly lost it."
+    "worked_example": "The buyer withdraws on his own and the shop is saved without her. That is where the draft ended. Now she takes down the FOR SALE board herself, folds it, and keeps it. She did not save the shop. She decided what to do about having nearly lost it.",
+    "applies_to": [
+      "screenplay",
+      "video"
+    ]
+  },
+  {
+    "title_ref": "The cost of the first thirty seconds (long-form video)",
+    "source_type": "craft",
+    "craft_level": "structure",
+    "genre": "video",
+    "origin_tradition": "screen craft",
+    "technique": "Open on the consequence, then go back for the cause",
+    "problem": "People leave my video in the first thirty seconds. The opening explains who I am and what the video will cover, and by the time anything happens they have gone.",
+    "how_it_works": "An introduction asks a viewer to spend attention on the promise of a payoff. Opening on the payoff's consequence reverses that trade: they have already been given something, and the explanation becomes the thing they stay for rather than the toll they pay to arrive.",
+    "how_to_apply": "Find the most surprising sentence anywhere in your script. Put it first, unexplained. Then start the video you were going to make — the introduction now lands as an answer rather than a delay.",
+    "worked_example": "Not: 'Hello, today we're looking at why Kathmandu floods.' Instead: 'This street was dry for a hundred years. The thing that changed was not the rain.' The introduction still exists; it is now the second thing, and it has a question in front of it.",
+    "warning_sign": "Your first thirty seconds could be deleted and the video would still make sense.",
+    "applies_to": [
+      "video"
+    ]
+  },
+  {
+    "title_ref": "The unclosed loop (long-form video)",
+    "source_type": "craft",
+    "craft_level": "structure",
+    "genre": "video",
+    "origin_tradition": "screen craft",
+    "technique": "Close every loop you open, and open the next one before you close the last",
+    "problem": "My retention graph falls off steadily through the middle. Nothing is wrong with any individual section but people stop watching partway and I cannot see where.",
+    "how_it_works": "A viewer stays for an unanswered question, not for interesting material. A video that answers each question before raising the next leaves a gap at every seam, and a steady fall is what a run of small gaps looks like from a distance.",
+    "how_to_apply": "List the questions your video raises, with the timecode each is opened and closed. Move each opening earlier so it lands before the previous answer, and cut any question you never close.",
+    "worked_example": "Before the drainage explanation finishes, the narration says the ward office has a file nobody has opened since 1964. The explanation completes into an already-waiting question rather than into silence.",
+    "warning_sign": "Every section of your script both raises and answers its own question, and could be reordered without anything breaking.",
+    "applies_to": [
+      "video"
+    ]
+  },
+  {
+    "title_ref": "The promise nobody kept (long-form video)",
+    "source_type": "craft",
+    "craft_level": "structure",
+    "genre": "video",
+    "origin_tradition": "screen craft",
+    "technique": "Pay off the exact promise the opening made, in the words it made it",
+    "problem": "People watch most of my video and still seem disappointed. The ending is good but it does not feel like an ending, and the comments argue about what the video was even about.",
+    "how_it_works": "An opening is a contract, and a viewer holds it in the exact words it was offered. A payoff that answers a nearby question satisfies the maker, who knows the journey, and not the viewer, who is checking a receipt.",
+    "how_to_apply": "Write your opening claim on one line. Write your closing claim underneath it. If the nouns are different, one of them has to move — usually the opening, because that is the one that was a guess.",
+    "worked_example": "Opening: 'The thing that changed was not the rain.' Closing: 'The rain is the same. The ground underneath it is concrete.' Same noun, answered.",
+    "warning_sign": "The subject of your first sentence does not appear in your last one.",
+    "applies_to": [
+      "video"
+    ]
+  },
+  {
+    "title_ref": "The unearned ask (long-form video)",
+    "source_type": "craft",
+    "craft_level": "scene",
+    "genre": "video",
+    "origin_tradition": "screen craft",
+    "technique": "Ask only for what the video has already made worth doing",
+    "problem": "My call to action gets ignored, or worse, it makes the whole video feel like it was an advertisement for something.",
+    "how_it_works": "A request reads as payment for what came before. Asked before the value has landed, it reframes everything preceding it as the price; asked after, and named as the next step in what the viewer now wants, it reads as help.",
+    "how_to_apply": "Move the ask after the payoff, and phrase it as the thing a person who just agreed with you would want next. Cut any ask that does not follow from what the video actually established.",
+    "worked_example": "Not 'subscribe for more'. Instead: 'The ward files are public. The next one I read is the one you tell me to read.' The ask is the continuation of the argument rather than a toll on it.",
+    "warning_sign": "Your call to action would read identically at the top of the video as at the bottom.",
+    "applies_to": [
+      "video"
+    ]
+  },
+  {
+    "title_ref": "Narration that forgot the camera (long-form video)",
+    "source_type": "craft",
+    "craft_level": "image",
+    "genre": "video",
+    "origin_tradition": "screen craft",
+    "technique": "Give every claim something the screen can show while it is said",
+    "problem": "My script reads well but the video is boring to watch. It is mostly me talking, and I cannot work out what to put on screen.",
+    "how_it_works": "Narration and image compete for the same attention when they carry the same content, and a talking head saying what the screen already shows is the most redundant arrangement available. An image that carries the evidence lets the narration carry only the argument.",
+    "how_to_apply": "Beside each paragraph, write what is on screen. Wherever the answer is 'me, talking', find the concrete object the sentence is about and put that there instead.",
+    "worked_example": "The line 'the drains were built for two hundred thousand people' plays over a hand tracing a 1964 engineering drawing, not over the narrator saying it to camera.",
+    "warning_sign": "Whole pages of your script have no bracketed visual note at all.",
+    "applies_to": [
+      "video"
+    ]
+  },
+  {
+    "title_ref": "The middle that forgot it was a story (long-form video)",
+    "source_type": "craft",
+    "craft_level": "structure",
+    "genre": "video",
+    "origin_tradition": "screen craft",
+    "technique": "Let the middle change what the opening meant",
+    "problem": "The middle of my video is just information. Everything in it is true and useful and it still feels like a list, and I can feel people leaving around halfway.",
+    "how_it_works": "A list has no reason to be watched in order, so a viewer who understands the pattern can stop. A middle that revises the opening cannot be predicted from it, which is the only structural reason to stay through the centre of anything.",
+    "how_to_apply": "Find the fact in your middle that most complicates your opening claim. Move it to the midpoint and let the second half be about what it costs you.",
+    "worked_example": "Halfway through, the drainage turns out to be adequate — the water is arriving faster because the hills upstream were paved. The first half was about drains; the second half is about somewhere else entirely.",
+    "warning_sign": "Your sections could be reordered and the video would be equally coherent.",
+    "applies_to": [
+      "video"
+    ]
   }
 ]

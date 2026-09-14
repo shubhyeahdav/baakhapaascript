@@ -173,13 +173,33 @@ DEVANAGARI_QUERIES = {
     "यो दृश्यमा केही हुँदैन": "scene",
 }
 
+# Long-form video. A separate style because it runs against a different craft:
+# `rag.retrieve_relevant_patterns(craft="video")` searches the whole corpus,
+# while a screenplay query is narrowed to entries that serve screenwriting. The
+# two cannot be averaged into one number without hiding which one broke.
+VIDEO_QUERIES = {
+    "people leave in the first thirty seconds, my intro explains who i am and "
+    "nothing has happened yet": "structure",
+    "my retention graph falls off steadily through the middle and i cannot see "
+    "where": "structure",
+    "people watch most of it and still seem disappointed, the ending does not "
+    "feel like an ending": "structure",
+    "my call to action gets ignored and makes the whole video feel like an "
+    "advertisement": "scene",
+    "the script reads well but the video is boring to watch, it is mostly me "
+    "talking to camera": "image",
+    "the middle is just information, everything in it is true and it still "
+    "feels like a list": "structure",
+}
+
 REAL_QUERIES = [
-    (q, lvl, style)
-    for style, group in (
-        ("chip", CHIP_QUERIES),
-        ("plain", PLAIN_QUERIES),
-        ("romanised", ROMANISED_QUERIES),
-        ("devanagari", DEVANAGARI_QUERIES),
+    (q, lvl, style, craft)
+    for style, group, craft in (
+        ("chip", CHIP_QUERIES, "screenplay"),
+        ("plain", PLAIN_QUERIES, "screenplay"),
+        ("romanised", ROMANISED_QUERIES, "screenplay"),
+        ("devanagari", DEVANAGARI_QUERIES, "screenplay"),
+        ("video", VIDEO_QUERIES, "video"),
     )
     for q, lvl in group.items()
 ]
@@ -201,9 +221,16 @@ def golden_set():
     for e in entries:
         problem = (e.get("problem") or "").strip()
         if problem:
-            cases.append((problem, e.get("technique"), e.get("craft_level"), "self"))
-    for query, level, style in REAL_QUERIES:
-        cases.append((query, None, level, style))
+            # A self-retrieval case has to run against a craft that can return
+            # the entry at all. Running a video entry as screenplay craft
+            # filters it out and scores a miss that says nothing about
+            # retrieval — it says the harness asked the wrong question.
+            applies = e.get("applies_to") or ["screenplay", "video"]
+            craft = "screenplay" if "screenplay" in applies else "video"
+            cases.append((problem, e.get("technique"), e.get("craft_level"),
+                          "self", craft))
+    for query, level, style, craft in REAL_QUERIES:
+        cases.append((query, None, level, style, craft))
     return cases
 
 
@@ -307,8 +334,9 @@ def run(top_k=3):
         sys.exit("No cases. Is knowledge_base.json present?")
 
     scores = []
-    for query, technique, level, kind in cases:
-        results = rag.retrieve_relevant_patterns("Drama", "Emotional", query, top_k=top_k)
+    for query, technique, level, kind, craft in cases:
+        results = rag.retrieve_relevant_patterns(
+            "Drama", "Emotional", query, top_k=top_k, craft=craft)
         scores.append({
             "query": query[:60],
             "level": level,
@@ -340,7 +368,7 @@ def coverage(scores, cases):
         for t in row["returned"]:
             if t:
                 hits[t] += 1
-    known = {t for _, t, _, kind in cases if kind == "self" and t}
+    known = {t for _, t, _, kind, _c in cases if kind == "self" and t}
     return {
         "n_real": n,
         "never": sorted(known - set(hits)),
@@ -356,6 +384,13 @@ def main():
     ap.add_argument(
         "--min-p1", type=float, default=None,
         help="exit non-zero if combined real-query precision@1 falls below this",
+    )
+    ap.add_argument(
+        "--min-screenplay-p1", type=float, default=None,
+        help=("exit non-zero if SCREENPLAY-only precision@1 falls below this. "
+              "Separate from --min-p1 on purpose: long-form video is new and "
+              "weak, and averaging it in would let screenplay retrieval decay "
+              "behind a number that looks acceptable"),
     )
     args = ap.parse_args()
 
@@ -376,7 +411,37 @@ def main():
             f"retrieval regressed: real-query p@1 {real['p_at_1']:.1%} "
             f"is below the floor of {args.min_p1:.1%}"
         )
+
+    # The screenplay floor, held separately. A combined average lets a strong
+    # craft carry a weak one — the exact mistake that let an 82% headline sit on
+    # top of a 20% reality before this harness was rewritten. Video is six
+    # queries old and has no baseline worth gating; screenplay has history and
+    # a floor, and must not be allowed to decay behind the average.
+    if args.min_screenplay_p1 is not None:
+        sp = screenplay_score(summary)
+        if sp["n"] and sp["p_at_1"] < args.min_screenplay_p1:
+            sys.exit(
+                f"screenplay retrieval regressed: p@1 {sp['p_at_1']:.1%} over "
+                f"{sp['n']} queries is below the floor of "
+                f"{args.min_screenplay_p1:.1%}"
+            )
     return
+
+
+SCREENPLAY_STYLES = ("chip", "plain", "romanised", "devanagari")
+
+
+def screenplay_score(summary):
+    """Real queries against the screenplay corpus only, video excluded."""
+    kinds = summary.get("by_kind", {})
+    hit1 = tot = 0.0
+    for k in SCREENPLAY_STYLES:
+        b = kinds.get(k)
+        if not b:
+            continue
+        hit1 += b["p_at_1"] * b["n"]
+        tot += b["n"]
+    return {"p_at_1": hit1 / tot if tot else 0.0, "n": int(tot)}
 
 
 def real_score(summary):
@@ -407,7 +472,8 @@ def report(summary, scores, real):
     # are the only ones where nobody already knows the answer. Reported by
     # style, because a corpus embedded in English can be fine for one style and
     # useless for another, and one average across all three would say neither.
-    real_kinds = [k for k in ("chip", "plain", "romanised", "devanagari") if k in kinds]
+    real_kinds = [k for k in ("chip", "plain", "romanised", "devanagari", "video")
+                  if k in kinds]
     if real_kinds:
         print("  REAL QUERIES")
         hit1 = hit3 = tot = 0.0
@@ -418,6 +484,12 @@ def report(summary, scores, real):
             hit3 += b["p_at_3"] * b["n"]
             tot += b["n"]
         print(f"    {'combined':<10} n={real['n']:<3} p@1 {real['p_at_1']:>6.1%}   p@3 {real['p_at_3']:>6.1%}")
+        sp = screenplay_score(summary)
+        if sp["n"] and sp["n"] != real["n"]:
+            # The number with history. Shown beside the combined one because a
+            # combined average lets a strong craft carry a weak one.
+            print(f"    {'screenplay':<10} n={sp['n']:<3} p@1 {sp['p_at_1']:>6.1%}"
+                  "   <- gated separately")
 
     me = kinds.get("self")
     if me:

@@ -137,3 +137,30 @@ def test_the_rpc_returns_what_retrieval_needs():
     for field in ("technique", "problem", "how_to_apply", "worked_example",
                   "warning_sign", "craft_level", "similarity"):
         assert field in returns, f"the RPC does not return '{field}'"
+
+def test_every_field_the_loader_ACTUALLY_writes_has_a_column():
+    """Asked of the loader, not of a hand-maintained list.
+
+    The test above reads `loader.REQUIRED`, which is only PART of the insert —
+    so a field written outside it was invisible to the guard. That is how
+    `applies_to` reached the loader without reaching the schema, on 2026-09-14:
+    the drift class this file exists to catch, arriving through this file.
+
+    `loader.row_for` is the real payload. Comparing against that means a field
+    added anywhere in the insert cannot get past this again.
+    """
+    body = _create_table_body()
+    sample = {f: "x" for f in loader.REQUIRED}
+
+    written = set(loader.row_for(sample).keys())
+
+    missing = [
+        f for f in written
+        if not re.search(rf"^\s+{f}\s+(text|vector|real|int|bool|timestamp)", body, re.M | re.I)
+        and not re.search(rf"^\s+{f}\s+text\[\]", body, re.M | re.I)
+    ]
+    assert not missing, (
+        f"the loader writes {missing} and script_patterns has no column for it. "
+        "Add the column to pgvector_script_patterns.sql AND run the migration "
+        "against Supabase — the file is applied by hand in the SQL editor."
+    )

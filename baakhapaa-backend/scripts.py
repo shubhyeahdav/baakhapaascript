@@ -358,6 +358,14 @@ def recommendations(req: RecommendRequest, background: BackgroundTasks,
     # writes. It was three identical SELECTs — `history` here, then `record`
     # and `resolve` each running their own — on an endpoint that sits on the
     # writing path and is free on every tier.
+    # Which craft library to search. A long-form video writer asking about a
+    # sagging middle should not be offered a technique about act breaks, and a
+    # screenwriter should never be offered one about retention curves. The
+    # exclusion runs one way — see `rag.DEFAULT_APPLIES_TO` — so a screenplay
+    # search is exactly the set it has always been.
+    craft = rag.craft_for_format(scene_sync._format_of(req.script_id)
+                                 if req.script_id else None)
+
     seen, writable, log_rows = {}, False, []
     if req.script_id:
         log_rows = recommendation_log.rows(req.script_id)
@@ -389,6 +397,7 @@ def recommendations(req: RecommendRequest, background: BackgroundTasks,
             p for p in script_engine.retrieve_relevant_patterns(
                 req.genre, req.tone, query,
                 top_k=(RECOMMENDATION_COUNT + len(patterns)) * 2,
+                craft=craft,
             )
             if p["technique"] not in already
         ]

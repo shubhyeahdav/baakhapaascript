@@ -46,6 +46,14 @@ create table if not exists script_patterns (
   worked_example text not null,
   warning_sign text not null,
 
+  -- Which craft this entry serves: 'screenplay', 'video', or both.
+  -- NULL means both, which is what every entry written before long-form video
+  -- existed means — see rag.DEFAULT_APPLIES_TO. The exclusion runs one way:
+  -- video-only entries stay out of a screenwriter's results, because a
+  -- screenwriter asking about a sagging middle should not be told about
+  -- retention curves.
+  applies_to text[],
+
   embed_text text not null,            -- exactly what was embedded, so a
                                        -- re-embed can be diffed rather than
                                        -- guessed at
@@ -121,3 +129,14 @@ end $$;
 alter table script_patterns drop constraint if exists script_patterns_source_type_check;
 alter table script_patterns add constraint script_patterns_source_type_check
   check (source_type in ('movie','webseries','short','craft'));
+
+
+-- Migration, 2026-09-14. Long-form video added `applies_to`, and without this
+-- column `load_knowledge_base.py` fails on the first insert: Postgres rejects
+-- the whole row rather than dropping the unknown field.
+--
+-- Safe on existing data. NULL means "serves both crafts", which is exactly
+-- what every one of the 39 entries that predate long-form video means, so
+-- nothing needs backfilling and no existing retrieval changes.
+alter table script_patterns
+  add column if not exists applies_to text[];
