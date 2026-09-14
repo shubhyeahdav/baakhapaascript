@@ -156,3 +156,24 @@ def test_a_screenplay_project_is_untouched_by_all_of_this(client, make_user):
     payload = _json.loads(scenes[0]["draft_json"])
     assert payload["heading"] == "INT. CHIYA PASAL - MORNING"
     assert "section_kind" not in payload
+
+
+def test_the_editor_is_told_what_format_it_is_looking_at(client, make_user):
+    """`OutlineView` draws the retention shape only for a long-form project, so
+    the format has to reach the editor. `script.project` is a field SUBSET —
+    CLAUDE.md records it having no `id`, which cost a bug once — so what it
+    carries is worth pinning rather than assuming."""
+    user = make_user()
+    made = client.post(
+        "/projects/",
+        json={"title": "Floods", "format": "long_form",
+              "video_category": "documentary", "duration_minutes": 14},
+        headers=user["headers"],
+    )
+    script_id = client.get(f"/scripts/project/{made.json()['id']}",
+                           headers=user["headers"]).json()["id"]
+
+    body = client.get(f"/scripts/{script_id}", headers=user["headers"]).json()
+
+    assert body["project"]["format"] == "long_form"
+    assert body["project"]["video_category"] == "documentary"

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import RetentionShape from "./RetentionShape";
 
 /**
  * The script as a collapsible act → scene tree.
@@ -31,8 +32,29 @@ function clock(n) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export default function OutlineView({ scenes = [], suggestions, activeScene, onOpen, onAdd, adding }) {
+export default function OutlineView({ scenes = [], suggestions, activeScene, onOpen, onAdd, adding, format }) {
   const [collapsed, setCollapsed] = useState({});
+
+  /* A long-form video has no acts, so the act balance this view is built around
+     reads as nothing for it. What it has instead is a runtime with known places
+     people leave, and sections that sit well against those or do not — which is
+     the same KIND of reading and belongs in the same place.
+
+     `draft_json` carries the section fields; `videoscript.scene_summaries` puts
+     them there and `scene_sync` stores them. Reading them here rather than
+     adding columns is why this needed no migration. */
+  const isLongForm = format === "long_form";
+  const videoSections = isLongForm
+    ? scenes.map((sc) => {
+        const draft = draftOf(sc);
+        return {
+          heading: sc.title || draft.heading || "",
+          section_kind: draft.section_kind || "segment",
+          target_seconds: draft.target_seconds ?? null,
+          written_seconds: Math.round((Number(draft.minutes) || 0) * 60),
+        };
+      })
+    : [];
   // Which act is currently having a scene added to it, and the slugline being
   // typed. Inline, because `window.prompt` is blocked in some embedded
   // browsers and is the wrong affordance regardless.
@@ -56,6 +78,19 @@ export default function OutlineView({ scenes = [], suggestions, activeScene, onO
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-bgDeep/40">
+      {/* For a video, the shape IS the outline. Acts are a screenplay idea and
+          reading them for a video essay produces a single act called "1" — an
+          answer to a question nobody asked. */}
+      {isLongForm && (
+        <RetentionShape
+          sections={videoSections}
+          onOpen={(band) => {
+            const i = videoSections.findIndex((v) => v.heading === band.heading);
+            if (i >= 0) onOpen?.(i);
+          }}
+        />
+      )}
+
       <div className="flex items-baseline justify-between mb-4">
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-inkMuted">
           Outline

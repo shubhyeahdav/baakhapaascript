@@ -291,9 +291,17 @@ machine). Then:
   **A section is not a scene** — `act_number`, `time_allocation` and INT/EXT are
   left null rather than repurposed. Runtime is words over a speaking rate
   (`SPEAKING_WPM_EN` / `SPEAKING_WPM_NE`), not pages; **the Nepali rate is not
-  measured** and is a pilot question. The retention instrument and the
-  format-aware craft layer are designed but NOT built — see
-  `docs/superpowers/specs/2026-09-14-long-form-video-design.md`
+  measured** and is a pilot question.
+  **The Outline draws a retention shape for it** (`RetentionShape.jsx`,
+  `lib/retention.js`) — sections proportional across the runtime with the
+  conventional attention drop-offs overlaid, which answers the format's most
+  common failure at a glance: a forty-second hook and a twenty-second payoff.
+  **It states on its face that the curve is a convention, not a measurement**,
+  and a test pins that it never asserts a fault — the same rule `MilestoneNote`
+  follows. Bands carry `min-w-[24px]`, a PIXEL floor: the proportional floor in
+  `retention.MIN_SHARE` guarantees nothing in pixels and rendered a 15-second
+  hook 7px wide at 320px. The format-aware craft layer is designed but NOT
+  built — see `docs/superpowers/specs/2026-09-14-long-form-video-design.md`
 - **The course, in two tracks** (`lessons.py`, `learn.py`, `LearnPage.jsx`) —
   19 lessons, free on every tier, each graded by the craft linter rather than by
   a Next button. **The Pen** (10) teaches the script page: format, action lines,

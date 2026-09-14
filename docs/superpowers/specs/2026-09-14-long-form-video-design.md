@@ -1,8 +1,10 @@
 # Long-form video as a fourth format — design
 
-**Status:** phases 1-2 implemented 2026-09-14 — the format exists and the
-page parses. Phases 3 (the retention instrument) and 4 (the craft layer)
-are NOT built and each needs its own plan.
+**Status:** phases 1-3 implemented 2026-09-14 — the format exists, the page
+parses, and the retention instrument is in the Outline. Phase 4 (the
+format-aware craft layer) is NOT built: it is last on purpose, because
+retrieval is at 90.0% real-query p@1 and a format filter shrinks the candidate
+pool, which can move that number in either direction with nothing to notice.
 
 ## The gap
 

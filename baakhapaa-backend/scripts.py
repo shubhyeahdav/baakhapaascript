@@ -745,6 +745,9 @@ def get_script(script_id: str, user_id: str = Depends(get_current_user)):
             "duration_seconds": project.get("duration_seconds"),
             "hook_type": project.get("hook_type"),
             "short_form_category": project.get("short_form_category"),
+            # Long-form reads its section spine from this, the same way
+            # short-form reads its beat sheet from the line above.
+            "video_category": project.get("video_category"),
         },
         # Pagination, so the editor can tell a writer where they are. Computed
         # with the same rule the PDF export lays out with, which is the only

@@ -1575,6 +1575,7 @@ export default function ScriptEditor() {
                 onMove={moveScene}
                 onAdd={addCustomScene}
                 adding={addingScene}
+                format={script?.project?.format || script?.format}
               />
             )}
             {view === "cast" && (
