@@ -17,6 +17,23 @@ def _project_payload(title="Second Project"):
     }
 
 
+def _fill(client, user, project_id, text="INT. SCENE - DAY"):
+    """Write something in a project, so it counts against the free allowance.
+
+    The limit counts projects the writer has WRITTEN IN, not rows (see
+    `projects._projects_with_content`). It used to count rows, which was fine
+    while every project came from a wizard demanding a title — and wrong the
+    moment quick capture existed, because three presses and no writing would
+    have spent a free writer's whole allowance on three blank pages.
+
+    So a test that wants to reach the limit has to produce work, not projects.
+    """
+    script = client.get(f"/scripts/project/{project_id}", headers=user["headers"]).json()
+    r = client.put(f"/scripts/{script['id']}", json={"content": text},
+                   headers=user["headers"])
+    assert r.status_code == 200, r.text
+
+
 def test_free_user_is_limited_to_the_free_allowance(client, make_user):
     """Reads the constant rather than a hardcoded count.
 
@@ -33,6 +50,7 @@ def test_free_user_is_limited_to_the_free_allowance(client, make_user):
         r = client.post("/projects/", json=_project_payload(f"Project {i}"),
                         headers=user["headers"])
         assert r.status_code == 200, r.text
+        _fill(client, user, r.json()["id"])
 
     over = client.post("/projects/", json=_project_payload("One too many"),
                        headers=user["headers"])

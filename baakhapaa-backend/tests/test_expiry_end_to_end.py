@@ -139,6 +139,11 @@ def test_the_free_project_limit_comes_back_when_a_plan_lapses(client, make_user)
     lapsed account is a free account — so the fourth project has to be refused
     with a 402, the same as any other free user's."""
     user = make_user("pro")
+    # The allowance counts projects the writer has WRITTEN IN, not rows — see
+    # `projects._projects_with_content`. It counted rows until quick capture
+    # existed, at which point three presses and no writing would have spent a
+    # free writer's whole allowance on three blank pages. So reaching the limit
+    # now means producing work.
     for i in range(3):
         made = client.post(
             "/projects/",
@@ -146,6 +151,9 @@ def test_the_free_project_limit_comes_back_when_a_plan_lapses(client, make_user)
             headers=user["headers"],
         )
         assert made.status_code == 200, made.text
+        _s = client.get(f"/scripts/project/{made.json()['id']}", headers=user["headers"]).json()
+        client.put(f"/scripts/{_s['id']}", json={"content": "INT. SCENE - DAY"},
+                   headers=user["headers"])
 
     _set_expiry(user["id"], -1)
 

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from models import ProjectCreate, MemberCreate, MemberRoleUpdate
-from database import supabase, purge_projects
+import json
+
+from database import supabase, purge_projects, get_user_by_id
 import invites
 import membership
 from auth import get_current_user, is_paid_tier, require_project_access
@@ -23,13 +25,43 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 FREE_PROJECT_LIMIT = 3
 
 
+# A scratch nobody has written in. Reused rather than duplicated, and not
+# counted against the free allowance.
+UNTITLED = "Untitled"
+
+
+def _projects_with_content(user_id: str) -> int:
+    """How many of this writer's projects have anything written in them.
+
+    The limit used to count rows. That was fine while every project came from
+    a wizard that demanded a title, and wrong the moment quick capture existed:
+    a writer who pressed "Start writing" three times and wrote nothing would
+    have spent their whole allowance on three blank pages.
+
+    This repository has made that exact mistake once already — the free plan was
+    one project, nothing called `DELETE /projects/{id}`, and a false start was
+    permanent. Counting work rather than rows is the version of the rule that
+    survives a capture button.
+    """
+    rows = supabase.table("projects").select("id").eq("user_id", user_id).execute()
+    ids = [r["id"] for r in (rows.data or [])]
+    if not ids:
+        return 0
+    scripts = supabase.table("scripts").select("project_id, content").execute()
+    written = {
+        sc["project_id"] for sc in (scripts.data or [])
+        if sc.get("project_id") in ids and (sc.get("content") or "").strip()
+    }
+    return len(written)
+
+
 def enforce_project_limit(user_id: str):
-    """Block a free user from creating more than FREE_PROJECT_LIMIT projects.
+    """Block a free user from creating more than FREE_PROJECT_LIMIT projects
+    THEY HAVE WRITTEN IN.
     402 rather than 403: the request is well-formed and the fix is to upgrade."""
     if is_paid_tier(user_id):
         return
-    existing = supabase.table("projects").select("*").eq("user_id", user_id).execute()
-    if len(existing.data or []) >= FREE_PROJECT_LIMIT:
+    if _projects_with_content(user_id) >= FREE_PROJECT_LIMIT:
         raise HTTPException(
             status_code=402,
             detail=(
@@ -37,6 +69,90 @@ def enforce_project_limit(user_id: str):
                 "Upgrade at /pricing to create more."
             ),
         )
+
+
+@router.post("/quick")
+def quick_capture(user_id: str = Depends(get_current_user)):
+    """Start writing, without answering anything.
+
+    Every route into the product went through the wizard, and `title` was
+    required — so a writer with a thought at eleven at night had to name it
+    before they could write it. The backend was never what stood in the way:
+    measured across the whole writing path it answers in 2 to 20ms. It was the
+    questions.
+
+    Nothing is asked. The writer's onboarding answers fill everything in, and
+    `ProjectSetup` is still there for whenever they want to change them.
+
+    **Pressing it twice returns the same scratch.** Without that, an indecisive
+    evening leaves a dashboard of empty projects — and the free limit would then
+    need a second limit to cap them. Reuse is what keeps the rule one number.
+    """
+    prefs = (get_user_by_id(user_id) or {}).get("preferences_json")
+    prefs = json.loads(prefs) if isinstance(prefs, str) and prefs else (prefs or {})
+
+    existing = _empty_scratch(user_id)
+    if existing:
+        return {"project": existing, "script": _script_for(existing["id"])}
+
+    enforce_project_limit(user_id)
+    defaults = ProjectCreate(
+        title=UNTITLED,
+        genre=prefs.get("genre") or "Drama",
+        tone=prefs.get("tone") or "Emotional",
+        language=prefs.get("language") or "English",
+        format=prefs.get("format") or "short",
+    )
+    project = supabase.table("projects").insert({
+        "user_id": user_id,
+        "title": defaults.title,
+        "genre": defaults.genre,
+        "tone": defaults.tone,
+        "language": defaults.language,
+        "duration_minutes": defaults.duration_minutes,
+        "target_audience": defaults.target_audience,
+        "format": defaults.format,
+        "episode_count": defaults.episode_count,
+        "duration_seconds": defaults.duration_seconds,
+        "hook_type": defaults.hook_type,
+        "short_form_category": defaults.short_form_category,
+        "status": "draft",
+    }).execute().data[0]
+    return {"project": project, "script": _script_for(project["id"])}
+
+
+def _empty_scratch(user_id: str):
+    """This writer's untitled, unwritten project, if they have one.
+
+    Looked up by user AND title. By title alone it would hand somebody else's
+    untitled project to whoever pressed the button next.
+    """
+    rows = supabase.table("projects").select("*").eq("user_id", user_id).execute()
+    candidates = [p for p in (rows.data or []) if (p.get("title") or "") == UNTITLED]
+    if not candidates:
+        return None
+    scripts = supabase.table("scripts").select("project_id, content").execute()
+    written = {
+        sc["project_id"] for sc in (scripts.data or [])
+        if (sc.get("content") or "").strip()
+    }
+    for p in candidates:
+        if p["id"] not in written:
+            return p
+    return None
+
+
+def _script_for(project_id: str):
+    """The project's script, created empty if it has none — the same
+    get-or-create `GET /scripts/project/{id}` does, so the editor opens either
+    way and quick capture costs one round trip instead of two."""
+    existing = supabase.table("scripts").select("*").eq(
+        "project_id", project_id).execute()
+    if existing.data:
+        return existing.data[0]
+    return supabase.table("scripts").insert({
+        "project_id": project_id, "content": "", "status": "draft",
+    }).execute().data[0]
 
 
 @router.post("/")

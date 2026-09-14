@@ -120,6 +120,11 @@ export const projects = {
   getAll: () => instance.get("/projects/"),
   getById: (id) => instance.get(`/projects/${id}`),
   create: (data) => instance.post("/projects/", data),
+  // Start writing without answering anything. Returns { project, script } in
+  // one round trip, and returns the SAME pair on a second press while nothing
+  // has been written — so an indecisive evening does not leave a dashboard of
+  // empty projects.
+  quick: () => instance.post("/projects/quick"),
   delete: (id) => instance.delete(`/projects/${id}`),
   // FR12 roles. Per project, not global: a person is usually a writer on their
   // own work and a reader on someone else's, which one global role cannot say.

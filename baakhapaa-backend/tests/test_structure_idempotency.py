@@ -86,9 +86,17 @@ def test_a_project_at_the_free_allowance_can_still_be_opened(client, make_user):
     user = make_user("free")
     project_id = client.post("/projects/", json=PROJECT,
                              headers=user["headers"]).json()["id"]
-    for i in range(projects.FREE_PROJECT_LIMIT - 1):
-        client.post("/projects/", json={**PROJECT, "title": f"Filler {i}"},
-                    headers=user["headers"])
+    # The allowance counts projects the writer has WRITTEN IN, not rows — see
+    # `projects._projects_with_content`. It counted rows until quick capture
+    # existed, at which point three presses and no writing would have spent a
+    # free writer's whole allowance on three blank pages. So reaching the limit
+    # now means producing work.
+    for i in range(projects.FREE_PROJECT_LIMIT):
+        made = client.post("/projects/", json={**PROJECT, "title": f"Filler {i}"},
+                           headers=user["headers"])
+        _s = client.get(f"/scripts/project/{made.json()['id']}", headers=user["headers"]).json()
+        client.put(f"/scripts/{_s['id']}", json={"content": "INT. SCENE - DAY"},
+                   headers=user["headers"])
 
     # The allowance is now spent.
     assert client.post("/projects/", json=PROJECT,

@@ -135,6 +135,7 @@ export default function Dashboard() {
   const [opening, setOpening] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [confirming, setConfirming] = useState(null);
+  const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState("");
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -146,6 +147,30 @@ export default function Dashboard() {
       .catch(() => setList([]))
       .finally(() => setLoading(false));
   }, []);
+
+  /* Start writing, without answering anything.
+
+     The route returns { project, script } in one call and hands back the SAME
+     pair while nothing has been written, so pressing this twice does not leave
+     two empty projects. The editor takes a SCRIPT id — the `/projects/` in the
+     path is historical — so the script's id is what gets navigated to. */
+  const startWriting = async () => {
+    setCapturing(true);
+    setError("");
+    try {
+      const res = await projects.quick();
+      navigate(`/projects/${res.data.script.id}/editor`);
+    } catch (err) {
+      // A free writer at their allowance gets a 402 here, and it is a real
+      // answer rather than a failure — so it says what it is instead of
+      // "something went wrong".
+      setError(
+        err.response?.data?.detail
+        || "Could not start a new draft. Check your connection and try again.",
+      );
+      setCapturing(false);
+    }
+  };
 
   const open = async (projectId) => {
     if (opening) return;
@@ -213,10 +238,29 @@ export default function Dashboard() {
               Welcome back, {user?.name?.split(" ")[0] || "filmmaker"}
             </h1>
           </div>
-          <button onClick={() => navigate("/projects/new")} className="btn-gold flex items-center gap-2">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-            New Project
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Straight to the page. Every route into the product went through
+                the wizard and `title` was required, so a writer with a thought
+                at eleven at night had to name it before they could write it.
+                The backend was never what stood in the way — measured across
+                the whole writing path it answers in 2 to 20ms. It was the
+                questions.
+
+                Secondary styling on purpose: the wizard is still the right
+                door when you know what you are making. This one is for when
+                you do not yet. */}
+            <button
+              onClick={startWriting}
+              disabled={capturing}
+              className="tap text-sm px-3.5 py-2 rounded-lg border border-border text-inkSoft hover:text-gold hover:border-gold/40 transition-colors disabled:opacity-50"
+            >
+              {capturing ? "Opening…" : "Start writing"}
+            </button>
+            <button onClick={() => navigate("/projects/new")} className="btn-gold flex items-center gap-2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              New Project
+            </button>
+          </div>
         </div>
 
         {loading ? (

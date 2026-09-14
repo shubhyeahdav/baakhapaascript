@@ -835,6 +835,58 @@ def _should_snapshot(script: dict, new_content: str) -> bool:
     return _age_seconds(latest.get("created_at")) >= AUTOSAVE_SNAPSHOT_WINDOW_SECONDS
 
 
+def _name_an_untitled_project(script: dict, content: str) -> None:
+    """Give a scratch project the name its first line already suggests.
+
+    The other half of asking nothing at capture time: a writer never names
+    anything, and it ends up named anyway.
+
+    Two rules make this safe, and both matter more than the feature:
+
+      * Only a project still called `Untitled` is touched. Renaming a project
+        somebody named is destroying their work, silently, on every save.
+      * Once derived, it is never re-derived — the title stops being `Untitled`
+        on the first save, so rewriting the opening scene later cannot rename
+        the project underneath the writer.
+
+    Falls back from the first slugline to the first line of prose, because a
+    long-form video script has no sluglines at all and a writer typing prose
+    should still end up with a name.
+    """
+    from projects import UNTITLED
+
+    if not (content or "").strip():
+        # Selecting all and deleting is a thing writers do. It must not take
+        # the project's name with it.
+        return
+
+    project = get_project_by_id(script.get("project_id"))
+    if not project or (project.get("title") or "") != UNTITLED:
+        return
+
+    title = _derived_title(content)
+    if not title:
+        return
+    supabase.table("projects").update({"title": title}).eq(
+        "id", project["id"]).execute()
+
+
+def _derived_title(content: str) -> str:
+    """The first slugline, or failing that the first non-empty line.
+
+    Trimmed to 200 characters because `ProjectCreate` caps titles there — a
+    derived title longer than a client is allowed to send is the kind of
+    asymmetry that becomes a 500 the first time somebody edits it by hand.
+    """
+    lines = [ln.strip() for ln in (content or "").splitlines() if ln.strip()]
+    if not lines:
+        return ""
+    for line in lines:
+        if screenplay.SCENE_HEADING_RE.match(line):
+            return line[:200]
+    return lines[0][:200]
+
+
 @router.put("/{script_id}")
 def save_script(script_id: str, data: ScriptSave, user_id: str = Depends(get_current_user)):
     script = require_script_access(script_id, user_id)
@@ -851,6 +903,7 @@ def save_script(script_id: str, data: ScriptSave, user_id: str = Depends(get_cur
     # these rows while its jump-to-scene counts sluglines in the text, so left to
     # drift, clicking card 3 lands you in scene 4. Returned with the save so the
     # editor can refresh the cards without a second round trip.
+    _name_an_untitled_project(script, data.content or "")
     scenes = scene_sync.sync_from_draft(script_id, data.content or "")
     return {
         **result.data[0],
