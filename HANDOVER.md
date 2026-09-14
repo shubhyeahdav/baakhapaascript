@@ -242,7 +242,18 @@ Carried forward, still true, plus what this session added.
    INDEX` is not idempotent and its failure reads like a data problem. A fresh
    Supabase project still needs all four.
 3. **The mock DB is schemaless.** Flat JSON rows, so it accepts columns Postgres
-   would reject. Three schema-drift bugs so far.
+   would reject. **Five schema-drift bugs so far, two of them on 2026-09-14.**
+   `applies_to` was added to the `script_patterns` insert without a column, and
+   `video_category` to the `projects` insert without a column — and the second
+   one **broke project creation for every format**, because Postgres rejects
+   the WHOLE ROW for an unknown column rather than dropping the field. 996
+   tests passed throughout.
+   Both now have a guard that reads the column names out of the CODE rather
+   than a hand-maintained list: `tests/test_project_columns.py` and
+   `tests/test_pattern_schema.py`. If you add a field to an insert, the test
+   tells you before the database does.
+   **Two migrations are outstanding** and both are run by hand in the SQL
+   editor — see §5.
 4. **Restart the backend after editing it.**
 5. **CSS cannot be tested.** `vite.config.js` sets `css: false`, so every
    breakpoint is verified in a browser or not at all. Four of the five faults
@@ -268,6 +279,18 @@ Carried forward, still true, plus what this session added.
    ./venv/Scripts/python purge_test_accounts.py          # lists them
    ./venv/Scripts/python purge_test_accounts.py --delete # removes them
    ```
+
+1b. **Run the two outstanding migrations**, or the product is broken and the
+   video craft library is absent:
+
+   ```sql
+   ALTER TABLE projects ADD COLUMN IF NOT EXISTS video_category TEXT DEFAULT 'essay';
+   ALTER TABLE script_patterns ADD COLUMN IF NOT EXISTS applies_to text[];
+   ```
+
+   Then `./venv/Scripts/python load_knowledge_base.py` to load the six video
+   craft entries, and **restart the backend** — a stale process caused three
+   separate false alarms on 2026-09-14 on its own.
 
 2. **Open a PR.** The branch is pushed (`fix/craft-and-patterns-ux`, 31 commits
    ahead of `codebase`) but CI watches `push` on `codebase`/`main` plus
