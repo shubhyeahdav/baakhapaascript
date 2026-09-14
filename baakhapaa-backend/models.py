@@ -96,7 +96,26 @@ class UserResponse(BaseModel):
 # which beat grammar guidance follows, experience sets how much craft help is
 # shown, and the rest prefill new projects so the wizard is mostly pre-answered.
 EXPERIENCE_LEVELS = ("first_time", "some", "experienced")
-FORMATS = ("short", "web_series", "film")
+# What is being written. This drives beat grammar and how duration is read:
+# for a series `duration_minutes` is ONE episode, not the whole season.
+#
+# `short` is a short FILM (minutes). `short_form` is vertical social video
+# (seconds) — a genuinely different craft with its own beat spine, not a very
+# short film. Keeping them as one format would force 15-second content through
+# a three-act split, which is the fastest way to make the tool useless for it.
+PROJECT_FORMATS = ("short_form", "short", "film", "web_series")
+
+# Onboarding asks the same question a project answers, so it offers the same
+# list. These were two different tuples, and the drift was invisible because
+# each was individually valid and had its own validator: a project could be
+# `short_form`, and onboarding could not say so. A creator making vertical
+# video had to answer untruthfully — and `NewProject.jsx` reads this answer to
+# pick the default format for every project they create afterwards, so one
+# un-answerable question mis-set the wizard for good.
+#
+# An alias rather than a copy, because a copy is what broke. Pinned by
+# `tests/test_format_lists_agree.py`.
+FORMATS = PROJECT_FORMATS
 LANGUAGES = ("English", "Nepali", "Bilingual")
 
 
@@ -129,14 +148,6 @@ class UserPreferences(BaseModel):
             raise ValueError(f"language must be one of {LANGUAGES}")
         return v
 
-# What is being written. This drives beat grammar and how duration is read:
-# for a series `duration_minutes` is ONE episode, not the whole season.
-#
-# `short` is a short FILM (minutes). `short_form` is vertical social video
-# (seconds) — a genuinely different craft with its own beat spine, not a very
-# short film. Keeping them as one format would force 15-second content through
-# a three-act split, which is the fastest way to make the tool useless for it.
-PROJECT_FORMATS = ("short_form", "short", "film", "web_series")
 
 # Formats measured in seconds rather than minutes.
 SECOND_SCALE_FORMATS = ("short_form",)

@@ -36,7 +36,7 @@ import ThePen from "../components/ThePen";
  *   language   → the default for dialogue and export
  *   genre/tone → prefills the new-project wizard
  */
-const STEPS = [
+export const STEPS = [
   {
     key: "experience",
     says: "Before the blank page — four questions, then I'll show you one thing.",
@@ -54,6 +54,12 @@ const STEPS = [
     title: "What are you making?",
     hint: "Each format has its own beat structure, so this changes the guidance.",
     options: [
+      // Vertical social video was missing here while a project could already be
+      // `short_form`, so a creator making reels had to answer untruthfully —
+      // and `NewProject` reads this answer to default the format of every
+      // project they create afterwards. `models.FORMATS` is now an alias of
+      // `PROJECT_FORMATS` for the same reason: one list, not two that drift.
+      { value: "short_form", label: "Short-form video", detail: "Reel or vertical, 15 to 90 seconds — its own beat spine, not a tiny film" },
       { value: "short", label: "Short film", detail: "5 to 20 minutes, one clear turn" },
       { value: "web_series", label: "Web series episode", detail: "Needs an ending that pulls to the next episode" },
       { value: "film", label: "Feature film", detail: "Three acts, longer arcs" },

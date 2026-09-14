@@ -14,7 +14,7 @@ const TONES = ["Emotional", "Dark", "Lighthearted", "Tense", "Inspirational",
                "Melancholic", "Satirical", "Warm", "Bittersweet", "Absurd"];
 const AUDIENCES = ["Youth", "General", "Mature", "Children", "Family", "Festival"];
 
-const FORMATS = [
+export const FORMATS = [
   // Short-form is measured in SECONDS and has its own beat spine — it is not
   // a very short film, and running it through a three-act split would produce
   // advice about act breaks for a 30-second video.
@@ -75,7 +75,15 @@ export default function NewProject() {
   const { user } = useAuth();
   const prefs = user?.preferences;
 
-  const initialFormat = FORMATS.find((f) => f.key === prefs?.format) || FORMATS[0];
+  // `FORMATS[0]` is short_form, so a user with no preferences used to land on
+  // vertical video — while `models.UserPreferences.format` defaults to "short".
+  // Two answers to "what do you make by default" is one too many, and the one
+  // the server believes should win.
+  const DEFAULT_FORMAT = "short";  // mirrors models.UserPreferences.format
+  const initialFormat =
+    FORMATS.find((f) => f.key === prefs?.format)
+    || FORMATS.find((f) => f.key === DEFAULT_FORMAT)
+    || FORMATS[0];
 
   // Onboarding already asked these. Asking again is the kind of friction that
   // makes a wizard feel long, so the answers arrive pre-filled and editable.

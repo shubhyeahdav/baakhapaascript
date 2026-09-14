@@ -33,7 +33,9 @@ vi.mock("../context/AuthContext", () => ({
 }));
 
 // eslint-disable-next-line import/first
-import Onboarding from "./Onboarding";
+import Onboarding, { STEPS } from "./Onboarding";
+// The real list, not a copy — a copy is what drifted.
+import { FORMATS } from "./NewProject";
 // eslint-disable-next-line import/first
 import { auth, learn } from "../services/api";
 
@@ -382,5 +384,42 @@ describe("the first lesson, taught by the Pen", () => {
 
     const text = document.body.textContent;
     expect(text).not.toMatch(/streak|hearts?\b|\bXP\b|\d+\s*points/i);
+  });
+});
+
+describe("what a creator can say they make", () => {
+  /* Onboarding offered short / web_series / film while a project could also be
+     `short_form`. So a creator making vertical video was asked "What are you
+     making?" and had to pick something untrue.
+
+     And it did not stop at one wrong answer: `NewProject.jsx` reads
+     `prefs.format` to pick the default format for EVERY project they create
+     afterwards, so one un-answerable question mis-set the wizard for good.
+
+     Asserted against NewProject's own FORMATS rather than a hand-typed list,
+     because a hand-typed list is exactly what drifted. */
+  it("offers every format a project can actually be", () => {
+    /* Compared on the format KEY, not the label. The two screens word things
+       differently on purpose — "Short film" here against "Short Film" in the
+       wizard — and asserting the copy would break on a rewording while missing
+       the thing that actually matters. */
+    const step = STEPS.find((s) => s.key === "format");
+    const offered = step.options.map((o) => o.value);
+
+    expect(offered.slice().sort()).toEqual(FORMATS.map((f) => f.key).sort());
+  });
+
+  it("renders those options for a writer to press", () => {
+    // The list above being right is worth nothing if the step does not draw it.
+    render(<Onboarding />);
+    fireEvent.click(screen.getByText("This is my first"));
+
+    const step = STEPS.find((s) => s.key === "format");
+    for (const option of step.options) {
+      expect(
+        screen.getByText(option.label),
+        `the ${option.value} option is in the data but not on the screen`,
+      ).toBeInTheDocument();
+    }
   });
 });
