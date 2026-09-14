@@ -278,6 +278,22 @@ machine). Then:
   (`eval_retrieval.py`, gated in CI at 0.85). Note that the headline was "88%"
   for a while on a golden set with five Nepali queries in twenty-five; widening
   it to forty put the honest figure at 71.8% before any of this landed
+- **Long-form video is a fourth format** (`long_form`, `videoscript.py`) —
+  8-25 minute YouTube content written section-first. `short_form` is capped at
+  180 seconds and everything else is a screenplay measured in pages, so a
+  twelve-minute video essay previously had to be forced through a three-act
+  split or stored as a lie about its length. Sections are delimited in the
+  DOCUMENT (`## HOOK - 0:15`) the way sluglines delimit scenes — structure held
+  beside the text cannot survive export, cannot be diffed, and drifts on the
+  first edit. `scene_sync.parser_for` switches on the project's format, so
+  Outline, Corkboard, versions, comments, sharing and review all work untouched;
+  a section is stored as a `scenes` row with its video fields in `draft_json`.
+  **A section is not a scene** — `act_number`, `time_allocation` and INT/EXT are
+  left null rather than repurposed. Runtime is words over a speaking rate
+  (`SPEAKING_WPM_EN` / `SPEAKING_WPM_NE`), not pages; **the Nepali rate is not
+  measured** and is a pilot question. The retention instrument and the
+  format-aware craft layer are designed but NOT built — see
+  `docs/superpowers/specs/2026-09-14-long-form-video-design.md`
 - **The course, in two tracks** (`lessons.py`, `learn.py`, `LearnPage.jsx`) —
   19 lessons, free on every tier, each graded by the craft linter rather than by
   a Next button. **The Pen** (10) teaches the script page: format, action lines,

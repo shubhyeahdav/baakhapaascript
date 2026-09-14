@@ -103,7 +103,12 @@ EXPERIENCE_LEVELS = ("first_time", "some", "experienced")
 # (seconds) — a genuinely different craft with its own beat spine, not a very
 # short film. Keeping them as one format would force 15-second content through
 # a three-act split, which is the fastest way to make the tool useless for it.
-PROJECT_FORMATS = ("short_form", "short", "film", "web_series")
+# `long_form` is 8-25 minute YouTube content — video essay, tutorial,
+# documentary, commentary, vlog. Minutes like a film, because twelve minutes in
+# seconds is 720 and past MAX_DURATION_SECONDS. But NOT a screenplay: it is
+# narration read aloud in sections, so its runtime comes from words at a
+# speaking rate rather than from pages. See `videoscript.py`.
+PROJECT_FORMATS = ("short_form", "long_form", "short", "film", "web_series")
 
 # Onboarding asks the same question a project answers, so it offers the same
 # list. These were two different tuples, and the drift was invisible because
@@ -167,6 +172,10 @@ HOOK_TYPES = (
 # Category shapes the middle and the ending, per the structure playbook.
 SHORT_FORM_CATEGORIES = ("educational", "storytime", "transformation", "comedy_skit")
 
+# What kind of long-form video, which shapes the section spine the way
+# SHORT_FORM_CATEGORIES shapes the short-form one.
+VIDEO_CATEGORIES = ("essay", "tutorial", "documentary", "commentary", "vlog")
+
 MIN_DURATION_SECONDS = 5
 MAX_DURATION_SECONDS = 180
 
@@ -211,6 +220,10 @@ class ProjectBase(BaseModel):
     duration_seconds: int = 45
     hook_type: str = "relatable_pain"
     short_form_category: str = "storytime"
+    # Long-form only. Ignored by every other format, kept unconditional so
+    # switching format back and forth in the wizard does not silently lose the
+    # answer — the same reason episode_count and duration_seconds are.
+    video_category: str = "essay"
 
     @field_validator("format")
     @classmethod
@@ -233,6 +246,13 @@ class ProjectBase(BaseModel):
     def _hook(cls, v):
         if v not in HOOK_TYPES:
             raise ValueError(f"hook_type must be one of {HOOK_TYPES}")
+        return v
+
+    @field_validator("video_category")
+    @classmethod
+    def _video_category(cls, v):
+        if v not in VIDEO_CATEGORIES:
+            raise ValueError(f"video_category must be one of {VIDEO_CATEGORIES}")
         return v
 
     @field_validator("short_form_category")

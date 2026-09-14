@@ -19,6 +19,11 @@ export const FORMATS = [
   // a very short film, and running it through a three-act split would produce
   // advice about act breaks for a 30-second video.
   { key: "short_form", label: "Short-form", blurb: "Reel / vertical, 15–90s", typical: 45, max: 180, unit: "s" },
+  // Minutes, like a film, and NOT a screenplay: it is narration read aloud in
+  // sections, so its runtime comes from words at a speaking rate rather than
+  // from pages. Grouping it with short_form because both are "social video"
+  // would cap a twelve-minute script at 180 seconds.
+  { key: "long_form", label: "Long-form Video", blurb: "YouTube, 8–25 min", typical: 12, max: 60, unit: "min" },
   { key: "short", label: "Short Film", blurb: "One sitting, one idea", typical: 12, max: 40, unit: "min" },
   { key: "film", label: "Feature Film", blurb: "Full-length, three acts", typical: 100, max: 600, unit: "min" },
   { key: "web_series", label: "Web Series", blurb: "Episodes with a through-line", typical: 22, max: 120, unit: "min" },

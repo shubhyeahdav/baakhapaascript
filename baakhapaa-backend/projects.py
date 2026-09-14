@@ -173,6 +173,7 @@ def create_project(project: ProjectCreate, user_id: str = Depends(get_current_us
         "duration_seconds": project.duration_seconds,
         "hook_type": project.hook_type,
         "short_form_category": project.short_form_category,
+        "video_category": project.video_category,
         "status": "draft",
     }).execute()
     return result.data[0]
@@ -218,7 +219,7 @@ def get_project(project_id: str, user_id: str = Depends(get_current_user)):
 PROJECT_UPDATE_FIELDS = {
     "title", "genre", "tone", "language", "duration_minutes", "status",
     "target_audience", "format", "episode_count",
-    "duration_seconds", "hook_type", "short_form_category",
+    "duration_seconds", "hook_type", "short_form_category", "video_category",
 }
 
 

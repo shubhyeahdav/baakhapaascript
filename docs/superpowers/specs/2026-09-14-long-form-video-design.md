@@ -1,6 +1,8 @@
 # Long-form video as a fourth format — design
 
-**Status:** approved in chat 2026-09-14, not yet implemented.
+**Status:** phases 1-2 implemented 2026-09-14 — the format exists and the
+page parses. Phases 3 (the retention instrument) and 4 (the craft layer)
+are NOT built and each needs its own plan.
 
 ## The gap
 

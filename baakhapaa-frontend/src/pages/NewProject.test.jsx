@@ -29,7 +29,7 @@ vi.mock("../services/api", () => ({
 // eslint-disable-next-line import/first
 import { projects, scripts } from "../services/api";
 // eslint-disable-next-line import/first
-import NewProject from "./NewProject";
+import NewProject, { FORMATS } from "./NewProject";
 
 beforeEach(() => {
   mockNavigate = vi.fn();
@@ -130,5 +130,37 @@ describe("the wizard does not write the script for you", () => {
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalled());
     expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining("structure_failed"));
+  });
+});
+
+describe("long-form video", () => {
+  /* short_form is capped at 180 seconds and everything else is a screenplay
+     measured in pages. A twelve-minute YouTube piece had no honest home: a
+     writer had to force it through a three-act split or store it as a lie
+     about its length. */
+
+  it("is offered as a format", () => {
+    const fmt = FORMATS.find((f) => f.key === "long_form");
+
+    expect(fmt).toBeTruthy();
+    expect(fmt.label).toMatch(/long-form/i);
+  });
+
+  it("is measured in minutes, not seconds", () => {
+    // The bug this prevents: grouping it with short_form because both are
+    // "social video" would cap a twelve-minute script at 180 seconds.
+    const fmt = FORMATS.find((f) => f.key === "long_form");
+
+    expect(fmt.unit).toBe("min");
+    expect(fmt.max).toBeGreaterThanOrEqual(25);
+  });
+
+  it("is not treated as a screenplay length either", () => {
+    // A feature runs to 600 minutes. A YouTube video does not, and a ceiling
+    // that says otherwise makes the duration control useless for it.
+    const long = FORMATS.find((f) => f.key === "long_form");
+    const film = FORMATS.find((f) => f.key === "film");
+
+    expect(long.max).toBeLessThan(film.max);
   });
 });

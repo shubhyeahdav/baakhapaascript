@@ -60,6 +60,7 @@ export const STEPS = [
       // project they create afterwards. `models.FORMATS` is now an alias of
       // `PROJECT_FORMATS` for the same reason: one list, not two that drift.
       { value: "short_form", label: "Short-form video", detail: "Reel or vertical, 15 to 90 seconds — its own beat spine, not a tiny film" },
+      { value: "long_form", label: "Long-form video", detail: "YouTube, 8 to 25 minutes — sections and narration, not scenes" },
       { value: "short", label: "Short film", detail: "5 to 20 minutes, one clear turn" },
       { value: "web_series", label: "Web series episode", detail: "Needs an ending that pulls to the next episode" },
       { value: "film", label: "Feature film", detail: "Three acts, longer arcs" },

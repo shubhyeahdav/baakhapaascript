@@ -31,6 +31,23 @@ from typing import List
 import screenplay
 
 
+import videoscript
+
+# Which parser reads the draft. `screenplay` is the fallback for anything
+# unrecognised, deliberately: a typo in a stored format must not empty
+# somebody's scene index, and every row that exists today was written by it.
+_PARSERS = {"long_form": videoscript}
+
+
+def parser_for(project_format):
+    """The module that turns this project's draft into summaries.
+
+    Both expose `scene_summaries(text) -> list[dict]` with the same keys, which
+    is what lets one sync function serve both formats with no special case.
+    """
+    return _PARSERS.get(project_format or "", screenplay)
+
+
 def _draft_payload(summary: dict) -> dict:
     """The fields sync owns, as one JSON blob.
 
@@ -38,7 +55,7 @@ def _draft_payload(summary: dict) -> dict:
     growing set of derived fields lives in one nullable TEXT column instead of
     costing a migration each.
     """
-    return {
+    payload = {
         "heading": summary["heading"],
         "time_of_day": summary["time_of_day"],
         "interior": summary["interior"],
@@ -57,6 +74,14 @@ def _draft_payload(summary: dict) -> dict:
         # export prints and the editor's gutter shows.
         "page": summary["page"],
     }
+    # Video-only keys, added ONLY when the summary carries them. An
+    # unconditional extra key would silently change what is stored in
+    # draft_json for every existing screenplay on its next save, and nothing
+    # would report it.
+    if "section_kind" in summary:
+        payload["section_kind"] = summary["section_kind"]
+        payload["target_seconds"] = summary["target_seconds"]
+    return payload
 
 
 def read_draft(scene_row: dict) -> dict:
@@ -133,6 +158,23 @@ def _match_rows(summaries: List[dict], rows: List[dict]) -> List[tuple]:
     return [(s, row) for s, row in pairs]
 
 
+def _format_of(script_id: str):
+    """The project's format, or None when it cannot be determined.
+
+    None falls back to the screenplay parser, which is the safe direction: a
+    lookup that fails must not empty a writer's scene index.
+    """
+    try:
+        from database import supabase, get_project_by_id
+        row = supabase.table("scripts").select("project_id").eq(
+            "id", script_id).execute()
+        if not row.data:
+            return None
+        return (get_project_by_id(row.data[0]["project_id"]) or {}).get("format")
+    except Exception:
+        return None
+
+
 def sync_from_draft(script_id: str, content: str) -> List[dict]:
     """Fold the draft's scenes onto the script's rows; return them in document
     order.
@@ -148,7 +190,10 @@ def sync_from_draft(script_id: str, content: str) -> List[dict]:
     from database import supabase, get_scenes_by_script
 
     rows = get_scenes_by_script(script_id)
-    summaries = screenplay.scene_summaries(content or "")
+    # Which parser depends on what is being written. A long-form video script
+    # has no sluglines, so the screenplay parser returns nothing for it and the
+    # Outline, Corkboard and scene index would all be empty for ever.
+    summaries = parser_for(_format_of(script_id)).scene_summaries(content or "")
     if not summaries:
         # Nothing written yet. The structure-added rows are all there is, and
         # they are still the right answer for a storyboard.
