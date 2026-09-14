@@ -98,6 +98,9 @@ CREATE TABLE IF NOT EXISTS projects (
   duration_seconds INTEGER DEFAULT 45,
   hook_type TEXT DEFAULT 'relatable_pain',
   short_form_category TEXT DEFAULT 'storytime',
+  -- Long-form video only. Shapes the section spine the way
+  -- short_form_category shapes the short-form beat sheet.
+  video_category TEXT DEFAULT 'essay',
   status TEXT DEFAULT 'draft',
   created_at TIMESTAMP DEFAULT NOW()
 );
@@ -393,6 +396,16 @@ ALTER TABLE projects ADD COLUMN IF NOT EXISTS episode_count INTEGER DEFAULT 1;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS duration_seconds INTEGER DEFAULT 45;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS hook_type TEXT DEFAULT 'relatable_pain';
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS short_form_category TEXT DEFAULT 'storytime';
+
+-- Migration, 2026-09-14. Long-form video added `video_category`, and WITHOUT
+-- THIS COLUMN PROJECT CREATION FAILS ENTIRELY: Postgres rejects the whole row
+-- for an unknown column, so the wizard returns "Could not create the project"
+-- for every format, not only for video.
+--
+-- The local mock database is schemaless and accepts any column, which is why
+-- 993 passing tests said nothing. See `tests/test_project_columns.py`, which
+-- now compares this file against what projects.py actually writes.
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS video_category TEXT DEFAULT 'essay';
 ALTER TABLE scripts ADD COLUMN IF NOT EXISTS bible_json TEXT;
 ALTER TABLE scripts ADD COLUMN IF NOT EXISTS suggestions_json TEXT;
 ALTER TABLE scripts ADD COLUMN IF NOT EXISTS finalized_at TIMESTAMP;
