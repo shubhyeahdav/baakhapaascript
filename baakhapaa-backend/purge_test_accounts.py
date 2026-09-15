@@ -25,7 +25,13 @@ import sys
 # The generators used by scripts/responsive-audit.mjs, editor-load-race.mjs and
 # the various one-off probes. Anchored, and `@example.com` only.
 THROWAWAY = re.compile(
-    r"^(?:probe-\d+|local-deploy|ui-check|audit-\d+|[msp]-\d+)@example\.com$"
+    # `deploy-check-\d+` and `smoke-[hex]` joined the list when the Railway
+    # deploy was verified against production on 2026-09-15: checking that a
+    # deployed API can register, log in, save a draft and reconcile scenes
+    # means registering, logging in, saving a draft and reconciling scenes, and
+    # the only honest place to do that is the database the deploy actually uses.
+    r"^(?:probe-\d+|local-deploy|ui-check|audit-\d+|deploy-check-\d+"
+    r"|smoke-[0-9a-f]+|[msp]-\d+)@example\.com$"
 )
 
 
