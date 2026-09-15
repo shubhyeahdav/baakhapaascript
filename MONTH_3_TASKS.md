@@ -83,6 +83,62 @@ Blocked, and not by anything that can be coded around:
   pgvector migration, measuring retrieval latency against Postgres, moving
   storyboard images into Storage, and taking a real payment.
 
+### What 2026-09-15 found
+
+- **It is deployed.** `https://baakhapaascript.vercel.app` against
+  `https://akchhyarup.up.railway.app`, on real Supabase. Ten calls verified with
+  the browser's real `Origin` — register through review, all 200, scene sync
+  reconciling a Devanagari draft in production Postgres, and the live login form
+  returning the server's own 401, which is the assertion that matters because a
+  CORS or API-URL fault never reaches a 401.
+- **The deploy cost nothing at the hosts and three hours at the env vars.** All
+  three failures let the service boot cleanly and then behave wrongly, with
+  nothing warning anyone: `KEY=VALUE` pasted into a value box, so the allowlist
+  held a literal `CORS_ORIGINS=https://...`; an origin with a trailing slash AND
+  a missing `//`, wrong both ways at once, across two redeploys; and
+  `VITE_API_URL` needing a cache-free rebuild, because Vite inlines it at build
+  time — so the live bundle kept calling `http://localhost:8000` while the
+  backend was perfectly healthy. `DEPLOYMENT.md` names all three and gives the
+  two outside-in checks that catch them.
+- **Every form label in the product was at 2.60:1**, against a WCAG AA floor of
+  4.5. `.field-label` was `#57544B` on `#0B0B0A` — less than half the contrast a
+  sighted user is entitled to, on the line that says which field you are typing
+  into. Sign-up, project setup, settings, the story bible, all of it.
+- **`inkMuted` passed on the background it was chosen against and failed on the
+  two surfaces it is mostly painted on.** `#7E7A6F` measures 4.59:1 on `bg` and
+  4.33 / 4.15 on `surface` / `elevated` — the card grounds carrying most of the
+  product's secondary text, across 308 usages. Confirmed twice, once by reading
+  the palette as text and once by measuring the live DOM, which agreed to the
+  second decimal.
+- **A dismiss control was the least visible thing in its own component.**
+  `MilestoneNote`'s x is a text glyph at `text-[#6B665C]/60` over `#FAF9F6`
+  paper: 2.45:1. The opacity modifier is what did it, and that is invisible in
+  review — the colour it is written as passes, the colour it paints does not.
+- **Why none of this was caught: no test in this repo can see a colour.**
+  `vite.config.js` sets `css: false`, so jsdom never evaluates a stylesheet and
+  every assertion about appearance is an assertion about class NAMES.
+  `scripts/contrast-check.mjs` now reads the palette as text and does the WCAG
+  arithmetic — the same trick `tests/test_pattern_schema.py` uses on the SQL —
+  and runs in CI beside `page-layout-check.mjs`, needing no browser and no
+  server. It carries one printed exemption, with its reason.
+- **The authenticated half was audited too, against a demo backend on a
+  throwaway database** — dashboard, settings, learn, new-project, storyboards,
+  exports, onboarding, and the editor. Four more, all fixed: the course's answer
+  box had no label (a placeholder is announced only while the field is empty,
+  and this is the one field a lesson is graded on); both duration sliders
+  announced as "slider, 12" with no statement of what they set; the Settings
+  Upgrade pill measured 69x23, one pixel under the 24px target floor; and two
+  pages jumped h1 to h3.
+- **Two findings were mine, not the product's, and are worth writing down
+  because the next audit will hit them again.** An accessible name comes from
+  `textContent`, not `innerText` — `innerText` returns empty for an element far
+  below the fold in a headless renderer, which made three perfectly well-labelled
+  buttons look nameless. And contrast has to be measured against the PAINTED
+  background, not the ancestor chain: `PenPrompt` sits over the screenplay page
+  with a z-index without being inside it, so walking parents finds the dark
+  chrome and reports the paper theme at 1.64:1 when it is really 11.41:1 on
+  white. `document.elementsFromPoint` answers correctly; `closest()` does not.
+
 ---
 
 ## Week 1 — Make it real
@@ -94,7 +150,7 @@ Blocked, and not by anything that can be coded around:
 - [x] Back up `baakhapaa_local.db`, then delete it — *copied to `C:/Users/User/baakhapaa_local.db.2026-09-11.bak` and verified readable (188 rows) before deleting. It was last written 7 September and had not been the store since the Supabase keys landed, so every hour it stayed was an hour somebody could mistake it for one*
 - [x] Run `supabase_schema.sql` in the SQL editor
 - [x] Check for duplicate email addresses differing only in case, before migrating — *none. 24 accounts, 24 distinct addresses once normalised, and every one already lowercase — so the migration that was flagged as the only one able to fail on real data is safe here*
-- [ ] Run the email normalisation migration; merge or delete duplicates if it fails
+- [x] Run the email normalisation migration; merge or delete duplicates if it fails — *applied with the rest of the schema; the duplicate check above had already shown there was nothing for it to collide with*
 - [x] Run the Google sign-in column migration
 - [x] Run the `subscription_expires_at` / `renewal_notices_json` migration
 - [x] Run the `project_invites` migration
@@ -122,16 +178,16 @@ Blocked, and not by anything that can be coded around:
 
 ### Day 3 · Deploy
 
-- [ ] Deploy the backend to Railway, root `baakhapaa-backend`
-- [ ] Set `APP_ENV=production`, a fresh `JWT_SECRET`, `CORS_ORIGINS`, `DEMO_SEED=false`
-- [ ] Set `REQUIRE_SHIPPABLE_FONT=true` and confirm the boot survives it
-- [ ] Confirm `--proxy-headers` is active; without it every user shares one rate-limit bucket
-- [ ] Deploy the frontend to Vercel, root `baakhapaa-frontend`
-- [ ] Set `VITE_API_URL` to the Railway address
-- [ ] Confirm the SPA rewrite works: hard-refresh `/dashboard` and check it is not a 404
-- [ ] Register an account on the deployed site from a phone
-- [ ] Check the security headers are present on the deployed frontend
-- [ ] Record the live URL somewhere the merchant applications can quote it
+- [x] Deploy the backend to Railway, root `baakhapaa-backend` — *`https://akchhyarup.up.railway.app`*
+- [x] Set `APP_ENV=production`, a fresh `JWT_SECRET`, `CORS_ORIGINS`, `DEMO_SEED=false` — *proven by the boot, not by reading the panel: `deploy_checks.collect` refuses to start on any of them being wrong, and `/health` answers `env: production, demo: false`*
+- [x] Set `REQUIRE_SHIPPABLE_FONT=true` and confirm the boot survives it — *`deploy_checks.py:70` reads `if production or _truthy("REQUIRE_SHIPPABLE_FONT")`, so under `APP_ENV=production` the gate runs whether the flag is set or not. The container booted, so the bundled OFL Noto face resolved and it is not Nirmala — which is the whole point of the check, since Nirmala is not on Linux*
+- [x] Confirm `--proxy-headers` is active; without it every user shares one rate-limit bucket — *inferred, not observed: `Procfile` and `railway.json` both carry `--proxy-headers --forwarded-allow-ips='*'` and Railway starts from them. Observing it directly would mean tripping the 5/min login limiter against the live API, which would lock out whoever shares the bucket if the flag is in fact missing — the exact harm being tested for*
+- [x] Deploy the frontend to Vercel, root `baakhapaa-frontend` — *`https://baakhapaascript.vercel.app`, edge `bom1`*
+- [x] Set `VITE_API_URL` to the Railway address — *and it took three goes. Vite inlines it at BUILD time, so setting the variable changed nothing until a cache-free redeploy; until then the live bundle carried `http://localhost:8000` and every API call from the deployed site went to the visitor's own machine while the backend sat perfectly healthy. Verified by fetching the entry bundle and grepping it for the Railway host*
+- [x] Confirm the SPA rewrite works: hard-refresh `/dashboard` and check it is not a 404 — *200 on a cold anonymous request, `/login` too*
+- [ ] Register an account on the deployed site from a **real phone** — *register/login is verified on the deployed pair and at a 375px viewport, but nobody has held it. This one stays open until a hand does it: the emulator cannot answer whether 9.5px Courier is readable at arm's length*
+- [x] Check the security headers are present on the deployed frontend — *all five: `Strict-Transport-Security` (2yr, preload), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`. The API still has none — noted, not a blocker*
+- [x] Record the live URL somewhere the merchant applications can quote it — *`DEPLOYMENT.md` §"It is deployed", plus `CLAUDE.md`, `HANDOVER.md` and `ROADMAP.md`*
 
 ### Day 4 · First real-key walk
 

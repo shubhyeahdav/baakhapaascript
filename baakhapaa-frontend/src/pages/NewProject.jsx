@@ -298,11 +298,16 @@ export default function NewProject() {
                         <span className="text-sm text-inkMuted">sec</span>
                       </div>
                     </div>
+                    {/* Named even though the number field above it is: a range
+                        input is its own control in the accessibility tree, and
+                        without this one it announces as "slider, 12" with no
+                        statement of what is being set. */}
                     <input
                       type="range" min="5" max="90"
                       value={Math.min(form.duration_seconds || 5, 90)}
                       className="custom-slider w-full my-2"
                       onChange={(e) => setSeconds(e.target.value)}
+                      aria-label="Runtime in seconds"
                     />
                     <p className="text-[11px] text-inkMuted">
                       The hook gets the first 3 seconds regardless of total length —
@@ -381,6 +386,7 @@ export default function NewProject() {
                   value={Math.min(form.duration_minutes || 1, activeFormat.max)}
                   className="custom-slider w-full my-2"
                   onChange={(e) => setDuration(e.target.value)}
+                  aria-label="Duration in minutes"
                 />
                 <p className="text-[11px] text-inkMuted">
                   Typical {activeFormat.label.toLowerCase()}: {activeFormat.typical} min.

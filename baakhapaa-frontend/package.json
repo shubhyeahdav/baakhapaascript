@@ -14,7 +14,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "test:ci": "vitest run"
+    "test:ci": "vitest run",
+    "check:contrast": "node scripts/contrast-check.mjs",
+    "check:layout": "node scripts/page-layout-check.mjs"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

@@ -365,12 +365,18 @@ export default function LearnPage() {
                 <p className="text-[13px] text-ink leading-relaxed whitespace-pre-wrap mb-3">
                   {active.exercise}
                 </p>
+                {/* aria-label, not the placeholder: a placeholder is announced
+                    only while the box is empty and is gone the moment a writer
+                    starts typing — which is exactly when they might ask what
+                    they are answering. This is the one field in the course a
+                    lesson is graded on. */}
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   spellCheck={false}
                   className="w-full h-56 bg-bgDeep/50 border border-border rounded-xl p-4 text-[13px] text-inkSoft font-mono leading-relaxed resize-y focus:outline-none focus:border-gold/40"
                   placeholder="Write here…"
+                  aria-label="Your answer to this exercise"
                 />
               </div>
 

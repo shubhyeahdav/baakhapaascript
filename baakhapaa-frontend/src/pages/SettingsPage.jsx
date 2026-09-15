@@ -124,10 +124,15 @@ export default function SettingsPage() {
               value={
                 <span className="inline-flex items-center gap-3">
                   <span className="capitalize">{tier}</span>
+                  {/* `tap` on the pill below: it measured 69x23, one pixel
+                      under the 24px WCAG 2.2 target floor — the kind of miss no
+                      eye catches and no test in this repo can see. `tap`
+                      carries the hit area on ::after, so the pill keeps its
+                      size and the target does not. */}
                   {tier === "free" && (
                     <button
                       onClick={() => navigate("/pricing")}
-                      className="text-[12px] text-gold border border-gold/30 rounded-full px-3 py-0.5 hover:bg-goldDim transition"
+                      className="tap text-[12px] text-gold border border-gold/30 rounded-full px-3 py-0.5 hover:bg-goldDim transition"
                     >
                       Upgrade
                     </button>
@@ -147,7 +152,7 @@ export default function SettingsPage() {
                 support request — and it has to be hard enough to reach that it
                 never happens by accident. */}
             <div className="mt-12 rounded-2xl border border-red-400/25 bg-red-400/[0.04] p-5">
-              <h3 className="text-ink font-display text-lg mb-1">Delete this account</h3>
+              <h2 className="text-ink font-display text-lg mb-1">Delete this account</h2>
               <p className="text-[13px] text-inkMuted leading-snug mb-4 max-w-lg">
                 Every project you own goes with it — drafts, version history,
                 storyboards and comments. Projects other people shared with you stay

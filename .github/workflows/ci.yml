@@ -206,6 +206,15 @@ jobs:
         working-directory: baakhapaa-frontend
         run: node scripts/page-layout-check.mjs
 
+      # Same reason, different sense: no test in this repo can see a COLOUR
+      # either, so `.field-label` shipped at 2.60:1 against a 4.5:1 floor and
+      # `inkMuted` passed on the background it was picked against while failing
+      # on the two card surfaces carrying most of the secondary text. Reads the
+      # palette as text and does the WCAG arithmetic. No browser, no server.
+      - name: Contrast (WCAG 1.4.3 AA)
+        working-directory: baakhapaa-frontend
+        run: node scripts/contrast-check.mjs
+
       - name: Start frontend
         working-directory: baakhapaa-frontend
         run: |

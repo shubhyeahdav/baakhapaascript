@@ -61,9 +61,9 @@ function ProjectTile({ project, span, big, onOpen, opening, onDelete, deleting, 
       </span>
 
       <div className="relative w-full p-5 bg-gradient-to-t from-black/50 to-transparent">
-        <h3 className={`font-display text-ink group-hover:text-gold transition-colors truncate ${big ? "text-3xl mb-2" : "text-lg mb-1"}`}>
+        <h2 className={`font-display text-ink group-hover:text-gold transition-colors truncate ${big ? "text-3xl mb-2" : "text-lg mb-1"}`}>
           {project.title}
-        </h3>
+        </h2>
         <div className="flex items-center gap-2 text-[12px] text-inkMuted">
           <span>{project.genre} · {project.language}</span>
           <span className="w-1 h-1 rounded-full bg-inkMuted/50" />

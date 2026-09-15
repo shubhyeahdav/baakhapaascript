@@ -31,7 +31,10 @@ const PAPER = {
     lead: "text-[#3A362F]",
     sub: "text-[#6B665C]",
     action: "text-[#8A6A18] border-[#8A6A18]/35 hover:bg-[#8A6A18]/8",
-    close: "text-[#6B665C]/60 hover:text-[#3A362F]",
+    // Solid, not /60. The x is a text glyph, and at 60% over #FAF9F6 paper it
+    // measured 2.45:1 — the one control in this component, and the least
+    // visible thing in it. At full strength the same colour is 5.42:1.
+    close: "text-[#6B665C] hover:text-[#3A362F]",
     rule: "border-[#8A6A18]/15",
   },
   dark: {

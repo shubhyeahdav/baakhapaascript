@@ -27,7 +27,14 @@ module.exports = {
         // Warm text ramp
         ink: "#EDEAE3",
         inkSoft: "#9B968A",
-        inkMuted: "#7E7A6F",
+        // 4.90:1 on `elevated`, the darkest surface it is ever painted on, so
+        // it clears WCAG 1.4.3 AA everywhere. It was #7E7A6F, which measured
+        // 4.59 on `bg` but 4.33 on `surface` and 4.15 on `elevated` — passing
+        // where it was first chosen and failing on the cards that carry most
+        // of the product's secondary text. `scripts/contrast-check.mjs` now
+        // measures every token against every surface, because no test in this
+        // repo can see a colour (`vite.config.js` sets `css: false`).
+        inkMuted: "#8B867A",
       },
       fontFamily: {
         // Spectral has no Devanagari. Without Mukta next in the stack a Nepali

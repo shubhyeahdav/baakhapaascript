@@ -77,7 +77,13 @@ html, body {
   .field-label {
     display: block;
     font-size: 11.5px;
-    color: #57544B;
+    /* Was #57544B: 2.60:1 against the page, against a 4.5:1 floor. Every form
+       label in the product — sign-up, project setup, settings, the story
+       bible — was below half the contrast a sighted user is entitled to, and
+       the one that says which field you are typing into is the worst possible
+       place to spend that. #8B867A is the inkMuted token and measures 5.43:1
+       here; it is still plainly quieter than the value beneath it. */
+    color: #8B867A;
     margin-bottom: 7px;
   }
 
