@@ -65,6 +65,35 @@ DDL = {
 }
 
 
+def check_rpc() -> str:
+    """Is `match_script_patterns` there, at the signature the code calls?
+
+    A column is not the only thing that drifts. The RPC lives in the same
+    hand-applied file, it is called with named parameters, and PostgREST
+    resolves it BY those names — so a database still holding the two-argument
+    version does not get a craft-filtered search that quietly ignores the
+    filter, it gets a 404. That is the safe failure, and it is invisible:
+    retrieval falls back to Python, logs one line, and stays correct. Nothing
+    else would ever tell you.
+
+    Returns "" when it is fine, or the reason it is not.
+    """
+    rpc = getattr(database.supabase, "rpc", None)
+    if rpc is None:
+        return "this client has no rpc() at all"
+    probe = [0.0] * 384
+    probe[0] = 1.0
+    try:
+        res = rpc(rag.RPC_NAME, {"query_embedding": probe, "match_count": 1,
+                                 "filter_craft": rag.SCREENPLAY_CRAFT}).execute()
+    except Exception as e:  # noqa: BLE001 - any failure means "cannot use it"
+        return str(e)[:200]
+    rows = getattr(res, "data", None)
+    if rows and "applies_to" not in rows[0]:
+        return "returns rows without applies_to, so the craft filter cannot be verified"
+    return ""
+
+
 def missing_columns(table: str, wanted: set) -> list:
     """Which of `wanted` the real table does not have.
 
@@ -103,9 +132,22 @@ def main() -> int:
             print(f"          missing: {col}")
             problems.append((table, col))
 
-    if not problems:
+    reason = check_rpc()
+    print(f"  [{'OK ' if not reason else 'GAP'}] {rag.RPC_NAME}(): "
+          + ("present, craft-filtered" if not reason else reason))
+
+    if not problems and not reason:
         print("\nThe database matches the code.")
         return 0
+
+    if reason:
+        print("\nRetrieval still works — it ranks in Python instead — but the")
+        print("faster path is off. Re-run pgvector_script_patterns.sql end to")
+        print("end in the SQL editor; it drops the old signature before")
+        print("creating the new one, which a bare CREATE OR REPLACE will not.")
+
+    if not problems:
+        return 1
 
     print("\nRun these in the Supabase SQL editor, then restart the backend:\n")
     for table, col in problems:

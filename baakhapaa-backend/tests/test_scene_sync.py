@@ -189,12 +189,17 @@ def test_inserting_a_scene_mid_draft_keeps_rows_on_their_own_scene(
 def _captured_frames(client, user, script_id, monkeypatch):
     calls = []
 
+    # `script_id` arrived when frames moved to an object store: the upload is
+    # keyed by script so a deleted project can take its images with it. Captured
+    # rather than ignored, because "the board knows which script it belongs to"
+    # is now the thing that makes deletion possible.
     def fake_frame(description, shot_type, genre, location="", emotional_beat="",
-                   time_of_day="", characters=()):
+                   time_of_day="", characters=(), script_id=None):
         calls.append({
             "description": description, "shot_type": shot_type, "genre": genre,
             "location": location, "emotional_beat": emotional_beat,
             "time_of_day": time_of_day, "characters": list(characters),
+            "script_id": script_id,
         })
         return "https://example.test/frame.png"
 

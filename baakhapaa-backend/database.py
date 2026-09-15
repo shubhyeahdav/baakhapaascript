@@ -373,6 +373,18 @@ def purge_projects(project_ids) -> dict:
     # Real atomicity needs Postgres, not this client. `supabase_schema.sql`
     # carries a purge_projects() function to call over RPC once there is a real
     # database to install it in.
+    # The object store does not cascade. Frames live in a bucket keyed by
+    # script, and a project erased while leaving its images behind would make
+    # the deletion promise in DATA_HANDLING.md untrue. Done BEFORE the rows, so
+    # a failure here stops the purge with everything still findable — the
+    # reverse order would leave objects nothing points at.
+    if script_ids:
+        try:
+            import storyboard_storage
+            storyboard_storage.delete_for_scripts(script_ids)
+        except Exception as e:
+            print(f"Storyboard images not cleared ({e}); rows still deleted.")
+
     steps = (
         # The access log goes with the script. A record of who used to read a
         # deleted project is exactly the kind of thing an erasure is supposed

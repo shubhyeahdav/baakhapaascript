@@ -1,5 +1,7 @@
 import hashlib
 import os
+
+import storyboard_storage
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote
 
@@ -177,7 +179,7 @@ def scene_visual(scene: dict) -> dict:
 
 
 def generate_frame(scene_description, shot_type, genre, location="", emotional_beat="",
-                   time_of_day="", characters=()):
+                   time_of_day="", characters=(), script_id=None):
     # Time of day is a lighting instruction and the cast is a blocking one. Both
     # were being dropped: the structure generator produces them, and until now
     # nothing carried them this far.
@@ -202,13 +204,13 @@ def generate_frame(scene_description, shot_type, genre, location="", emotional_b
         response = openai_client.images.generate(
             model=IMAGE_MODEL, prompt=prompt, size=IMAGE_SIZE, quality=IMAGE_QUALITY, n=1,
         )
-        return _image_reference(response.data[0])
+        return _image_reference(response.data[0], script_id=script_id)
     except Exception as e:
         print(f"Storyboard image generation error ({IMAGE_MODEL}): {e}")
         return None
 
 
-def _image_reference(item) -> str | None:
+def _image_reference(item, script_id=None) -> str | None:
     """Turn one API result into something `storyboard_frames.image_url` can hold.
 
     DALL·E returned a hosted URL. The gpt-image models return base64 instead,
@@ -220,17 +222,26 @@ def _image_reference(item) -> str | None:
     hour, which is why a production package exported the next day printed
     "frame image not embedded" on every frame.
 
-    It is not the right long-term answer. A 1536x1024 PNG is well over a
-    megabyte base64'd, and `MAX_STORYBOARD_FRAMES` allows 24 of them per board —
-    tens of megabytes of image data sitting in Postgres rows. Moving these to
-    Supabase Storage needs a bucket and credentials that do not exist yet; see
-    DEPLOYMENT.md.
+    A data URI is the FALLBACK now rather than the answer. A 1536x1024 PNG is
+    over a megabyte base64'd and `MAX_STORYBOARD_FRAMES` allows 24 per board, so
+    a single storyboard could put thirty megabytes into Postgres rows that are
+    then read back in full every time the board is opened. `storyboard_storage`
+    puts the bytes in an object store and keeps a URL here instead.
+
+    It falls back rather than failing. A missing bucket, a revoked key or an
+    outage costs a larger row, never a writer's storyboard — and every row
+    already written as a data URI is still read, still rendered, still embedded
+    in an export. The two shapes coexist indefinitely, because rewriting
+    historical rows to gain nothing is a way to lose data for tidiness.
     """
     url = getattr(item, "url", None)
     if url:
         return url
     b64 = getattr(item, "b64_json", None)
-    return f"data:image/png;base64,{b64}" if b64 else None
+    if not b64:
+        return None
+    stored = storyboard_storage.store_png(b64, script_id=script_id)
+    return stored or f"data:image/png;base64,{b64}"
 
 
 # How many frames are drawn at once. Measured: one frame takes about nineteen
@@ -276,6 +287,7 @@ def generate_storyboard(script_id, scenes, supabase_client, genre="drama"):
         return plan["idx"], generate_frame(
             v["description"], plan["shot_type"], genre,
             v["location"], v["emotional_beat"], v["time_of_day"], v["characters"],
+            script_id=script_id,
         )
 
     images = {}
@@ -306,7 +318,8 @@ def generate_storyboard(script_id, scenes, supabase_client, genre="drama"):
 
 
 def regenerate_frame(frame_id, new_description, new_shot_type, supabase_client,
-                     visual=None, previous_note="", previous_shot=""):
+                     visual=None, previous_note="", previous_shot="",
+                     script_id=None):
     """Redraw a frame, keeping everything the scene knows about itself.
 
     Regeneration used to throw away the location, cast, time of day and mood the
@@ -318,6 +331,7 @@ def regenerate_frame(frame_id, new_description, new_shot_type, supabase_client,
         new_description, new_shot_type, visual.get("genre") or "drama",
         visual.get("location", ""), visual.get("emotional_beat", ""),
         visual.get("time_of_day", ""), visual.get("characters", ()),
+        script_id=script_id,
     )
 
     updates = {"image_url": image_url, "shot_type": new_shot_type}

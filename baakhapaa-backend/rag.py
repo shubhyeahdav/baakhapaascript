@@ -6,10 +6,12 @@ mode and against real Supabase. Storage goes through the `database.supabase`
 abstraction: local SQLite persistence in demo mode, the real `script_patterns`
 table (see pgvector_script_patterns.sql) when Supabase keys are set.
 
-At the current library size (tens to a few hundred entries) retrieval fetches
-all rows and ranks by cosine in Python — exact, dependency-free, and identical
-across both storage modes. Past ~500 entries, switch to the
-match_script_patterns RPC included in the migration file.
+At the current library size (tens to a few thousand entries) retrieval fetches
+all rows ONCE, holds them in memory, and ranks by cosine in Python — exact,
+dependency-free, and identical across both storage modes. Past the measured
+crossover it switches to the match_script_patterns RPC included in the
+migration file. See RPC_THRESHOLD for where that crossover actually is, which
+is nowhere near where this file used to guess.
 """
 import json
 import time
@@ -195,12 +197,35 @@ def _cosine(a, b):
 
 
 # Past this many rows, ranking every entry in Python on each request stops
-# being free. The pgvector RPC does the same work in the database against an
-# HNSW index. The threshold is not a cliff — exact scan at a few hundred rows
-# is still milliseconds — so this is about where the two paths cross, not about
-# where the current one breaks.
-RPC_THRESHOLD = int(os.getenv("RAG_RPC_THRESHOLD", "500"))
+# being free and the pgvector RPC does the same work in the database against an
+# HNSW index. This is where the two paths CROSS, not where the current one
+# breaks — and it was 500 on a guess for months, which was wrong by about six
+# times in the direction that would have made the product slower.
+#
+# Measured 2026-09-14 against the real Supabase project, 15 runs, medians:
+#
+#     embed the query alone                        6.1 ms
+#     retrieve, warm cache (rank 45 in Python)     8.8 ms   <-- what ships
+#     RPC round trip                             178.6 ms
+#     retrieve, cold cache (fetch all + rank)    344.5 ms
+#
+# So at today's 45 entries the RPC is TWENTY TIMES SLOWER than what it was
+# proposed to replace, and it is not close. The in-memory corpus cache already
+# removed the cost the RPC was meant to remove — the 611ms fetch — and what is
+# left on the Python side is 2.7ms of arithmetic against 178.6ms of network.
+#
+# Ranking scales cleanly at 61.8 us/row (measured 45 to 5000 rows, linear), so
+# the crossover with one round trip is about 2,900 rows. Set just under it: the
+# cached corpus also has to be re-fetched every CACHE_TTL, and that cost grows
+# with the library too, which pulls the real crossover down rather than up.
+RPC_THRESHOLD = int(os.getenv("RAG_RPC_THRESHOLD", "2500"))
 RPC_NAME = "match_script_patterns"
+
+# The RPC signature is applied to real databases BY HAND in the SQL editor, so
+# a project can sit for a long time on an older one. Falling back is correct
+# and should be quiet: warn the first time, then stop, rather than printing a
+# line on every retrieval.
+_rpc_warned = False
 
 
 # The corpus, held in memory between requests.
@@ -261,23 +286,37 @@ def _corpus(supabase):
     return rows
 
 
-def _rpc_search(supabase, qvec, top_k):
+def _rpc_search(supabase, qvec, top_k, craft=None):
     """Server-side similarity search, or None if it is not available.
+
+    `craft` is passed to the database, not applied afterwards. Filtering the
+    rows the RPC returns would be worse than not filtering at all: the function
+    is asked for the top three and a post-filter can only shrink that, so a
+    screenwriter whose three nearest entries happened to be video craft would
+    be told the library has nothing for them. The narrowing has to happen
+    before the LIMIT, which means it has to happen in SQL.
 
     Returns None rather than raising for every reason it can fail, and there
     are several that are all normal: the local SQLite mock has no `rpc` method
     at all, a Supabase project may not have had `pgvector_script_patterns.sql`
-    run against it, and the function may exist at a different signature. None
-    means "use the Python path", which is exact and always correct — the RPC is
-    a performance choice, never a correctness one.
+    run against it, and the function may exist at the OLD two-argument
+    signature, which is what every project migrated before 2026-09-14 has.
+    None means "use the Python path", which is exact and always correct — the
+    RPC is a performance choice, never a correctness one.
     """
+    global _rpc_warned
     rpc = getattr(supabase, "rpc", None)
     if rpc is None:
         return None
     try:
-        res = rpc(RPC_NAME, {"query_embedding": qvec, "match_count": top_k}).execute()
+        res = rpc(RPC_NAME, {"query_embedding": qvec, "match_count": top_k,
+                             "filter_craft": craft}).execute()
     except Exception as e:
-        print(f"RAG: {RPC_NAME} unavailable ({e}); ranking in Python instead.")
+        if not _rpc_warned:
+            _rpc_warned = True
+            print(f"RAG: {RPC_NAME} unavailable ({e}); ranking in Python "
+                  "instead. Run pgvector_script_patterns.sql to get the "
+                  "faster path back. This is logged once.")
         return None
     rows = getattr(res, "data", None)
     if not rows:
@@ -315,13 +354,15 @@ def retrieve_relevant_patterns(genre, tone, theme_description, top_k=3, craft=SC
         query_text, _glossed = craft_query.normalise(theme_description)
         qvec = embed_texts([query_text])[0]
 
-        # The RPC does not know about `applies_to` — adding that needs a
-        # migration to a function run by hand in the SQL editor, which has
-        # drifted from the loader once already. Until then the RPC is used only
-        # where no narrowing applies, rather than quietly returning entries for
-        # the wrong craft. Correctness over the faster path.
-        if len(rows) >= RPC_THRESHOLD and craft == SCREENPLAY_CRAFT:
-            hit = _rpc_search(supabase, qvec, top_k)
+        # The RPC narrows by craft itself now. It did not until 2026-09-14,
+        # and the guard here read `craft == SCREENPLAY_CRAFT` — which was
+        # exactly backwards, because screenplay is the craft that DOES narrow.
+        # Measured against the real database, the unfiltered function answered
+        # a screenwriter's question about a weak opening with a long-form video
+        # entry in FIRST place. Latent, since 45 rows is far below the
+        # threshold, but it was one large corpus away from being real.
+        if len(rows) >= RPC_THRESHOLD:
+            hit = _rpc_search(supabase, qvec, top_k, craft)
             if hit is not None:
                 return hit
 

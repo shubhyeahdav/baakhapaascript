@@ -133,3 +133,41 @@ def test_a_redirect_is_never_followed():
     )
 
     assert refused is None
+
+
+# --- storyboard frames moved to an object store -----------------------------
+#
+# Frames used to be `data:` URIs in the row, which this guard never saw because
+# nothing was fetched. They are objects in a Supabase bucket now, which means
+# the export DOES fetch them — so the URL the product itself writes is now
+# subject to the same check as anything else, and should be.
+
+def test_a_supabase_storage_url_is_allowed(resolves):
+    """The normal case after the move. A storage host resolves publicly and
+    must not be refused, or every production package silently loses its
+    frames — the failure the guard exists to prevent, arriving from the
+    guard."""
+    resolves("104.18.38.10")
+
+    assert _is_public_host("proj.supabase.co") is True
+
+
+def test_a_storage_host_that_resolves_inward_is_still_refused(resolves):
+    """The guard does not trust a URL because the product wrote it. A hostname
+    the server controls today can resolve somewhere else tomorrow, and the
+    check is on the address rather than on the provenance."""
+    resolves("127.0.0.1")
+
+    assert _is_public_host("proj.supabase.co") is False
+
+
+def test_a_data_uri_never_reaches_the_guard():
+    """Rows written before the move still hold `data:` URIs, and they are read
+    from the row rather than fetched. Nothing to resolve, nothing to refuse —
+    which is why the two shapes can coexist without the guard needing to know
+    about either."""
+    from urllib.parse import urlparse
+
+    parsed = urlparse("data:image/png;base64,AAAA")
+
+    assert parsed.hostname is None

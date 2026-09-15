@@ -524,3 +524,142 @@ def test_an_rpc_that_returns_nothing_falls_back_rather_than_reporting_empty(
     got = rag.retrieve_relevant_patterns("Drama", "Warm", "flat scene")
 
     assert [p["technique"] for p in got] == ["present"]
+
+
+# --- the RPC narrows by craft ------------------------------------------------
+#
+# Until 2026-09-14 the RPC ranked the whole table and the guard in
+# `retrieve_relevant_patterns` read `craft == SCREENPLAY_CRAFT` — which was
+# backwards. Screenplay is the craft that narrows: video-only entries are
+# excluded from it, and nothing is excluded from a video writer's results. So
+# the one case the RPC was allowed to serve was the one case it got wrong.
+#
+# Measured against the real database, for "my opening does not hold anyone":
+#
+#     0.698  The cost of the first thirty seconds (long-form video)  <-- first
+#     0.670  The closing-doors middle (screen craft)
+#     0.662  Late entry, early exit (screen craft)
+#
+# Latent at 45 rows, since the threshold is 2500. One large corpus from real.
+
+def test_the_craft_is_sent_to_the_database_not_applied_afterwards(
+    stub_embedder, monkeypatch
+):
+    """Post-filtering can only shrink a result that was already limited to
+    three, so a screenwriter whose three nearest entries were video craft would
+    be told the library has nothing for them."""
+    stub_embedder([1.0, 0.0, 0.0])
+    monkeypatch.setattr(rag, "RPC_THRESHOLD", 1)
+    _seed("any", [1.0, 0.0, 0.0])
+    rpc = _with_rpc(monkeypatch, _Rpc(rows=[
+        {"technique": "from-postgres", "similarity": 0.9,
+         "applies_to": ["screenplay", "video"]},
+    ]))
+
+    rag.retrieve_relevant_patterns("Drama", "Warm", "flat scene",
+                                   craft=rag.SCREENPLAY_CRAFT)
+
+    _name, params = rpc.calls[0]
+    assert params["filter_craft"] == "screenplay"
+
+
+def test_a_video_writer_now_reaches_the_rpc_too(stub_embedder, monkeypatch):
+    """The old guard sent video retrieval down the Python path unconditionally,
+    which was the right ANSWER for the wrong reason — and it meant the faster
+    path was permanently off for one of the two crafts."""
+    stub_embedder([1.0, 0.0, 0.0])
+    monkeypatch.setattr(rag, "RPC_THRESHOLD", 1)
+    _seed("any", [1.0, 0.0, 0.0])
+    rpc = _with_rpc(monkeypatch, _Rpc(rows=[
+        {"technique": "video-entry", "similarity": 0.8, "applies_to": ["video"]},
+    ]))
+
+    got = rag.retrieve_relevant_patterns("Drama", "Warm", "hook is weak",
+                                         craft=rag.VIDEO_CRAFT)
+
+    assert [p["technique"] for p in got] == ["video-entry"]
+    assert rpc.calls[0][1]["filter_craft"] == "video"
+
+
+def test_the_craft_the_rpc_reports_is_kept_rather_than_defaulted(
+    stub_embedder, monkeypatch
+):
+    """`_pattern_payload` fills a missing `applies_to` with both crafts, which
+    is right for the 39 entries that predate video and wrong for anything the
+    database actually answered with."""
+    stub_embedder([1.0, 0.0, 0.0])
+    monkeypatch.setattr(rag, "RPC_THRESHOLD", 1)
+    _seed("any", [1.0, 0.0, 0.0])
+    _with_rpc(monkeypatch, _Rpc(rows=[
+        {"technique": "video-entry", "similarity": 0.8, "applies_to": ["video"]},
+    ]))
+
+    got = rag.retrieve_relevant_patterns("Drama", "Warm", "hook is weak",
+                                         craft=rag.VIDEO_CRAFT)
+
+    assert got[0]["applies_to"] == ["video"]
+
+
+def test_an_unavailable_rpc_is_reported_once_not_on_every_keystroke(
+    stub_embedder, monkeypatch, capsys
+):
+    """A project on the old signature gets a 404 from every retrieval. The
+    fallback is correct, so this is a log-volume question — and retrieval sits
+    on the writing path, where a line per request is a line per few seconds."""
+    monkeypatch.setattr(rag, "_rpc_warned", False)
+    stub_embedder([1.0, 0.0, 0.0])
+    monkeypatch.setattr(rag, "RPC_THRESHOLD", 1)
+    _seed("near", [1.0, 0.0, 0.0])
+    _with_rpc(monkeypatch, _Rpc(raises=RuntimeError("PGRST202")))
+
+    for _ in range(3):
+        got = rag.retrieve_relevant_patterns("Drama", "Warm", "flat scene", top_k=1)
+        assert [p["technique"] for p in got] == ["near"]
+
+    assert capsys.readouterr().out.count("ranking in Python") == 1
+
+
+def test_a_database_failure_on_the_rpc_path_returns_nothing_rather_than_raising(
+    monkeypatch, stub_embedder
+):
+    """The degradation guarantee, asserted with the RPC path engaged.
+
+    `test_a_database_failure_returns_nothing_rather_than_raising` covers the
+    Python path. This is the same promise for the branch that only runs on a
+    large library: a writer on a real, big corpus must not get a stack trace
+    because Supabase blinked.
+    """
+    stub_embedder([1.0, 0.0, 0.0])
+    monkeypatch.setattr(rag, "RPC_THRESHOLD", 1)
+
+    class _Down:
+        def table(self, *_a, **_k):
+            raise RuntimeError("connection refused")
+
+    monkeypatch.setattr(database, "supabase", _Down())
+
+    assert rag.retrieve_relevant_patterns("Drama", "Warm", "flat scene") == []
+
+
+def test_the_dimension_guard_still_refuses_a_mismatched_stored_vector(
+    stub_embedder, monkeypatch
+):
+    """Pinned again here, beside the RPC work, because the guard lives on the
+    path the RPC would replace.
+
+    `_cosine` computes the dot product over `zip`, which stops at the shorter
+    vector, while both magnitudes are computed over the full ones. A row left
+    by a different embedding model therefore scores plausibly rather than
+    erroring, and can sort to the top. Refusing to score it is the only honest
+    answer, and the RPC does not have this problem at all — `vector(384)` is
+    enforced by the column type — so the guard must not be dropped on the way
+    past.
+    """
+    stub_embedder([1.0, 0.0, 0.0])
+    _seed("wrong-model", [1.0, 0.0, 0.0, 0.0, 0.0])
+    _seed("right-model", [0.9, 0.1, 0.0])
+
+    got = rag.retrieve_relevant_patterns("Drama", "Warm", "flat scene", top_k=2)
+
+    assert got[0]["technique"] == "right-model"
+    assert [p["technique"] for p in got if p["similarity"] > 0] == ["right-model"]

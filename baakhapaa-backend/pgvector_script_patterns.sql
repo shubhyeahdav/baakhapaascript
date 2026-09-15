@@ -73,20 +73,50 @@ create index if not exists script_patterns_technique_idx
 
 -- Server-side similarity search. `rag.retrieve_relevant_patterns` calls this
 -- when it is available and falls back to fetch-all-and-rank when it is not, so
--- the two must return the same field set.
+-- the two must return the same field set AND the same rows.
+--
+-- `filter_craft` is what makes that second half true. Without it this function
+-- ranks the WHOLE table, and the one-way exclusion the craft library is built
+-- on stops holding the moment the RPC is used. Measured against the real
+-- database on 2026-09-14, for a screenwriter asking why their opening does not
+-- hold:
+--
+--     0.698  The cost of the first thirty seconds (long-form video)   <-- first
+--     0.670  The closing-doors middle (screen craft)
+--     0.662  Late entry, early exit (screen craft)
+--     0.645  Cold open at the crisis (shorts craft)
+--     0.620  The promise nobody kept (long-form video)
+--
+-- Two of the top five are video craft and one of them is the card the writer's
+-- eye lands on. `rag._serves` excludes exactly those on the Python path, so the
+-- two paths disagreed about what a screenwriter is allowed to be told.
+--
+-- NULL means "every craft", which is what a caller that does not care passes.
+--
+-- One caveat worth knowing before the library is large enough for this to run:
+-- a WHERE clause alongside an HNSW scan is post-filtered, so at scale this can
+-- return FEWER than match_count rows. At the size where the RPC starts being
+-- worth using (see rag.RPC_THRESHOLD) that has not been measured.
+drop function if exists match_script_patterns(vector(384), int);
+
 create or replace function match_script_patterns(
   query_embedding vector(384),
-  match_count int default 3
+  match_count int default 3,
+  filter_craft text default null
 ) returns table (
   title_ref text, source_type text, craft_level text, genre text,
   origin_tradition text, technique text, problem text, how_it_works text,
-  how_to_apply text, worked_example text, warning_sign text, similarity float
+  how_to_apply text, worked_example text, warning_sign text,
+  applies_to text[], similarity float
 ) language sql stable as $$
   select p.title_ref, p.source_type, p.craft_level, p.genre,
          p.origin_tradition, p.technique, p.problem, p.how_it_works,
          p.how_to_apply, p.worked_example, p.warning_sign,
+         coalesce(p.applies_to, array['screenplay', 'video']) as applies_to,
          1 - (p.embedding <=> query_embedding) as similarity
   from script_patterns p
+  where filter_craft is null
+     or filter_craft = any(coalesce(p.applies_to, array['screenplay', 'video']))
   order by p.embedding <=> query_embedding
   limit match_count
 $$;
@@ -140,3 +170,19 @@ alter table script_patterns add constraint script_patterns_source_type_check
 -- nothing needs backfilling and no existing retrieval changes.
 alter table script_patterns
   add column if not exists applies_to text[];
+
+
+-- Migration, 2026-09-14 (second). `match_script_patterns` gained a third
+-- argument, `filter_craft`, and a fourth returned column, `applies_to`.
+--
+-- The `drop function if exists match_script_patterns(vector(384), int)` above
+-- is the whole migration and it is NOT optional: a bare `create or replace`
+-- with a new argument list creates a second overload rather than replacing the
+-- first, and a call naming only `query_embedding` and `match_count` then
+-- matches both — the third argument has a default — and Postgres rejects it as
+-- ambiguous. Re-running this file end to end does the right thing on a
+-- database at either version.
+--
+-- Until it is run, `rag._rpc_search` calls a signature the database does not
+-- have, gets a 404 from PostgREST, logs once and ranks in Python instead. That
+-- is correct, just slower, which is the only thing the RPC was ever for.

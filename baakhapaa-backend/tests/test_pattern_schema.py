@@ -164,3 +164,77 @@ def test_every_field_the_loader_ACTUALLY_writes_has_a_column():
         "Add the column to pgvector_script_patterns.sql AND run the migration "
         "against Supabase — the file is applied by hand in the SQL editor."
     )
+
+
+# --- the RPC signature, not just its return shape ----------------------------
+#
+# The test above asks what `match_script_patterns` RETURNS. These ask what it
+# ACCEPTS, which is the half that broke. `rag._rpc_search` calls it with named
+# parameters and PostgREST resolves the overload BY those names, so a database
+# holding the old two-argument version does not silently ignore the new
+# argument — it returns PGRST202 and retrieval falls back to Python. Correct,
+# quiet, and slower for no reason anyone would ever look into.
+
+def _rpc_definition():
+    sql = _sql()
+    start = sql.index("create or replace function match_script_patterns")
+    return sql[start:sql.index("$$;", start)]
+
+
+def test_the_rpc_accepts_every_parameter_retrieval_sends():
+    """Read off `_rpc_search` rather than listed here, so a fourth parameter
+    added to the call cannot get past this the way `applies_to` got past the
+    column guard."""
+    import inspect
+
+    call = inspect.getsource(rag._rpc_search)
+    sent = set(re.findall(r'"([a-z_]+)":', call))
+    definition = _rpc_definition()
+
+    missing = sorted(p for p in sent if not re.search(rf"^\s+{p}\s", definition, re.M))
+
+    assert not missing, (
+        f"rag._rpc_search sends {missing} and the SQL function has no such "
+        "parameter. PostgREST resolves by NAME, so this is a 404 at runtime, "
+        "not an ignored argument."
+    )
+
+
+def test_the_rpc_narrows_by_craft_in_sql_rather_than_after():
+    """The one-way exclusion has to survive the LIMIT.
+
+    Filtering the RPC's three rows afterwards can only shrink them, so a
+    screenwriter whose three nearest entries were all video craft would be told
+    the library has nothing. Measured against the real database before this
+    landed, the unfiltered function put a long-form video entry FIRST for a
+    screenwriter asking why their opening does not hold.
+    """
+    definition = _rpc_definition()
+
+    assert "filter_craft" in definition
+    where = definition[definition.index("where"):definition.index("order by")]
+    assert "applies_to" in where
+    assert definition.index("where") < definition.index("limit match_count")
+
+
+def test_the_old_signature_is_dropped_before_the_new_one_is_created():
+    """`create or replace` with a different argument list creates a SECOND
+    function rather than replacing the first. Both would then match a two-named
+    -argument call — the third has a default — and Postgres rejects it as
+    ambiguous. So the drop is the migration, and it has to come first."""
+    sql = _sql()
+
+    drop = sql.index("drop function if exists match_script_patterns(vector(384), int)")
+    create = sql.index("create or replace function match_script_patterns")
+
+    assert drop < create, "the drop must run before the create, or both survive"
+
+
+def test_the_rpc_returns_the_craft_it_matched_on():
+    """`_pattern_payload` defaults a missing `applies_to` to both crafts. An RPC
+    that did not return the column would therefore label a video-only entry as
+    serving screenwriters too — a wrong answer produced by a default, which is
+    the hardest kind to see."""
+    returns = _rpc_definition()
+
+    assert "applies_to text[]" in returns
