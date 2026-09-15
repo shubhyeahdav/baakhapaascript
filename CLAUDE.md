@@ -466,10 +466,21 @@ the push sequence: `WORKING_GUIDE.md` §1 and §3. PR #1 is closed and merged (v
 and must never be committed or published. Don't confuse it with the app's own
 `baakhapaa-backend/knowledge_base.json` (~35KB, all original prose).
 
-**Next priorities:** `ROADMAP.md` — the remaining six weeks, ordered so that
-everything only discoverable in production comes first. The short version: the
-build has never run outside demo mode, has never been deployed, has no CI, and
-cannot take money in Nepal. None of those are feature work.
+**DEPLOYED 2026-09-15.** Frontend `https://baakhapaascript.vercel.app`
+(Vercel), backend `https://akchhyarup.up.railway.app` (Railway), real Supabase.
+Verified against the deployed pair with the browser's real `Origin`: register,
+login, `/auth/me`, create project, save draft, cast, lint, recommendations and
+review all 200; scene sync reconciled a Devanagari draft in production Postgres;
+the live login form returned the server's own 401. `DEPLOYMENT.md` holds the
+runbook as followed, including the three env-var traps that cost an hour —
+`KEY=VALUE` pasted into a value box, an origin with a trailing slash and a
+missing `//`, and `VITE_API_URL` needing a cache-free **rebuild** because Vite
+inlines it at build time.
+
+**Next priorities:** `ROADMAP.md`. The short version: no AI generation and no
+storyboard has run against the deployed backend, no real money has moved,
+nothing renews on its own, and the legal documents are unreviewed templates.
+None of those are feature work.
 
 ## Security (see AUDIT_REPORT.md; re-checked in PROJECT_PLAN.md §3 + §6)
 A full audit was done. All script-related endpoints enforce ownership via

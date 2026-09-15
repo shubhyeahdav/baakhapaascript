@@ -1,11 +1,77 @@
 # Deployment
 
 Written 2026-08-20, alongside the work that made it possible. `ROADMAP.md` weeks
-1–3 are the reason this file exists: the build has never run outside demo mode
-and has never been deployed, and neither of those is feature work.
+1–3 are the reason this file exists. **It has now been run** — see the next
+section — so this is a runbook that has been followed once rather than a plan,
+and the places it was wrong have been corrected from what actually happened.
 
 Read `.env.example` alongside this — it documents every variable. This file
 covers the order to do things in and the things that only bite in production.
+
+---
+
+## It is deployed (2026-09-15)
+
+| | |
+|---|---|
+| Frontend | `https://baakhapaascript.vercel.app` — Vercel, root `baakhapaa-frontend`, served from `bom1` (Mumbai, the nearest edge to Nepal) |
+| Backend | `https://akchhyarup.up.railway.app` — Railway, root `baakhapaa-backend` |
+| Database | Supabase Postgres, all migrations applied |
+
+Verified end to end against the deployed pair, every request carrying the
+browser's real `Origin` header:
+
+- register → login → `/auth/me` → create project → get-or-create script → save
+  draft → cast → lint → recommendations → review — **ten calls, all 200**, every
+  one carrying `access-control-allow-origin`
+- scene sync reconciled two scenes from a Devanagari-context draft in production
+  Postgres; craft retrieval answered cold in 4.1s
+- the login form in a real browser returned the server's own
+  "Invalid email or password" — which is what proves the chain, because a CORS
+  or API-URL fault never reaches a 401
+- `/dashboard` and `/login` return 200 on a cold hard refresh, so the SPA
+  rewrite holds; all five security headers present; 17 lazy chunks survived the
+  production build
+- Vercel Deployment Protection is **off**, checked anonymously — leave it off, or
+  a pilot writer meets Vercel's login wall before yours
+
+What is **not** proven: no AI generation and no storyboard has been run against
+the deployed backend, and no real money has moved. §5 below is still open.
+
+### The three env-var traps, because all three happened
+
+Both hosts accept the variable, boot cleanly, and then behave wrongly. Nothing
+warns you.
+
+1. **`KEY=VALUE` pasted into the value box.** Railway and Vercel both give you
+   two fields. Pasting the whole line makes the value literally
+   `CORS_ORIGINS=https://...`, which matches no origin. Put **only** the value
+   in the value box.
+2. **A trailing slash, or a missing `//`.** An origin is scheme + host + port
+   and nothing else. Starlette compares it as an exact string, so
+   `https://x.app/` is not `https://x.app`, and `https:x.app` is not an origin
+   at all. The live value was `https:baakhapaascript.vercel.app/` — wrong in
+   both ways at once — across two redeploys.
+3. **Vite inlines `VITE_API_URL` at build time.** Saving the variable on Vercel
+   changes nothing on its own; the running bundle keeps whatever it was built
+   with. You must **redeploy with the build cache off**. Until that happened the
+   production bundle carried `http://localhost:8000`, so every API call from the
+   live site went to the visitor's own machine.
+
+Two checks catch all three from outside, and cost nothing. The preflight:
+
+```
+curl -s -o /dev/null -w "%{http_code}" -X OPTIONS https://<api>/auth/login -H "Origin: https://<frontend>" -H "Access-Control-Request-Method: POST"
+```
+
+`200` means the allowlist is right; `400 Disallowed CORS origin` means it is
+not. Then, to confirm the frontend was actually rebuilt, fetch the entry bundle
+named in `index.html` and grep it for the API host — the URL is baked in, so if
+it is not in the file it is not in the app.
+
+The backend prints its parsed allowlist at boot (`main.py`), so the deploy-log
+line beginning `CORS: restricted to` is the running process answering the
+question directly. Reach for it before guessing.
 
 ---
 
@@ -184,10 +250,13 @@ told.
 ### 5. First run
 
 Register a real account, then walk it: structure → write → finalize →
-storyboard → export. This has never been done outside demo mode. Expect
-breakage in the real-Claude JSON path (`script_engine._extract_json` already
-anticipates preamble and sign-off) and in Supabase client behaviour the local
-mock does not reproduce.
+storyboard → export. **Still open as of 2026-09-15.** The deploy verification
+covered auth, project and script CRUD, scene sync, the linter, retrieval and
+review — every path that costs nothing. It deliberately did not call Claude or
+DALL-E, so the generation paths remain unexercised against the deployed backend.
+Expect breakage in the real-Claude JSON path (`script_engine._extract_json`
+already anticipates preamble and sign-off) and in Supabase client behaviour the
+local mock does not reproduce.
 
 ---
 

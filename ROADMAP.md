@@ -5,10 +5,15 @@ docs. `PROJECT_PLAN.md` holds the historical changelog; this holds what is left.
 
 ## The one-line summary
 
-The build is **ahead of the proposal on features and has never run outside demo
-mode**. Every deliverable to date was verified against a mock AI, a local SQLite
-file and placeholder images. That fact, not the remaining feature list, is what
-decides whether this launches in September.
+The build is **ahead of the proposal on features, and as of 2026-09-15 it is
+deployed** — `https://baakhapaascript.vercel.app` against
+`https://akchhyarup.up.railway.app`, on real Supabase. That closes the sentence
+this file opened with for a month.
+
+What has *not* been proven is now a shorter and sharper list: **no AI generation
+and no storyboard has run against the deployed backend, and no real money has
+moved.** Every path verified on the deploy was one that costs nothing. That
+fact, not the remaining feature list, is what decides whether this launches.
 
 ## Against the proposal's own FR table
 
@@ -36,18 +41,24 @@ export. Expect breakage in the real-Claude JSON path (`script_engine._extract_js
 already anticipates preamble/sign-off) and in Supabase client behaviour that the
 local mock does not reproduce.
 
-### Weeks 1–3 · Deploy and automate (blocking)
-**Config work done 2026-08-20 — see `DEPLOYMENT.md`.** What is left is running it
-against a real host, which nothing here has ever done.
+### Weeks 1–3 · Deploy and automate — **DONE 2026-09-15**
+**Config work done 2026-08-20, and run against real hosts 2026-09-15 — see
+`DEPLOYMENT.md`, which now records the deploy as it went rather than as
+planned.**
 - ~~GitHub Actions running both suites~~ — done, `.github/workflows/ci.yml`
 - ~~`CORS_ORIGINS`, `--proxy-headers`, `REQUIRE_SHIPPABLE_FONT`~~ — no longer
   reminders. `APP_ENV=production` makes `deploy_checks.py` refuse the boot if any
   of them is wrong, and `Procfile`/`railway.json` carry the proxy flags
-- Still to do: frontend → Vercel, backend → Railway, a real Supabase project.
-  **Four migrations, not one** — Google sign-in columns, email normalisation
-  (the only one that can fail on real data), the `project_invites` table, and
-  `subscription_expires_at` / `renewal_notices_json`. `DEPLOYMENT.md` §1 has the
-  order and the failure mode
+- ~~frontend → Vercel, backend → Railway, a real Supabase project, four
+  migrations~~ — all done. The migrations were applied and the schema was then
+  checked against the live database column by column, which found nineteen gaps
+  a static read of the SQL had missed
+- What the deploy actually cost was not the hosts. It was three env-var traps
+  that both platforms accept silently: `KEY=VALUE` pasted into a value box, an
+  origin carrying a trailing slash and a missing `//`, and `VITE_API_URL`
+  needing a cache-free rebuild because Vite bakes it in at build time.
+  `DEPLOYMENT.md` names all three and gives the two checks that catch them from
+  outside
 
 ### Weeks 2–4 · Payments that work in Nepal
 **Decided and built 2026-08-20: both gateways.** Khalti and eSewa ship alongside

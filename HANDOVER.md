@@ -1,3 +1,73 @@
+# Handover — 2026-09-15 · **it is deployed**
+
+Supersedes the 2026-09-10/11 handover, which is kept below in full: its
+environment notes, its "what will bite you" list and its test counts all still
+hold. What changed is that the build left this machine.
+
+## 0. The live system
+
+| | |
+|---|---|
+| Frontend | `https://baakhapaascript.vercel.app` — Vercel, root `baakhapaa-frontend`, edge `bom1` |
+| Backend | `https://akchhyarup.up.railway.app` — Railway, root `baakhapaa-backend` |
+| Database | Supabase Postgres, all migrations applied |
+
+Ten calls against the deployed pair, each carrying the browser's real `Origin`:
+register, login, `/auth/me`, create project, get-or-create script, save draft,
+cast, lint, recommendations, review — **all 200**, all with
+`access-control-allow-origin`. Scene sync reconciled two scenes from a
+Devanagari-context draft in production Postgres. Craft retrieval answered cold
+in 4.1s. In a real browser the login form returned the server's own "Invalid
+email or password", which is the assertion that matters: a CORS or API-URL fault
+never gets as far as a 401.
+
+`/dashboard` and `/login` return 200 on a cold refresh (the SPA rewrite holds),
+all five security headers are present, 17 lazy chunks survived the production
+build, and Vercel Deployment Protection is off.
+
+**What is not proven.** No AI generation and no storyboard has run against the
+deployed backend, and no real money has moved. Everything verified was a path
+that costs nothing. That walk — structure, write, finalize, storyboard, export,
+with a real account — is the next thing worth doing, and it is `DEPLOYMENT.md`
+§5.
+
+## 0b. What the deploy actually cost
+
+Not the hosts. Three environment-variable traps, each of which lets the service
+boot cleanly and then behave wrongly, with nothing warning you:
+
+1. **`KEY=VALUE` pasted into the value box.** Both platforms give you two
+   fields. The allowlist became the literal string
+   `CORS_ORIGINS=https://baakhapaascript.vercel.app`, matching no origin.
+2. **A trailing slash and a missing `//`.** The live value was
+   `https:baakhapaascript.vercel.app/`, wrong in both ways at once, for two
+   redeploys. Starlette compares origins as exact strings.
+3. **`VITE_API_URL` needs a cache-free rebuild.** Vite inlines it at build time,
+   so setting the variable and not redeploying leaves the old bundle running.
+   The production bundle carried `http://localhost:8000` — every API call from
+   the live site was going to the visitor's own machine, while the backend
+   itself was perfectly healthy.
+
+Diagnose from outside rather than guessing: an `OPTIONS` preflight with the
+frontend's `Origin` returns 200 or `400 Disallowed CORS origin`, and grepping
+the deployed entry bundle for the API host says whether the frontend was really
+rebuilt. `DEPLOYMENT.md` has both commands. The backend also prints its parsed
+allowlist at boot, so the deploy-log line beginning `CORS: restricted to` ends
+the question in one look.
+
+## 0c. Testing against production writes to production
+
+The verification registered a real account in the real database. It used an
+address matching `purge_test_accounts.THROWAWAY` (`deploy-check-<n>@example.com`)
+so it could be removed, and it was — checked afterwards for orphans across
+projects, scripts, scenes, versions and comments: **zero**. Five real accounts
+untouched.
+
+Do the same. A deploy check that cannot be undone is not a check, it is a
+migration.
+
+---
+
 # Handover — 2026-09-10, extended 09-11
 
 Supersedes the 2026-09-08/09 handover. Its environment notes and its "what will
