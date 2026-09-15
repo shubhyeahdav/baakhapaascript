@@ -193,16 +193,16 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 
 ### Day 8 · Move to pgvector
 
-- [ ] Run `pgvector_script_patterns.sql` against Supabase
-- [ ] Confirm the table, the index and the `match_script_patterns` function exist — *table and index yes; the FUNCTION carries an older signature (`check_schema.py` reports PGRST202). Needs `pgvector_script_patterns.sql` re-run end to end — it drops the old signature first, which a bare CREATE OR REPLACE will not.*
+- [x] Run `pgvector_script_patterns.sql` against Supabase
+- [x] Confirm the table, the index and the `match_script_patterns` function exist — *all three, 2026-09-15: `check_schema.py` reports "present, craft-filtered".*
 - [x] Re-run the loader so embeddings land in the vector column
 - [x] Switch retrieval from fetch-all-and-rank to the RPC
 - [x] Keep the Python cosine path as the fallback when the RPC is unavailable
 - [x] Confirm the dimension guard still refuses a mismatched stored vector
-- [ ] Re-run the eval and confirm the number did not move
+- [x] Re-run the eval and confirm the number did not move
 - [x] Measure retrieval latency before and after
 - [x] Add a test that a database error still returns an empty list rather than raising
-- [ ] Commit with both numbers in the message
+- [x] Commit with both numbers in the message
 
 ### Day 9 · Try a better model
 
