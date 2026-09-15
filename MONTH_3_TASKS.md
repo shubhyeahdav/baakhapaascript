@@ -194,13 +194,13 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 ### Day 8 · Move to pgvector
 
 - [ ] Run `pgvector_script_patterns.sql` against Supabase
-- [ ] Confirm the table, the index and the `match_script_patterns` function exist
-- [ ] Re-run the loader so embeddings land in the vector column
+- [ ] Confirm the table, the index and the `match_script_patterns` function exist — *table and index yes; the FUNCTION carries an older signature (`check_schema.py` reports PGRST202). Needs `pgvector_script_patterns.sql` re-run end to end — it drops the old signature first, which a bare CREATE OR REPLACE will not.*
+- [x] Re-run the loader so embeddings land in the vector column
 - [x] Switch retrieval from fetch-all-and-rank to the RPC
 - [x] Keep the Python cosine path as the fallback when the RPC is unavailable
 - [x] Confirm the dimension guard still refuses a mismatched stored vector
 - [ ] Re-run the eval and confirm the number did not move
-- [ ] Measure retrieval latency before and after
+- [x] Measure retrieval latency before and after
 - [x] Add a test that a database error still returns an empty list rather than raising
 - [ ] Commit with both numbers in the message
 
@@ -210,7 +210,7 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Try a larger sentence-transformer and re-embed the corpus
 - [x] Re-run the eval; keep the change only if precision@1 improves
 - [x] Measure the cost in load time and memory
-- [ ] If it improves, update the dimension in the pgvector schema
+- [x] If it improves, update the dimension in the pgvector schema — *moot: bge-base scored identically on p@1 for 4.6x the embedding time, so the 384-dim model stays and the schema is already right.*
 - [x] Try retrieving five and reranking to three by craft level — *measured and **rejected**. Rank 1 left untouched, the other two filled preferring an unseen level: p@1 and p@3 both unchanged at 90.0% / 97.5%, and coverage got **worse** — 32 of 39 entries reached against 34. Forcing level diversity pulls in the same few entries that sit near the top across many levels; the natural top-3 varies more. Written up in `RECOMMENDATION_ARCHITECTURE.md` because it will look like an obvious win again next month*
 - [x] Re-run the eval on that — *above; all forty real queries, not a sample*
 - [x] Try weighting the `technique` field alongside `problem`
@@ -305,15 +305,15 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 
 ### Day 16 · Get images out of the database
 
-- [ ] Create a Supabase Storage bucket for storyboard frames
-- [ ] Upload generated images to it instead of storing data URIs
-- [ ] Store the object path in `storyboard_frames.image_url`
-- [ ] Keep reading existing data URIs so old boards still work
-- [ ] Confirm the production package still embeds frames from storage
-- [ ] Confirm the export SSRF guard still applies to storage URLs
-- [ ] Measure the row size before and after
-- [ ] Add a test for both storage shapes
-- [ ] Delete images when their storyboard is deleted
+- [x] Create a Supabase Storage bucket for storyboard frames
+- [x] Upload generated images to it instead of storing data URIs
+- [x] Store the object path in `storyboard_frames.image_url`
+- [x] Keep reading existing data URIs so old boards still work
+- [x] Confirm the production package still embeds frames from storage
+- [x] Confirm the export SSRF guard still applies to storage URLs
+- [x] Measure the row size before and after
+- [x] Add a test for both storage shapes
+- [x] Delete images when their storyboard is deleted
 - [ ] Commit
 
 ### Day 17 · Make renewals happen
