@@ -108,3 +108,62 @@ def run(env: str | None = None) -> None:
 
     if IS_PRODUCTION:
         print("Preflight: production checks passed.")
+        report_schema_drift()
+
+
+def report_schema_drift() -> list:
+    """Ask the real database, at boot, whether it matches the code.
+
+    This is the one blind spot no test suite in this repository can cover.
+    `database.py`'s local mock stores rows as flat JSON and therefore agrees
+    with any writer, so 996 tests once passed while project creation was broken
+    for every format — a single missing column, and Postgres rejects the whole
+    row rather than dropping the field. Five schema-drift bugs have arrived that
+    way.
+
+    `check_schema.py` has existed for two days and answers exactly this, but it
+    is a thing somebody has to remember to run, and it cannot go in CI: it needs
+    the credentials of the database the app will actually use, which no CI job
+    should hold. Boot is the one moment when those credentials are present and
+    the question is about to matter.
+
+    WARNS, does not refuse, and the distinction is deliberate. A missing column
+    breaks only the inserts that write it. `projects.video_category` broke every
+    project creation and deserved a refusal; `payments.refunded_at` breaks an
+    operator script nobody runs daily. Refusing the boot for the second case
+    would trade a narrow fault for a total outage, which is a worse trade than
+    the one it prevents. The gap is printed with the statement that closes it,
+    where a deploy log will carry it.
+
+    Never raises. A schema probe that cannot reach the database is a reason to
+    say so, not a reason to refuse traffic.
+    """
+    try:
+        import check_schema
+        import database
+
+        if database.use_mock:
+            return []
+
+        gaps = []
+        for table, wanted in check_schema.CHECKS:
+            for column in check_schema.missing_columns(table, wanted()):
+                gaps.append((table, column))
+
+        if not gaps:
+            print("Preflight: the database matches the code.")
+            return gaps
+
+        print("WARNING: the database is MISSING columns this code writes. "
+              "Any insert touching them fails entirely — Postgres rejects the "
+              "whole row rather than dropping the unknown field.")
+        for table, column in gaps:
+            print(f"  missing: {table}.{column}")
+            print("    " + check_schema.DDL.get(
+                (table, column),
+                f"-- no statement recorded for {table}.{column}"))
+        return gaps
+    except Exception as e:  # noqa: BLE001 - a probe must never block a boot
+        print(f"WARNING: could not check the database schema at boot ({e}). "
+              "Run check_schema.py by hand.")
+        return []

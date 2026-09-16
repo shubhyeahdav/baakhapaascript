@@ -155,3 +155,56 @@ def test_run_raises_on_errors(monkeypatch):
 def test_run_is_silent_about_development(monkeypatch):
     monkeypatch.delenv("CORS_ORIGINS", raising=False)
     deploy_checks.run("development")  # must not raise
+
+
+# --- the boot-time schema report ---------------------------------------------
+#
+# The one blind spot no test here can cover is whether the REAL database has
+# the columns this code writes: the local mock stores rows as flat JSON and
+# agrees with any writer, which is how 996 tests once passed while project
+# creation was broken for every format.
+#
+# `check_schema.py` answers it but has to be remembered, and it cannot go in CI
+# because it needs the credentials of the database the app will actually use.
+# Boot is the moment those credentials exist and the question is about to
+# matter.
+
+def test_the_schema_report_says_nothing_on_the_mock():
+    """The mock is schemaless, so it would report no gaps whatever the truth.
+    Returning early is honest; reporting "all present" would be a green light
+    nobody earned."""
+    import deploy_checks
+
+    assert deploy_checks.report_schema_drift() == []
+
+
+def test_the_schema_report_never_raises(monkeypatch):
+    """A probe that cannot reach the database is a reason to say so, not a
+    reason to refuse traffic. This runs inside the boot path."""
+    import deploy_checks
+
+    class _Broken:
+        use_mock = False
+
+        def __getattr__(self, name):
+            raise RuntimeError("connection refused")
+
+    monkeypatch.setitem(__import__("sys").modules, "database", _Broken())
+
+    assert deploy_checks.report_schema_drift() == []
+
+
+def test_it_warns_rather_than_refusing(capsys):
+    """Deliberate, and the reason is a trade. A missing column breaks only the
+    inserts that write it — `projects.video_category` broke every project
+    creation and deserved a refusal, `payments.refunded_at` breaks an operator
+    script. Refusing the boot for the second would trade a narrow fault for a
+    total outage.
+
+    Asserted as the absence of a raise, because that IS the behaviour.
+    """
+    import deploy_checks
+
+    deploy_checks.report_schema_drift()  # must not raise
+
+    assert "Refusing to start" not in capsys.readouterr().out

@@ -96,10 +96,10 @@ machine). Then:
 > disconnected` on the first request after an idle gap — a pooled connection
 > Supabase has already closed. See `HANDOVER.md`.
 >
-> Backend tests: **1097 across 71 files, 2 skipped, all passing** (2026-09-16;
+> Backend tests: **1111 across 72 files, 2 skipped, all passing** (2026-09-16;
 > the Devanagari font gate no longer skips — the asset is bundled),
 > `./venv/Scripts/python -m pytest`.
-> Frontend tests: **1166 across 61 files**, `npm run test:ci`.
+> Frontend tests: **1194 across 62 files**, `npm run test:ci`.
 >
 > **The backend suite takes about TWENTY minutes on this machine, not the 3.5
 > this file claimed until 2026-09-16.** That is not the old hang and nothing is

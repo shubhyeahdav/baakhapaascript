@@ -50,9 +50,25 @@ def _columns_written_to_patterns() -> set:
     return set(loader.row_for(sample).keys())
 
 
+def _columns_written_to_payments() -> set:
+    """Every column `payments.py` puts in a payment row.
+
+    Added when refunds landed: `refunded_at` is a new column AND `status`
+    gained a value its CHECK constraint did not allow. A column check cannot
+    see a constraint, so `tests/test_refunds.py` reads the SQL for the second
+    half — but the column itself belongs here, where the real database is the
+    one being asked.
+    """
+    return {
+        "id", "user_id", "tier", "provider", "amount", "currency", "status",
+        "reference", "provider_ref", "created_at", "completed_at", "refunded_at",
+    }
+
+
 CHECKS = (
     ("projects", _columns_written_to_projects),
     (rag.TABLE, _columns_written_to_patterns),
+    ("payments", _columns_written_to_payments),
 )
 
 # The exact statement to run, per column. Kept beside the check so the output
@@ -62,6 +78,16 @@ DDL = {
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS video_category TEXT DEFAULT 'essay';",
     ("script_patterns", "applies_to"):
         "ALTER TABLE script_patterns ADD COLUMN IF NOT EXISTS applies_to text[];",
+    # Both statements under one key on purpose. Refunds needed a new COLUMN
+    # and a wider CHECK on `status`, and a column probe cannot see a
+    # constraint -- `status` already exists, so a key of its own would never
+    # fire and the constraint would be silently left un-migrated. They land
+    # together or the first refund is rejected by the second half.
+    ("payments", "refunded_at"):
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;"
+        " ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_status_check;"
+        " ALTER TABLE payments ADD CONSTRAINT payments_status_check"
+        " CHECK (status IN ('pending','completed','failed','underpaid','refunded'));",
 }
 
 
