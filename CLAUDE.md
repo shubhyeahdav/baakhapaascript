@@ -96,12 +96,33 @@ machine). Then:
 > disconnected` on the first request after an idle gap — a pooled connection
 > Supabase has already closed. See `HANDOVER.md`.
 >
-> Backend tests: **907 across 55 files, all passing** (the Devanagari font gate
-> no longer skips — the asset is bundled), `./venv/Scripts/python -m pytest`.
-> Frontend tests: **1113 across 58 files**, `npm run test:ci`.
+> Backend tests: **1083 across 69 files, 2 skipped, all passing** (2026-09-16;
+> the Devanagari font gate no longer skips — the asset is bundled),
+> `./venv/Scripts/python -m pytest`.
+> Frontend tests: **1166 across 61 files**, `npm run test:ci`.
 >
-> **The suite takes 3.5 minutes. If it takes an hour, something is calling
-> out.** Until 2026-09-10 `conftest.py` neutralised `ANTHROPIC_API_KEY`,
+> **The backend suite takes about TWENTY minutes on this machine, not the 3.5
+> this file claimed until 2026-09-16.** That is not the old hang and nothing is
+> calling out: `conftest.py` pins the providers, the ten slowest tests total 22
+> seconds, and the time is spread thin across 1083 tests. Budget for it; it is
+> unexplained, not broken.
+>
+> **A slow run and a hung run look identical, and that is a tooling trap rather
+> than a fact about the suite.** `pytest -q | tail` prints nothing at all until
+> it finishes, so twenty minutes of silence is what BOTH look like. Run it
+> unpiped, or with `-u`, when you need to tell them apart.
+>
+> **A live provider now stops the run rather than being neutralised by name.**
+> `conftest.py` asserts at session start that `script_engine.PROVIDER` is
+> `mock`, `storyboard_engine.MOCK_AI` is true and `database.use_mock` is true,
+> and calls `pytest.exit` if any is not. The env pinning below it still does the
+> work; this is the net that catches the next provider nobody remembered to pin
+> — which is exactly how the 75-minute hang and the production-database run both
+> happened. `tests/test_live_provider_guard.py` forces each condition. If a
+> future you is tempted to delete the check because it is in the way: it is the
+> thing that noticed.
+>
+> **The historical failure, kept because it explains the guard:** Until 2026-09-10 `conftest.py` neutralised `ANTHROPIC_API_KEY`,
 > `OPENAI_API_KEY` and `GROQ_API_KEY` but not `LLM_PROVIDER` / `LLM_API_KEY`,
 > which the OpenAI-compatible transport reads — so with a real TokenRouter key
 > in `.env` every AI test made a live billed call to a reasoning model that
@@ -260,8 +281,9 @@ machine). Then:
   (`/payment/return/{provider}`), never a query string: every gateway appends
   its own parameters and eSewa's docs do not say what it does when one is
   already there
-- **RAG craft grounding** — `knowledge_base.json` (**39 craft entries** across
-  five levels: structure, scene, dialogue, character, image) →
+- **RAG craft grounding** — `knowledge_base.json` (**45 craft entries** across
+  five levels: structure, scene, dialogue, character, image — 39 that serve
+  both crafts plus the six long-form video ones) →
   `load_knowledge_base.py` → `script_patterns`; `rag.retrieve_relevant_patterns()`
   injects the top-3 semantic matches into `generate_structure`. Retrieval embeds
   the entry's **problem** first, since writers arrive with a symptom, not a genre

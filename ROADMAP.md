@@ -103,8 +103,20 @@ are all still unreviewed templates.
 ## Known non-blockers, carried forward
 
 - **E6 corpus fingerprints** — blocked; the script corpus is on another machine
-- **Custom user scenes UI** (C2) — the API supports it, no UI
-- **NewProject still uses the old Sidebar** — shell split half-applied
-- Marketing plan: see the shared plan artifact, and §"content engine" — the 29
-  craft entries are original prose and are publishable as short-form content by
-  construction
+- ~~**Custom user scenes UI** (C2) — the API supports it, no UI~~ — **done.**
+  The Corkboard has "+ New scene" and the Outline a per-act add, both composing
+  a slugline inline and writing the row and the scene block together;
+  `Corkboard.test.jsx` covers it
+- ~~**NewProject still uses the old Sidebar** — shell split half-applied~~ —
+  **done.** `Sidebar.jsx` no longer exists in the repository and nothing
+  imports it; `NewProject` is on `TopNav` like everything else. The only
+  surviving mention is a comment explaining the switch
+- Marketing plan: see the shared plan artifact, and §"content engine" — the
+  **45** craft entries are original prose and are publishable as short-form
+  content by construction
+
+*Checked 2026-09-16. Three of the four "carried forward" items had already been
+done, one of them nearly a month earlier, and the corpus count was 29 when it
+is 45. A list of known non-blockers is only useful if somebody occasionally
+asks it whether it is still true — so: two closed, one still genuinely blocked,
+one number corrected.*

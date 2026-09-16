@@ -125,15 +125,32 @@ before this session — a 0.003 margin. It was a coin flip, not a robust pass. T
 honest reading is that four entries is too few to separate, not that retrieval
 regressed. **Add image-level entries before tuning anything.**
 
-### B4. The AI-key guard in `conftest.py` is a list of names
+### B4. The AI-key guard in `conftest.py` is a list of names — **DONE 2026-09-16**
 
 It went stale within a day of a new provider landing and cost 75 minutes a run.
 It will go stale again the next time.
 
-**Fix:** invert it. Instead of naming keys to neutralise, assert at session
-start that `script_engine.PROVIDER == "mock"` and fail the run loudly if not.
-That catches every future provider without anyone remembering to. Small, and it
-closes the class rather than the instance.
+**Fixed as proposed, plus two.** `pytest_sessionstart` now asserts three things
+and stops the session with `pytest.exit` if any fails:
+
+| | Why this one |
+|---|---|
+| `script_engine.PROVIDER == "mock"` | The 75-minute hang. Checked first: a run that hangs produces no output to read, so it is the least diagnosable |
+| `storyboard_engine.MOCK_AI` | The expensive half — one board is up to 24 billed images, and the name-list never covered `OPENAI_API_KEY` for images at all |
+| `database.use_mock` | Already happened: 853 tests ran against production Postgres. It surfaced only because the key in use could not write. With a service_role key they would have passed, and deleted real data doing it |
+
+The env pinning at the top of `conftest.py` stays — that is the mechanism that
+makes the invariant true. This is the net that catches the next provider nobody
+remembered to pin.
+
+`pytest.exit` rather than a failure, because a suite that can reach a paid
+provider must not run at all, not run and report.
+
+`tests/test_live_provider_guard.py` forces each condition and checks the
+reason, the ordering, and that the session actually ENDS rather than merely
+noticing — a guard nobody has seen fire is indistinguishable from one that
+cannot. It also pins the three attribute names the guard reads, so a rename
+fails with the name in it.
 
 ---
 
@@ -202,9 +219,10 @@ measures nothing. A writer settles this, not me. It is the cheapest question in
 
 1. **A1 + A2 together** — one decision, and it unblocks pricing and the
    merchant accounts.
-2. **B4** — half an hour, closes a class of bug that already cost a session.
+2. ~~**B4**~~ — **done 2026-09-16.** Took about the half hour estimated.
 3. **B1's diagnostic** — half a day, and it decides whether B1 is corpus work
-   or eval work before anyone does the wrong one.
+   or eval work before anyone does the wrong one. **Now the top unblocked
+   item.**
 4. **C3** — an SMTP account and a cron entry. Not engineering.
 5. **B2** — the largest, and the one that most changes what this product is for
    the market it is built for.

@@ -82,6 +82,65 @@ from database import supabase  # noqa: E402
 GOOD_PASSWORD = "Kathmandu!2026"
 
 
+# --- the guard that does not go stale ---------------------------------------
+#
+# Everything above is a list of key NAMES to neutralise, and a list of names
+# goes out of date the day a new provider lands. It did, twice:
+#
+#   * `LLM_PROVIDER` / `LLM_API_KEY` arrived with the OpenAI-compatible
+#     transport and the list did not know about them, so every AI test made a
+#     live billed call to a reasoning model that returns nothing. The suite did
+#     not fail. It HUNG -- 75 minutes, no output.
+#   * `SUPABASE_URL` was popped rather than set, and `load_dotenv()` refilled
+#     it, so 853 tests ran against the production database. It surfaced only
+#     because the key in use could not write.
+#
+# Both were the same mistake: the list described what to switch off instead of
+# what must be true. These three assertions describe what must be true, and
+# they hold for a provider nobody has integrated yet.
+#
+# Checked once per session rather than per test, and `pytest.exit` rather than
+# a failure, because a suite that can reach a paid provider must not run at
+# all -- not run and report.
+
+_LIVE_PROVIDER_HINT = """\
+The test suite can reach a LIVE provider. It must not run.
+
+  {what}
+
+Something in the environment outranked tests/conftest.py. The usual cause
+is a new provider whose variables are not pinned at the top of this file
+-- that is exactly how the 75-minute hang and the production-database run
+both happened. Add the new variables above, and leave this check alone:
+it is what noticed.
+"""
+
+
+def _live_provider_reason():
+    """What is live, or None. Split out so it can be tested."""
+    import script_engine
+    import storyboard_engine
+    import database as db
+
+    if script_engine.PROVIDER != "mock":
+        return (f"script_engine.PROVIDER is {script_engine.PROVIDER!r}, not "
+                "'mock' -- generation would be billed and sent to a third "
+                "party.")
+    if not storyboard_engine.MOCK_AI:
+        return ("storyboard_engine.MOCK_AI is False -- image generation would "
+                "be billed against OPENAI_API_KEY.")
+    if not db.use_mock:
+        return ("database.use_mock is False -- the suite would create and "
+                "DELETE rows in the real Supabase project.")
+    return None
+
+
+def pytest_sessionstart(session):
+    reason = _live_provider_reason()
+    if reason:
+        pytest.exit(_LIVE_PROVIDER_HINT.format(what=reason), returncode=3)
+
+
 @pytest.fixture
 def client():
     return TestClient(app)
