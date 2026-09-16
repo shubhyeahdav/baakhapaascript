@@ -67,26 +67,40 @@ def create_token(user_id: str, email: str, version: int = 0) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
 
 
+# Every way a token can fail says the same thing, because every one of them
+# means the same thing to the person reading it: sign in again.
+#
+# There were four different messages here -- "Missing or invalid token",
+# "Invalid token", and "Invalid or expired token" twice -- none of which names
+# an action, next to one that did. A writer meets these mid-draft, which is the
+# worst moment in the product to be handed a noun.
+#
+# Deliberately NOT specific about WHICH failure it was. That distinction is
+# useful to an attacker probing tokens and useless to a writer, who cannot act
+# on it differently either way.
+SIGN_IN_AGAIN = "Your session has ended. Sign in again to keep writing."
+
+
 def get_current_user(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid token")
+        raise HTTPException(status_code=401, detail=SIGN_IN_AGAIN)
     token = authorization.replace("Bearer ", "")
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail=SIGN_IN_AGAIN)
     except JWTError:
         # `from None`: the JWT library's internals add nothing a caller can act
         # on, and suppressing the chain keeps them out of logs.
-        raise HTTPException(status_code=401, detail="Invalid or expired token") from None
+        raise HTTPException(status_code=401, detail=SIGN_IN_AGAIN) from None
 
     # The signature only proves we issued this. It does not prove the account
     # still exists, or that the session was not revoked since — a deleted user's
     # token stays cryptographically valid for the rest of its week otherwise.
     user = get_user_by_id(user_id)
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        raise HTTPException(status_code=401, detail=SIGN_IN_AGAIN)
     if int(payload.get("ver") or 0) != token_version(user):
         raise HTTPException(
             status_code=401,
@@ -233,7 +247,14 @@ def register(request: Request, user: UserCreate):
 
     existing = get_user_by_email(user.email)
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        # Naming the next step rather than the state. This address having an
+        # account is not news to whoever owns it, so saying so costs nothing
+        # and a dead end costs a sign-up.
+        raise HTTPException(
+            status_code=400,
+            detail="That email already has an account. Sign in instead, or "
+                   "use a different address.",
+        )
 
     hashed = pwd_context.hash(user.password)
     try:

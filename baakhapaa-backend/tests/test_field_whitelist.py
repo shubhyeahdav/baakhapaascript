@@ -70,10 +70,48 @@ def test_a_none_payload_is_a_400_rather_than_an_attribute_error():
 
 
 def test_the_400_names_the_problem():
-    """The frontend surfaces `detail` verbatim, so the wording is a contract."""
+    """The frontend surfaces `detail` verbatim, so the wording is a contract.
+
+    It used to read "No valid fields to update", which states the server's
+    conclusion and leaves the caller to guess what was wanted -- the same guess
+    that produced the failed request. It now names what it would have taken.
+    """
     with pytest.raises(HTTPException) as exc:
         apply_whitelist({"nope": 1}, {"title"})
-    assert exc.value.detail == "No valid fields to update"
+
+    detail = exc.value.detail
+    assert "Nothing in that request can be updated here" in detail
+    assert "This accepts: title." in detail
+
+
+def test_the_400_says_what_was_sent_so_a_typo_is_visible():
+    """`titel` against `title` is the whole reason this error exists."""
+    with pytest.raises(HTTPException) as exc:
+        apply_whitelist({"titel": 1}, {"title"})
+
+    assert "Sent: titel." in exc.value.detail
+
+
+def test_the_400_does_not_mirror_arbitrary_caller_input():
+    """The keys come from the request body. They are echoed back to be useful,
+    so they are filtered to plain identifiers and capped -- an error message is
+    not a mirror."""
+    junk = {"<script>alert(1)</script>": 1, "ok_name": 1}
+
+    with pytest.raises(HTTPException) as exc:
+        apply_whitelist(junk, {"title"})
+
+    assert "<script>" not in exc.value.detail
+    assert "ok_name" in exc.value.detail
+
+
+def test_the_400_caps_how_many_names_it_repeats():
+    sent = {f"field_{i}": 1 for i in range(20)}
+
+    with pytest.raises(HTTPException) as exc:
+        apply_whitelist(sent, {"title"})
+
+    assert exc.value.detail.count("field_") == 5
 
 
 def test_values_are_passed_through_untouched():
@@ -167,7 +205,11 @@ def test_a_project_update_of_only_forbidden_fields_is_a_400(client, make_user, m
                    headers=owner["headers"])
 
     assert r.status_code == 400, r.text
-    assert r.json()["detail"] == "No valid fields to update"
+    detail = r.json()["detail"]
+    assert "Nothing in that request can be updated here" in detail
+    # The point of the refusal survives the rewording: `user_id` is not on the
+    # whitelist, so it is not among the fields offered back.
+    assert "user_id" not in detail.split("This accepts:")[1]
 
 
 def test_the_project_whitelist_holds_no_identity_or_billing_field():

@@ -191,7 +191,13 @@ def test_the_same_address_cannot_register_twice_under_different_casing(client):
         json={"email": email.upper(), "password": GOOD_PASSWORD, "name": "Someone Else"},
     )
     assert second.status_code == 400
-    assert "already registered" in second.json()["detail"].lower()
+    # Asserting what the message has to DO, not the words it used to use. The
+    # text changed when the bare "Email already registered" was replaced with
+    # one that names the next step; the requirement -- say the address is
+    # taken, and say what to do instead -- did not.
+    detail = second.json()["detail"].lower()
+    assert "already has an account" in detail
+    assert "sign in" in detail
 
 
 def test_the_stored_address_is_the_normalised_one(client):
