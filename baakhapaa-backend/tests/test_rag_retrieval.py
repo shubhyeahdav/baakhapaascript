@@ -663,3 +663,59 @@ def test_the_dimension_guard_still_refuses_a_mismatched_stored_vector(
 
     assert got[0]["technique"] == "right-model"
     assert [p["technique"] for p in got if p["similarity"] > 0] == ["right-model"]
+
+
+# --- the exact lookup goes through the cache ---------------------------------
+#
+# `get_patterns_by_technique` ran its own `select("*")`, fetching all 45 rows
+# with their 384-dimension embeddings -- about 185KB -- every time the linter
+# found anything. Measured against the real database: 175.7ms, on an endpoint
+# that runs while somebody is typing and is free on every tier. It does not
+# read the embeddings at all; it matches a name.
+#
+# `_corpus` was written for exactly this problem and sits three functions above
+# it in the same file. This pins that it is used, because the fix is invisible
+# -- the results are identical either way, so nothing else would notice it
+# being undone.
+
+def test_the_exact_lookup_reads_the_cached_corpus(monkeypatch):
+    """Asserted by making the corpus the ONLY source that could answer.
+
+    If this function goes back to querying the table itself, the seeded row
+    below is not what it finds, and the assertion fails rather than quietly
+    costing 175ms a keystroke again.
+    """
+    calls = []
+
+    def fake_corpus(_supabase):
+        calls.append(1)
+        return [{"technique": "only-in-the-cache", "title_ref": "Ref",
+                 "problem": "p", "craft_level": "scene"}]
+
+    monkeypatch.setattr(rag, "_corpus", fake_corpus)
+    _seed("in-the-table-instead", [1.0, 0.0, 0.0])
+
+    got = rag.get_patterns_by_technique(["only-in-the-cache"])
+
+    assert [p["technique"] for p in got] == ["only-in-the-cache"]
+    assert calls, "the exact lookup did not go through _corpus"
+
+
+def test_the_exact_lookup_still_returns_nothing_for_an_unknown_name(monkeypatch):
+    """The cache must not turn a miss into a match."""
+    monkeypatch.setattr(rag, "_corpus",
+                        lambda _s: [{"technique": "present"}])
+
+    assert rag.get_patterns_by_technique(["absent"]) == []
+
+
+def test_the_exact_lookup_asks_for_nothing_when_given_nothing(monkeypatch):
+    """The early return matters more now: with no names there is no reason to
+    touch the corpus at all, cached or not."""
+    def boom(_s):
+        raise AssertionError("_corpus should not be reached for an empty list")
+
+    monkeypatch.setattr(rag, "_corpus", boom)
+
+    assert rag.get_patterns_by_technique([]) == []
+    assert rag.get_patterns_by_technique([None, ""]) == []
