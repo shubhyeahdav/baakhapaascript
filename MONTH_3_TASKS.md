@@ -8,10 +8,51 @@ Anthropic account with credit, a Supabase project, and a domain. Get those befor
 
 ---
 
-## Where this stands (2026-09-03)
+## Where this stands (2026-09-16)
 
-**117 of 200 done** (2026-09-11). Weeks 2 and 3 are complete except for the parts
-that need a deployed system; Week 4 is partly done.
+**145 of 200 done.** Weeks 1 to 3 are complete except for the parts that need
+money spent; Week 4 is partly done.
+
+**Deployment is no longer a blocker** — it happened on 2026-09-15, and three
+boxes on this list were still describing it as pending. That changes the shape
+of what is left: it is now almost entirely things a purchase unblocks rather
+than things anyone can write.
+
+The 55 open items, by what actually holds them up:
+
+| Blocker | Items | What it costs |
+|---|---|---|
+| Anthropic credit | ~10 (Day 4, most of Day 5) | The key is set; the account has no balance |
+| Merchant accounts | 5 (Day 5 applications, Day 20 payment) | Company registration and bank details |
+| An SMTP account | 8 (Day 17) | Nothing renews without it |
+| A real phone in a hand | 3 (Day 3, Day 18) | Deliberately not emulator-answerable |
+| Nothing at all | ~12 | Listed below |
+
+Verified 2026-09-16, everything green: backend **1036 passed, 2 skipped**
+(CLAUDE.md still says 907 — the suite has grown), frontend **1166 across 61
+files**, the production build, and `ruff`. Two things worth knowing that the
+numbers do not show:
+
+- **The backend suite takes about twenty minutes on this machine, not the 3.5
+  the docs claim.** It is not the old hang — `conftest.py` still neutralises
+  `LLM_PROVIDER` and `SUPABASE_URL`, nothing calls out, and the ten slowest
+  tests add up to only 22 seconds. So the time is spread thin across 1036
+  tests rather than stuck in a few. Worth finding before it reaches five
+  figures; the documented number is the thing to stop trusting first.
+- The first run of it produced no output for twenty minutes and looked exactly
+  like the documented hang. It was not hung. `pytest -q | tail` buffers
+  everything until the end, so there is no way to tell the two apart — run it
+  unpiped, or with `-u`, if you want to know which one you are looking at.
+
+What is NOT blocked, and is worth doing in this order:
+
+1. **Merge `fix/craft-and-patterns-ux` into `codebase`.** Three commits are
+   unmerged and one has never been pushed anywhere. CI watches `codebase`,
+   `main` and pull requests only, so none of that work has seen lint, either
+   suite, the production build or the layout job.
+2. Measure a Patterns request against the DEPLOYED backend (Day 10).
+3. Walk the product as a new user on the deployed system, minus the AI steps,
+   and check every error message says what to do next (Day 20).
 
 Everything closed on 2026-09-11 was closed by **measuring**, and two of the eight
 were closed by measuring and then not doing the thing: diversity reranking made
@@ -19,13 +60,10 @@ coverage worse, and prompt caching does not apply at this prompt size. A task
 list is allowed to be finished by a negative result, and those are the cheapest
 results on it — see `RECOMMENDATION_ARCHITECTURE.md`.
 
-What is still genuinely blocked has not changed: deployment, Anthropic *credit*
-(the key is set), an SMTP account, merchant accounts, and a real phone.
-
-**The Supabase project now exists**, so the line below about Week 1 being blocked
-on it is out of date and the four items that waited on it are unblocked — the
-pgvector migration is the next one worth doing. What is still genuinely blocked
-is deployment, Anthropic *credit* (the key is set), and an SMTP account.
+The same thing happened again on 2026-09-14: the pgvector RPC was measured at
+178.6ms against 8.8ms for ranking in Python, so the task "switch retrieval to
+the RPC" was closed by NOT switching, and the threshold that guards it moved
+from a guessed 500 rows to a measured 2,500.
 
 What the work actually found, in the order it was found:
 
@@ -279,7 +317,7 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Publish the before-and-after numbers in the repository
 - [x] Check the Patterns tab returns the improved results in the browser
 - [x] Confirm the free tier still gets retrieval with no API call
-- [ ] Measure how long a Patterns request takes on the deployed system — *blocked on deployment; the server-side half is 0.007s locally once warm*
+- [x] Measure how long a Patterns request takes on the deployed system — ***2.5 seconds.*** *Measured 2026-09-16 against `akchhyarup.up.railway.app` through the route the editor calls, ten runs on a throwaway account that was deleted afterwards: median 2504ms, 3470ms for the first, 2207ms median after it, three patterns returned every time. The network is NOT the explanation — `/health` on a reused connection is 262ms and on a fresh one 428ms, so roughly two seconds of that is the server. The same request against the same Supabase from this machine is 8.8ms. Something on Railway is ~200x slower at identical work, and the first-request penalty says `rag.warm_model()` may not be running there. This is the free tier's entire product — retrieval is all a free user gets — so it is the slowest thing in the product sitting on the cheapest plan's only feature. Not yet diagnosed; needs the deployed logs.*
 - [x] Cache the embedding model load if the first request is slow — *it was: 0.96-1.37s for the first embed against 0.005s for every one after, measured in a fresh process three times. `rag.warm_model()` now runs in a daemon thread at startup. End to end through the app: first retrieval **0.686s -> 0.007s**, boot not slower (3.59s vs 4.31s). `RAG_WARM_MODEL=false` turns it off and the suite sets exactly that*
 - [x] Add ten new craft entries in the weakest level
 - [x] Reload, re-measure, keep only what helps
@@ -352,7 +390,7 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Confirm the Story track is still reachable directly
 - [x] Check the lesson opens in place rather than navigating away
 - [x] Run both suites — *backend 869 across 51, frontend 1068 across 54*
-- [ ] Deploy
+- [x] Deploy — *2026-09-15, with the first deploy. `46e5dda` has been on `codebase` since 2026-09-03, so the escalation shipped with it*
 - [x] Write down what the loop cannot see, so nobody assumes it can
 
 ---
@@ -370,7 +408,7 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Measure the row size before and after
 - [x] Add a test for both storage shapes
 - [x] Delete images when their storyboard is deleted
-- [ ] Commit
+- [x] Commit — *`fb8a96c`, 2026-09-15*
 
 ### Day 17 · Make renewals happen
 
