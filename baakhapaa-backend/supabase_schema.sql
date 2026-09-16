@@ -251,12 +251,23 @@ CREATE TABLE IF NOT EXISTS payments (
   amount INTEGER NOT NULL,
   currency TEXT NOT NULL DEFAULT 'npr',
   status TEXT NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending', 'completed', 'failed', 'underpaid')),
+    CHECK (status IN ('pending', 'completed', 'failed', 'underpaid', 'refunded')),
   reference TEXT UNIQUE NOT NULL,
   provider_ref TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  completed_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ,
+  -- Set by `payments.refund`. A refunded payment keeps its row: the money
+  -- moved, twice, and deleting the record would lose the only account of it.
+  refunded_at TIMESTAMPTZ
 );
+-- Migration, 2026-09-16. Refunds. Until this runs, `payments.refund` cannot
+-- record one: Postgres rejects the whole row for a status outside the check,
+-- and `refunded_at` does not exist.
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
+ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_status_check;
+ALTER TABLE payments ADD CONSTRAINT payments_status_check
+  CHECK (status IN ('pending', 'completed', 'failed', 'underpaid', 'refunded'));
+
 CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_reference ON payments(reference);
 

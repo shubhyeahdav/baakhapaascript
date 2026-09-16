@@ -209,6 +209,80 @@ def activate(user_id: str, tier: str, days: int | None = None,
     return expiry_iso
 
 
+def refund(reference: str) -> dict:
+    """Record that a completed payment was refunded, and take back what it gave.
+
+    Called by `refund_payment.py`, never over HTTP. Refunding is the most
+    consequential thing anybody can do to an account that is not deleting it,
+    and `renewals.py` already makes the argument for the smaller case: nothing
+    should be able to trigger it with a request.
+
+    HOW THE TIER IS TAKEN BACK. Not by writing "free" onto the user. The days
+    the payment bought are subtracted from `subscription_expires_at`, and
+    `effective_tier` does the rest — an expiry now in the past already reads as
+    free everywhere, which is a path that is tested and in use. Inventing a
+    second way to demote somebody would mean two mechanisms that have to agree
+    forever.
+
+    It also gets the arithmetic right where a blunt downgrade would not. A
+    writer who paid for January and February, whose January payment is
+    refunded, still has February. They lose thirty days, not their plan.
+
+    A NULL expiry is left alone, deliberately. NULL means Stripe owns the
+    renewal, and refunding an invoice there does not cancel the subscription —
+    Stripe's own state is the truth, and writing a tier here would fight it.
+    The refund is recorded and the caller is told.
+
+    Returns what happened, so the operator script can print it rather than
+    guess.
+    """
+    rows = supabase.table("payments").select("*").eq(
+        "reference", reference).execute().data or []
+    if not rows:
+        return {"ok": False, "reason": f"No payment with reference {reference}."}
+
+    payment = rows[0]
+    if payment.get("status") == "refunded":
+        # Idempotent: an operator who runs it twice must not take sixty days.
+        return {"ok": True, "already": True, "payment": payment,
+                "reason": "Already refunded; nothing changed."}
+    if payment.get("status") != "completed":
+        return {"ok": False, "payment": payment,
+                "reason": f"Payment is {payment.get('status')}, not completed. "
+                          "Only a payment that actually granted something can "
+                          "be refunded."}
+
+    supabase.table("payments").update({
+        "status": "refunded",
+        "refunded_at": _now().isoformat(),
+    }).eq("reference", reference).execute()
+
+    users = supabase.table("users").select("*").eq(
+        "id", payment.get("user_id")).execute().data or []
+    user = users[0] if users else None
+    if not user:
+        return {"ok": True, "payment": payment,
+                "reason": "Payment marked refunded; the account no longer exists."}
+
+    expires = _parse(user.get("subscription_expires_at"))
+    if expires is None:
+        return {"ok": True, "payment": payment, "tier_unchanged": True,
+                "reason": "Payment marked refunded. This plan has no expiry, "
+                          "which means Stripe owns its renewal — cancel it "
+                          "there; a tier written here would fight Stripe's own "
+                          "state."}
+
+    new_expiry = expires - datetime.timedelta(days=SUBSCRIPTION_DAYS)
+    supabase.table("users").update({
+        "subscription_expires_at": new_expiry.isoformat(),
+    }).eq("id", user["id"]).execute()
+
+    return {"ok": True, "payment": payment,
+            "expires_at": new_expiry.isoformat(),
+            "reads_as_free": new_expiry < _now(),
+            "reason": f"Refunded. {SUBSCRIPTION_DAYS} days taken back."}
+
+
 # ---------------------------------------------------------------------------
 # Payment records
 # ---------------------------------------------------------------------------
