@@ -15,13 +15,24 @@ import { useAuth } from "../context/AuthContext";
  * A Stripe subscription leaves `subscription_expires_at` NULL — Stripe owns the
  * renewal — so this correctly says nothing to those users.
  *
- * This is the in-app half. The other half is a reminder that reaches someone
- * who has NOT opened the app, which needs mail infrastructure that does not
- * exist yet; see DEPLOYMENT.md.
+ * This is the in-app half. The other half is `renewals.py`, which mails the
+ * writer who has NOT opened the app.
+ *
+ * THE TWO HALVES ARE ORDERED, AND THE ORDER IS THE POINT. Both windows were
+ * written as 7 days, in two files, with nothing connecting them — so the
+ * banner and the email fired on the same day and which arrived first was a
+ * race. A writer who uses the product should learn that their plan is ending
+ * from the product, not from an email about it; the email exists for the
+ * person the banner cannot reach.
+ *
+ * `tests/test_renewal_ordering.py` in the backend fails if this number ever
+ * stops being larger than `renewals.WARN_DAYS`.
  */
 
-// Long enough to act on, short enough not to nag for most of the month.
-const WARN_WITHIN_DAYS = 7;
+// Fourteen days, against the mailer's seven. Long enough to act on, short
+// enough not to nag for half the month, and — the part that matters —
+// strictly earlier than the email. Exported so the test can read it.
+export const WARN_WITHIN_DAYS = 14;
 
 export function daysUntil(iso, now = new Date()) {
   if (!iso) return null;
