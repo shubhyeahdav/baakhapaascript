@@ -23,7 +23,7 @@ import recommendation_log
 import voice
 from auth import (
     get_current_user, require_script_access, require_project_access,
-    require_paid_tier, is_paid_tier,
+    require_paid_tier, is_paid_tier, script_with_project,
 )
 import script_engine
 import linter
@@ -363,18 +363,36 @@ def recommendations(req: RecommendRequest, background: BackgroundTasks,
     # screenwriter should never be offered one about retention curves. The
     # exclusion runs one way — see `rag.DEFAULT_APPLIES_TO` — so a screenplay
     # search is exactly the set it has always been.
-    craft = rag.craft_for_format(scene_sync._format_of(req.script_id)
-                                 if req.script_id else None)
+    # The script and its project, read ONCE and used for both decisions below.
+    # This used to be two separate lookups of the same two rows -- `_format_of`
+    # for the craft library and `require_script_access` for the write check --
+    # which is four round trips to Supabase where two will do. Measured from a
+    # development machine, one uncached read is about 175ms, and this endpoint
+    # runs while somebody is typing.
+    _script_row, project = (script_with_project(req.script_id)
+                            if req.script_id else (None, None))
+
+    # Which craft library to search. A long-form video writer asking about a
+    # sagging middle should not be offered a technique about act breaks, and a
+    # screenwriter should never be offered one about retention curves. The
+    # exclusion runs one way -- see `rag.DEFAULT_APPLIES_TO` -- so a screenplay
+    # search is exactly the set it has always been.
+    #
+    # Decided WITHOUT reference to the caller's role: a viewer reading somebody
+    # else's video still gets video craft. Their role decides what is recorded,
+    # not what they are told.
+    craft = rag.craft_for_format((project or {}).get("format"))
 
     seen, writable, log_rows = {}, False, []
     if req.script_id:
         log_rows = recommendation_log.rows(req.script_id)
         seen = recommendation_log.history(req.script_id, rows=log_rows)
-        try:
-            require_script_access(req.script_id, user_id)
-            writable = True
-        except HTTPException:
-            writable = False
+        if project:
+            try:
+                membership.require_role(project, user_id, "editor")
+                writable = True
+            except HTTPException:
+                writable = False
 
     # 1. Exact: techniques the linter positively identified, worst first.
     ranked = sorted(flags, key=lambda f: {"high": 0, "medium": 1, "low": 2}.get(f["severity"], 3))

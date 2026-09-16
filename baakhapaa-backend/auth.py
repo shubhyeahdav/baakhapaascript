@@ -13,7 +13,7 @@ from models import (
 )
 from database import (
     supabase, get_user_by_email, get_user_by_google_sub, get_user_by_id,
-    get_script_owner, get_project_by_id, purge_user,
+    get_script_by_id, get_project_by_id, purge_user,
 )
 from rate_limit import limiter, LOGIN_LIMIT, REGISTER_LIMIT
 import google_auth
@@ -185,6 +185,38 @@ def require_tier(user_id: str, feature: str) -> str:
     return user_id
 
 
+def script_with_project(script_id: str):
+    """The script and its parent project, fetched once. No authorisation.
+
+    Split out of `require_script_access` because two callers needed the same
+    two rows and each was fetching them separately. `POST /scripts/recommendations`
+    read the script and the project to decide which craft library to search,
+    then `require_script_access` read the SAME script and the SAME project to
+    decide whether the caller may write — four round trips where two would do,
+    on an endpoint that runs while somebody is typing and is free on every tier.
+
+    Deliberately NOT an authorisation function. The recommendations route has to
+    know the format even for a caller who turns out to be a viewer: a viewer
+    reading a long-form video must still get video craft, and folding the role
+    check in here would make the two decisions inseparable.
+
+    Returns `(None, None)` for a script that does not exist or has no project,
+    so a caller that only wants the format gets the safe fallback rather than an
+    exception.
+    """
+    # `get_script_by_id`, NOT `get_script_owner`: the latter reads the project
+    # itself in order to return the owner, so calling it here and then reading
+    # the project again made three round trips out of two. Ownership is not
+    # needed -- authorisation resolves through the project's membership, and
+    # `membership.role_for` treats the owner as an admin from the project row
+    # it is handed.
+    script = get_script_by_id(script_id)
+    if not script:
+        return None, None
+    project = get_project_by_id(script.get("project_id"))
+    return (script, project) if project else (None, None)
+
+
 def require_script_access(script_id: str, user_id: str, minimum: str = "editor"):
     """Return the script if the caller may act on it at `minimum` role.
 
@@ -199,15 +231,11 @@ def require_script_access(script_id: str, user_id: str, minimum: str = "editor")
     """
     import membership
 
-    # Only the script is needed now: authorisation resolves through the parent
-    # project's membership, not through direct ownership.
-    _owner, script = get_script_owner(script_id)
-    if not script:
-        raise HTTPException(status_code=404, detail="Script not found")
-
-    project = get_project_by_id(script.get("project_id"))
-    if not project:
-        # An orphaned script: no project means nobody can be authorised for it.
+    script, project = script_with_project(script_id)
+    if not script or not project:
+        # Missing script, or an orphaned one: no project means nobody can be
+        # authorised for it. Same 404 either way, so neither distinguishes an
+        # id that exists from one that does not.
         raise HTTPException(status_code=404, detail="Script not found")
 
     try:
