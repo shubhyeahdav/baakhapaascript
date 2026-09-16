@@ -10,8 +10,23 @@ Anthropic account with credit, a Supabase project, and a domain. Get those befor
 
 ## Where this stands (2026-09-16)
 
-**145 of 200 done.** Weeks 1 to 3 are complete except for the parts that need
+**155 of 200 done.** Weeks 1 to 3 are complete except for the parts that need
 money spent; Week 4 is partly done.
+
+Ten more closed on 2026-09-16, and the useful thing about them is that eight
+were *already blocked-looking and were not*. Every one turned out to be
+answerable without credit, an SMTP account or a merchant account — they had
+simply been filed behind the tasks above them. Three of the ten found a real
+defect:
+
+- `_extract_json` returned the model's **example** instead of its answer
+  whenever a model demonstrated the format first. It parsed. It was
+  well-formed. Nothing downstream could have told.
+- The in-app plan warning and the email reminder were both set to seven days,
+  in two files, in two languages, with nothing connecting them — so "the
+  notice appears before the email" was a race, not a design.
+- Four different unhelpful messages for the four ways a token can fail, sitting
+  next to one that said the right thing.
 
 **Deployment is no longer a blocker** — it happened on 2026-09-15, and three
 boxes on this list were still describing it as pending. That changes the shape
@@ -231,7 +246,7 @@ Blocked, and not by anything that can be coded around:
 
 - [ ] Add credit to the Anthropic account
 - [ ] Generate a structure on the deployed system and read what comes back
-- [ ] Fix whatever `_extract_json` fails on; real models add preamble
+- [x] Fix whatever `_extract_json` fails on; real models add preamble — *done without spending a token: the shapes models produce were run at it directly (`tests/test_extract_json_shapes.py`). Four failed and one was worse than a failure — when a model demonstrates the format before answering it emits TWO fenced blocks, and the old code took the first, so it returned the model's EXAMPLE, parsed and well-formed and wrong, with nothing downstream able to notice. Also fixed: a preamble containing a brace moved the start of the span into the prose; trailing commas and `//` comments now repair. Single quotes and smart quotes deliberately do NOT repair — deciding which apostrophes are delimiters means mangling dialogue, and a parse error is recoverable where corrupted prose is not*
 - [ ] Generate a scene and confirm it streams rather than arriving at once
 - [ ] Improve a scene and confirm the rewrite streams too
 - [ ] Ask for suggestions and confirm the response shape is handled
@@ -415,13 +430,13 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 ### Day 17 · Make renewals happen
 
 - [ ] Obtain an SMTP account and set `SMTP_HOST`, user, password and `MAIL_FROM`
-- [ ] Run `renewals.py --dry-run` and read the list it would mail
+- [x] Run `renewals.py --dry-run` and read the list it would mail — *`{'expiring': 0, 'lapsed': 0, 'skipped': 7}` against the real database on 2026-09-16. Nobody is owed a reminder because nobody has a time-boxed plan yet: all seven accounts are free or Stripe-NULL. Empty is the correct answer here and it is worth having seen it*
 - [ ] Send one reminder to yourself and check it arrives and reads well
-- [ ] Confirm nobody is mailed twice for the same expiry date
+- [x] Confirm nobody is mailed twice for the same expiry date — *`test_a_warning_already_sent_is_not_repeated` and `test_lapsing_after_a_renewal_is_a_new_reminder` in `tests/test_renewals.py`: the send is recorded on the user row, and a renewal makes the next lapse a new notice rather than a suppressed one*
 - [ ] Schedule it daily
-- [ ] Confirm a lapsed plan actually reads as free everywhere
+- [x] Confirm a lapsed plan actually reads as free everywhere — *three tests, each a different place it could have been missed: `test_a_lapsed_plan_reads_as_free` (the tier function), `test_expired_pro_user_is_refused_paid_features` (the gate), and `test_auth_me_reports_the_effective_tier_not_the_stored_one` (what the client is told). The stored `subscription_tier` is never read directly*
 - [x] Test the whole expiry path with a backdated row — *`tests/test_expiry_end_to_end.py`, ten tests. `test_payments.py` already checked that `effective_tier()` returns free for an expired row; that is the unit, this is the consequence — a route reading `subscription_tier` directly would pass every existing test and still serve a lapsed account for ever. Covers both directions (lapsed refused, inside-month not refused, so an over-eager fix that refuses everybody fails too), the NULL-expiry Stripe case, studio dropping to free rather than pro, the free project limit coming back, and the boundary. All pass, so the gates are correct — this is a verification, not a fix*
-- [ ] Confirm the in-app notice appears before the email does
+- [x] Confirm the in-app notice appears before the email does — ***it did not.*** *Both windows were seven days: `renewals.WARN_DAYS` and `WARN_WITHIN_DAYS` in `PlanNotice.jsx`, written months apart in two languages with nothing connecting them, so they fired on the same day and which one a writer met first was a race between opening the app and the cron running. The banner now warns at 14 days, and `tests/test_renewal_ordering.py` reads the JSX and fails if that number ever stops being the larger one. The ordering is the point: a writer who uses the product should hear it from the product, and the email is for the person the banner cannot reach*
 - [x] Add a test for the once-per-expiry rule — *already covered: `test_renewals.py::test_a_warning_already_sent_is_not_repeated` and `::test_lapsing_after_a_renewal_is_a_new_reminder`*
 - [ ] Commit
 
@@ -445,7 +460,7 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Lower `max_tokens` where the output is routinely shorter than the cap
 - [ ] Re-measure and confirm quality did not drop
 - [x] Add prompt caching to the stable part of the prompt — *measured and **deliberately not implemented**: the stable prefix is 131 tokens against Anthropic's 1024-token minimum, so `cache_control` would read like an optimisation and cache nothing. The measurement is in `script_engine`'s docstring so nobody adds it later*
-- [ ] ~~Confirm the cache is actually hit rather than silently invalidated~~ — *moot; there is no cache, see above*
+- [x] ~~Confirm the cache is actually hit rather than silently invalidated~~ — *moot; prompt caching does not apply at this prompt size. Closed as a negative result rather than left hanging*
 - [ ] Time a storyboard on the deployed system
 - [ ] Tune `STORYBOARD_CONCURRENCY` against the provider's rate limit
 - [x] Add a per-account monthly spend ceiling
@@ -458,10 +473,10 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [ ] Confirm a refund or failure leaves the tier untouched
 - [ ] Walk the whole product once as a new user, on the deployed system
 - [ ] Fix anything that blocks finishing a script
-- [ ] Confirm every error message tells the writer what to do next
-- [ ] Run both suites and the production build
+- [x] Confirm every error message tells the writer what to do next — *audited all 48 of them. Most bare “X not found” messages are a DELIBERATE choice, not an oversight: `require_script_access` returns 404 rather than 403 so ids cannot be probed, and making those friendlier would undo it. Seven had no such excuse and are fixed: the four different ways a token could fail (“Missing or invalid token”, “Invalid token”, “Invalid or expired token” twice) all now say “Your session has ended. Sign in again to keep writing”, which is what all four meant and what a writer meets mid-draft; “Email already registered” now names the next step; and `apply_whitelist` now lists the fields it would have accepted instead of reporting its own conclusion*
+- [x] Run both suites and the production build — *2026-09-16: backend 1036 passed 2 skipped, frontend 1166 across 61 files, production build clean, `ruff` clean. Re-run after any further work; this is the gate, not a one-off*
 - [ ] Recapture the screenshots for the Month 3 report
-- [ ] Re-run the eval and record the closing number
+- [x] Re-run the eval and record the closing number — *2026-09-16, against the live corpus: combined real queries **91.3% p@1**, 97.8% p@3, n=46; screenplay alone **90.0%**, n=40; video **100%**, n=6; self-retrieval sanity 100%, n=45. Both CI floors clear. Five entries are still never retrieved by any real query — not a regression, but the lead worth following if anyone wants the number higher*
 - [ ] Invite the five pilot writers
 
 ---
