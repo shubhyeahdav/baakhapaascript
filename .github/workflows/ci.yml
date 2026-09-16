@@ -57,6 +57,16 @@ jobs:
         working-directory: baakhapaa-backend
         run: python -m pytest -q
 
+      # The numbers in CLAUDE.md are DERIVED, and on 2026-09-16 four documents
+      # were wrong at once because every one of them had been typed by hand.
+      # This counts them instead. Runs after the tests so a red suite is not
+      # reported as a documentation problem; the frontend counts are skipped
+      # here, since this job has no node, and the claims it cannot count are
+      # left unchecked rather than guessed at.
+      - name: Documentation is current
+        working-directory: baakhapaa-backend
+        run: python check_docs.py
+
       # Retrieval is the product's differentiator and the easiest thing in the
       # repository to break without noticing. Editing a `problem` field in
       # knowledge_base.json changes an embedding, and nobody reviews an
