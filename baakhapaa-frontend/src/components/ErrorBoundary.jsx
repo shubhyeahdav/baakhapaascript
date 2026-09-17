@@ -34,7 +34,7 @@ export default class ErrorBoundary extends React.Component {
     // No error-reporting service is wired up, so the console is the only place
     // this can go. Kept explicit — swallowing it entirely would make a
     // reproducible crash undiagnosable from a user's screen recording.
-    // eslint-disable-next-line no-console
+     
     console.error("Unhandled render error:", error, info?.componentStack);
   }
 

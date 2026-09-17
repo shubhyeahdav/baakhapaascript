@@ -106,7 +106,7 @@ export function createScreenplayKeyHandler({
 
       if (e.key === "Tab") {
         e.preventDefault();
-        const { selectionStart, selectionEnd, value } = e.target;
+        const { selectionStart, value } = e.target;
       
         const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
         const lineEnd = value.indexOf("\n", selectionStart);
@@ -141,8 +141,6 @@ export function createScreenplayKeyHandler({
         const { selectionStart, value } = e.target;
         const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
         const currentLine = value.slice(lineStart, selectionStart);
-        const leadingSpaces = currentLine.match(/^ */)[0].length;
-        const trimmed = currentLine.trim();
       
         // What the next line should be, in screenplay terms. The rule lives in
         // utils/screenplayFormat so it can be tested — it runs on every line a

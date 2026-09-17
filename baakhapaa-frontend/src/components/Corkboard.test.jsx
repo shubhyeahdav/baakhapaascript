@@ -20,7 +20,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
  * to a 1st AD and not only to the writer.
  */
 
-// eslint-disable-next-line import/first
+ 
 import Corkboard from "./Corkboard";
 
 const scene = (over = {}) => ({

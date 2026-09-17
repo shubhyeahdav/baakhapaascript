@@ -14,7 +14,7 @@ import { render, screen } from "@testing-library/react";
  * drawing, never add a face, and the flourish must appear only on a pass.
  */
 
-// eslint-disable-next-line import/first
+ 
 import ThePen from "./ThePen";
 
 it("is a labelled image, not decoration", () => {

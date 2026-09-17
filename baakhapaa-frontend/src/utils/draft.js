@@ -31,7 +31,10 @@ export function scenesFromDraft(text, existing = []) {
       previousDraft = typeof previous?.draft_json === "string"
         ? JSON.parse(previous.draft_json)
         : previous?.draft_json || {};
-    } catch {}
+    } catch {
+      // A draft_json that will not parse is a draft_json we do not have.
+      // The scene still renders from the row; the derived fields fall back.
+    }
     const titleIsDerived = previous && previous.title === previousDraft.heading;
     return {
       ...(previous || {}),

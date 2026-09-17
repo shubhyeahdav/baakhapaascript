@@ -16,7 +16,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
  * rather than throw and take the whole rail down with it.
  */
 
-// eslint-disable-next-line import/first
+ 
 import SceneRail from "./SceneRail";
 
 const scene = (over = {}) => ({

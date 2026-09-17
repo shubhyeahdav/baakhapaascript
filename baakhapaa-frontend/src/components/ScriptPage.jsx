@@ -2,10 +2,20 @@ import React from "react";
 import PenPrompt from "./PenPrompt";
 import MilestoneNote from "./MilestoneNote";
 import FormatShortcuts from "./FormatShortcuts";
-import Corkboard from "./Corkboard";
-import OutlineView from "./OutlineView";
-import CastView from "./CastView";
 import { countWords, scenesFromDraft } from "../utils/draft";
+
+// Caret moves that produce no text change, so `onChange` never sees them.
+//
+// This lived in ScriptEditor.jsx until 2026-09-17 and was left behind when the
+// page was extracted out of it: a module-local const in one file, referenced
+// from another that never imported it. Every keyup in typewriter mode threw a
+// ReferenceError. 1,244 tests did not catch it because ScriptPage.test.jsx
+// renders with `typewriter: false`, so the branch is never entered — the first
+// run of the new frontend linter found it in seconds.
+const NAV_KEYS = new Set([
+  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+  "PageUp", "PageDown", "Home", "End",
+]);
 
 /**
  * The page a writer types on, and the status line that survives focus mode.
@@ -26,15 +36,14 @@ export default function ScriptPage({
   // the draft and the caret
   content, setContent, textareaRef, handleKeyDown, trackCaret,
   updateCaretPage, scrollCaretIntoView, insertAtPosition,
-  selection, setSelection,
+  setSelection,
   // completions
   suggest, setSuggest, suggestIndex, dismissed, setDismissed, applySuggestion,
   // where we are, and whether it is safe
-  view, saving, caretPage, pageCount, sessionStart, script, user,
+  view, saving, caretPage, pageCount, sessionStart, script,
   milestone, milestoneFacts, onMilestoneAct, onMilestoneDismiss,
   // how the page looks
   zenMode, setZenMode, pageTheme, typewriter, cursor, resting, setResting,
-  focus,
   // handing off to the panel
   setPanelOpen, setPanelTab, setScript,
 }) {

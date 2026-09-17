@@ -21,7 +21,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
  * embedded browsers — and is the wrong affordance regardless.
  */
 
-// eslint-disable-next-line import/first
+ 
 import OutlineView from "./OutlineView";
 
 const scene = (over = {}) => ({

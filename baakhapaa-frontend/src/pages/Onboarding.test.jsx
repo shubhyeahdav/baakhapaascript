@@ -35,6 +35,7 @@ vi.mock("../context/AuthContext", () => ({
 // eslint-disable-next-line import/first
 import Onboarding, { STEPS } from "./Onboarding";
 // The real list, not a copy — a copy is what drifted.
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { FORMATS } from "./NewProject";
 // eslint-disable-next-line import/first
 import { auth, learn } from "../services/api";

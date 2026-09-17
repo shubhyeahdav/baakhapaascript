@@ -143,7 +143,7 @@ export default function AssistPanel({
   // the panel itself
   panelOpen, setPanelOpen, panelTab, setPanelTab,
   // the script and its project
-  script, id, suggestions, genre, tone, navigate, t,
+  id, genre, tone, navigate,
   // the draft, for the panels that read or write it
   content, setContent, textareaRef, caretLine, selection, selectionRange,
   insertAtPosition,
@@ -153,7 +153,7 @@ export default function AssistPanel({
   // patterns
   patterns, patternsLoading, loadPatterns, patternSource, diagnosed,
   focus, setFocus, openPattern, setOpenPattern,
-  showAllPatterns, setShowAllPatterns, seen, suggest, dismissed,
+  showAllPatterns, setShowAllPatterns, seen,
 }) {
   // What the writer types when no chip fits. The chips reach at most eighteen
   // of the corpus's thirty-nine entries, so more than half the library had no

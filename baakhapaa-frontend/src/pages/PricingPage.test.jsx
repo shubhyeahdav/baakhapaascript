@@ -104,7 +104,7 @@ test("a form_post response is submitted as a form, not followed as a URL", async
     },
   });
   const submit = vi.fn();
-  // eslint-disable-next-line no-undef
+   
   HTMLFormElement.prototype.submit = submit;
 
   render(<PricingPage />);

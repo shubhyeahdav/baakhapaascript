@@ -18,7 +18,9 @@
     "check:contrast": "node scripts/contrast-check.mjs",
     "check:layout": "node scripts/page-layout-check.mjs",
     "build:spa": "vite build",
-    "prerender": "node scripts/prerender.mjs"
+    "prerender": "node scripts/prerender.mjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
@@ -27,6 +29,11 @@
     "@vitejs/plugin-react": "^6.1.0",
     "@vitest/coverage-v8": "^4.1.11",
     "autoprefixer": "^10.4.17",
+    "eslint": "^9.39.5",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
     "jsdom": "^30.0.1",
     "playwright": "^1.62.1",
     "postcss": "^8.4.35",

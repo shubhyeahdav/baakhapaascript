@@ -16,7 +16,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
  * deliberate change instead of a quiet one.
  */
 
-// eslint-disable-next-line import/first
+ 
 import ReviewModal from "./ReviewModal";
 
 const finding = (over = {}) => ({

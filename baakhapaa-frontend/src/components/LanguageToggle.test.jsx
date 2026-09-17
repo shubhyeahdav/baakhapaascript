@@ -10,7 +10,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
  * whole differentiator is that it reads and lints Nepali.
  */
 
-// eslint-disable-next-line import/first
+ 
 import LanguageToggle from "./LanguageToggle";
 
 it("offers every language the product ships", () => {

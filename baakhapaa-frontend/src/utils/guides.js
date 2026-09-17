@@ -21,7 +21,7 @@
  */
 
 const SLUGLINE = /^\s*(INT|EXT|I\/E)[.\s]/im;
-const CHARACTER_CUE = /^\s*[A-Z][A-Z0-9 .'\-]{1,38}\s*(\(.*\))?\s*$/m;
+const CHARACTER_CUE = /^\s*[A-Z][A-Z0-9 .'-]{1,38}\s*(\(.*\))?\s*$/m;
 const DEVANAGARI = /[ऀ-ॿ]/;
 
 const countSluglines = (text) => (text.match(/^\s*(INT|EXT|I\/E)[.\s]/gim) || []).length;
@@ -90,7 +90,7 @@ export const GUIDES = [
             return (
               cue &&
               cue === cue.toUpperCase() &&
-              /[A-Zऀ-ॿ]/.test(cue) &&
+              /[A-Z\p{Script=Devanagari}]/u.test(cue) &&
               next &&
               next !== next.toUpperCase()
             );

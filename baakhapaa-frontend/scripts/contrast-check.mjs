@@ -107,7 +107,7 @@ const EXEMPT = [
 const css = rd("src/index.css");
 const tw = rd("tailwind.config.cjs");
 
-let failures = [];
+const failures = [];
 const exempted = [];
 const say = (s = "") => { if (!QUIET) console.log(s); };
 

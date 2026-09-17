@@ -36,12 +36,6 @@ import CastView from "../components/CastView";
 // having tagged them.
 
 
-// Caret moves that produce no text change, so `onChange` never sees them.
-const NAV_KEYS = new Set([
-  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
-  "PageUp", "PageDown", "Home", "End",
-]);
-
 // The pointer over the page, as a cycle. `next` makes the menu entry a single
 // control rather than three that have to be kept mutually exclusive.
 
@@ -109,6 +103,11 @@ export default function ScriptEditor() {
   // Which line the caret sits on, 1-indexed to match the Notes tab and the
   // linter's line numbers. Kept here because the textarea is the only thing
   // that knows it.
+  // Same shape as LearnPage's `completed`, the other way round: `caretLine`
+  // is read and `setCaretLine` is never called, so the value is frozen at 0
+  // for the life of the editor. Left reported rather than renamed away,
+  // because whatever used to move it is what needs finding.
+  // eslint-disable-next-line no-unused-vars
   const [caretLine, setCaretLine] = useState(0);
 
   const { user } = useAuth();
@@ -1255,6 +1254,22 @@ export default function ScriptEditor() {
       alert(err.response?.data?.detail || "Export failed.");
     }
   };
+
+  // Publish this render's handlers to the ref the two stable callbacks read.
+  //
+  // THIS ASSIGNMENT DID NOT EXIST until 2026-09-17. `latestHandlers` was
+  // created as `useRef({})` and never written to, so
+  // `latestHandlers.current.handleExport` was undefined and both
+  // `stableExport` and `stableFinalize` threw a TypeError the moment a writer
+  // clicked Export or Finalize — the two terminal actions of the whole
+  // product. The comment above describes the pattern correctly; the pattern
+  // was simply never finished, and nothing noticed because the header is
+  // stubbed in the editor's tests.
+  //
+  // Assigned during render rather than in an effect on purpose: a click can
+  // only happen after paint, and an effect would leave the ref one render
+  // stale on the very first one.
+  latestHandlers.current = { handleExport, handleFinalize };
 
   // The keyboard rules live in `editor/screenplayKeymap.js` so they can be
   // tested without mounting the editor. Recreated per render exactly as the

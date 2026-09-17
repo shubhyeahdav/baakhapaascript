@@ -225,6 +225,15 @@ jobs:
         working-directory: baakhapaa-frontend
         run: node scripts/contrast-check.mjs
 
+      # Until 2026-09-17 CI linted Python and nothing linted the 13,000 lines
+      # of JSX. Its first run found a ReferenceError that had shipped: a
+      # module-local const referenced from a file that never imported it, in
+      # the editor's typewriter path. Warnings do not fail the build; errors
+      # do, and the rule set is chosen so an error always means a defect.
+      - name: Lint (frontend)
+        working-directory: baakhapaa-frontend
+        run: npm run lint
+
       - name: Start frontend
         working-directory: baakhapaa-frontend
         run: |

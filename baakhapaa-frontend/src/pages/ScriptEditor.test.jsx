@@ -79,7 +79,7 @@ vi.mock("../services/api", () => ({
 }));
 
 // eslint-disable-next-line import/first
-import { scripts, versions, comments, learn, projects, streamSSE } from "../services/api";
+import { scripts, versions, comments, learn, projects, streamSSE, exportApi } from "../services/api";
 // eslint-disable-next-line import/first
 import ScriptEditor from "./ScriptEditor";
 
@@ -1572,5 +1572,34 @@ describe("the phone header keeps everything reachable", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: /typing: english/i }));
 
     expect(window.localStorage.getItem("baakhapaa:nepali")).toBe("on");
+  });
+});
+
+describe("the two terminal actions actually run", () => {
+  /**
+   * `stableExport` and `stableFinalize` read their implementations off a ref,
+   * so the memoised header keeps a stable identity across keystrokes. The ref
+   * was created with `useRef({})` and NEVER ASSIGNED — so
+   * `latestHandlers.current.handleExport` was undefined and both threw a
+   * TypeError on the first click. Export and Finalize, the two things a writer
+   * does at the end of a script, from the day the header was memoised until
+   * 2026-09-17.
+   *
+   * The other ninety-eight tests in this file passed throughout, because not
+   * one of them opened the header’s Export menu. This one does.
+   */
+  const openEditor = async () => {
+    stubApi();
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+  };
+
+  it("exports without throwing, and asks the API for the format chosen", async () => {
+    await openEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Export$/i }));
+    fireEvent.click(await screen.findByText("PDF"));
+
+    await waitFor(() => expect(exportApi.pdf).toHaveBeenCalled());
   });
 });

@@ -18,7 +18,7 @@
  * in a real engine — the two together are the regression test.
  */
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import ScriptPage from "./ScriptPage";
 
@@ -184,5 +184,34 @@ describe("what the blank page offers", () => {
     page({ content: "", script: { id: "s1", scenes: [], project: { format: "long_form" } } });
 
     expect(screen.getByText("## HOOK - 0:15")).toBeInTheDocument();
+  });
+});
+
+describe("typewriter mode", () => {
+  it("does not throw when the caret is moved with a navigation key", () => {
+    // The regression test for a ReferenceError that shipped.
+    //
+    // `NAV_KEYS` was a module-local const in ScriptEditor.jsx and was left
+    // behind when this page was extracted out of it. ScriptPage referenced it
+    // without importing it, so every keyup in typewriter mode threw. The whole
+    // suite passed anyway, because this file's default props set
+    // `typewriter: false` and nothing else entered the branch — which is the
+    // point: the bug was invisible to 1,244 tests and obvious to a linter.
+    const { container } = page({ typewriter: true, content: "INT. CHIYA PASAL - DAY" });
+    const textarea = container.querySelector("textarea");
+
+    // Each of these is in NAV_KEYS; a missing binding throws on the first.
+    for (const key of ["ArrowUp", "ArrowDown", "Home", "End", "PageUp"]) {
+      expect(() => fireEvent.keyUp(textarea, { key })).not.toThrow();
+    }
+  });
+
+  it("ignores a key that is not a caret move", () => {
+    // Typing is handled by onChange; a letter must not also be treated as
+    // navigation, or the page re-aligns twice per keystroke.
+    const { container } = page({ typewriter: true, content: "INT. CHIYA PASAL - DAY" });
+    const textarea = container.querySelector("textarea");
+
+    expect(() => fireEvent.keyUp(textarea, { key: "a" })).not.toThrow();
   });
 });

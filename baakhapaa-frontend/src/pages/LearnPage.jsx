@@ -75,6 +75,11 @@ const TRACKS = [
 
 export default function LearnPage() {
   const [lessons, setLessons] = useState([]);
+  // `completed` is written by the grader and read by nothing. That is not
+  // dead state to delete quietly: it means a lesson's completed status
+  // stopped being shown somewhere between here and the lesson list. Kept
+  // visible until someone checks which.
+  // eslint-disable-next-line no-unused-vars
   const [completed, setCompleted] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [draft, setDraft] = useState("");

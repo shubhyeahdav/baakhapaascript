@@ -17,7 +17,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
  * control instead means Enter reveals the password rather than signing in.
  */
 
-// eslint-disable-next-line import/first
+ 
 import PasswordField from "./PasswordField";
 
 const renderField = (props = {}) => {

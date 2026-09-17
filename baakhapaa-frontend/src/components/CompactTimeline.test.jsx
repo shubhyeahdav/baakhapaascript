@@ -21,7 +21,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
  * collapse to a beat bar instead.
  */
 
-// eslint-disable-next-line import/first
+ 
 import CompactTimeline from "./CompactTimeline";
 
 const scene = (over = {}) => ({

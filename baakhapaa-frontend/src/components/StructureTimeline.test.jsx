@@ -17,7 +17,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
  * by accident, so it is pinned here.
  */
 
-// eslint-disable-next-line import/first
+ 
 import StructureTimeline from "./StructureTimeline";
 
 const STRUCTURE = {

@@ -126,7 +126,7 @@ const DOCS = {
 };
 
 export default function LegalPage({ doc = "terms" }) {
-  const { source, title, other } = DOCS[doc] || DOCS.terms;
+  const { source, other } = DOCS[doc] || DOCS.terms;
   // The templates ship with a literal `[DATE]`. Saying "not yet in force" is
   // more honest than printing the placeholder at a reader.
   const isDraft = source.includes("[DATE]");
