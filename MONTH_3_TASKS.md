@@ -266,7 +266,7 @@ Blocked, and not by anything that can be coded around:
 - [ ] Redeploy and repeat the walk from Day 4 in under ten minutes
 - [ ] Apply to Khalti with the live URL, company registration and bank details
 - [ ] Apply to eSewa with the same
-- [ ] Merge the working branch into `codebase` and push
+- [x] Merge the working branch into `codebase` and push — *2026-09-17, `e3554aa..f181a6a`, 21 commits, clean fast-forward. `origin/codebase` had sat at `e3554aa` since the deploy, so both hosts were serving work two days old — including a correctness fix for the model returning its own example, a payments fix for money going backwards, the mobile address-bar fix, zero-vulnerability frontend deps and the accessibility pass. All of it was finished and reaching nobody*
 
 ---
 
@@ -339,7 +339,7 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Add ten new craft entries in the weakest level
 - [x] Reload, re-measure, keep only what helps
 - [x] Re-run both suites
-- [ ] Merge and deploy
+- [x] Merge and deploy — *2026-09-17, with the 21-commit fast-forward above. Pushing `codebase` is what triggers both hosts*
 
 ---
 
@@ -356,7 +356,7 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Add a test that the rest of the draft is untouched
 - [x] Confirm the craft linter's diagnosis still leads the prompt
 - [ ] Try it on a real line and read what comes back
-- [ ] Commit
+- [x] Commit — *shipped 2026-09-17; the code landed earlier and sat unmerged*
 
 ### Day 12 · Character consistency
 
@@ -395,7 +395,8 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Check the panel still loads in under a second — *server side only, which is the half that can be measured without a deploy: 0.686s -> 0.007s after the warm-up. The round trip and the render are still unmeasured and belong with the deployed measurement above*
 - [ ] Try a full writing session and see whether the advice stops repeating
 - [ ] Adjust the thresholds based on what that session showed
-- [ ] Commit
+- [x] Commit — *shipped 2026-09-17 with the fast-forward. The two items above
+  need a writer at the keyboard, not a deploy*
 
 ### Day 15 · Escalate to a lesson
 
