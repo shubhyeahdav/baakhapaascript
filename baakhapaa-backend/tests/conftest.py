@@ -20,6 +20,16 @@ os.environ["RAG_CACHE_TTL"] = "0"            # the RAG suite reseeds script_patt
 # where most test files never embed anything. Tests that DO embed load it
 # lazily on first use, exactly as before.
 os.environ["RAG_WARM_MODEL"] = "false"
+# bcrypt at its production cost factor of 12 measures 0.212s to hash and 0.196s
+# to verify on this machine. There are 754 `make_user` call sites, so the suite
+# was spending about five minutes of a twenty-minute run re-proving that bcrypt
+# is deliberately slow — which is a property of bcrypt, not of this codebase,
+# and is not what any of these tests are asserting. 4 is bcrypt's floor.
+#
+# This cannot leak into production: `deploy_checks.py` refuses the boot under
+# APP_ENV=production if the cost factor is below 12, and
+# `tests/test_bcrypt_cost.py` pins both halves.
+os.environ["BCRYPT_ROUNDS"] = "4"
 os.environ["DEMO_SEED"] = "false"            # no known-credential account in tests
 # SET, do not pop — the same trap the AI keys are guarded against below, and it
 # was left open here. `load_dotenv()` declines to overwrite a variable that

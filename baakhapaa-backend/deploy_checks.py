@@ -83,6 +83,25 @@ def collect(env: str | None = None) -> tuple[list[str], list[str]]:
         except Exception as e:  # a broken import here must not mask the real error
             warnings.append(f"Could not verify the Devanagari font: {e}")
 
+    # The test suite runs bcrypt at cost factor 4, which is the right call there
+    # — five minutes of a twenty-minute run was spent re-proving bcrypt is slow.
+    # It is also exactly the kind of setting that reaches production by being
+    # copied out of a config file nobody re-read. A cost factor of 4 is roughly
+    # 256x cheaper to attack than 12, so this refuses the boot rather than
+    # warning: a warning scrolls past in a deploy log.
+    if production:
+        try:
+            import auth
+            if auth.BCRYPT_ROUNDS < auth.MIN_PRODUCTION_BCRYPT_ROUNDS:
+                errors.append(
+                    f"BCRYPT_ROUNDS is {auth.BCRYPT_ROUNDS}, below the production "
+                    f"minimum of {auth.MIN_PRODUCTION_BCRYPT_ROUNDS}. That is the "
+                    "test-suite setting; every step down halves the work of "
+                    "cracking a leaked password hash. Unset it in production."
+                )
+        except Exception as e:  # noqa: BLE001 - must not mask a real boot error
+            warnings.append(f"Could not verify the bcrypt cost factor: {e}")
+
     if production and not os.getenv("FRONTEND_URL"):
         warnings.append(
             "FRONTEND_URL is unset. Payment providers redirect back to it when a "

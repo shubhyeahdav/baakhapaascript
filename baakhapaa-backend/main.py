@@ -16,6 +16,7 @@ import export
 import subscription
 import learn
 from rate_limit import limiter
+from security_headers import SecurityHeadersMiddleware
 
 app = FastAPI(title="Baakhapaa API", version="1.0")
 
@@ -82,6 +83,16 @@ else:
         allow_headers=["*"],
     )
     print("WARNING: CORS allows any localhost port (dev default). Set CORS_ORIGINS before deploying.")
+
+# Added AFTER the CORS middleware on purpose. Starlette's `add_middleware`
+# inserts at the front of the list and the list is applied outside-in, so the
+# LAST one added is the OUTERMOST — and outermost is what this needs to be.
+# CORSMiddleware answers a rejected preflight itself without calling the app
+# beneath it, so a middleware added before it would never see that response:
+# `400 Disallowed CORS origin` would go out bare. Same for the rate limiter's
+# 429. Those are the replies an attacker probing this API sees most often, and
+# they are exactly the ones that should not be the unprotected ones.
+app.add_middleware(SecurityHeadersMiddleware)
 
 # What an invitation link is for, readable without an account — the recipient
 # has to be able to see what they are being asked to join BEFORE deciding to

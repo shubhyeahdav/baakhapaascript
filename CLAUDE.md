@@ -102,7 +102,7 @@ and `HANDOVER.md` the narrative. The numbers in it are counted by
 > disconnected` on the first request after an idle gap — a pooled connection
 > Supabase has already closed. See `HANDOVER.md`.
 >
-> Backend tests: **1116 across 72 files, none skipped, all passing**
+> Backend tests: **1138 across 74 files, none skipped, all passing**
 > (2026-09-17), `./venv/Scripts/python -m pytest`. It read "2 skipped" until
 > then, which had been wrong since the Devanagari font gate stopped skipping
 > — the asset is bundled and `tests/test_font_asset.py` now fails rather than
@@ -342,10 +342,16 @@ and `HANDOVER.md` the narrative. The numbers in it are counted by
   (`--min-p1 0.80 --min-screenplay-p1 0.85`), because averaging a weak new
   craft into one number is how an 82% headline sat on top of a 20% reality
   last time.
-  **`applies_to` needs a MIGRATION** — `pgvector_script_patterns.sql`, applied
-  by hand in the SQL editor — and until it is run plus `load_knowledge_base.py`
-  re-run, the six video entries are not in the database and a video writer gets
-  screenplay advice. See `docs/superpowers/specs/2026-09-14-long-form-video-design.md`
+  **`applies_to` is APPLIED** — checked against production 2026-09-17:
+  `script_patterns` holds 45 rows, 39 carrying `('screenplay', 'video')` and 6
+  carrying `('video',)`, which is exactly the shape the loader writes. This
+  paragraph read "needs a MIGRATION ... a video writer gets screenplay advice"
+  until then, long after the migration and the loader had both been run — a
+  stale warning is worse than none, because it sends the next session to fix
+  something that is not broken. The migration itself lives in
+  `pgvector_script_patterns.sql` and is applied by hand in the SQL editor; a
+  NEW Supabase project still needs it. See
+  `docs/superpowers/specs/2026-09-14-long-form-video-design.md`
 - **The course, in two tracks** (`lessons.py`, `learn.py`, `LearnPage.jsx`) —
   19 lessons, free on every tier, each graded by the craft linter rather than by
   a Next button. **The Pen** (10) teaches the script page: format, action lines,

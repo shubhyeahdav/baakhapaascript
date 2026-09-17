@@ -29,7 +29,25 @@ if not JWT_SECRET or len(JWT_SECRET) < 32 or JWT_SECRET.startswith("baakhapaa-se
         "baakhapaa-backend/.env, e.g.:  python -c \"import secrets; print(secrets.token_urlsafe(48))\""
     )
 ALGORITHM = "HS256"
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt's cost factor. 12 is the production value and it is meant to be slow —
+# it is the only thing standing between a leaked `password_hash` and the
+# password itself, and every halving of it halves an attacker's work too.
+#
+# In the test suite that cost buys nothing. Measured on this machine at cost
+# 12: 0.212s to hash, 0.196s to verify, against 754 `make_user` call sites —
+# about five minutes of a twenty-minute run spent re-proving that bcrypt is
+# slow. `tests/conftest.py` sets this to 4.
+#
+# Lowering it in production would be a quiet, serious downgrade, so it is not
+# left to a reader's discipline: `deploy_checks.py` refuses the boot under
+# APP_ENV=production if this is below 12, the same way it refuses an unset
+# CORS_ORIGINS.
+BCRYPT_ROUNDS = int(os.getenv("BCRYPT_ROUNDS") or 12)
+MIN_PRODUCTION_BCRYPT_ROUNDS = 12
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=BCRYPT_ROUNDS
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
