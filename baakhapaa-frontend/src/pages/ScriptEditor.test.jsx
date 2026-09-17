@@ -152,6 +152,30 @@ describe("ScriptEditor", () => {
     expect(errors.join("\n")).not.toMatch(/is not defined|is not a function/);
   });
 
+  it("sizes its shell to the dynamic viewport, not to 100vh", async () => {
+    /* `h-screen` is `height: 100vh`, and on a phone 100vh is the LARGE
+       viewport -- the height the page would have with the address bar
+       collapsed. While the bar is showing, a 100vh shell overhangs the screen,
+       and this shell is `overflow-hidden`, so the overhang cannot be scrolled
+       to. `.screenplay-container` is flex-1 inside it and inherits the
+       overhang, so `scrollCaretIntoView` can park the caret underneath the
+       address bar: in view of the container, off the screen.
+
+       `.zen-page` already used the vh/dvh fallback pair and said why. The box
+       containing it did not, and fixing the inner element alone cannot help --
+       its height resolves against this one.
+
+       The suite cannot see the stylesheet (`vite.config.js` sets css:false),
+       so this checks the class the shell asks for rather than the pixels it
+       gets. The two declarations live in index.css beside `.zen-page`. */
+    const { container } = render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+
+    const shell = container.querySelector(".app-viewport");
+    expect(shell).toBeTruthy();
+    expect(shell.className).not.toMatch(/h-screen/);
+  });
+
   it("offers a completion when a letter is typed — the trackCaret regression", async () => {
     render(<ScriptEditor />);
     await waitFor(() => expect(editor()).toBeInTheDocument());

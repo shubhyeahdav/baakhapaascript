@@ -330,6 +330,32 @@ html, body {
   border-radius: 0;
 }
 
+/* The editor shell's height, and the reason it is not Tailwind's `h-screen`.
+
+   `h-screen` compiles to `height: 100vh`, and on a phone `100vh` is the LARGE
+   viewport — the height the page would have if the address bar were collapsed.
+   While the address bar is showing, a 100vh shell is taller than the screen,
+   and the editor shell is `overflow-hidden`, so the bottom of it cannot be
+   scrolled to. It is simply off the screen.
+
+   The consequence is not cosmetic. `.screenplay-container` is `flex-1` inside
+   that shell, so it inherits the overhang, and `scrollCaretIntoView` scrolls
+   the caret into view OF THE CONTAINER — which extends below the fold. Typing
+   near the bottom of a phone screen parks the caret underneath the address
+   bar: visible to the code, invisible to the writer.
+
+   `.zen-page` above already got this right and says why. This is the same rule
+   applied to the box that contains it; fixing the inner element alone could
+   not help, because its height resolves against this one.
+
+   Two declarations, not `h-dvh`: a browser too old for `dvh` ignores the second
+   and keeps today's behaviour. Dropping the `vh` line would leave it with no
+   height at all, which is a worse failure than the one being fixed. */
+.app-viewport {
+  height: 100vh;
+  height: 100dvh;
+}
+
 .zen-hint {
   position: absolute;
   top: 1rem;

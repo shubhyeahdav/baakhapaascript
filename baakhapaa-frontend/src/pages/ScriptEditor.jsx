@@ -1287,7 +1287,7 @@ export default function ScriptEditor() {
   if (!script) return <div className="h-screen bg-bg flex items-center justify-center text-gold">Loading...</div>;
 
   return (
-    <div className="h-screen bg-bg flex flex-col overflow-hidden text-ink">
+    <div className="app-viewport bg-bg flex flex-col overflow-hidden text-ink">
       {/* Toolbar */}
       {/* Scrolls sideways on a phone rather than wrapping. A wrapped toolbar
           silently eats the page height it is sitting above, and there is not
