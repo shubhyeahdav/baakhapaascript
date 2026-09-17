@@ -145,7 +145,7 @@ export default function LegalPage({ doc = "terms" }) {
         </nav>
       </header>
 
-      <main className="max-w-3xl mx-auto px-8 py-10 pb-20">
+      <main id="main" tabIndex={-1} className="max-w-3xl mx-auto px-8 py-10 pb-20">
         {isDraft && (
           <p className="mb-8 rounded-xl border border-amber-400/30 bg-amber-400/5 px-4 py-3
                         text-[12.5px] text-amber-200/90 leading-snug">

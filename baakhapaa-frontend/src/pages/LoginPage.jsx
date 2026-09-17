@@ -39,7 +39,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-bg text-ink">
+    <main id="main" tabIndex={-1} className="min-h-screen flex bg-bg text-ink">
       {/* Cinematic brand panel */}
       <div className="hidden lg:flex flex-col justify-between w-[52%] cine-bg relative overflow-hidden p-14 border-r border-borderSoft">
         {/* Letterbox hairlines */}
@@ -166,6 +166,6 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

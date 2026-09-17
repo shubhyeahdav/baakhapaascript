@@ -84,7 +84,7 @@ export default function SettingsPage() {
       {/* Highlight Team in the bar when arriving via the Team nav item. */}
       <TopNav active="Settings" />
 
-      <main className="flex-1 px-8 md:px-14 pb-14 max-w-3xl">
+      <main id="main" tabIndex={-1} className="flex-1 px-8 md:px-14 pb-14 max-w-3xl">
         <div className="py-8">
           <p className="font-mono text-[11px] tracking-[0.16em] text-inkMuted mb-2">STUDIO</p>
           <h1 className="font-display text-4xl text-ink">Settings</h1>

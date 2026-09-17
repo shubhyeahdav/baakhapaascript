@@ -100,7 +100,7 @@ export default function PaymentReturn() {
   }[state.phase] || { title: "Payment not completed", note: null };
 
   return (
-    <div className="min-h-screen cine-bg text-ink flex items-center justify-center px-6">
+    <main id="main" tabIndex={-1} className="min-h-screen cine-bg text-ink flex items-center justify-center px-6">
       <div className="bg-surface border border-borderSoft rounded-2xl p-9 max-w-md w-full text-center">
         <p className="text-inkMuted text-xs tracking-[0.24em] uppercase mb-5">Payment</p>
 
@@ -138,6 +138,6 @@ export default function PaymentReturn() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

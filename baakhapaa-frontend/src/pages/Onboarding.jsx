@@ -210,7 +210,7 @@ export default function Onboarding() {
   const done = onLesson ? (result?.passed ? total : STEPS.length) : step;
 
   return (
-    <div className="min-h-screen bg-bg text-ink flex flex-col">
+    <main id="main" tabIndex={-1} className="min-h-screen bg-bg text-ink flex flex-col">
       <div className="h-1 bg-borderSoft">
         <div
           className="h-full bg-gold transition-all duration-500"
@@ -373,6 +373,6 @@ export default function Onboarding() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

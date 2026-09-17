@@ -224,7 +224,7 @@ export default function LearnPage() {
   return (
     <div className="cine-bg min-h-screen">
       <TopNav active="Learn" />
-      <div className="max-w-6xl mx-auto px-8 py-8 animate-fade-up">
+      <main id="main" tabIndex={-1} className="max-w-6xl mx-auto px-8 py-8 animate-fade-up">
         <div className="mb-6">
           <p className="text-inkMuted text-xs tracking-[0.2em] uppercase mb-2">Learn</p>
           <h1 className="font-display text-4xl text-ink mb-1">
@@ -402,7 +402,7 @@ export default function LearnPage() {
             </div>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

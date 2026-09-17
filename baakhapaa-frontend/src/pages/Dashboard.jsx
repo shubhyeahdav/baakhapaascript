@@ -229,7 +229,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <main className="flex-1 px-8 md:px-14 pb-14">
+      <main id="main" tabIndex={-1} className="flex-1 px-8 md:px-14 pb-14">
         {/* Heading */}
         <div className="flex flex-wrap items-end justify-between gap-4 py-8 animate-fade-up">
           <div>

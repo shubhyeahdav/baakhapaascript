@@ -44,7 +44,7 @@ export default function ProjectSetup() {
     <div className="min-h-screen bg-bg text-ink flex flex-col">
       <TopNav active="Projects" />
 
-      <main className="flex-1 px-8 md:px-14 pb-20 max-w-3xl w-full">
+      <main id="main" tabIndex={-1} className="flex-1 px-8 md:px-14 pb-20 max-w-3xl w-full">
         <Link
           to="/dashboard"
           className="tap text-[12.5px] text-inkMuted hover:text-gold transition-colors"

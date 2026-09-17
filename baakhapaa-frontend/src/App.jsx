@@ -5,6 +5,7 @@ import { LanguageProvider } from "./i18n";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 import CommandPalette from "./components/CommandPalette";
+import RouteChrome from "./components/RouteChrome";
 
 /**
  * Every page is loaded on demand.
@@ -43,6 +44,7 @@ const StoryboardsPage = lazy(() => import("./pages/StoryboardsPage"));
 const ExportsPage = lazy(() => import("./pages/ExportsPage"));
 const LearnPage = lazy(() => import("./pages/LearnPage"));
 const LegalPage = lazy(() => import("./pages/LegalPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 /**
  * What is on screen while a route's chunk arrives.
@@ -79,6 +81,9 @@ export default function App() {
             because the flags being present in v6 is what made this upgrade a
             non-event — the app was already running v7 semantics. */}
         <BrowserRouter>
+          {/* Inside the router because it reads the location; before Suspense
+              so the skip link and the document title do not wait on a chunk. */}
+          <RouteChrome />
           {/* One boundary around the whole route table rather than one per
               route: a page is either the thing you asked for or it is still
               arriving, and fifteen identical fallbacks would say the same
@@ -113,6 +118,9 @@ export default function App() {
             <Route path="/projects/:id/setup" element={<ProtectedRoute><ProjectSetup /></ProtectedRoute>} />
             <Route path="/projects/:id/editor" element={<ProtectedRoute><ScriptEditor /></ProtectedRoute>} />
             <Route path="/projects/:id/storyboard" element={<ProtectedRoute><StoryboardView /></ProtectedRoute>} />
+            {/* Last, and a real page. Without it an unknown path matched no
+                route and rendered nothing at all: HTTP 200, no text, no h1. */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
           <CommandPalette />

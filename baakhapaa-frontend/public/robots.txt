@@ -1,0 +1,21 @@
+# Baakhapaa — https://baakhapaascript.vercel.app
+#
+# Until 2026-09-17 this path returned the SPA shell with Content-Type
+# text/html, because vercel.json rewrote everything that was not /api/ to
+# index.html. A crawler asking for robots.txt got HTML, so no directive here
+# was honoured and no sitemap was ever read.
+
+User-agent: *
+Allow: /
+
+# Nothing below /dashboard is reachable without an account, so crawling it
+# costs a crawler a redirect and tells it nothing.
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /storyboards
+Disallow: /exports
+Disallow: /onboarding
+Disallow: /projects/
+Disallow: /payment/
+
+Sitemap: https://baakhapaascript.vercel.app/sitemap.xml

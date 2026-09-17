@@ -171,7 +171,7 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen cine-bg text-ink px-6 py-12">
+    <main id="main" tabIndex={-1} className="min-h-screen cine-bg text-ink px-6 py-12">
       {/* Top bar */}
       <div className="max-w-5xl mx-auto flex justify-between items-center mb-14">
         <Link to="/" className="tap wordmark text-[15px]">BAAKHAPAA</Link>
@@ -278,6 +278,6 @@ export default function PricingPage() {
         {providers.length > 0 && providers.every((p) => p.mode !== "live") &&
           " No live payment keys are configured, so nothing here can charge you."}
       </p>
-    </div>
+    </main>
   );
 }

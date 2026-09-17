@@ -47,6 +47,13 @@ html, body {
      hit area off a pseudo-element, so a thumb gets its 24px and the design
      does not move. It stretches vertically only — the element keeps its own
      width — so in a row of controls it cannot steal a neighbour's clicks. */
+  /* The skip link's target. Focus moves here when a keyboard user takes
+     'Skip to content', which is the whole point of tabIndex={-1} on it —
+     without the attribute the browser scrolls and leaves focus behind in
+     the nav. A focus ring around the entire page is not information, so
+     only this one case suppresses it. */
+  main[tabindex="-1"]:focus { outline: none; }
+
   .tap { position: relative; }
   .tap::after {
     content: "";

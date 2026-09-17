@@ -57,8 +57,10 @@ export const STRINGS = {
     "Terms of Use": "प्रयोगका सर्तहरू",
     "Privacy Policy": "गोपनीयता नीति",
     and: "र",
-    "Your script text is stored without application-level encryption and is sent to our AI providers when you ask for generation.":
-      "तपाईंको स्क्रिप्ट एप-स्तरको इन्क्रिप्सन बिना राखिन्छ, र तपाईंले लेखाउन खोज्दा हाम्रा एआई सेवाहरूमा पठाइन्छ मा सहमत हुनुहुन्छ।",
+    "Your script text is not encrypted at the application layer and, on paid plans, is sent to our AI providers when you ask for generation.":
+      "तपाईंको स्क्रिप्ट एप-स्तरको इन्क्रिप्सन बिना राखिन्छ, र सशुल्क योजनामा तपाईंले लेखाउन खोज्दा हाम्रा एआई सेवाहरूमा पठाइन्छ मा सहमत हुनुहुन्छ।",
+    "Your password is hashed and never stored in plain text.":
+      "तपाईंको पासवर्ड ह्यास गरेर राखिन्छ, कहिल्यै सादा अक्षरमा होइन।",
     Show: "देखाउनुहोस्",
     Hide: "लुकाउनुहोस्",
     "Passwords match": "पासवर्ड मिल्यो",

@@ -186,7 +186,7 @@ export default function NewProject() {
     <div className="cine-bg min-h-screen flex flex-col text-ink">
       <TopNav active="Projects" />
 
-      <main className="flex-1 px-8 md:px-14 pb-14 max-w-3xl animate-fade-up">
+      <main id="main" tabIndex={-1} className="flex-1 px-8 md:px-14 pb-14 max-w-3xl animate-fade-up">
         <div className="py-8">
           <p className="font-mono text-[11px] tracking-[0.16em] text-inkMuted mb-2">STUDIO</p>
           <h1 className="font-display text-4xl md:text-5xl text-ink">New Project</h1>

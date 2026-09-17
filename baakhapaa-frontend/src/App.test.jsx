@@ -43,6 +43,11 @@ vi.mock("react-router-dom", () => ({
     return null;
   },
   Navigate: ({ to }) => <span data-testid="root-redirect" data-to={to} />,
+  // RouteChrome reads the location to pick the route’s title and meta, and
+  // renders the skip link. It mounts inside BrowserRouter on every route, so
+  // this mock has to answer as the real router would.
+  useLocation: () => ({ pathname: "/", search: "", hash: "", state: null, key: "t" }),
+  Link: ({ to, children, ...rest }) => <a href={to} {...rest}>{children}</a>,
 }));
 
 vi.mock("./context/AuthContext", () => ({
@@ -50,6 +55,10 @@ vi.mock("./context/AuthContext", () => ({
 }));
 vi.mock("./i18n", () => ({
   LanguageProvider: ({ children }) => { seen.order.push("LanguageProvider"); return <div>{children}</div>; },
+  // RouteChrome binds <html lang> to this, which is what makes a Nepali
+  // interface get a Nepali screen-reader voice (WCAG 3.1.1).
+  useLanguage: () => ({ lang: "en", setLang: () => {} }),
+  useT: () => (key) => key,
 }));
 vi.mock("./components/ErrorBoundary", () => ({
   default: ({ children }) => { seen.order.push("ErrorBoundary"); return <div>{children}</div>; },

@@ -1276,18 +1276,18 @@ export default function ScriptEditor() {
 
   if (loadError)
     return (
-      <div className="h-screen bg-bg flex flex-col items-center justify-center gap-4 text-ink">
+      <main id="main" tabIndex={-1} className="h-screen bg-bg flex flex-col items-center justify-center gap-4 text-ink">
         <p className="text-inkSoft">{loadError}</p>
         <button onClick={() => navigate("/dashboard")} className="btn-gold text-sm">
           Back to Dashboard
         </button>
-      </div>
+      </main>
     );
 
-  if (!script) return <div className="h-screen bg-bg flex items-center justify-center text-gold">Loading...</div>;
+  if (!script) return <main id="main" tabIndex={-1} className="h-screen bg-bg flex items-center justify-center text-gold">Loading...</main>;
 
   return (
-    <div className="app-viewport bg-bg flex flex-col overflow-hidden text-ink">
+    <main id="main" tabIndex={-1} className="app-viewport bg-bg flex flex-col overflow-hidden text-ink">
       {/* Toolbar */}
       {/* Scrolls sideways on a phone rather than wrapping. A wrapped toolbar
           silently eats the page height it is sitting above, and there is not
@@ -1598,6 +1598,6 @@ export default function ScriptEditor() {
           />
         )}
       </div>
-    </div>
+    </main>
   );
 }

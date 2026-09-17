@@ -59,11 +59,18 @@ export default function TopNav({ active = "Projects", right }) {
 
   return (
     <>
-    {/* Sits above the nav on every page that has one, so a plan about to lapse
-        is seen before the writer starts work rather than when a paid feature
-        suddenly 403s. */}
-    <PlanNotice />
-    <header className="flex-none flex items-center gap-4 md:gap-9 px-4 md:px-8 lg:px-14 pt-4 md:pt-6 pb-4 md:pb-5">
+    <header className="flex-none">
+      {/* Sits above the nav on every page that has one, so a plan about to
+          lapse is seen before the writer starts work rather than when a paid
+          feature suddenly 403s.
+
+          INSIDE the header, not beside it: a banner rendered as a sibling of
+          every landmark is content belonging to no region, which is the axe
+          `region` rule and, more to the point, content a screen-reader user
+          cannot navigate to by region. It renders null on most sessions, so
+          the violation only appeared for the users being warned. */}
+      <PlanNotice />
+      <div className="flex items-center gap-4 md:gap-9 px-4 md:px-8 lg:px-14 pt-4 md:pt-6 pb-4 md:pb-5">
       {/* 129px of a 375px viewport, for a link the "Projects" tab beside it
           already provides. It is the first thing to go on a phone: the bar's
           job there is navigation, and nothing becomes unreachable. */}
@@ -192,6 +199,7 @@ export default function TopNav({ active = "Projects", right }) {
             </div>
           </>
         )}
+      </div>
       </div>
     </header>
     </>

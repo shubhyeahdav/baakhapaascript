@@ -283,8 +283,30 @@ describe("consent and language on the way in", () => {
     // whether someone puts an unproduced script into the product.
     render(<RegisterPage />);
 
-    expect(screen.getByText(/without application-level encryption/)).toBeInTheDocument();
+    expect(screen.getByText(/not encrypted at the application layer/)).toBeInTheDocument();
     expect(screen.getByText(/sent to our AI providers/)).toBeInTheDocument();
+  });
+
+  it("distinguishes the password claim from the script-text claim", () => {
+    // An external audit read the old line as a contradiction of the Privacy
+    // Policy, which says passwords are hashed: one sentence said script text
+    // is unencrypted, the policy said credentials are hashed, and the only
+    // disclosure a user actually SEES at signup was the first. They are
+    // different properties of different data, and the consent line now says
+    // so rather than leaving a reader to reconcile them.
+    render(<RegisterPage />);
+
+    expect(screen.getByText(/password is hashed and never stored in plain text/))
+      .toBeInTheDocument();
+  });
+
+  it("says AI transmission applies to paid plans, because the policy does", () => {
+    // Privacy Policy §4 marks the Anthropic transfer "Paid tiers only". The
+    // signup line implied it always applied, so the two documents disagreed
+    // about the same transfer.
+    render(<RegisterPage />);
+
+    expect(screen.getByText(/on paid plans/)).toBeInTheDocument();
   });
 
   it("lets a signed-out visitor choose Nepali on the sign-up page", () => {

@@ -157,7 +157,7 @@ export default function StoryboardView() {
         </div>
       )}
 
-      <main className="flex-1 p-8 overflow-y-auto max-w-7xl mx-auto w-full animate-fade-up">
+      <main id="main" tabIndex={-1} className="flex-1 p-8 overflow-y-auto max-w-7xl mx-auto w-full animate-fade-up">
         {frames.length === 0 ? (
           <div className="text-center py-24 border border-dashed border-border rounded-2xl bg-surface/30 max-w-xl mx-auto mt-12">
             <div className="w-16 h-16 rounded-2xl bg-goldDim flex items-center justify-center mx-auto mb-6">

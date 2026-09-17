@@ -102,7 +102,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-bg text-ink">
+    <main id="main" tabIndex={-1} className="min-h-screen flex bg-bg text-ink">
       {/* Cinematic brand panel */}
       <div className="hidden lg:flex flex-col justify-between w-[52%] cine-bg relative overflow-hidden p-14 border-r border-borderSoft">
         {/* Letterbox hairlines */}
@@ -264,7 +264,7 @@ export default function RegisterPage() {
                     className="tap text-gold hover:underline">
                 {t("Privacy Policy")}
               </Link>
-              . {t("Your script text is stored without application-level encryption and is sent to our AI providers when you ask for generation.")}
+              . {t("Your script text is not encrypted at the application layer and, on paid plans, is sent to our AI providers when you ask for generation.")} {t("Your password is hashed and never stored in plain text.")}
             </p>
 
             {/* Deliberately NOT disabled while the form is incomplete. A dead
@@ -285,6 +285,6 @@ export default function RegisterPage() {
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

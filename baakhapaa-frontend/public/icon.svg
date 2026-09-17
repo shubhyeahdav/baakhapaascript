@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512" role="img" aria-label="Baakhapaa">
+  <!--
+    The Pen's nib, the same geometry as src/components/ThePen.jsx, on the
+    product's own ground. A nib rather than a letterform because the nib is
+    already what this product calls its guide, and it reads at 32px.
+    Colours are the palette's bg #0B0B0A and gold #D4A843.
+  -->
+  <rect width="64" height="64" rx="12" fill="#0B0B0A"/>
+  <g stroke="#D4A843" fill="#D4A843">
+    <path d="M32 6 L40 22 L40 40 L24 40 L24 22 Z" stroke="none" opacity="0.16"/>
+    <path d="M32 40 L24 22 L32 6 L40 22 Z" fill="none" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M32 14 L32 40" fill="none" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="32" cy="26" r="2.6" stroke="none"/>
+    <circle cx="32" cy="46" r="3.4" stroke="none"/>
+  </g>
+</svg>
