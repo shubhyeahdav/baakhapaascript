@@ -93,25 +93,61 @@ const AUDIT = () => {
       right: Math.round(el.getBoundingClientRect().right),
     }));
 
-  // The reachable height, not the painted one: a pseudo-element can carry the
-  // hit area while the control stays visually small, which is what the editor
+  // The reachable size, not the painted one: a pseudo-element can carry the hit
+  // area while the control stays visually small, which is what the editor
   // header does.
-  const hitHeight = (el) => {
-    const own = el.getBoundingClientRect().height;
+  //
+  // BOTH dimensions. This measured height alone until 2026-09-17, so a control
+  // 12px wide and 40px tall passed a check named after WCAG 2.2 SC 2.5.8 —
+  // which asks for 24 by 24. A check that reports the wrong half is worse than
+  // no check, because it gets quoted as assurance.
+  const hitBox = (el) => {
+    const r = el.getBoundingClientRect();
     const after = getComputedStyle(el, "::after");
-    const extra = after.content !== "none" ? parseFloat(after.height) || 0 : 0;
-    return Math.max(own, extra);
+    const real = after.content !== "none" && after.content !== "";
+    return {
+      w: Math.max(r.width, real ? parseFloat(after.width) || 0 : 0),
+      h: Math.max(r.height, real ? parseFloat(after.height) || 0 : 0),
+    };
   };
 
   const small = [...document.querySelectorAll('button, a[href], [role="button"], input, select')]
     .filter(shown)
-    .filter((el) => hitHeight(el) < 24)
+    // An inline link inside a sentence is exempt from 2.5.8, and flagging every
+    // one buries the controls that are genuinely too small to hit.
+    .filter((el) => !(el.tagName === "A" && el.closest("p, li")))
+    // Visually hidden until focused — the skip link. It is 1x1 by construction
+    // and is never a pointer target: a mouse user cannot reach it and is not
+    // meant to. Detected by computed style rather than by class name, so it
+    // holds for any implementation of the pattern.
+    //
+    // Worth stating why this exclusion exists at all: without it the check
+    // failed on all fourteen routes the moment a skip link was added, and a
+    // check that is red everywhere is a check somebody turns off.
+    .filter((el) => {
+      const cs = getComputedStyle(el);
+      const clipped = cs.clip === "rect(0px, 0px, 0px, 0px)" ||
+        cs.clipPath === "inset(50%)" ||
+        (cs.position === "absolute" && cs.overflow === "hidden" &&
+          parseFloat(cs.width) <= 1 && parseFloat(cs.height) <= 1);
+      return !clipped;
+    })
+    .filter((el) => {
+      const b = hitBox(el);
+      return b.w < 24 || b.h < 24;
+    })
     .slice(0, 8)
-    .map((el) => ({
-      label: (el.getAttribute("aria-label") || el.innerText || el.value || "")
-        .trim().slice(0, 26),
-      h: Math.round(hitHeight(el)),
-    }));
+    .map((el) => {
+      const b = hitBox(el);
+      // textContent, not innerText: innerText returns "" for an element far
+      // below the fold in a headless browser, which reports a well-labelled
+      // control as nameless.
+      const label = (el.getAttribute("aria-label") || el.textContent || el.value || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 26);
+      return { label, w: Math.round(b.w), h: Math.round(b.h) };
+    });
 
   return {
     viewport,
@@ -259,7 +295,7 @@ async function main() {
       console.log(`          overflows to ${o.right}px: <${o.tag}> ${o.cls}`);
     }
     for (const t of r.smallTargets) {
-      console.log(`          ${t.h}px tall: ${t.label || "(unlabelled)"}`);
+      console.log(`          ${t.w}x${t.h}px: ${t.label || "(unlabelled)"}`);
     }
   }
 
