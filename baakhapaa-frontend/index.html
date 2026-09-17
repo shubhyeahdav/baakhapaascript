@@ -11,6 +11,48 @@
        up; this is what a non-JS crawler sees. -->
   <meta name="description" content="Screenplay structure, scene drafting and storyboards, built for Nepali storytelling. Three projects free, with a nineteen-lesson course and a craft linter that reads Nepali." />
 
+  <!-- STATIC, and that is the whole point.
+
+       src/lib/documentHead.js writes a per-route title, canonical and Open
+       Graph set once React mounts. Google renders JavaScript and will see
+       those; no current AI search crawler does, so for ChatGPT, Perplexity and
+       Claude the only tags that exist are the ones in this file. Measured on
+       the deployed site: 33 characters of visible text and zero canonical tags
+       without JavaScript.
+
+       These are the site-level defaults. The per-route layer still upgrades
+       them for a rendering crawler; this is the floor underneath it. -->
+  <link rel="canonical" href="https://baakhapaascript.vercel.app/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Baakhapaa" />
+  <meta property="og:title" content="Baakhapaa — Pre-Production Studio" />
+  <meta property="og:url" content="https://baakhapaascript.vercel.app/" />
+  <meta property="og:description" content="Screenplay structure, scene drafting and storyboards, built for Nepali storytelling." />
+  <meta name="twitter:card" content="summary" />
+
+  <!-- 69% of the sites in the Addeity sample carried no structured data at
+       all, and it is one of the few checklist items the measurements rate as
+       real. Static, so a crawler that runs nothing still reads it. Prices are
+       the published NPR figures; `offers` states the free tier first because
+       that is the tier the product leads with. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Baakhapaa",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Web",
+    "url": "https://baakhapaascript.vercel.app/",
+    "description": "Pre-production for screenwriters and video creators: three-act structure, scene drafting, a craft linter that reads Nepali, storyboards and production-ready exports.",
+    "inLanguage": ["en", "ne"],
+    "offers": [
+      { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "NPR" },
+      { "@type": "Offer", "name": "Pro", "price": "999", "priceCurrency": "NPR" },
+      { "@type": "Offer", "name": "Studio", "price": "2499", "priceCurrency": "NPR" }
+    ]
+  }
+  </script>
+
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="manifest" href="/manifest.webmanifest" />
 

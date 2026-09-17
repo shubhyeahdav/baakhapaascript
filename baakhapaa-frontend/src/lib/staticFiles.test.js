@@ -150,6 +150,51 @@ describe("index.html", () => {
   });
 });
 
+describe("what a crawler with no JavaScript gets", () => {
+  // Measured against the deployed site on 17 September 2026 with a plain GET:
+  // 33 characters of visible text, no <h1>, no canonical. src/lib/documentHead.js
+  // writes the per-route tags AFTER React mounts, so Google (which renders) sees
+  // them and no current AI search crawler does. These assertions cover the floor
+  // underneath that layer — the tags that exist whether or not anything runs.
+
+  it("ships a canonical in the static HTML, not only from the script", () => {
+    expect(read("index.html")).toMatch(/<link[^>]+rel="canonical"/);
+  });
+
+  it("ships Open Graph in the static HTML", () => {
+    const html = read("index.html");
+
+    expect(html).toMatch(/property="og:title"/);
+    expect(html).toMatch(/property="og:description"/);
+    expect(html).toMatch(/property="og:type"/);
+  });
+
+  it("ships structured data", () => {
+    // 69% of the sites in the Addeity sample carried none, and it is one of the
+    // few checklist items the measurements rate as a real gap.
+    const html = read("index.html");
+    const block = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+
+    expect(block, "no JSON-LD block").toBeTruthy();
+    const data = JSON.parse(block[1]);
+    expect(data["@context"]).toBe("https://schema.org");
+    expect(data.name).toBe("Baakhapaa");
+    expect(data.offers.length).toBeGreaterThan(0);
+  });
+
+  it("states the prices the pricing page states", () => {
+    // Structured data that disagrees with the page is worse than none: it is a
+    // machine-readable claim nobody checks.
+    const data = JSON.parse(
+      read("index.html").match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]
+    );
+    const prices = data.offers.map((o) => o.price).sort();
+
+    expect(prices).toEqual(["0", "2499", "999"].sort());
+    for (const offer of data.offers) expect(offer.priceCurrency).toBe("NPR");
+  });
+});
+
 describe("headers", () => {
   it("keeps the four security headers on every response", () => {
     const block = vercel().headers.find((h) => h.source === "/(.*)");

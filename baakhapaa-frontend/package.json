@@ -11,12 +11,14 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.mjs",
     "preview": "vite preview",
     "test": "vitest",
     "test:ci": "vitest run",
     "check:contrast": "node scripts/contrast-check.mjs",
-    "check:layout": "node scripts/page-layout-check.mjs"
+    "check:layout": "node scripts/page-layout-check.mjs",
+    "build:spa": "vite build",
+    "prerender": "node scripts/prerender.mjs"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
