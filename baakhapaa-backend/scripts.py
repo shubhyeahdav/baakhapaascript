@@ -24,6 +24,7 @@ import voice
 from auth import (
     get_current_user, require_script_access, require_project_access,
     require_paid_tier, is_paid_tier, script_with_project,
+    require_script_and_project,
 )
 import script_engine
 import linter
@@ -735,21 +736,28 @@ def get_script_for_project(project_id: str, user_id: str = Depends(get_current_u
 
 @router.get("/{script_id}")
 def get_script(script_id: str, user_id: str = Depends(get_current_user)):
-    script = require_script_access(script_id, user_id, minimum=membership.VIEWER)
+    # Read ONCE and used four times below: the access check, the audit owner,
+    # the format the parser needs, and the project the editor is sent. This
+    # route read it four separate times — at about 175ms each against a real
+    # database, on the request that opens a script.
+    script, project = require_script_and_project(script_id, user_id,
+                                                 minimum=membership.VIEWER)
+
     # With sharing live, an unpublished screenplay can be opened by other
     # people and the writer had no way to find out. Owner reads are not events,
     # so this is silent for the person who wrote it.
-    project_owner = (get_project_by_id(script.get("project_id")) or {}).get("user_id")
-    audit.record(script_id, user_id, audit.OPENED, owner_id=project_owner)
+    audit.record(script_id, user_id, audit.OPENED,
+                 owner_id=project.get("user_id"))
     # Reconcile on load, not only on save. Sync ran on save, on storyboard and
     # on review — so a writer who opened a script they had typed by hand met an
     # empty scene index, a dead timeline and an empty corkboard, and the only
     # way to populate them was to make an edit. Everything downstream of the
     # scene rows was invisible until the draft was touched.
-    scenes = scene_sync.sync_from_draft(script_id, script.get("content") or "")
-    # Embed the parent project so the editor can title itself and drive AI
-    # calls from the project's real genre/tone instead of guessing.
-    project = get_project_by_id(script.get("project_id")) or {}
+    scenes = scene_sync.sync_from_draft(script_id, script.get("content") or "",
+                                        project_format=project.get("format"))
+    # The project is embedded so the editor can title itself and drive AI calls
+    # from the project's real genre/tone instead of guessing. Already read
+    # above.
     return {
         **script,
         "scenes": scenes,
@@ -865,7 +873,7 @@ def _should_snapshot(script: dict, new_content: str) -> bool:
     return _age_seconds(latest.get("created_at")) >= AUTOSAVE_SNAPSHOT_WINDOW_SECONDS
 
 
-def _name_an_untitled_project(script: dict, content: str) -> None:
+def _name_an_untitled_project(script: dict, content: str, project=None) -> None:
     """Give a scratch project the name its first line already suggests.
 
     The other half of asking nothing at capture time: a writer never names
@@ -890,7 +898,10 @@ def _name_an_untitled_project(script: dict, content: str) -> None:
         # the project's name with it.
         return
 
-    project = get_project_by_id(script.get("project_id"))
+    # The caller usually holds the project already; it passes it rather than
+    # paying for a second read of the same row.
+    if project is None:
+        project = get_project_by_id(script.get("project_id"))
     if not project or (project.get("title") or "") != UNTITLED:
         return
 
@@ -919,7 +930,9 @@ def _derived_title(content: str) -> str:
 
 @router.put("/{script_id}")
 def save_script(script_id: str, data: ScriptSave, user_id: str = Depends(get_current_user)):
-    script = require_script_access(script_id, user_id)
+    # The access check has to read the project anyway -- that is where the
+    # role lives -- so it hands it back rather than being asked twice.
+    script, project = require_script_and_project(script_id, user_id)
 
     if _should_snapshot(script, data.content):
         supabase.table("versions").insert({
@@ -933,8 +946,13 @@ def save_script(script_id: str, data: ScriptSave, user_id: str = Depends(get_cur
     # these rows while its jump-to-scene counts sluglines in the text, so left to
     # drift, clicking card 3 lands you in scene 4. Returned with the save so the
     # editor can refresh the cards without a second round trip.
-    _name_an_untitled_project(script, data.content or "")
-    scenes = scene_sync.sync_from_draft(script_id, data.content or "")
+    # One project read for the whole save. This is the hottest route in the
+    # product -- it runs on every autosave -- and it read the project three
+    # times: the access check, the untitled-project rule, and `_format_of`
+    # inside sync_from_draft, which re-read the script too.
+    _name_an_untitled_project(script, data.content or "", project=project)
+    scenes = scene_sync.sync_from_draft(script_id, data.content or "",
+                                        project_format=project.get("format"))
     return {
         **result.data[0],
         "scenes": scenes,
@@ -969,7 +987,7 @@ async def import_script(
     destructive action in the product — it overwrites everything — and the undo
     for it has to exist before the overwrite, not after somebody asks for it.
     """
-    script = require_script_access(script_id, user_id)
+    script, project = require_script_and_project(script_id, user_id)
 
     data = await file.read()
     try:
@@ -989,12 +1007,13 @@ async def import_script(
         }).execute()
 
     result = supabase.table("scripts").update({"content": content}).eq("id", script_id).execute()
-    scenes = scene_sync.sync_from_draft(script_id, content)
+    scenes = scene_sync.sync_from_draft(script_id, content,
+                                        project_format=project.get("format"))
 
     # Replacing somebody else's draft is the loudest thing a collaborator can
     # do to a script, so it is logged even though the snapshot already exists.
-    project_owner = (get_project_by_id(script.get("project_id")) or {}).get("user_id")
-    audit.record(script_id, user_id, audit.IMPORTED, owner_id=project_owner)
+    audit.record(script_id, user_id, audit.IMPORTED,
+                 owner_id=project.get("user_id"))
 
     return {
         **result.data[0],
@@ -1023,10 +1042,11 @@ def script_coverage(script_id: str, user_id: str = Depends(get_current_user)):
     A viewer can read it — coverage is what you hand someone to get notes, and
     refusing it to the person giving the notes would be backwards.
     """
-    script = require_script_access(script_id, user_id, minimum="viewer")
+    script, project = require_script_and_project(script_id, user_id,
+                                                 minimum="viewer")
     text = script.get("content") or ""
-    scenes = scene_sync.sync_from_draft(script_id, text)
-    project = get_project_by_id(script.get("project_id")) or {}
+    scenes = scene_sync.sync_from_draft(script_id, text,
+                                        project_format=project.get("format"))
     return coverage_report.coverage(text, scenes, project, _read_bible(script))
 
 
@@ -1043,10 +1063,17 @@ def script_access_log(script_id: str, user_id: str = Depends(get_current_user)):
     return {"entries": audit.history(script_id)}
 
 
-def _review_for(script: dict) -> dict:
-    """Run the pre-finalization checks against a script row."""
-    scenes = scene_sync.sync_from_draft(script["id"], script.get("content") or "")
-    project = get_project_by_id(script.get("project_id")) or {}
+def _review_for(script: dict, project=None) -> dict:
+    """Run the pre-finalization checks against a script row.
+
+    Both callers have already had the project read for them by the access
+    check, so they pass it. The lookup survives as a default rather than
+    becoming a requirement of calling this at all.
+    """
+    if project is None:
+        project = get_project_by_id(script.get("project_id")) or {}
+    scenes = scene_sync.sync_from_draft(script["id"], script.get("content") or "",
+                                        project_format=project.get("format"))
     return review.review(script.get("content") or "", scenes, project)
 
 
@@ -1057,7 +1084,9 @@ def review_script(script_id: str, user_id: str = Depends(get_current_user)):
     Deterministic and free, like `/lint` — so the editor can show it while the
     writer is still working rather than only at the moment they finalize.
     """
-    return _review_for(require_script_access(script_id, user_id, minimum=membership.VIEWER))
+    script, project = require_script_and_project(script_id, user_id,
+                                                 minimum=membership.VIEWER)
+    return _review_for(script, project)
 
 
 @router.post("/{script_id}/finalize")
@@ -1069,7 +1098,7 @@ def finalize_script(script_id: str, user_id: str = Depends(get_current_user)):
     do it without being told — which is what happened for as long as
     `review_script()` sat in `script_engine` wired to nothing.
     """
-    script = require_script_access(script_id, user_id)
-    verdict = _review_for(script)
+    script, project = require_script_and_project(script_id, user_id)
+    verdict = _review_for(script, project)
     result = supabase.table("scripts").update({"status": "finalized"}).eq("id", script_id).execute()
     return {**result.data[0], "review": verdict}

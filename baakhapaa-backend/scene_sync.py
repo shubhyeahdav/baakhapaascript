@@ -175,7 +175,13 @@ def _format_of(script_id: str):
         return None
 
 
-def sync_from_draft(script_id: str, content: str) -> List[dict]:
+# `None` is a real format meaning "read it as a screenplay", so it cannot also
+# mean "nobody told me". A sentinel keeps the two apart.
+_LOOK_IT_UP = object()
+
+
+def sync_from_draft(script_id: str, content: str,
+                    project_format=_LOOK_IT_UP) -> List[dict]:
     """Fold the draft's scenes onto the script's rows; return them in document
     order.
 
@@ -193,7 +199,13 @@ def sync_from_draft(script_id: str, content: str) -> List[dict]:
     # Which parser depends on what is being written. A long-form video script
     # has no sluglines, so the screenplay parser returns nothing for it and the
     # Outline, Corkboard and scene index would all be empty for ever.
-    summaries = parser_for(_format_of(script_id)).scene_summaries(content or "")
+    # `_format_of` costs two round trips — the script, then its project. Every
+    # caller in `scripts.py` has already read one or both by the time it gets
+    # here, and this runs on every autosave, so a caller that knows the format
+    # passes it. The default still looks it up: this is an optimisation
+    # available to callers that have the answer, never a new obligation.
+    fmt = _format_of(script_id) if project_format is _LOOK_IT_UP else project_format
+    summaries = parser_for(fmt).scene_summaries(content or "")
     if not summaries:
         # Nothing written yet. The structure-added rows are all there is, and
         # they are still the right answer for a storyboard.

@@ -6,7 +6,8 @@ from database import (
     get_scenes_by_script,
 )
 import membership
-from auth import get_current_user, require_script_access, require_tier
+from auth import (get_current_user, require_script_access,
+                  require_script_and_project, require_tier)
 from updates import apply_whitelist
 import scene_sync
 import storyboard_engine
@@ -52,22 +53,21 @@ def generate(script_id: str, user_id: str = Depends(get_current_user)):
     # authenticated user, which meant a free account could bill an unbounded
     # number of images — the same gap C1 closed for Word/package export.
     require_tier(user_id, "Storyboard generation")
-    script = require_script_access(script_id, user_id)
+    script, project = require_script_and_project(script_id, user_id)
 
     # Reconcile the scene rows with the draft BEFORE spending anything. Without
     # this, a board generated after a rewrite illustrates the beat description
     # the scene started life as, and a hand-typed screenplay has no rows to
     # generate from at all — which is how "Finalize & Storyboard" used to lead
     # to a page whose only button returned 404.
-    scenes = scene_sync.sync_from_draft(script_id, script.get("content") or "")
+    scenes = scene_sync.sync_from_draft(script_id, script.get("content") or "",
+                                        project_format=project.get("format"))
     if not scenes:
         raise HTTPException(
             status_code=404,
             detail="Nothing to storyboard yet. Write a scene heading (INT./EXT.) "
                    "in the script, or add a scene from the structure panel.",
         )
-
-    project = get_project_by_id(script.get("project_id")) or {}
 
     capped = scenes[:MAX_FRAMES_PER_STORYBOARD]
     frames = storyboard_engine.generate_storyboard(

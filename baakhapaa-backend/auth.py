@@ -229,6 +229,25 @@ def require_script_access(script_id: str, user_id: str, minimum: str = "editor")
     write unless it says otherwise, so forgetting to mark a route costs a viewer
     a read they should have had — never a write they should not.
     """
+    return require_script_and_project(script_id, user_id, minimum)[0]
+
+
+def require_script_and_project(script_id: str, user_id: str,
+                               minimum: str = "editor"):
+    """`require_script_access`, but it hands back the project it already read.
+
+    The authorisation check has to fetch the parent project -- that is where
+    the role lives -- and then throws it away. SEVEN call sites went straight
+    on to read the same row again for the project's format, genre or owner, so
+    each of them paid for two lookups of one row at roughly 175ms each against
+    a real database. The worst was `PUT /scripts/{id}`, which read it three
+    times and runs on every autosave.
+
+    A separate function rather than a flag on the existing one: dozens of
+    call sites want only the script, and changing what they all receive to
+    suit five of them is how a return value quietly becomes a tuple somewhere
+    nobody looked.
+    """
     import membership
 
     script, project = script_with_project(script_id)
@@ -237,7 +256,6 @@ def require_script_access(script_id: str, user_id: str, minimum: str = "editor")
         # authorised for it. Same 404 either way, so neither distinguishes an
         # id that exists from one that does not.
         raise HTTPException(status_code=404, detail="Script not found")
-
     try:
         membership.require_role(project, user_id, minimum)
     except HTTPException as e:
@@ -245,7 +263,7 @@ def require_script_access(script_id: str, user_id: str, minimum: str = "editor")
         if e.status_code == 404:
             raise HTTPException(status_code=404, detail="Script not found") from None
         raise
-    return script
+    return script, project
 
 
 def require_project_access(project_id: str, user_id: str, minimum: str = "editor"):

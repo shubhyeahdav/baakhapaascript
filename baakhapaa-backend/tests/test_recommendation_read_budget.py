@@ -133,3 +133,112 @@ def test_a_request_with_no_script_reads_almost_nothing(
     assert r.status_code == 200
     assert "scripts" not in count_reads
     assert "projects" not in count_reads
+
+
+# --- opening a script ---------------------------------------------------------
+
+def test_opening_a_script_reads_its_project_once(
+    client, make_user, make_script, count_reads
+):
+    """`GET /scripts/project/{id}` read the project THREE times: once for the
+    audit owner, once to embed it in the response, and again inside
+    `sync_from_draft` via `_format_of`. About 175ms each against a real
+    database, on the request that opens the editor.
+
+    `sync_from_draft` now takes the format from a caller that already has it.
+    The default still looks it up — an optimisation for callers holding the
+    answer, never a new obligation.
+    """
+    user = make_user()
+    project_id, _script_id = make_script(user)
+    count_reads.clear()
+
+    r = client.get(f"/scripts/project/{project_id}", headers=user["headers"])
+
+    assert r.status_code == 200, r.text
+    assert count_reads.count("projects") <= 1, (
+        f"opening a script read the project {count_reads.count('projects')} times "
+        f"({', '.join(count_reads)})"
+    )
+
+
+# --- saving, which happens far more often than any of the above ---------------
+
+def test_saving_a_draft_reads_its_project_once(
+    client, make_user, make_script, count_reads
+):
+    """The hottest route in the product. `PUT /scripts/{id}` runs on every
+    autosave, and it read the project TWICE -- once to decide whether the
+    project still needed naming, and again inside `sync_from_draft` via
+    `_format_of`, which also re-read the script. At roughly 175ms per
+    uncached read that is half a second of round trips on a keystroke timer.
+    """
+    user = make_user()
+    _project_id, script_id = make_script(user)
+    count_reads.clear()
+
+    r = client.put(f"/scripts/{script_id}",
+                   json={"content": _draft()}, headers=user["headers"])
+
+    assert r.status_code == 200, r.text
+    assert count_reads.count("projects") <= 1, (
+        f"a save read the project {count_reads.count('projects')} times "
+        f"({', '.join(count_reads)})"
+    )
+
+
+def test_saving_still_names_an_untitled_project(client, make_user, count_reads):
+    """The read that was hoisted out of `_name_an_untitled_project` is the one
+    that decides whether to rename. Collapsing reads must not cost the feature:
+    a project left called Untitled still takes its name from the first slugline.
+    """
+    from projects import UNTITLED
+
+    user = make_user()
+    proj = client.post("/projects/", json={"title": UNTITLED, "genre": "Drama",
+                                           "tone": "Emotional",
+                                           "language": "Bilingual",
+                                           "duration_minutes": 15,
+                                           "target_audience": "Youth"},
+                       headers=user["headers"])
+    project_id = proj.json()["id"]
+    script_id = client.get(f"/scripts/project/{project_id}",
+                           headers=user["headers"]).json()["id"]
+
+    client.put(f"/scripts/{script_id}",
+               json={"content": _draft()}, headers=user["headers"])
+
+    named = client.get(f"/projects/{project_id}", headers=user["headers"]).json()
+    assert named["title"] == "INT. CHIYA PASAL - DAY"
+
+
+def test_coverage_reads_its_project_once(
+    client, make_user, make_script, count_reads
+):
+    user = make_user()
+    _project_id, script_id = make_script(user)
+    client.put(f"/scripts/{script_id}",
+               json={"content": _draft()}, headers=user["headers"])
+    count_reads.clear()
+
+    r = client.get(f"/scripts/{script_id}/coverage", headers=user["headers"])
+
+    assert r.status_code == 200, r.text
+    assert count_reads.count("projects") <= 1, (
+        f"coverage read the project {count_reads.count('projects')} times")
+
+
+def test_review_reads_its_project_once(
+    client, make_user, make_script, count_reads
+):
+    user = make_user()
+    _project_id, script_id = make_script(user)
+    client.put(f"/scripts/{script_id}",
+               json={"content": _draft()}, headers=user["headers"])
+    count_reads.clear()
+
+    r = client.get(f"/scripts/{script_id}/review", headers=user["headers"])
+
+    assert r.status_code == 200, r.text
+    assert count_reads.count("projects") <= 1, (
+        f"review read the project {count_reads.count('projects')} times")
