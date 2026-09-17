@@ -261,8 +261,8 @@ Blocked, and not by anything that can be coded around:
 - [ ] Fix the ones that stop a writer finishing a script
 - [ ] Add a test for each fix before fixing it
 - [ ] Re-run the full backend suite
-- [ ] Re-run the full frontend suite
-- [ ] Re-run the production build
+- [x] Re-run the full frontend suite - *1195 across 62 files, 2026-09-17*
+- [x] Re-run the production build - *clean, 1.26s, 2026-09-17*
 - [ ] Redeploy and repeat the walk from Day 4 in under ten minutes
 - [ ] Apply to Khalti with the live URL, company registration and bank details
 - [ ] Apply to eSewa with the same
@@ -445,7 +445,7 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 - [x] Open the editor on a 375-pixel screen and write for five minutes
 - [x] Fix the screenplay column, which is too narrow to hold a slugline
 - [x] Check the rail, the craft panel and the corkboard at that width — *and three of the four views were not there at all. See below*
-- [ ] Confirm focus mode fills the screen on a phone with a collapsing address bar
+- [ ] Confirm focus mode fills the screen on a phone with a collapsing address bar - *the cause was found and fixed on 2026-09-17 without a phone, so this is now a confirmation rather than a discovery. The editor shell was Tailwind's `h-screen` = `height: 100vh`, and on a phone `100vh` is the LARGE viewport - the height the page would have with the address bar collapsed. While the bar shows, that shell overhangs the screen, and it is `overflow-hidden`, so the overhang cannot be scrolled to. `.screenplay-container` is `flex-1` inside it and inherits the overhang, so `scrollCaretIntoView` could park the caret underneath the address bar. `.zen-page` already used the `vh`/`dvh` fallback pair and said why; the box containing it did not, and fixing the inner element alone could not help because its height resolves against the outer one. Now `.app-viewport`, pinned by a test*
 - [x] Refresh the project list when the command palette opens — *`97d102f`*
 - [x] Add a jump-to-scene action to the palette — *`97d102f`*
 - [x] Check every tap target is large enough to hit
@@ -469,8 +469,8 @@ Baseline is 20% precision@1 on real queries. Everything this week is measured ag
 ### Day 20 · Ready for writers
 
 - [ ] Take one real payment, with real money, through Khalti or eSewa
-- [ ] Confirm the tier is granted from the stored payment row
-- [ ] Confirm a refund or failure leaves the tier untouched
+- [ ] Confirm the tier is granted from the stored payment row - *the CODE property is proven and only the gateway's real behaviour is not: `test_checkout_records_the_price_before_the_user_leaves` pins that the row exists before the user leaves, and `test_underpayment_does_not_grant_the_tier` pins that the amount is checked against the price we recorded rather than the one the user comes back holding. What real money would add is whether the gateway reports what we assume it reports*
+- [ ] Confirm a refund or failure leaves the tier untouched - *failure is covered (`test_an_unreachable_gateway_leaves_the_payment_pending`, `test_underpayment_does_not_grant_the_tier`). Refund was covered by NOTHING until 2026-09-16 - a refunded plan kept working indefinitely - and is now `payments.refund()` with 11 tests. Note the box is mis-worded: a refund must NOT leave the tier untouched, it subtracts the days it bought and lets `effective_tier` demote on the past expiry. The exception is a NULL expiry, which means Stripe owns the renewal*
 - [ ] Walk the whole product once as a new user, on the deployed system
 - [ ] Fix anything that blocks finishing a script
 - [x] Confirm every error message tells the writer what to do next — *audited all 48 of them. Most bare “X not found” messages are a DELIBERATE choice, not an oversight: `require_script_access` returns 404 rather than 403 so ids cannot be probed, and making those friendlier would undo it. Seven had no such excuse and are fixed: the four different ways a token could fail (“Missing or invalid token”, “Invalid token”, “Invalid or expired token” twice) all now say “Your session has ended. Sign in again to keep writing”, which is what all four meant and what a writer meets mid-draft; “Email already registered” now names the next step; and `apply_whitelist` now lists the fields it would have accepted instead of reporting its own conclusion*
@@ -490,5 +490,6 @@ These are real and none of them blocks a writer. They go in the month after.
 - A real Postgres in CI, and a migration tool instead of hand-run SQL
 - Application-level encryption of script text; a design decision, not a feature
 - Streaming for the suggestions route, which returns short output and gains least
-- Normalising `generate-structure`, which takes its project id as a query parameter while
-  every other route uses a body
+- ~~Normalising `generate-structure`~~ - **already done**, found stale 2026-09-17.
+  The route reads `req.project_id` first and `api.js` sends it in the body; the query
+  form survives only as a compatibility path and says so in the docstring
