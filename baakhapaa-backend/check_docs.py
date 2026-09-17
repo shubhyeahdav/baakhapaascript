@@ -30,6 +30,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -66,10 +67,18 @@ def frontend_tests():
     people switch off. The claims it could not count are simply left unchecked,
     and `main` says so.
     """
+    # Resolved rather than shelled. `npx` is `npx.cmd` on Windows, which is why
+    # this reached for `shell=True` first -- and bandit rates that HIGH (B602)
+    # whether or not the argument list is fixed, because the next person to add
+    # an argument to it may not know that. `shutil.which` finds the same file
+    # and needs no shell at all.
+    npx = shutil.which("npx")
+    if not npx:
+        return None
     try:
         result = subprocess.run(
-            ["npx", "vitest", "list"],
-            cwd=FRONTEND, capture_output=True, text=True, timeout=300, shell=True,
+            [npx, "vitest", "list"],
+            cwd=FRONTEND, capture_output=True, text=True, timeout=300,
             encoding="utf-8", errors="replace",
         )
     except (OSError, subprocess.SubprocessError):

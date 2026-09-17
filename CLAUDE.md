@@ -72,7 +72,13 @@ machine). Then:
 - Legal (templates, unreviewed): `Terms_of_Use.md`, `Privacy_Policy.md`,
   `Data_Compliance_Checklist.md` (Nepal law), `Trademark_Check_Guide.md`
 
-## Current State (updated 2026-08-13 — PROJECT_PLAN.md §6/§7 has the changelog, HANDOVER.md the narrative)
+## Current State
+
+*Rewritten most sessions, so it carries no single "updated" date — one was
+here reading 2026-08-13 while everything under it was current. `git log -p
+CLAUDE.md` is the honest history; `PROJECT_PLAN.md` §6/§7 has the changelog
+and `HANDOVER.md` the narrative. The numbers in it are counted by
+`check_docs.py`, not typed.*
 
 > **Read `HANDOVER.md` first.** Two things reliably waste a session's first hour:
 > `script_patterns` is often **empty** in the local DB (run
@@ -96,15 +102,19 @@ machine). Then:
 > disconnected` on the first request after an idle gap — a pooled connection
 > Supabase has already closed. See `HANDOVER.md`.
 >
-> Backend tests: **1111 across 72 files, 2 skipped, all passing** (2026-09-16;
-> the Devanagari font gate no longer skips — the asset is bundled),
-> `./venv/Scripts/python -m pytest`.
-> Frontend tests: **1194 across 62 files**, `npm run test:ci`.
+> Backend tests: **1116 across 72 files, none skipped, all passing**
+> (2026-09-17), `./venv/Scripts/python -m pytest`. It read "2 skipped" until
+> then, which had been wrong since the Devanagari font gate stopped skipping
+> — the asset is bundled and `tests/test_font_asset.py` now fails rather than
+> skips if anyone removes it. `check_docs.py` counts the tests but not the
+> skips, so that number was typed and drifted the way typed numbers do.
+> Frontend tests: **1195 across 62 files**, `npm run test:ci`.
 >
 > **The backend suite takes about TWENTY minutes on this machine, not the 3.5
 > this file claimed until 2026-09-16.** That is not the old hang and nothing is
 > calling out: `conftest.py` pins the providers, the ten slowest tests total 22
-> seconds, and the time is spread thin across 1083 tests. Budget for it; it is
+> seconds, and the time is spread thin across the whole suite rather than
+> stuck in a few tests. Budget for it; it is
 > unexplained, not broken.
 >
 > **A slow run and a hung run look identical, and that is a tooling trap rather
