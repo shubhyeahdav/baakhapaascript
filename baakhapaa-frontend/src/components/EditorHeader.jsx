@@ -277,7 +277,7 @@ function EditorHeader({
             {
               key: "typewriter",
               label: typewriter ? "Typewriter mode: on" : "Typewriter mode",
-              hint: "Hold the caret at the middle of the page",
+              hint: "Hold the caret at the middle, and fade the rest",
               onSelect: () => setTypewriter((t) => !t),
             },
             {

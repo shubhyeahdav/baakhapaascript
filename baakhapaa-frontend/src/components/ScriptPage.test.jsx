@@ -215,3 +215,62 @@ describe("typewriter mode", () => {
     expect(() => fireEvent.keyUp(textarea, { key: "a" })).not.toThrow();
   });
 });
+
+describe("the focus band", () => {
+  /* Typewriter mode holds the caret at the middle of the page; this fades what
+     the writer is not writing. It is painted OVER the text rather than applied
+     to it, because the page is a <textarea> and you cannot style a line inside
+     one — and mirroring the text into a shadow div means re-solving wrapping,
+     font metrics and scroll sync, which is a lot of fragility for a gradient.
+
+     The suite cannot see the gradient (`vite.config.js` sets css:false), so
+     these assert the invariants that actually break: when it exists, that it
+     never intercepts a click, and that it follows the caret. */
+  const band = (c) => c.querySelector(".focus-band");
+
+  it("appears only in typewriter mode", () => {
+    const off = page({ typewriter: false, content: "INT. CHIYA PASAL - DAY" });
+    expect(band(off.container)).toBeNull();
+
+    const on = page({ typewriter: true, content: "INT. CHIYA PASAL - DAY" });
+    expect(band(on.container)).toBeTruthy();
+  });
+
+  it("never stands between the writer and the page", () => {
+    /* The PenPrompt lesson, one week old: an overlay that catches a click is
+       an overlay the writer has to fight. This one covers the whole textarea,
+       so it would swallow every click on the draft. */
+    const { container } = page({ typewriter: true, content: "INT. CHIYA PASAL - DAY" });
+
+    expect(String(band(container).className)).toContain("pointer-events-none");
+    expect(band(container)).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("follows the caret down the page", () => {
+    const content = Array.from({ length: 40 }, (_, i) => `Line ${i}`).join("\n");
+    const { container } = page({ typewriter: true, content });
+    const textarea = container.querySelector("textarea");
+
+    textarea.setSelectionRange(0, 0);
+    fireEvent.keyUp(textarea, { key: "ArrowUp" });
+    const atTop = band(container).style.getPropertyValue("--focus-y");
+
+    textarea.setSelectionRange(content.length, content.length);
+    fireEvent.keyUp(textarea, { key: "ArrowDown" });
+    const atBottom = band(container).style.getPropertyValue("--focus-y");
+
+    expect(atTop).not.toBe("");
+    expect(parseFloat(atBottom)).toBeGreaterThan(parseFloat(atTop));
+  });
+
+  it("takes the fade colour from the paper, not from a grey wash", () => {
+    /* The dark page is `background-color: transparent` over the app's #0B0B0A,
+       so the two themes fade toward different colours. A single grey would
+       read as a disabled state rather than as distance. */
+    const light = page({ typewriter: true, content: "x" });
+    const dark = page({ typewriter: true, pageTheme: "dark", content: "x" });
+
+    expect(String(band(dark.container).className)).toContain("focus-band--dark");
+    expect(String(band(light.container).className)).not.toContain("focus-band--dark");
+  });
+});

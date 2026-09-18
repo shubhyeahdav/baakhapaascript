@@ -469,6 +469,63 @@ input[type="range"].custom-slider::-moz-range-thumb:hover {
   padding-bottom: 55vh;
 }
 
+/* The focus band: what typewriter mode fades.
+
+   Typewriter mode holds the caret at the middle of the page. This says what
+   the middle is FOR -- the three lines you are writing stay at full strength
+   and the rest of the draft falls back toward the paper.
+
+   WHY A GRADIENT AND NOT A CLASS ON THE LINE. The page is a <textarea>. There
+   are no lines in there to style: it is one text node, and the only way to
+   colour part of it is to mirror the whole draft into a shadow div positioned
+   under a transparent textarea. That means re-solving wrapping, font metrics
+   and scroll sync, and keeping them in step for ever, in exchange for a fade.
+   Painting over the top costs one gradient and knows nothing about the text.
+
+   `--focus-y` is the caret's offset from the textarea's own top edge, written
+   by `paintBand` in ScriptPage. Not from the viewport and not from a scrolling
+   ancestor: this element is the textarea's own box, so the number stays right
+   however anything above it scrolls.
+
+   THE DIM IS CAPPED AT 0.72 ON PURPOSE. A writer glancing three lines up to
+   check which character is speaking should be able to read it without moving
+   the caret. Fading is for attention; erasing would be for hiding, and nothing
+   here is worth hiding. */
+.focus-band {
+  --focus-y: 50%;
+  --focus-lh: 25px;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 2px;   /* the page's own radius, or it squares off the corner */
+  opacity: 0.72;
+  background: linear-gradient(
+    to bottom,
+    var(--focus-paper) 0,
+    var(--focus-paper) calc(var(--focus-y) - 2.5 * var(--focus-lh)),
+    transparent        calc(var(--focus-y) - 0.6 * var(--focus-lh)),
+    transparent        calc(var(--focus-y) + 1.6 * var(--focus-lh)),
+    var(--focus-paper) calc(var(--focus-y) + 3.5 * var(--focus-lh)),
+    var(--focus-paper) 100%
+  );
+  --focus-paper: #FAF9F6;
+  transition: opacity 0.3s ease;
+}
+
+/* The dark page is `background-color: transparent`, so what shows through it
+   is the app's own near-black rather than a dark paper. Fading toward #FAF9F6
+   there would brighten the page instead of dimming it. */
+.focus-band--dark {
+  --focus-paper: #0B0B0A;
+  border-radius: 0;   /* .dark-page sets border-radius: 0 */
+}
+
+/* The band moving is motion, and some people have asked for less of it. The
+   fade still works; it simply arrives rather than travels. */
+@media (prefers-reduced-motion: reduce) {
+  .focus-band { transition: none; }
+}
+
 
 /* ---------------------------------------------------------------------------
    The pointer over the page.

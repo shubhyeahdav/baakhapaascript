@@ -984,7 +984,11 @@ describe("typewriter mode", () => {
     await openView();
 
     expect(screen.getByRole("menuitem", { name: /Typewriter mode/ }))
-      .toHaveTextContent(/Hold the caret at the middle of the page/);
+      // Both halves of what the mode now does: it holds the caret at the
+      // middle AND fades what is not being written. A hint that promised only
+      // the first would undersell the second to the person deciding whether to
+      // turn it on.
+      .toHaveTextContent(/Hold the caret at the middle, and fade the rest/);
   });
 
   it("is off until asked for", async () => {

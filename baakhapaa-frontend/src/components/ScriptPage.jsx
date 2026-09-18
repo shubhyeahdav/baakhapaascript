@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import PenPrompt from "./PenPrompt";
 import MilestoneNote from "./MilestoneNote";
 import FormatShortcuts from "./FormatShortcuts";
@@ -57,6 +57,34 @@ export default function ScriptPage({
      and the scroll position all live in that DOM node, and remounting it would
      silently throw away all three every time a writer glanced at the
      corkboard. */
+  /* Where the lit band sits, in the textarea's own coordinate space.
+     `caretY - scrollTop` is the caret's offset from the textarea's top EDGE,
+     which is exactly the overlay's box -- so this stays correct however any
+     ancestor scrolls, and needs to know nothing about them.
+
+     Written straight to the DOM node, never through state. A commit in this
+     file's history is called "Stop the toolbar re-rendering on every
+     keystroke"; routing a per-keystroke pixel value through React would undo
+     it. One property write, no render. */
+  const bandRef = useRef(null);
+  const paintBand = useCallback(() => {
+    const ta = textareaRef.current;
+    const el = bandRef.current;
+    if (!ta || !el) return;
+    const cs = getComputedStyle(ta);
+    const lineHeight = parseFloat(cs.lineHeight) || 25;
+    const padTop = parseFloat(cs.paddingTop) || 0;
+    const line = ta.value.slice(0, ta.selectionStart || 0).split("\n").length - 1;
+    el.style.setProperty("--focus-y", `${padTop + line * lineHeight - ta.scrollTop}px`);
+    el.style.setProperty("--focus-lh", `${lineHeight}px`);
+  }, [textareaRef]);
+
+  // Paint once when the band appears, or it starts at its CSS default until
+  // the writer happens to touch something.
+  useEffect(() => {
+    if (typewriter) paintBand();
+  }, [typewriter, paintBand]);
+
   return (
     <div className={`${view === "script" ? "flex" : "hidden"} lg:flex flex-1 flex-col min-w-0`}>
 
@@ -144,6 +172,30 @@ export default function ScriptPage({
             never next to it. */}
         <div className="w-full max-w-[816px] flex flex-col min-w-0">
         <div className="relative w-full flex">
+          {/* Fades what the writer is not writing.
+
+              PAINTED OVER the text, not applied to it: the page is a
+              <textarea> and a line inside one cannot be styled. The usual
+              alternative -- mirroring the text into a shadow div -- means
+              re-solving wrapping, font metrics and scroll sync for a gradient,
+              and this page has been bitten by overlay bugs twice already.
+
+              So it is a gradient in the PAPER's own colour, opaque top and
+              bottom, transparent across a band at `--focus-y`. Paper and not
+              grey: a grey wash reads as a disabled control, and the dark page
+              is `background-color: transparent` over the app's near-black, so
+              the two themes fade toward different colours.
+
+              `pointer-events-none` is load-bearing, not hygiene. This element
+              covers the entire draft; catching a single click would make the
+              script unwritable. */}
+          {typewriter && (
+            <div
+              ref={bandRef}
+              aria-hidden="true"
+              className={`focus-band pointer-events-none ${pageTheme === "dark" ? "focus-band--dark" : ""}`}
+            />
+          )}
           <textarea
           ref={textareaRef}
           className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} ${typewriter && !zenMode ? "typewriter-page" : ""} ${cursor === "pen" ? "cursor-pen" : cursor === "ring" ? "cursor-ring" : ""} ${resting ? "cursor-resting" : ""} resize-none`}
@@ -173,9 +225,13 @@ export default function ScriptPage({
             // leaves the container's visible window long before it leaves
             // the textarea, and the browser only follows it out of the latter.
             scrollCaretIntoView(typewriter || zenMode);
+            paintBand();
           }}
           onKeyDown={(e) => { setResting(true); handleKeyDown(e); }}
-          onClick={(e) => { trackCaret(e); updateCaretPage(e.currentTarget); }}
+          onClick={(e) => { trackCaret(e); updateCaretPage(e.currentTarget); paintBand(); }}
+          /* The band is positioned against the textarea's scroll, so a scroll
+             that does not move the caret still moves the band. */
+          onScroll={paintBand}
           onKeyUp={(e) => {
             trackCaret(e);
             updateCaretPage(e.currentTarget);
@@ -185,6 +241,7 @@ export default function ScriptPage({
             // there, or navigating up through a scene throws the page out
             // of alignment and the next keystroke snaps it back.
             if (typewriter && NAV_KEYS.has(e.key)) scrollCaretIntoView(true);
+            paintBand();
           }}
           /* Fires for every way a selection can change: dragging,
              shift-arrows, double-click, select-all. Cheaper and more
