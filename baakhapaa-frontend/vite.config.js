@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
 /**
@@ -34,6 +34,56 @@ function legalDocuments() {
 }
 
 /**
+ * Start the handshake to the API while the JavaScript is still downloading.
+ *
+ * Measured against the deployed pair on 2026-09-18, forced to IPv4, from this
+ * machine. A request to Railway costs, on a CLEAN connection:
+ *
+ *     connect  0.09s   TLS  +0.08s   response  +0.27s   = ~0.45s
+ *
+ * and roughly one attempt in four never gets a clean connection at all:
+ * `connect` was 1.11s, 4.20s and 15.12s across the samples, with everything
+ * after it normal. That is SYN loss on the path, not slow code -- Vercel over
+ * the same seconds was 0.04-0.06s every time, so the network here is fine and
+ * the problem is specific to reaching Railway.
+ *
+ * None of that handshake starts until React has mounted and something calls
+ * the API, because nothing in the HTML mentions the host. `preconnect` moves
+ * it to parse time, in parallel with fetching the bundle: about 170ms saved
+ * when the connection is clean, and seconds of SYN retries overlapped with
+ * work the browser was doing anyway when it is not.
+ *
+ * It does NOT fix the loss; it hides it behind the download. The fix is
+ * infrastructure -- see the note in DEPLOYMENT.md.
+ *
+ * Driven off `VITE_API_URL` rather than hardcoded, because the dev server
+ * proxies the API at `/api` on its own origin and a preconnect to a relative
+ * path is meaningless. Same-origin and unset both skip it rather than emitting
+ * a tag that points nowhere.
+ */
+function preconnectToApi(apiUrl) {
+  return {
+    name: "baakhapaa-preconnect-api",
+    transformIndexHtml() {
+      let origin;
+      try {
+        origin = new URL(apiUrl).origin;
+      } catch {
+        return;  // relative (`/api`) or unset: nothing to preconnect to.
+      }
+      return [{
+        tag: "link",
+        // `crossorigin` because the API is fetched with CORS. Without it the
+        // browser opens a SECOND connection for the real request and the
+        // warmed one is wasted -- which would make this slower, not faster.
+        attrs: { rel: "preconnect", href: origin, crossorigin: "" },
+        injectTo: "head-prepend",
+      }];
+    },
+  };
+}
+
+/**
  * Vite, replacing react-scripts.
  *
  * Two reasons, and only one of them is speed. Create React App is deprecated
@@ -45,8 +95,12 @@ function legalDocuments() {
  * `@` is here because that is the alias shadcn's generated components import
  * themselves by. Adding it now means those files drop in unedited later.
  */
-export default defineConfig({
-  plugins: [react(), legalDocuments()],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    legalDocuments(),
+    preconnectToApi(loadEnv(mode, process.cwd(), "").VITE_API_URL || ""),
+  ],
   resolve: {
     // import.meta.dirname, not __dirname: this config is ESM now, and
     // Vite warns that the CommonJS global is going away.
@@ -96,4 +150,4 @@ export default defineConfig({
     restoreMocks: true,
     mockReset: true,
   },
-});
+}));
