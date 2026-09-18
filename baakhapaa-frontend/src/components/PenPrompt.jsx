@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import ThePen from "./ThePen";
 
 /**
@@ -101,6 +101,7 @@ export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light", 
   const voice = voiceFor(format);
   const copy = COPY[voice];
   const firstLine = FIRST_LINE[voice];
+  const [nudging, setNudging] = useState(false);
   return (
     <div
       // A fixed offset, not a percentage. The page it sits on is ~1056px tall
@@ -112,7 +113,37 @@ export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light", 
       // than arriving as news, so announcing it would talk over the writer.
     >
       <div className="pointer-events-auto max-w-md w-full text-center">
-        <ThePen mood="idle" size={44} className={`${ink.nib} mx-auto mb-4`} decorative />
+        {/* The Pen does the same thing the button below does, because it was
+            the thing people reached for and it was inert -- a 44px mark sitting
+            above an invitation to start writing, with no cursor, no hover and
+            no handler.
+
+            `aria-hidden` and `tabIndex={-1}` on purpose. This is a redundant
+            POINTER affordance for an action the labelled button underneath
+            already exposes; making it a second tab stop would put two identical
+            controls in the keyboard order and announce the same sentence twice.
+            The action is not keyboard-only-inaccessible -- it is right below.
+
+            Hover moves it to `nudging`, which tilts the nib and thins the ink.
+            Posture, not a face: the same rule that keeps this a nib rather than
+            a creature. */}
+        <button
+          type="button"
+          onClick={() => onInsert(firstLine)}
+          onMouseEnter={() => setNudging(true)}
+          onMouseLeave={() => setNudging(false)}
+          aria-hidden="true"
+          tabIndex={-1}
+          className="block mx-auto mb-4 cursor-pointer bg-transparent border-0 p-0
+                     transition-transform duration-300 hover:scale-110"
+        >
+          <ThePen
+            mood={nudging ? "nudging" : "idle"}
+            size={44}
+            className={ink.nib}
+            decorative
+          />
+        </button>
 
         <p className={`text-[14.5px] ${ink.lead} leading-relaxed mb-1`}>
           {copy.lead}

@@ -70,3 +70,37 @@ it("scales without distorting", () => {
   expect(svg.getAttribute("width")).toBe("96");
   expect(svg.getAttribute("height")).toBe("96");
 });
+
+it("fills and strokes the SAME path, so the two cannot disagree", () => {
+  /* The bug this replaces: the fill was a pentagon with square lower corners
+     (`...L40 40 L24 40 Z`) while the outline was a kite converging to a point.
+     The fill spilled outside the stroke along both lower flanks and the mark
+     read as a diamond with pale shoulders instead of a nib. Two paths that
+     have to agree by hand will eventually not. */
+  const { container } = render(<ThePen />);
+  const paths = [...container.querySelectorAll("path")];
+
+  const filled = paths.filter((p) => p.getAttribute("fill") === "currentColor");
+  const stroked = paths.filter(
+    (p) => p.getAttribute("stroke") === "currentColor" && p.getAttribute("stroke-linejoin")
+  );
+
+  expect(filled).toHaveLength(1);
+  expect(stroked).toHaveLength(1);
+  expect(filled[0].getAttribute("d")).toBe(stroked[0].getAttribute("d"));
+});
+
+it("is a nib, not a diamond: short shoulder, long taper", () => {
+  /* A diamond has its waist in the middle. A nib carries it high, with a long
+     taper to the tip -- that ratio is the whole difference between the two
+     readings at 44px. */
+  const { container } = render(<ThePen />);
+  const d = container.querySelector("path[fill='currentColor']").getAttribute("d");
+
+  const ys = [...d.matchAll(/-?\d+(?:\.\d+)?\s+(-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[1]));
+  const top = Math.min(...ys);
+  const bottom = Math.max(...ys);
+  const waist = ys.sort((a, b) => a - b)[1];   // the shoulder corners
+
+  expect(waist - top).toBeLessThan((bottom - waist) * 0.75);
+});

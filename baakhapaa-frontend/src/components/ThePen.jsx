@@ -24,6 +24,13 @@ import React from "react";
  *   nudging   — tilted down, about to correct something
  */
 
+/**
+ * The nib silhouette. Short shoulder, long taper -- the ratio is what makes it
+ * read as a nib rather than as a diamond, and it is the one number here worth
+ * not fiddling with.
+ */
+const NIB = "M32 8 L41 20 L32 42 L23 20 Z";
+
 const MOODS = {
   idle: { rotate: 0, drop: 1, flourish: 0 },
   thinking: { rotate: -12, drop: 0.55, flourish: 0 },
@@ -58,15 +65,21 @@ export default function ThePen({
         : { role: "img", "aria-label": `The Pen, ${mood}` })}
       style={{ transform: `rotate(${rotate}deg)`, transition: "transform .45s ease" }}
     >
-      {/* Barrel */}
+      {/* ONE path, filled and stroked, so the two can never disagree.
+
+          They did. The fill was `M32 6 L40 22 L40 40 L24 40 L24 22 Z` -- a
+          pentagon with square lower corners -- while the outline was a kite
+          converging to a point at (32,40). The fill therefore spilled outside
+          the stroke along both lower flanks and the mark read as a diamond
+          with pale shoulders rather than as a nib.
+
+          The proportions changed with it. The old kite put its widest point at
+          y22 between an apex at y6 and a tip at y40: near-symmetric, which is
+          the definition of a diamond. A nib has a short shoulder and a long
+          taper, so the waist now sits at y20 with 12 above it and 22 below. */}
+      <path d={NIB} fill="currentColor" opacity="0.16" />
       <path
-        d="M32 6 L40 22 L40 40 L24 40 L24 22 Z"
-        fill="currentColor"
-        opacity="0.16"
-      />
-      {/* Nib — the shape that reads as a pen at 24px as well as at 96px */}
-      <path
-        d="M32 40 L24 22 L32 6 L40 22 Z"
+        d={NIB}
         stroke="currentColor"
         strokeWidth="2"
         strokeLinejoin="round"
@@ -74,11 +87,11 @@ export default function ThePen({
       {/* The slit, which is what makes a nib a nib */}
       <path d="M32 14 L32 40" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       {/* The breather hole */}
-      <circle cx="32" cy="26" r="2.6" fill="currentColor" />
+      <circle cx="32" cy="22" r="2.4" fill="currentColor" />
 
       {/* Ink, gathering at the tip. Fades as the Pen "thinks". */}
       <circle
-        cx="32" cy="46" r="3.4"
+        cx="32" cy="47" r="3.2"
         fill="currentColor"
         opacity={drop}
         style={{ transition: "opacity .45s ease" }}

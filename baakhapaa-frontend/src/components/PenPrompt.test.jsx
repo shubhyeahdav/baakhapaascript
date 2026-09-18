@@ -103,3 +103,28 @@ describe("what both formats keep", () => {
     }
   });
 });
+
+describe("the Pen itself is the affordance", () => {
+  it("starts the writer off when clicked, like the button under it", () => {
+    /* It was inert: a 44px mark directly above an invitation to start writing,
+       with no cursor, no hover and no handler. It is the thing people reach
+       for. */
+    const onInsert = vi.fn();
+    const { container } = render(<PenPrompt onInsert={onInsert} onOpenGuide={() => {}} />);
+
+    fireEvent.click(container.querySelector(".the-pen").closest("button"));
+
+    expect(onInsert).toHaveBeenCalledWith(FIRST_LINE.screenplay);
+  });
+
+  it("does not become a second tab stop for the same action", () => {
+    /* A redundant POINTER affordance. The labelled button below already
+       exposes this action, so adding a keyboard stop would put two identical
+       controls in the tab order and announce the same sentence twice. */
+    const { container } = render(<PenPrompt onInsert={() => {}} onOpenGuide={() => {}} />);
+    const penButton = container.querySelector(".the-pen").closest("button");
+
+    expect(penButton).toHaveAttribute("tabindex", "-1");
+    expect(penButton).toHaveAttribute("aria-hidden", "true");
+  });
+});
