@@ -445,9 +445,13 @@ export default function ScriptEditor() {
   /**
    * How many pages, counted here rather than waited for.
    *
-   * `pagination` arrives with a save, and saves are debounced by fifteen
-   * seconds — so the indicator sat on a stale total for most of a session and
-   * only caught up long after the page it described had been written. The rule
+   * `pagination` arrives with a save, so the indicator can only be as fresh as
+   * the last round trip: a 1s debounce plus a request measured at ~0.45s on a
+   * clean connection to Railway and, roughly one attempt in four, several
+   * seconds while TCP retries. The indicator described a page the writer had
+   * already left. (This comment read "debounced by fifteen seconds" until
+   * 2026-09-18; the timer below has been 1000ms. The conclusion was right and
+   * the number was not.) The rule
    * is one line: the same PAGE_LINES the server paginates on and the PDF lays
    * out with, so the two cannot disagree by more than the wrapped-line drift
    * the server has too. Both places that show it — the toolbar and focus
