@@ -125,6 +125,31 @@ before this session — a 0.003 margin. It was a coin flip, not a robust pass. T
 honest reading is that four entries is too few to separate, not that retrieval
 regressed. **Add image-level entries before tuning anything.**
 
+**TESTED 2026-09-18, AND IT DOES NOT WORK. Do not retry it.** Four new
+image-level entries were written and added, taking the level from 5 entries to
+9. Measured against the full golden set, not a sample:
+
+| | before | after |
+|---|---|---|
+| `image` p@1 | 71% | **71%** |
+| screenplay p@1 | 90.0% | 90.0% |
+| combined p@1 | 91.3% | 91.3% |
+| self-retrieval sanity | 100% | **91.8%** |
+
+Nothing improved and the sanity check regressed, because all four new entries
+failed to retrieve themselves: each was beaten by an existing *scene* or
+*character* entry. Rewriting their `problem` statements into the terse,
+page-focused register the working image entries use changed nothing -- the
+second measurement was identical to the first.
+
+The reading: `image` is not weak because it is thin. Adding entries to a level
+does not make that level easier to reach, because retrieval matches a symptom
+against a `problem` statement and image-craft symptoms are phrased by writers in
+the vocabulary of scene and character craft ("my scene is flat", "my characters
+are just talking"). The entries were reachable; the *queries* land elsewhere
+first. So this is query-side work -- disambiguating image symptoms from scene
+symptoms -- not corpus-size work. All four entries were reverted.
+
 ### B4. The AI-key guard in `conftest.py` is a list of names — **DONE 2026-09-16**
 
 It went stale within a day of a new provider landing and cost 75 minutes a run.
