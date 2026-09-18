@@ -1,331 +1,157 @@
-# Month 3 — tasks performed, and the screenshot for each
+# Month 3 — five tasks performed
 
-A plain record of work done, with the evidence to capture for each item. No
-design, no styling: this is meant to be read, copied into a report, and used as
-a capture checklist.
+Days 8 to 12. What was done, and the screenshot to capture where one is worth
+taking.
 
-Two kinds of evidence appear below.
-
-- **Terminal** — a command you run and photograph. These are the strongest
-  evidence in this project, because they show a number being produced rather
-  than a number being claimed.
-- **Screen** — a page in the running app.
-
----
-
-## Before capturing anything: put the machine in demo mode
-
-**This is the most important instruction in this document.**
-
-This machine's `.env` holds real Anthropic, OpenAI and Supabase credentials.
-`database.use_mock` is `False`, so the app reads and writes the **production
-database**, and an AI call is **billed**. Taking app screenshots in that state
-creates junk accounts and junk projects in the live database, and any generation
-screenshot costs money.
-
-Check which mode you are in:
+**Before any app screenshot:** this machine's `.env` holds real credentials, so
+the app reads and writes the **production database** and an AI call is billed.
+Switch to demo mode first and log in as `test@example.com` / `password`. Never
+capture the `.env` file, a key, a token, the Supabase URL, or your own email in
+the corner of the app.
 
 ```
 cd baakhapaa-backend
 ./venv/Scripts/python -c "import database,script_engine as s; print(database.use_mock, s.PROVIDER)"
 ```
 
-`False anthropic` means live. For screenshots you want `True mock`, which you
-get by pointing the backend at a `.env` with placeholder keys and
-`DEMO_SEED=true`. Demo mode gives you a local SQLite database, canned AI
-responses and placeholder storyboard frames — everything looks right and nothing
-is real or billed. Log in with `test@example.com` / `password`.
-
-**Never capture:** the `.env` file, any terminal that printed a key, the Supabase
-project URL, a JWT, or the account email in the corner of the app. Use the demo
-account for every screen.
+`True mock` is safe to photograph. `False anthropic` is not.
 
 ---
 
-## Day 8 — Move retrieval onto pgvector
+## 1. Moved retrieval onto pgvector — Day 8
 
-### Tasks performed
+Ran the migration against Supabase and confirmed the table, the index and the
+`match_script_patterns` function exist. Re-ran the loader so embeddings landed in
+the vector column. Switched retrieval to the RPC, keeping the Python path as a
+fallback. Verified the dimension guard still refuses a mismatched stored vector,
+and added a test that a database error returns an empty list rather than raising.
+Measured latency both ways and committed with both numbers.
 
-1. Ran `pgvector_script_patterns.sql` against Supabase.
-2. Confirmed the table, the index and the `match_script_patterns` function exist.
-3. Re-ran the loader so embeddings landed in the vector column.
-4. Switched retrieval from fetch-all-and-rank to the RPC.
-5. Kept the Python cosine path as the fallback when the RPC is unavailable.
-6. Confirmed the dimension guard still refuses a mismatched stored vector.
-7. Re-ran the eval and confirmed the number did not move.
-8. Measured retrieval latency before and after.
-9. Added a test that a database error returns an empty list rather than raising.
-10. Committed with both numbers in the message.
+**10 of 10 done.** Say this plainly in the report: the RPC is installed and
+correct but **does not currently execute** — it engages at 2,500 rows and the
+corpus is 45, because the crossover was measured at about 2,900. Dormant by
+design, not by accident.
 
-**Status: 10 of 10 done.**
-
-### State this honestly in the report
-
-The RPC is installed and correct but **does not currently execute**. It engages
-at 2,500 rows and the corpus is 45, because the crossover where pgvector beats
-in-process ranking was measured at roughly 2,900 rows. Below that, ranking in
-Python is faster. The migration was the right work and the switch is real; the
-path is dormant by design, not by accident.
-
-### Screenshot 8A — the database matches the code *(terminal)*
+### Screenshot — the database matches the code
 
 ```
 cd baakhapaa-backend
 ./venv/Scripts/python check_schema.py
 ```
 
-Shows four lines confirming `projects`, `script_patterns`, `payments` and
-`match_script_patterns(): present, craft-filtered`. This is tasks 1 and 2 in one
-frame. Safe to run in live mode — it only reads.
-
-### Screenshot 8B — the guards exist *(terminal)*
-
-```
-cd baakhapaa-backend
-./venv/Scripts/python -m pytest tests/test_rag_retrieval.py -q
-```
-
-Covers tasks 6 and 9 — the dimension guard and the database-error path are both
-in this file. **Expect 44 tests passing.** Capture the summary line; if the
-count is far off, you are not running what this document describes.
+Four lines confirming the tables and `match_script_patterns(): present,
+craft-filtered`. Safe in live mode; it only reads.
 
 ---
 
-## Day 9 — Try a better model, keep only what helps
+## 2. Tried a better model, kept only what helped — Day 9
 
-### Tasks performed
+Recorded the current embedding model and dimension. Tried a larger
+sentence-transformer and re-embedded the corpus. Tried retrieving five and
+reranking to three by craft level. Tried weighting the `technique` field
+alongside `problem`. Re-ran the eval on all forty real queries after each,
+reverted everything that did not improve precision@1, and wrote down what failed.
 
-1. Recorded the current embedding model and dimension.
-2. Tried a larger sentence-transformer and re-embedded the corpus.
-3. Re-ran the eval; kept the change only if precision@1 improved.
-4. Measured the cost in load time and memory.
-5. Updated the dimension in the pgvector schema where it improved.
-6. Tried retrieving five and reranking to three by craft level.
-7. Re-ran the eval on that — all forty real queries, not a sample.
-8. Tried weighting the `technique` field alongside `problem`.
-9. Kept whichever combination scored best and reverted the rest.
-10. Wrote down what did not work, so it is not retried.
+**10 of 10 done.** Most of the day produced **negative results, and that is the
+deliverable** — the rule was set before the experiment, so the reverts are the
+method working rather than the day being wasted.
 
-**Status: 10 of 10 done.**
-
-### State this honestly in the report
-
-Most of this day produced **negative results**, and that is the deliverable. The
-work was an experiment with a pre-committed rule — keep it only if precision@1
-improves — and most of it was reverted under that rule. A day that ends in
-reverts and a written record is not a wasted day; it is the only thing that
-stops the same ideas being retried every month.
-
-### Screenshot 9A — the recorded failures *(document)*
-
-Capture the "what did not work" section. Pair it with the entry added on
-18 September to `FEATURE_SUGGESTIONS.md` under B3, which marks a standing
-recommendation **"TESTED, AND IT DOES NOT WORK. Do not retry it."** after four
-new craft entries moved the number from 71% to 71%.
+*No screenshot. The evidence is the written record of what failed.*
 
 ---
 
-## Day 10 — Close the loop and ship it
+## 3. Closed the retrieval loop and shipped it — Day 10
 
-### Tasks performed
+Put the eval gate in CI so a regression fails the build. Published the
+before-and-after numbers. Checked the Patterns tab in a browser and confirmed the
+free tier still gets retrieval with no API call. Measured a Patterns request on
+the deployed system, cached the embedding model load, re-ran both suites, merged
+and deployed.
 
-1. Confirmed the eval gate runs in CI and fails on a regression.
-2. Published the before-and-after numbers in the repository.
-3. Checked the Patterns tab returns the improved results in the browser.
-4. Confirmed the free tier still gets retrieval with no API call.
-5. Measured how long a Patterns request takes on the deployed system.
-6. Cached the embedding model load.
-7. Added ten new craft entries in the weakest level.
-8. Reloaded, re-measured, kept only what helped.
-9. Re-ran both suites.
-10. Merged and deployed.
-
-**Status: 10 of 10 done.**
-
-### Numbers to quote
+**10 of 10 done.**
 
 | Measurement | Result |
 |---|---|
-| Deployed Patterns request | 2,504 ms median over ten runs |
-| Cause | eight sequential uncached database reads, not slow code |
-| Reads after the fix | four in production steady state |
-| Embedding model load | 0.686 s → 0.007 s after warming at startup |
-| One uncached database read | roughly 175 ms |
+| Deployed Patterns request | 2,504 ms — eight sequential database reads, not slow code |
+| Embedding model load | 0.686 s → 0.007 s, warmed at startup |
+| One uncached database read | about 175 ms |
 
-### Screenshot 10A — the CI gate *(document)*
-
-`.github/workflows/ci.yml`, the line reading:
-
-```
-python eval_retrieval.py --min-p1 0.80 --min-screenplay-p1 0.85
-```
-
-Two floors, not one. Worth one sentence in the report: averaging a weak new
-craft into a single number is how an 82% headline once sat on top of a 20%
-reality, so the screenplay floor is enforced separately.
-
-### Screenshot 10B — the eval running *(terminal)*
+### Screenshot — the eval running
 
 ```
 cd baakhapaa-backend
 ./venv/Scripts/python eval_retrieval.py
 ```
 
-Capture the whole output, not just the headline. It shows combined **91.3%**,
-screenplay **90.0%**, the per-craft-level breakdown, the self-retrieval sanity
-check at **100%**, and the corpus-coverage list. The breakdown matters: it is
-what makes the headline believable.
-
-### Screenshot 10C — the Patterns tab *(screen, demo mode)*
-
-Editor → Patterns tab, with a scene on the page. Shows task 3, and shows the
-free tier receiving craft recommendations with no AI call behind them.
+Capture the whole output, not just the headline: combined **91.3%**, screenplay
+**90.0%**, the per-level breakdown, and the self-retrieval check at **100%**. The
+breakdown is what makes the headline believable.
 
 ---
 
-## Day 11 — Improve a line, not a scene
+## 4. Made "improve" work on a selection — Day 11
 
-### Tasks performed
+Passed the editor's selection to the improve route, falling back to the whole
+scene when nothing is selected. Returned only the rewritten selection and
+replaced it in place, preserving the undo stack. Kept streaming working. Added a
+test that an empty selection still improves the scene and a test that the rest of
+the draft is untouched. Confirmed the linter's diagnosis still leads the prompt.
 
-1. Passed the editor's current selection to the improve route.
-2. Fell back to the whole scene when nothing is selected.
-3. Returned only the rewritten selection, not the surrounding scene.
-4. Replaced the selection in place, preserving the undo stack.
-5. Kept the streaming path working for a selection.
-6. Added a test that an empty selection still improves the scene.
-7. Added a test that the rest of the draft is untouched.
-8. Confirmed the craft linter's diagnosis still leads the prompt.
-9. **Not done:** try it on a real line and read what comes back.
-10. Committed.
+**9 of 10 done** — the only incomplete task in all fifty. *"Try it on a real line"*
+needs Anthropic credit. **The feature is mock-verified only**, so do not
+screenshot a generated rewrite as evidence of quality; in demo mode the response
+is canned.
 
-**Status: 9 of 10 done. The tenth is the only incomplete task in Days 8–12.**
-
-### State this honestly in the report
-
-Task 9 is blocked on Anthropic credit, not on work. Nothing here has run against
-a real model on the deployed system, so **this feature is mock-verified only**
-and the report should say so in those words. Do not screenshot a generated
-rewrite as though it demonstrates quality — in demo mode the response is canned,
-and captioning it otherwise would misrepresent it.
-
-### Screenshot 11A — the behaviour that IS proven *(terminal)*
+### Screenshot — the behaviour that is proven
 
 ```
 cd baakhapaa-backend
 ./venv/Scripts/python -m pytest -q -k "selection or improve"
 ```
 
-Covers tasks 6 and 7 — that an empty selection still improves the scene, and
-that the rest of the draft is untouched. **Expect 21 tests across 4 files.**
-This is real evidence. A screenshot of canned output is not.
+Expect **21 tests across 4 files**.
 
 ---
 
-## Day 12 — Character consistency
+## 5. Built deterministic character-voice checks — Day 12
 
-### Tasks performed
+Added a check comparing each character's lines against their `voice` field, a
+rule flagging two characters whose measures collapse together, and a rule
+flagging a vocabulary ratio that suggests a verbal tic. Surfaced the flags inside
+the Cast view rather than a separate panel, kept it deterministic with no API
+call, wrote each finding in a writer's language, tested every rule, and linked
+each flag to the craft entry that fixes it.
 
-1. Added a check comparing each character's lines against their `voice` field.
-2. Flagged two characters whose measures fall within a small margin.
-3. Flagged a character whose vocabulary ratio suggests a verbal tic.
-4. Surfaced the flags inside the Cast view, not a separate panel.
-5. Kept it deterministic — no API call.
-6. Wrote the finding in the writer's language, not in statistics.
-7. Added tests for each rule.
-8. Ran it against the sample screenplay and sanity-checked the output.
-9. Linked each flag to the craft entry that addresses it.
-10. Committed.
+**10 of 10 done.** Implementation is `baakhapaa-backend/voice.py`.
 
-**Status: 10 of 10 done.** Implementation is `baakhapaa-backend/voice.py`.
+The sample screenplay returned **0 findings** — a pass, not a silence: all three
+characters clear the minimum line count, and a synthetic cast given identical
+dialogue does fire `voices_collapsed`. A checker that never fires looks identical
+to one that correctly finds nothing until you test both.
 
-### The sanity check is worth explaining
+### Screenshot — the Cast view *(demo mode)*
 
-Task 8 produced **0 findings** on `docs/samples/march.txt`. That is a pass, not
-a silence, and the report should say why: all three characters clear the minimum
-line count, so the rules ran and found nothing — and a synthetic cast of two
-characters given identical dialogue **does** fire `voices_collapsed` with its
-craft technique attached. A checker that never fires and a checker that
-correctly finds nothing look identical until you test both.
-
-### Screenshot 12A — the Cast view *(screen, demo mode)*
-
-Editor → Cast. Shows tasks 4, 6 and 9 in one frame: flags in the Cast view
-rather than a separate panel, written as a sentence rather than a statistic, each
-linked to the craft entry that fixes it.
-
-### Screenshot 12B — the rules under test *(terminal)*
-
-```
-cd baakhapaa-backend
-./venv/Scripts/python -m pytest -q -k "voice"
-```
-
-**Expect 20 tests across 2 files.**
+Editor → Cast. Shows the flags where a writer actually reads them, written as
+sentences rather than statistics, each linked to its craft entry.
 
 ---
 
-## Cross-cutting evidence
-
-These are not tied to one day but are the strongest single frames in the set.
-
-### Screenshot X1 — both suites green *(terminal)*
+## One more worth capturing
 
 ```
 cd baakhapaa-backend && ./venv/Scripts/python -m pytest -q
 cd baakhapaa-frontend && npm run test:ci
 ```
 
-Backend takes about 29 seconds. It took roughly twenty minutes until
-17 September, when the cause was found to be password hashing at cost factor 12
-across 754 user creations — worth a line in the report, because the project's own
-notes had called that runtime "unexplained, not broken" and told people to budget
-for it.
-
-### Screenshot X2 — the production build *(terminal)*
-
-```
-cd baakhapaa-frontend && npm run build
-```
-
-### Screenshot X3 — documentation counted, not typed *(terminal)*
-
-```
-cd baakhapaa-backend && ./venv/Scripts/python check_docs.py
-```
-
-Prints the counted test and corpus totals and compares them to what `CLAUDE.md`
-claims. It runs in CI, so a stale number fails the build. This has caught its own
-drift four times.
-
-### Screenshot X4 — the deployed application *(screen)*
-
-`https://baakhapaascript.vercel.app` — the public landing or sign-in page.
-Safe to capture; no account needed and nothing is written.
+Both suites green. The backend takes about 29 seconds — it took roughly twenty
+minutes until 17 September, when the cause turned out to be password hashing
+across 754 user creations.
 
 ---
 
-## Screenshots that cannot be taken yet, and what to show instead
+## What cannot be shown yet
 
-| Wanted | Why not | Show instead |
-|---|---|---|
-| AI scene generation on the deployed system | No Anthropic credit; has never run | The tests that pin the request and response shape |
-| A generated storyboard | No image API credit | The frame controls and the shot list in demo mode |
-| A completed Khalti or eSewa payment | No merchant account; no real money has moved | The checkout page reaching the gateway's real sandbox |
-| A renewal reminder email | No SMTP account | `renewals.py` and the test that proves one reminder per expiry |
-
-Stating these four gaps plainly is stronger than working around them. The
-distinction the report should carry throughout is **built** against **proven** —
-every item of the original scope exists in code, and a smaller set has been
-demonstrated end to end.
-
----
-
-## Capture checklist
-
-- [ ] Backend switched to demo mode; `use_mock` prints `True mock`
-- [ ] Logged in as `test@example.com`, not as the owner account
-- [ ] No `.env`, key, token or project URL visible in any frame
-- [ ] Terminal frames include the command as well as the output
-- [ ] Eval screenshot shows the full breakdown, not only the headline
-- [ ] Every "not done" item labelled as blocked, with what unblocks it
-- [ ] Machine returned to live mode afterwards, if anything else needs it
+AI generation, storyboards, a real payment and a renewal email have never run —
+they need credit, merchant accounts and an email account, not more work. Saying
+so is stronger than working around it. The distinction to carry through the
+report is **built** against **proven**.
