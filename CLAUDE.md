@@ -108,7 +108,7 @@ and `HANDOVER.md` the narrative. The numbers in it are counted by
 > — the asset is bundled and `tests/test_font_asset.py` now fails rather than
 > skips if anyone removes it. `check_docs.py` counts the tests but not the
 > skips, so that number was typed and drifted the way typed numbers do.
-> Frontend tests: **1195 across 62 files**, `npm run test:ci`.
+> Frontend tests: **1257 across 64 files**, `npm run test:ci`.
 >
 > **The backend suite takes about TWENTY minutes on this machine, not the 3.5
 > this file claimed until 2026-09-16.** That is not the old hang and nothing is
