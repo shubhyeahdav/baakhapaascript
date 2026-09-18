@@ -1,7 +1,7 @@
-# Month 3 — five tasks performed
+# Tasks Performed
 
-Days 8 to 12. What was done, and the screenshot to capture where one is worth
-taking.
+Month 3, Days 8 to 12. What was done, and the screenshot to capture where one
+is worth taking.
 
 **Before any app screenshot:** this machine's `.env` holds real credentials, so
 the app reads and writes the **production database** and an AI call is billed.
