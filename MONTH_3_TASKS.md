@@ -10,7 +10,7 @@ Anthropic account with credit, a Supabase project, and a domain. Get those befor
 
 ## Where this stands (2026-09-16)
 
-**155 of 200 done.** Weeks 1 to 3 are complete except for the parts that need
+**161 of 200 done.** (Counted, not typed -- this read "155 of 200" on 2026-09-18, six behind the boxes below it.) Weeks 1 to 3 are complete except for the parts that need
 money spent; Week 4 is partly done.
 
 Ten more closed on 2026-09-16, and the useful thing about them is that eight
