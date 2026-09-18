@@ -128,3 +128,38 @@ describe("the Pen itself is the affordance", () => {
     expect(penButton).toHaveAttribute("aria-hidden", "true");
   });
 });
+
+describe("it never stands between the writer and the page", () => {
+  /* Rule 3 of this component's own docstring. The wrapper had
+     `pointer-events-none` and the inner block took it straight back with
+     `pointer-events-auto` -- and that block is `max-w-md w-full`, a 448px
+     invisible rectangle, so every gap in it swallowed clicks. The one over the
+     "Start writing..." placeholder was the worst of them: the writer clicks
+     where the product tells them to type, and nothing happens.
+
+     The suite cannot compute styles (`vite.config.js` sets css:false), so this
+     checks which elements ASK to catch clicks. Only controls may. */
+  const interactive = (c) =>
+    [...c.querySelectorAll("*")].filter((el) =>
+      el.className?.baseVal !== undefined
+        ? false
+        : String(el.className).includes("pointer-events-auto")
+    );
+
+  it("lets clicks through everywhere except the controls", () => {
+    const { container } = render(<PenPrompt onInsert={() => {}} onOpenGuide={() => {}} />);
+
+    const catching = interactive(container);
+
+    expect(catching.length).toBeGreaterThan(0);
+    catching.forEach((el) => expect(el.tagName).toBe("BUTTON"));
+  });
+
+  it("does not re-enable pointer events on a container", () => {
+    const { container } = render(<PenPrompt onInsert={() => {}} onOpenGuide={() => {}} />);
+
+    container.querySelectorAll("div, p").forEach((el) => {
+      expect(String(el.className)).not.toContain("pointer-events-auto");
+    });
+  });
+});

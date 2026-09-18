@@ -24,8 +24,14 @@ import ThePen from "./ThePen";
  *    is something we made them do.
  * 2. It never appears in focus mode. That mode's whole promise is that nothing
  *    is on the page but the page.
- * 3. It does not block the textarea — `pointer-events-none` on the wrapper — so
- *    a writer who ignores it entirely and starts typing is never interrupted.
+ * 3. It does not block the textarea, so a writer who ignores it entirely and
+ *    starts typing is never interrupted. `pointer-events-none` on the wrapper
+ *    AND on the inner block, with only the three controls turning it back on.
+ *    The wrapper alone is not enough and it read that way until 2026-09-18: the
+ *    inner block is `max-w-md w-full`, a 448px invisible rectangle, and while
+ *    it was `pointer-events-auto` every gap in it ate clicks — including the
+ *    one over the "Start writing..." placeholder, which is precisely where a
+ *    writer clicks to do the thing this prompt is asking them to do.
  *
  * TWO THINGS THAT ARE EASY TO GET WRONG HERE, both found by opening the page:
  *
@@ -112,7 +118,22 @@ export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light", 
       // Not `aria-live`: this is present from the moment the page loads rather
       // than arriving as news, so announcing it would talk over the writer.
     >
-      <div className="pointer-events-auto max-w-md w-full text-center">
+      {/* `pointer-events-none` here too, and only the CONTROLS below turn it
+          back on.
+
+          This div is `max-w-md w-full`, so it is a 448px-wide invisible
+          rectangle. With `pointer-events-auto` on it, every gap inside that box
+          swallowed clicks -- the space beside the Pen, the space between the
+          two paragraphs, the margins around the button. A writer clicking the
+          "Start writing..." placeholder to begin typing hit this instead and
+          nothing happened.
+
+          That is exactly the promise rule 3 in this file's own docstring makes:
+          the prompt does not block the textarea. The wrapper honoured it and
+          this child quietly took it back. Prose is not interactive; clicking it
+          should land in the draft underneath and start writing, which is what
+          the writer was trying to do. */}
+      <div className="pointer-events-none max-w-md w-full text-center">
         {/* The Pen does the same thing the button below does, because it was
             the thing people reached for and it was inert -- a 44px mark sitting
             above an invitation to start writing, with no cursor, no hover and
@@ -134,7 +155,8 @@ export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light", 
           onMouseLeave={() => setNudging(false)}
           aria-hidden="true"
           tabIndex={-1}
-          className="block mx-auto mb-4 cursor-pointer bg-transparent border-0 p-0
+          className="pointer-events-auto block mx-auto mb-4 cursor-pointer
+                     bg-transparent border-0 p-0
                      transition-transform duration-300 hover:scale-110"
         >
           <ThePen
@@ -155,8 +177,8 @@ export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light", 
         <button
           type="button"
           onClick={() => onInsert(firstLine)}
-          className={`font-mono text-[13px] border rounded-lg px-4 py-2
-                      transition-colors ${ink.action}`}
+          className={`pointer-events-auto font-mono text-[13px] border rounded-lg
+                      px-4 py-2 transition-colors ${ink.action}`}
         >
           {firstLine}
         </button>
@@ -166,8 +188,8 @@ export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light", 
           <button
             type="button"
             onClick={onOpenGuide}
-            className={`tap underline decoration-dotted underline-offset-2
-                        transition-colors ${ink.link}`}
+            className={`pointer-events-auto tap underline decoration-dotted
+                        underline-offset-2 transition-colors ${ink.link}`}
           >
             {copy.walk}
           </button>
