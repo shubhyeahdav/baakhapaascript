@@ -49,6 +49,31 @@ export default function ScriptEditor() {
   const t = useT();
   const [searchParams] = useSearchParams();
   const [script, setScript] = useState(null);
+
+  /* The route reads `/projects/:id/editor`, and that param is in practice a
+     SCRIPT id: the dashboard resolves project -> script before navigating, and
+     `ProjectSetup`, the storyboard, versions, comments and all four export
+     routes take a script id too. The `/projects/` in the path is historical.
+
+     The load effect below additionally TOLERATES a project id, so a URL built
+     honestly from the project list still opens — and that tolerance is what
+     made this a silent fault rather than a loud one. Everything after the load
+     kept using the route param, so opening the editor that way put every later
+     request against a script that does not exist: autosave PUT to
+     `/scripts/{projectId}`, took a 404, and the page carried on looking like it
+     was working while nothing at all reached the server.
+
+     `script.id` is the authority the moment there is one. Before that there is
+     nothing to load but the param.
+
+     DECLARED HERE, at the top, rather than beside the first route that uses
+     it. Four hooks below close over it, and a dependency array is evaluated
+     during render: naming `scriptId` in one while the const was still 500
+     lines further down would throw on the temporal dead zone. That is why
+     those arrays listed `id` instead — which is the same route-param fault
+     this const exists to correct, surviving in the one place the fix did not
+     reach. */
+  const scriptId = script?.id || id;
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
   // Patterns, not Generate. Generate is a paid tab that needs an instruction
@@ -238,7 +263,7 @@ export default function ScriptEditor() {
     } catch (err) {
       alert(err.response?.data?.detail || "Could not change the act length.");
     }
-  }, [id]);
+  }, [scriptId]);
 
   /**
    * Rename scene N by rewriting its slugline in the draft.
@@ -591,22 +616,6 @@ export default function ScriptEditor() {
     return () => { live = false; };
   }, [id]);
 
-  /* The route reads `/projects/:id/editor`, and that param is in practice a
-     SCRIPT id: the dashboard resolves project -> script before navigating, and
-     `ProjectSetup`, the storyboard, versions, comments and all four export
-     routes take a script id too. The `/projects/` in the path is historical.
-
-     The load effect above additionally TOLERATES a project id, so a URL built
-     honestly from the project list still opens — and that tolerance is what
-     made this a silent fault rather than a loud one. Everything after the load
-     kept using the route param, so opening the editor that way put every later
-     request against a script that does not exist: autosave PUT to
-     `/scripts/{projectId}`, took a 404, and the page carried on looking like it
-     was working while nothing at all reached the server.
-
-     `script.id` is the authority the moment there is one. Before that there is
-     nothing to load but the param. */
-  const scriptId = script?.id || id;
 
   // A scene's length as the writer would state it. `draft_json.minutes` is what
   // is on the page; `time_allocation` is what was planned for it.
@@ -969,7 +978,7 @@ export default function ScriptEditor() {
     } finally {
       setSaving(false);
     }
-  }, [id, content]);
+  }, [scriptId, content]);
 
   // Mirror the draft locally as it is typed. Autosave runs after a short pause and a
   // render can throw at any point inside that window; without this, everything
@@ -977,7 +986,7 @@ export default function ScriptEditor() {
   // reads this back out and offers it to the writer.
   useEffect(() => {
     if (content) saveRescue(scriptId, content);
-  }, [id, content]);
+  }, [scriptId, content]);
 
   useEffect(() => {
     // An edit that asked to be saved now — a timeline rename — skips the
@@ -1065,7 +1074,7 @@ export default function ScriptEditor() {
     } finally {
       setPatternsLoading(false);
     }
-  }, [content, instruction, genre, tone]);
+  }, [scriptId, content, instruction, genre, tone]);
 
   // Load once when the Patterns tab is opened — no button press needed.
   useEffect(() => {

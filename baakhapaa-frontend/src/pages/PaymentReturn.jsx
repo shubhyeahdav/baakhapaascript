@@ -65,7 +65,14 @@ export default function PaymentReturn() {
         });
       });
     // Deliberately runs once: `started` guards it, and re-verifying on every
-    // render would poll the gateway.
+    // render would poll the gateway. This is the one hook in the app where the
+    // exhaustive-deps rule is wrong rather than inconvenient — it cannot see a
+    // ref guard, and listing `navigate`, `params`, `providerFromPath` and
+    // `refreshUser` would claim the effect responds to them when the first
+    // line returns on every run after the first. Asking a payment gateway
+    // twice whether it took someone's money is not a thing to leave to a
+    // dependency array.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const formatExpiry = (iso) => {

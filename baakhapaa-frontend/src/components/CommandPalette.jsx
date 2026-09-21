@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { projects, scripts } from "../services/api";
@@ -92,7 +92,13 @@ export default function CommandPalette() {
     setTimeout(() => inputRef.current?.focus(), 30);
   }, [open, isAuthenticated]);
 
-  const openProject = async (projectId) => {
+  /* `useCallback`, because `items` below is a `useMemo` that builds a `run`
+     closure over this for every project. A function rebuilt on each render
+     either forces that memo to rebuild every render or, if it is left out of
+     the deps, goes stale — and stale here means the palette's Enter key calls
+     a `navigate` from a previous render. The memo is the reason this is not
+     just a plain function. */
+  const openProject = useCallback(async (projectId) => {
     setBusy(true);
     try {
       const res = await scripts.getByProject(projectId);
@@ -103,7 +109,7 @@ export default function CommandPalette() {
     } finally {
       setBusy(false);
     }
-  };
+  }, [navigate]);
 
   // Static actions + project matches, filtered by the query.
   const actions = useMemo(() => ([
@@ -143,7 +149,7 @@ export default function CommandPalette() {
         run: () => openProject(p.id),
       }));
     return [...scenesFound, ...acts, ...projs];
-  }, [query, actions, projList, scenes]);
+  }, [query, actions, projList, scenes, openProject]);
 
   useEffect(() => { setActive(0); }, [query]);
 
