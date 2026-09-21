@@ -25,6 +25,36 @@ function draftOf(scene) {
   }
 }
 
+/**
+ * A chip the card shows in place of a fact it does not have.
+ *
+ * Until now a missing field simply removed its chip, so a card whose slugline
+ * reads `INT. PASAL` and one that reads `INT. PASAL - DAY` differed by a gap —
+ * and a gap is not readable as an omission. Worse for the board as a whole:
+ * every card was a different height, so the eye could not scan down a column.
+ *
+ * Written as a question rather than a warning. The board is not a linter; the
+ * craft linter exists and is a different surface. `TIME?` says a fact is
+ * missing and, because it names the thing in the vocabulary of the slugline,
+ * also says where it would go.
+ *
+ * Quietened by the DASHED BORDER, not by fading the text. `text-inkMuted/70`
+ * is the obvious way to make a chip recede and it lands at about 3:1 on this
+ * surface, under the 4.5:1 floor for 9px text — and `contrast-check.mjs` reads
+ * hex literals, so a Tailwind opacity modifier is invisible to the one check
+ * that would have caught it. Full `inkMuted` is 5.12:1.
+ */
+function Cue({ children, title }) {
+  return (
+    <span
+      title={title}
+      className="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-dashed border-borderSoft text-inkMuted"
+    >
+      {children}
+    </span>
+  );
+}
+
 function mins(n) {
   const v = Number(n) || 0;
   if (v === 0) return "—";
@@ -76,7 +106,18 @@ export default function Corkboard({ scenes = [], activeScene, onOpen, onMove, on
         {scenes.map((scene, i) => {
           const d = draftOf(scene);
           const written = Number(d.minutes) || 0;
-          const planned = Number(scene.time_allocation) || 0;
+          /* A long-form video section plans in SECONDS, on the section itself,
+             because `time_allocation` is one of the three scene fields the
+             video parser deliberately leaves null rather than repurposing. The
+             planned side of every section card was therefore blank, and a
+             section with a stated target read exactly like one without. */
+          const planned = Number(scene.time_allocation)
+            || (Number(d.target_seconds) ? Number(d.target_seconds) / 60 : 0);
+          /* A section is not a scene, and the card has to know which it is
+             holding. `section_kind` is the only field that says so, and it
+             reaches the client already. Asking a video writer for an INT/EXT
+             is asking them to add something the format does not have. */
+          const section = d.section_kind || null;
           return (
             <div
               key={scene.id}
@@ -121,7 +162,9 @@ export default function Corkboard({ scenes = [], activeScene, onOpen, onMove, on
               </div>
 
               <div className="text-ink font-semibold text-[13px] leading-snug mb-1.5 line-clamp-2">
-                {scene.title}
+                {scene.title || (
+                  <span className="text-inkMuted italic font-normal">Untitled scene</span>
+                )}
               </div>
 
               {/* Production metadata on the card itself. This is what makes an
@@ -130,15 +173,35 @@ export default function Corkboard({ scenes = [], activeScene, onOpen, onMove, on
                   the scene, and all three were already parsed off the page and
                   then shown nowhere. */}
               <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                {d.interior !== undefined && d.interior !== null && (
-                  <span className="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-borderSoft text-inkMuted">
-                    {d.interior ? "INT" : "EXT"}
+                {/* A section states its KIND here, which is the closest thing
+                    a video has to production metadata and was shown nowhere on
+                    the board. It also occupies the row, so a section card is
+                    the same height as a scene card beside it. */}
+                {section ? (
+                  <span className="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-goldDim text-gold">
+                    {section}
                   </span>
-                )}
-                {d.time_of_day && (
-                  <span className="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-borderSoft text-inkMuted">
-                    {d.time_of_day}
-                  </span>
+                ) : (
+                  <>
+                    {d.interior !== undefined && d.interior !== null ? (
+                      <span className="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-borderSoft text-inkMuted">
+                        {d.interior ? "INT" : "EXT"}
+                      </span>
+                    ) : !d.removed && (
+                      <Cue title="This scene's heading does not open with INT. or EXT.">
+                        int/ext?
+                      </Cue>
+                    )}
+                    {d.time_of_day ? (
+                      <span className="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-borderSoft text-inkMuted">
+                        {d.time_of_day}
+                      </span>
+                    ) : !d.removed && (
+                      <Cue title="No time of day — the heading ends without ' - DAY', ' - NIGHT' and so on.">
+                        time?
+                      </Cue>
+                    )}
+                  </>
                 )}
                 {(d.characters || []).length > 0 && (
                   <span
@@ -171,6 +234,14 @@ export default function Corkboard({ scenes = [], activeScene, onOpen, onMove, on
                     interaction is "press the word to change it". It stops the
                     card's drag from starting, or marking a scene would move
                     it. */}
+                {/* A section carries no turning point. `scene_type` is
+                    written "minor" for every synced row, section or scene, so
+                    a video section rendered a pressable MINOR badge that
+                    classified nothing and invited an edit that means nothing.
+                    The kind chip above is a section's classification. The
+                    empty span keeps `justify-between` holding the runtime
+                    against the right edge. */}
+                {section ? <span /> : (
                 <button
                   type="button"
                   draggable={false}
@@ -199,8 +270,15 @@ export default function Corkboard({ scenes = [], activeScene, onOpen, onMove, on
                       : "text-inkMuted bg-borderSoft hover:text-inkSoft"
                   } ${onSetSceneType ? "cursor-pointer" : "cursor-default"}`}
                 >
-                  {scene.scene_type}
+                  {/* Defaulted, not left blank. `scene_type` is NOT NULL with a
+                      default of "minor" in the model, but a row written before
+                      that default — or one whose column comes back null —
+                      rendered this control with no label at all: a control
+                      whose whole job is to name its current value, naming
+                      nothing. */}
+                  {scene.scene_type || "minor"}
                 </button>
+                )}
                 {/* Written against planned. A scene running well over or under
                     its allocation is the single most useful thing an index card
                     can tell a writer, and it was not being shown anywhere. */}

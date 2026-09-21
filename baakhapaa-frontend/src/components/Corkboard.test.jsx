@@ -117,11 +117,38 @@ describe("what a card carries", () => {
     expect(screen.getByText("EXT")).toBeInTheDocument();
   });
 
-  it("shows neither when the draft does not say", () => {
+  it("asks for what the slugline does not say, instead of leaving a gap", () => {
+    // A missing chip and a missing fact looked identical, and the cards came
+    // out different heights so a column could not be scanned. The cue is a
+    // question, not a warning: the board is not the craft linter.
     show({ scenes: [scene({ draft_json: { minutes: 1 } })] });
 
     expect(screen.queryByText("INT")).not.toBeInTheDocument();
     expect(screen.queryByText("EXT")).not.toBeInTheDocument();
+    expect(screen.getByText("int/ext?")).toBeInTheDocument();
+    expect(screen.getByText("time?")).toBeInTheDocument();
+  });
+
+  it("asks for only the half that is missing", () => {
+    show({ scenes: [scene({ draft_json: { interior: true } })] });
+
+    expect(screen.getByText("INT")).toBeInTheDocument();
+    expect(screen.queryByText("int/ext?")).not.toBeInTheDocument();
+    expect(screen.getByText("time?")).toBeInTheDocument();
+  });
+
+  it("names a scene with no title rather than printing a blank card", () => {
+    show({ scenes: [scene({ title: "" })] });
+
+    expect(screen.getByText("Untitled scene")).toBeInTheDocument();
+  });
+
+  it("labels the turning-point badge when the row carries no scene_type", () => {
+    // The badge is a CONTROL whose whole job is to name its current value. A
+    // null column rendered it with no label at all.
+    show({ scenes: [scene({ scene_type: null })], onSetSceneType: vi.fn() });
+
+    expect(screen.getByText("minor")).toBeInTheDocument();
   });
 
   it("shows time of day and cast size", () => {
@@ -170,6 +197,45 @@ describe("what a card carries", () => {
     show({ scenes: [scene({ draft_json: "{not json", description: "A planned beat." })] });
 
     expect(screen.getByText("A planned beat.")).toBeInTheDocument();
+  });
+});
+
+describe("a long-form video section", () => {
+  /* A section is not a scene. The video parser leaves INT/EXT, time of day and
+     `time_allocation` null on purpose rather than repurposing them, so every
+     cue and every default on this card has to know which of the two it is
+     holding — or the board spends its time asking a video writer to add a
+     slugline the format does not have. */
+  const sect = (over = {}) => scene({
+    id: "s1", title: "## HOOK - 0:15", scene_type: "minor", time_allocation: null,
+    draft_json: { minutes: 0.4, section_kind: "hook", target_seconds: 15, characters: [] },
+    ...over,
+  });
+
+  it("states its kind, which nothing on the board showed before", () => {
+    show({ scenes: [sect()] });
+
+    expect(screen.getByText("hook")).toBeInTheDocument();
+  });
+
+  it("does not ask a video writer for a slugline", () => {
+    show({ scenes: [sect()] });
+
+    expect(screen.queryByText("int/ext?")).not.toBeInTheDocument();
+    expect(screen.queryByText("time?")).not.toBeInTheDocument();
+  });
+
+  it("plans in seconds, off the section, since time_allocation is null", () => {
+    show({ scenes: [sect()] });
+
+    expect(screen.getByText("/ 0:15")).toBeInTheDocument();
+  });
+
+  it("offers no turning-point badge, because a section has no turning point", () => {
+    show({ scenes: [sect()], onSetSceneType: vi.fn() });
+
+    expect(screen.queryByText("minor")).not.toBeInTheDocument();
+    expect(screen.queryByText("major")).not.toBeInTheDocument();
   });
 });
 
