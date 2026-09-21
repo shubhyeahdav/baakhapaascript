@@ -33,7 +33,11 @@
 import { chromium } from "playwright";
 import { readFileSync } from "fs";
 
-const css = readFileSync("C:/baakhapaa/baakhapaa-frontend/src/index.css", "utf8")
+// Resolved from this file, not from an absolute path and not from the
+// working directory. It was hardcoded to a path on one Windows machine,
+// so this script passed there and failed on every CI run with ENOENT --
+// the layout job has never once executed the check it exists for.
+const css = readFileSync(new URL("../src/index.css", import.meta.url), "utf8")
   // Strip the Tailwind directives; the handful of utilities the markup needs
   // are declared explicitly below, so what is under test is the real
   // .screenplay-container / .screenplay-page rules.

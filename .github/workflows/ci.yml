@@ -114,7 +114,13 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # 24, not 20. `jsdom@30` requires ^22.22.2 || ^24.15.0 and
+          # `undici@8` requires >=22.19.0, so on Node 20 every vitest
+          # worker died before running a test with "webidl.util.
+          # markAsUncloneable is not a function" -- 64 unhandled errors
+          # and a suite that never started. `engines` in package.json now
+          # states the floor so the next drift fails loudly at install.
+          node-version: "24"
           cache: npm
           cache-dependency-path: baakhapaa-frontend/package-lock.json
 
@@ -196,7 +202,13 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # 24, not 20. `jsdom@30` requires ^22.22.2 || ^24.15.0 and
+          # `undici@8` requires >=22.19.0, so on Node 20 every vitest
+          # worker died before running a test with "webidl.util.
+          # markAsUncloneable is not a function" -- 64 unhandled errors
+          # and a suite that never started. `engines` in package.json now
+          # states the floor so the next drift fails loudly at install.
+          node-version: "24"
           cache: npm
           cache-dependency-path: baakhapaa-frontend/package-lock.json
 
