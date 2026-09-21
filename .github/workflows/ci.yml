@@ -6,6 +6,20 @@
 # that has to be enforced by a machine, because the failure it prevents (Nepali
 # rendering as blank boxes on Linux) is invisible on the Windows box this is
 # developed on.
+#
+# Every action is pinned to its CURRENT major, not to v5. The first green run
+# (2026-09-21) carried a deprecation warning on all four, and the reason is the
+# runtime each action ships with rather than anything in this file: they were
+# built for node20 and the runner now forces them onto node24. checkout, cache
+# and setup-node each moved to node24 at v5 — but **setup-python's node20 major
+# IS v5**, which is what this file already had, so "bump everything to v5"
+# would have left the one that mattered exactly where it was. The node24 majors
+# are checkout v5+, setup-node v5+, cache v5+ and setup-python **v6+**.
+#
+# The two behaviour changes in between are both inert here: setup-node v5 caches
+# automatically off `packageManager` (both jobs already ask for `cache: npm`
+# explicitly, which wins), and setup-python v7 removed the `pip-install` input,
+# which nothing here passes.
 
 name: CI
 
@@ -25,9 +39,9 @@ jobs:
       REQUIRE_SHIPPABLE_FONT: "true"
       DEMO_SEED: "false"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -77,7 +91,7 @@ jobs:
       # gate, not a target: it should catch a change that makes retrieval
       # worse, not block one that makes it slightly less better.
       - name: Cache the embedding model
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/fastembed
           key: fastembed-bge-small-en-v1.5
@@ -110,9 +124,9 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # 24, not 20. `jsdom@30` requires ^22.22.2 || ^24.15.0 and
           # `undici@8` requires >=22.19.0, so on Node 20 every vitest
@@ -176,9 +190,9 @@ jobs:
       DEMO_SEED: "false"
       APP_ENV: development
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -200,7 +214,7 @@ jobs:
           done
           curl -sf http://localhost:8000/health
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # 24, not 20. `jsdom@30` requires ^22.22.2 || ^24.15.0 and
           # `undici@8` requires >=22.19.0, so on Node 20 every vitest
