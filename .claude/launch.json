@@ -2,114 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "backend",
-      "runtimeExecutable": "${workspaceFolder}/baakhapaa-backend/venv/Scripts/python.exe",
-      "runtimeArgs": [
-        "-m",
-        "uvicorn",
-        "main:app",
-        "--port",
-        "8000"
-      ],
-      "cwd": "${workspaceFolder}/baakhapaa-backend",
-      "port": 8000
-    },
-    {
-      "name": "frontend",
-      "runtimeExecutable": "C:/Program Files/nodejs/npm.cmd",
-      "runtimeArgs": [
-        "start"
-      ],
-      "cwd": "${workspaceFolder}/baakhapaa-frontend",
-      "port": 3000,
-      "env": {
-        "BROWSER": "none",
-        "PORT": "3000",
-        "PATH": "C:\\Program Files\\nodejs;C:\\Windows\\System32;C:\\Windows"
-      }
-    },
-    {
-      "name": "backend-lan",
-      "runtimeExecutable": "${workspaceFolder}/baakhapaa-backend/venv/Scripts/python.exe",
-      "runtimeArgs": [
-        "-m",
-        "uvicorn",
-        "main:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8000"
-      ],
-      "cwd": "${workspaceFolder}/baakhapaa-backend",
-      "port": 8000
-    },
-    {
-      "name": "frontend-lan",
-      "runtimeExecutable": "C:/Program Files/nodejs/npm.cmd",
-      "runtimeArgs": [
-        "start",
-        "--",
-        "--host"
-      ],
-      "cwd": "${workspaceFolder}/baakhapaa-frontend",
-      "port": 3000,
-      "env": {
-        "BROWSER": "none",
-        "PORT": "3000",
-        "VITE_API_URL": "http://192.168.1.85:8000",
-        "PATH": "C:\\Program Files\\nodejs;C:\\Windows\\System32;C:\\Windows"
-      }
-    },
-    {
-      "name": "frontend-preview",
-      "runtimeExecutable": "C:/Program Files/nodejs/npm.cmd",
-      "runtimeArgs": [
-        "run",
-        "preview",
-        "--",
-        "--port",
-        "4173"
-      ],
-      "cwd": "${workspaceFolder}/baakhapaa-frontend",
-      "port": 4173,
-      "env": {
-        "BROWSER": "none",
-        "PATH": "C:\\Program Files\\nodejs;C:\\Windows\\System32;C:\\Windows"
-      }
-    },
-    {
-      "name": "backend-lan-8001",
-      "runtimeExecutable": "${workspaceFolder}/baakhapaa-backend/venv/Scripts/python.exe",
-      "runtimeArgs": [
-        "-m",
-        "uvicorn",
-        "main:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8001"
-      ],
-      "cwd": "${workspaceFolder}/baakhapaa-backend",
-      "port": 8001
-    },
-    {
-      "name": "frontend-lan-3001",
-      "runtimeExecutable": "C:/Program Files/nodejs/npm.cmd",
-      "runtimeArgs": [
-        "start",
-        "--",
-        "--host",
-        "--port",
-        "3001"
-      ],
-      "cwd": "${workspaceFolder}/baakhapaa-frontend",
-      "port": 3001,
-      "env": {
-        "BROWSER": "none",
-        "VITE_API_URL": "/api",
-        "PATH": "C:\\Program Files\\nodejs;C:\\Windows\\System32;C:\\Windows",
-        "VITE_PROXY_TARGET": "http://127.0.0.1:8001"
-      }
+      "name": "website",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/start-site.mjs"],
+      "cwd": "${workspaceFolder}",
+      "port": 3000
     }
   ]
 }

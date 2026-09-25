@@ -53,3 +53,6 @@ report-*.pdf
 docs/hooks/hooks_curated_en.csv
 docs/hooks/hooks_by_usability.csv
 docs/hooks/hooks_review_queue.csv
+
+# Brainstorming companion session files (mockups, event logs) — local only.
+.superpowers/
