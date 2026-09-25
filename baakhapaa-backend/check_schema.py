@@ -65,10 +65,32 @@ def _columns_written_to_payments() -> set:
     }
 
 
+def _columns_written_to_invites() -> set:
+    """Every column `invites.py` puts in a `project_invites` row.
+
+    Added 2026-09-25. This table is hand-applied like the rest, and nothing
+    watched it -- which is how CLAUDE.md came to call it "a fourth unapplied
+    migration" for weeks after it had in fact been applied. A stale warning
+    sends the next session to fix something that is not broken, so the fix is
+    not to correct the sentence but to make the sentence unnecessary: ask the
+    database.
+
+    `claimed_at` and `claimed_by` are written as NULL on insert and set on
+    claim. A column probe sees them either way, which is the point -- they are
+    the two most likely to be missed by a hand-typed CREATE TABLE, and an
+    invite that cannot record its claim would be redeemable for ever.
+    """
+    return {
+        "id", "project_id", "email", "role", "token", "invited_by",
+        "created_at", "claimed_at", "claimed_by",
+    }
+
+
 CHECKS = (
     ("projects", _columns_written_to_projects),
     (rag.TABLE, _columns_written_to_patterns),
     ("payments", _columns_written_to_payments),
+    ("project_invites", _columns_written_to_invites),
 )
 
 # The exact statement to run, per column. Kept beside the check so the output

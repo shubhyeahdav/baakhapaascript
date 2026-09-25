@@ -424,8 +424,13 @@ and `HANDOVER.md` the narrative. The numbers in it are counted by
   that granted access would be a bearer token in a forwarded chat message. No
   email is sent (there is no SMTP account and `renewals.py` shows what
   pretending otherwise costs) — the inviter passes the link on themselves.
-  Pending invites occupy a seat. `project_invites` is a **fourth unapplied
-  migration**
+  Pending invites occupy a seat. `project_invites` **is applied** — checked
+  against production 2026-09-25, all nine columns present. This line read "a
+  fourth unapplied migration" until then, long after the table existed, which
+  is the same failure mode the `applies_to` paragraph above records: a stale
+  warning is worse than none, because it sends the next session to fix
+  something that is not broken. `check_schema.py` now watches this table too,
+  so the claim is answered by the database rather than by this file
 - **Freemium split** — free tier runs on RAG only, zero Claude cost:
   `POST /scripts/recommendations` (all tiers) powers the editor's Patterns tab;
   `generate-scene`/`improve`/`suggest` are Pro/Studio (403 for free);
