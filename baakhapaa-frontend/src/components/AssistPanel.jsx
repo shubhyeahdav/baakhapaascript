@@ -149,7 +149,7 @@ export default function AssistPanel({
   insertAtPosition,
   // generation
   aiMode, setAiMode, aiLocked, aiLoading, aiResponse, setAiResponse,
-  instruction, setInstruction, handleAI, acceptAI,
+  instruction, setInstruction, handleAI, acceptAI, aiError, setAiError,
   // patterns
   patterns, patternsLoading, loadPatterns, patternSource, diagnosed,
   focus, setFocus, openPattern, setOpenPattern,
@@ -563,6 +563,28 @@ export default function AssistPanel({
         )
       )}
       
+      {/* A failure, in its own block with no Accept beside it. The suggestion
+          box below renders only a real answer, so there is no path from a
+          provider error into the writer's draft. */}
+      {aiError && (
+        <div className="bg-elevated/40 border border-red-500/25 rounded-xl p-4 mt-2">
+          <div className="text-xs text-red-400/90 font-mono uppercase tracking-wider mb-2">
+            AI unavailable
+          </div>
+          <p className="text-sm text-inkSoft leading-relaxed mb-3">{aiError}</p>
+          <p className="text-[11.5px] text-inkMuted leading-snug mb-3">
+            Nothing was changed in your draft. The craft checks and patterns
+            cost no AI and still work.
+          </p>
+          <button
+            onClick={() => setAiError("")}
+            className="text-xs border border-borderSoft bg-bgDeep/40 text-inkSoft px-3 py-2 rounded-lg w-full hover:text-ink transition"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {aiResponse && (
         <div className="bg-elevated/40 border border-borderSoft rounded-xl p-4 mt-2">
           <div className="text-xs text-inkMuted font-mono uppercase tracking-wider mb-2">AI Suggestion</div>

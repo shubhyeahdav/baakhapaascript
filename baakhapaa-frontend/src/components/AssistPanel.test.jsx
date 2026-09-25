@@ -51,6 +51,46 @@ function panel(overrides = {}) {
   return { props, ...render(<AssistPanel {...props} />) };
 }
 
+describe("a failed AI call", () => {
+  /* The bug this pins, found by running the product on 2026-09-25 with both
+     providers down: the catch in `ScriptEditor` wrote "Error: ..." into
+     `aiResponse`, the same state `acceptAI` inserts into the draft. The panel
+     rendered a green Accept under the provider's error text, and on a scoped
+     improve that REPLACED the writer's highlighted lines with it. Errors now
+     have their own state, so there is no path from a failure into the page. */
+
+  it("shows the failure without offering to accept it", () => {
+    panel({ aiError: "tokenrouter API error: Request timed out.", setAiError: vi.fn() });
+
+    expect(screen.getByText(/Request timed out/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
+  });
+
+  it("says the draft was left alone, because that is the writer's first question", () => {
+    panel({ aiError: "The AI request failed.", setAiError: vi.fn() });
+
+    expect(screen.getByText(/Nothing was changed in your draft/)).toBeInTheDocument();
+  });
+
+  it("dismisses without touching the draft", () => {
+    const setAiError = vi.fn();
+    const setContent = vi.fn();
+    panel({ aiError: "boom", setAiError, setContent });
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+
+    expect(setAiError).toHaveBeenCalledWith("");
+    expect(setContent).not.toHaveBeenCalled();
+  });
+
+  it("still offers Accept for a real answer", () => {
+    // The guard must not have cost the feature it protects.
+    panel({ aiResponse: "INT. PASAL - DAY", acceptAI: vi.fn(), setAiResponse: vi.fn() });
+
+    expect(screen.getByRole("button", { name: "Accept" })).toBeInTheDocument();
+  });
+});
+
 describe("the focus chips", () => {
   it("offers one chip per focus", () => {
     panel();

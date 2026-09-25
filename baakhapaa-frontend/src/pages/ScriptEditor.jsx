@@ -84,6 +84,15 @@ export default function ScriptEditor() {
   const [aiMode, setAiMode] = useState("patterns");
   const [instruction, setInstruction] = useState("");
   const [aiResponse, setAiResponse] = useState("");
+  /* A FAILED call is not a suggestion, and must not share state with one.
+     Until 2026-09-25 the catch below wrote "Error: ..." into `aiResponse`,
+     which is the same state `acceptAI` inserts into the draft — so the panel
+     offered a green Accept under the provider's error text. On a scoped
+     improve that replaced the writer's highlighted lines with
+     "Error: tokenrouter API error: Request timed out.", and autosave persisted
+     it a second later. Separate state rather than a guard on the string: the
+     accept path can then have no branch that could ever be got wrong. */
+  const [aiError, setAiError] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [panelTab, setPanelTab] = useState("ai");
   // Nepali phonetic input. Remembered across sessions because it is a property
@@ -1103,6 +1112,7 @@ export default function ScriptEditor() {
 
   const handleAI = async () => {
     setAiLoading(true);
+    setAiError("");
     try {
       if (aiMode === "generate") {
         // `script_id` is what lets the server load the story bible and ground
@@ -1144,7 +1154,11 @@ export default function ScriptEditor() {
         setAiResponse("");
         setServerLocked(true);
       } else {
-        setAiResponse("Error: " + (err.response?.data?.detail || "AI request failed"));
+        // Into `aiError`, never `aiResponse`. A half-streamed answer is also
+        // dropped: text that stopped mid-sentence because the provider died is
+        // not something to offer a writer as a rewrite of their scene.
+        setAiResponse("");
+        setAiError(err.response?.data?.detail || "The AI request failed.");
       }
     } finally {
       setAiLoading(false);
@@ -1605,6 +1619,8 @@ export default function ScriptEditor() {
             aiLoading={aiLoading}
             aiResponse={aiResponse}
             setAiResponse={setAiResponse}
+            aiError={aiError}
+            setAiError={setAiError}
             instruction={instruction}
             setInstruction={setInstruction}
             handleAI={handleAI}
