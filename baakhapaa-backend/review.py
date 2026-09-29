@@ -20,6 +20,7 @@ import difflib
 
 import screenplay
 import scene_sync
+import videoscript
 
 # One script page runs about a minute. The page itself is defined once, in
 # `screenplay.PAGE_LINES`, and everything measures against it — this file kept
@@ -47,6 +48,41 @@ RUNTIME_TOLERANCE = 0.25
 
 def _finding(rule, severity, message, detail=""):
     return {"rule": rule, "severity": severity, "message": message, "detail": detail}
+
+
+# The two sections a course lesson cannot do without, and why. `lessons.py`
+# enforces the same rule inside the module: a course that only presents
+# information does not get finished by anyone, and a course whose feedback is
+# "well done!" teaches nothing.
+COURSE_REQUIRED = (
+    ("exercise", "course_missing_exercise",
+     "This lesson has no exercise, so there is nothing for the learner to do.",
+     "Add a `## EXERCISE` section with the task and a starter they can begin from."),
+    ("check", "course_missing_check",
+     "This lesson has no check, so neither of you can tell whether it landed.",
+     "Add a `## CHECK` section describing how the learner knows they have it."),
+)
+
+
+def course_section_findings(content: str, video_category=None) -> list:
+    """The one structural rule that is a rule rather than a convention.
+
+    Course mode only. Every section in the video-essay framework is a
+    convention a writer may break knowingly; these two are not, because the
+    courses module has no way to present a lesson that lacks them.
+
+    Reports. Nothing here blocks a save.
+    """
+    if videoscript.mode_for(video_category) != "course":
+        return []
+    if not (content or "").strip():
+        return []
+    present = {s.kind for s in videoscript.sections(content, mode="course")}
+    return [
+        _finding(rule, "medium", message, detail)
+        for kind, rule, message, detail in COURSE_REQUIRED
+        if kind not in present
+    ]
 
 
 def _scene_minutes(scene, spans: dict | None = None) -> float:
