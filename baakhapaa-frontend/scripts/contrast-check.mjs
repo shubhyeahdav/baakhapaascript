@@ -159,6 +159,35 @@ for (const m of css.matchAll(/(?:^|\n)\s*\.([\w-]+)\s*\{([^}]*)\}/g)) {
   say(`  ${ok ? "pass" : "FAIL"}  ${("." + m[1]).padEnd(20)} ${cm[1]} on ${on}  ${String(px).padStart(5)}px  ${got.toFixed(2)}:1`);
 }
 
+// --- 2b. caret colours ------------------------------------------------------
+//
+// Its own pass, because section 2's regex requires `color:` to follow a start,
+// a space or a semicolon — and the hyphen in `caret-color` is none of those, so
+// the caret was never examined at all.
+//
+// That blind spot shipped a gold caret at 2.30:1 on the cream page: the
+// faintest thing on a page whose body text runs at 15.81:1, and the one element
+// a writer looks at continuously for hours.
+//
+// Floor is 3:1, not 4.5 — WCAG 1.4.11 governs a control you locate rather than
+// read. Clearing the text floor is better, because a caret is one pixel wide
+// and gets no help from letterforms, but 3:1 is what fails a build.
+const CARET_FLOOR = 3;
+say("");
+say("2b. caret colours, against the page they blink on (floor 3:1, WCAG 1.4.11)");
+say("");
+for (const m of css.matchAll(/(?:^|[\r\n])\s*(\.[\w.-]+)\s*\{([^}]*)\}/g)) {
+  const body = m[2];
+  const km = body.match(/caret-color:\s*(#[0-9a-fA-F]{3,6})/);
+  if (!km) continue;
+  const bm = body.match(/background(?:-color)?:\s*(#[0-9a-fA-F]{3,6})/);
+  const on = bm ? bm[1] : SURFACES.bg;
+  const got = ratio(hex(km[1]), hex(on));
+  const ok = got >= CARET_FLOOR;
+  if (!ok) failures.push(`${m[1]} caret ${km[1]} on ${on}: ${got.toFixed(2)}:1, needs ${CARET_FLOOR}`);
+  say(`  ${ok ? "pass" : "FAIL"}  ${m[1].padEnd(24)} ${km[1]} on ${on}  ${got.toFixed(2)}:1`);
+}
+
 // --- 3. text-[#hex] with an opacity modifier, anywhere in the components -----
 
 say("");

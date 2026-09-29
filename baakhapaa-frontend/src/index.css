@@ -171,8 +171,16 @@ html, body {
   /* The caret is the one part of this interface a writer looks at for hours.
      It was gold only inside focus mode, which meant the nicest detail in the
      product was invisible unless you had already found a mode most people
-     never open. It belongs to the page. */
-  caret-color: #C9A227;
+     never open. It belongs to the page.
+
+     DARKER than the rest of the gold, and measured: #C9A227 on this paper is
+     2.30:1, under the 3:1 that WCAG 1.4.11 asks of a control you have to
+     locate — so the one element a writer stares at for hours was the faintest
+     thing on a page whose text runs at 15.81:1. #8A6A18 is 4.80:1, which
+     clears the TEXT floor rather than scraping the component one, because a
+     caret is one pixel wide and gets no help from letterforms.
+     The dark page keeps #E4BE64 at 11.11:1 and is untouched. */
+  caret-color: #8A6A18;
   width: 100%;
   max-width: 816px;   /* 8.5in at 96dpi */
   min-height: calc(var(--page-lines) * var(--page-line-h)
