@@ -47,32 +47,36 @@ def test_the_bound_parser_still_takes_a_language():
 def test_sync_from_draft_threads_category_to_parser_for_course(monkeypatch):
     """The mode must thread from project parameter through to parser_for.
 
-    This is the integration test that would catch Finding 1 (mode not wired).
-    Verifies that parser_for is called with the video_category from the project.
+    This test verifies that parser_for is CALLED with the correct category.
+    It uses EXERCISE content which:
+    - In course mode: produces "exercise" kind
+    - In essay mode: would not parse as a valid section (essay has no EXERCISE)
+
+    If the category is not passed to parser_for, the parser will treat it as
+    essay mode and fail to parse EXERCISE as a section, proving the category
+    did not reach the parser.
     """
     from unittest.mock import Mock
     import json
 
+    # Use content that requires course mode to parse correctly
     content = "## EXERCISE\n\nWrite one scene heading.\n"
 
     # Patch database functions
     mock_get_scenes = Mock(return_value=[])
     monkeypatch.setattr("database.get_scenes_by_script", mock_get_scenes)
 
-    # Patch supabase
+    # Create a real supabase mock that captures insert calls
+    insert_calls = []
+    mock_insert = Mock(side_effect=lambda payload: (
+        insert_calls.append(payload),
+        Mock(execute=Mock(return_value=Mock(data=[
+            {**payload, "id": "scene-1", "script_id": "test-script"}
+        ])))
+    )[1])
+
     mock_supabase = Mock()
-    mock_supabase.table.return_value.insert.return_value.execute.return_value.data = [
-        {
-            "id": "scene-1",
-            "script_id": "test-script",
-            "act_number": 1,
-            "scene_type": "minor",
-            "title": "Exercise",
-            "description": "",
-            "time_allocation": 0,
-            "draft_json": '{"heading": "## EXERCISE", "section_kind": "exercise"}'
-        }
-    ]
+    mock_supabase.table.return_value.insert = mock_insert
     monkeypatch.setattr("database.supabase", mock_supabase)
 
     # Call sync_from_draft with course category
@@ -83,14 +87,29 @@ def test_sync_from_draft_threads_category_to_parser_for_course(monkeypatch):
         project={"video_category": "course"}
     )
 
-    # Verify that we got rows with exercise section_kind from course mode
-    assert len(rows) > 0
+    # Verify that parser_for was called and produced course-mode output
+    assert len(rows) > 0, "sync_from_draft should have created rows"
+
+    # Parse the actual draft_json that was inserted
     draft = json.loads(rows[0]["draft_json"])
-    assert draft.get("section_kind") == "exercise"
+    section_kind = draft.get("section_kind")
+
+    # EXERCISE is a course-only section kind. If we got "exercise",
+    # the parser was called with course mode. If we got anything else or None,
+    # the category did not reach the parser.
+    assert section_kind == "exercise", (
+        f"Expected 'exercise' (course mode), got '{section_kind}'. "
+        "Category may not have been passed to parser_for."
+    )
 
 
 def test_sync_from_draft_unrecognised_category_falls_back_to_essay(monkeypatch):
-    """An unrecognised category must fall back to essay, never raise."""
+    """An unrecognised category must fall back to essay mode, never raise.
+
+    Uses a section kind that exists in essay mode (HOOK produces 'hook').
+    Verifies the result is an essay-mode section kind, confirming the
+    unrecognised category was handled safely (falling back to essay).
+    """
     from unittest.mock import Mock
     import json
 
@@ -100,20 +119,17 @@ def test_sync_from_draft_unrecognised_category_falls_back_to_essay(monkeypatch):
     mock_get_scenes = Mock(return_value=[])
     monkeypatch.setattr("database.get_scenes_by_script", mock_get_scenes)
 
-    # Patch supabase
+    # Create a real supabase mock that captures insert calls
+    insert_calls = []
+    mock_insert = Mock(side_effect=lambda payload: (
+        insert_calls.append(payload),
+        Mock(execute=Mock(return_value=Mock(data=[
+            {**payload, "id": "scene-1", "script_id": "test-script"}
+        ])))
+    )[1])
+
     mock_supabase = Mock()
-    mock_supabase.table.return_value.insert.return_value.execute.return_value.data = [
-        {
-            "id": "scene-1",
-            "script_id": "test-script",
-            "act_number": 1,
-            "scene_type": "minor",
-            "title": "Hook",
-            "description": "",
-            "time_allocation": 0,
-            "draft_json": '{"heading": "## HOOK", "section_kind": "hook"}'
-        }
-    ]
+    mock_supabase.table.return_value.insert = mock_insert
     monkeypatch.setattr("database.supabase", mock_supabase)
 
     # Call with bogus category - should fall back to essay mode without raising
@@ -124,7 +140,15 @@ def test_sync_from_draft_unrecognised_category_falls_back_to_essay(monkeypatch):
         project={"video_category": "bogus"}  # Unrecognised
     )
 
-    # Should parse as essay (hook kind exists in essay mode)
-    assert len(rows) > 0
+    # Verify we got essay-mode output
+    assert len(rows) > 0, "sync_from_draft should have created rows"
+
     draft = json.loads(rows[0]["draft_json"])
-    assert draft.get("section_kind") == "hook"
+    section_kind = draft.get("section_kind")
+
+    # HOOK in essay mode produces 'hook'. If we got this, essay mode was used,
+    # confirming the unrecognised category fell back safely.
+    assert section_kind == "hook", (
+        f"Expected 'hook' (essay mode fallback), got '{section_kind}'. "
+        "Bogus category handling failed."
+    )
