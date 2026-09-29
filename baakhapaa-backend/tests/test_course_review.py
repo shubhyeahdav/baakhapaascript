@@ -79,16 +79,38 @@ def test_review_of_complete_long_form_course_reports_nothing():
     assert "course_missing_check" not in rules
 
 
-def test_review_gates_on_format_not_category_alone():
-    # A screenplay project with video_category="course" must not report course
-    # findings. This tests the outer gate (format must be long_form).
+def test_review_of_long_form_essay_does_not_report_course_findings():
+    # The most common long_form case is an essay, not a course. Verify that a
+    # long_form+essay project, even when missing both ## EXERCISE and ## CHECK,
+    # does not trigger course findings. This tests the inner gate (video_category
+    # check) at the review() orchestrator level, closing a gap left by the
+    # function-level test which never goes through review().
     text = "## CONCEPT\n\nX.\n"  # Missing both exercise and check
-    project = {"format": "screenplay", "video_category": "course"}
+    project = {"format": "long_form", "video_category": "essay"}
     result = review.review(text, [], project)
 
     rules = [f["rule"] for f in result["findings"]]
     assert "course_missing_exercise" not in rules
     assert "course_missing_check" not in rules
+
+
+def test_review_gates_on_format_not_category_alone():
+    # The format gate must actually work, not just be absent. Use the same draft
+    # and category in both cases; only the format differs. If the gate fails,
+    # both should trigger course findings. If it works, only long_form triggers.
+    text = "## CONCEPT\n\nX.\n"  # Missing both exercise and check
+
+    # Case 1: long_form + course → SHOULD report findings
+    result_long = review.review(text, [], {"format": "long_form", "video_category": "course"})
+    rules_long = [f["rule"] for f in result_long["findings"]]
+    assert "course_missing_exercise" in rules_long
+    assert "course_missing_check" in rules_long
+
+    # Case 2: film + course → should NOT report findings (format gate blocks it)
+    result_film = review.review(text, [], {"format": "film", "video_category": "course"})
+    rules_film = [f["rule"] for f in result_film["findings"]]
+    assert "course_missing_exercise" not in rules_film
+    assert "course_missing_check" not in rules_film
 
 
 def test_medium_findings_do_not_block_ready():
