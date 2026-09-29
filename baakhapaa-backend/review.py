@@ -299,6 +299,8 @@ def review(text: str, scenes: list, project: dict) -> dict:
            else check_act_balance(text, scenes))
         + check_total_runtime(text, (project or {}).get("duration_minutes"),
                               (project or {}).get("format"))
+        + ([] if (project or {}).get("format") != "long_form"
+           else course_section_findings(text, (project or {}).get("video_category")))
     )
 
     counts = {level: sum(1 for f in findings if f["severity"] == level)

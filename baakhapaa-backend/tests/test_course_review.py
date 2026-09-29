@@ -50,3 +50,59 @@ def test_an_empty_draft_reports_nothing():
     # A writer who has typed nothing has not omitted anything.
     assert review.course_section_findings("", "course") == []
     assert review.course_section_findings("   \n", "course") == []
+
+
+# Integration tests at review() level.
+# The function-level tests above cover the function itself; these cover the
+# wiring into the review() orchestrator.
+
+
+def test_review_of_long_form_course_reports_missing_sections():
+    # Long-form course project missing ## EXERCISE should trigger a finding.
+    text = FULL.replace("## EXERCISE\n\nCut your longest scene at the turn.\n\n", "")
+    project = {"format": "long_form", "video_category": "course"}
+    result = review.review(text, [], project)
+
+    assert isinstance(result, dict)
+    assert set(result.keys()) == {"ready", "findings", "counts", "statistics"}
+    rules = [f["rule"] for f in result["findings"]]
+    assert "course_missing_exercise" in rules
+
+
+def test_review_of_complete_long_form_course_reports_nothing():
+    # A complete long-form course script should have no course-specific findings.
+    project = {"format": "long_form", "video_category": "course"}
+    result = review.review(FULL, [], project)
+
+    rules = [f["rule"] for f in result["findings"]]
+    assert "course_missing_exercise" not in rules
+    assert "course_missing_check" not in rules
+
+
+def test_review_gates_on_format_not_category_alone():
+    # A screenplay project with video_category="course" must not report course
+    # findings. This tests the outer gate (format must be long_form).
+    text = "## CONCEPT\n\nX.\n"  # Missing both exercise and check
+    project = {"format": "screenplay", "video_category": "course"}
+    result = review.review(text, [], project)
+
+    rules = [f["rule"] for f in result["findings"]]
+    assert "course_missing_exercise" not in rules
+    assert "course_missing_check" not in rules
+
+
+def test_medium_findings_do_not_block_ready():
+    # Course findings are medium severity and should not set ready=False.
+    text = FULL.replace("## EXERCISE\n\nCut your longest scene at the turn.\n\n", "")
+    project = {"format": "long_form", "video_category": "course"}
+    result = review.review(text, [], project)
+
+    # Find the course_missing_exercise finding to verify it is medium.
+    findings = result["findings"]
+    course_findings = [f for f in findings if f["rule"] == "course_missing_exercise"]
+    assert len(course_findings) > 0
+    assert course_findings[0]["severity"] == "medium"
+
+    # With only medium findings and no high findings, ready should be True.
+    assert result["counts"]["high"] == 0
+    assert result["ready"] is True
