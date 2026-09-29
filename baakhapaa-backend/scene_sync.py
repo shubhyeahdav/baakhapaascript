@@ -176,20 +176,23 @@ def _match_rows(summaries: List[dict], rows: List[dict]) -> List[tuple]:
 
 
 def _format_of(script_id: str):
-    """The project's format, or None when it cannot be determined.
+    """The project's format and video_category, or (None, None) when lookup fails.
 
-    None falls back to the screenplay parser, which is the safe direction: a
-    lookup that fails must not empty a writer's scene index.
+    None format falls back to the screenplay parser, which is the safe direction:
+    a lookup that fails must not empty a writer's scene index.
+
+    Returns: (format, video_category) tuple.
     """
     try:
         from database import supabase, get_project_by_id
         row = supabase.table("scripts").select("project_id").eq(
             "id", script_id).execute()
         if not row.data:
-            return None
-        return (get_project_by_id(row.data[0]["project_id"]) or {}).get("format")
+            return (None, None)
+        project = get_project_by_id(row.data[0]["project_id"]) or {}
+        return (project.get("format"), project.get("video_category"))
     except Exception:
-        return None
+        return (None, None)
 
 
 # `None` is a real format meaning "read it as a screenplay", so it cannot also
@@ -221,8 +224,14 @@ def sync_from_draft(script_id: str, content: str,
     # here, and this runs on every autosave, so a caller that knows the format
     # passes it. The default still looks it up: this is an optimisation
     # available to callers that have the answer, never a new obligation.
-    fmt = _format_of(script_id) if project_format is _LOOK_IT_UP else project_format
-    summaries = parser_for(fmt, (project or {}).get("video_category")).scene_summaries(content or "")
+    if project_format is _LOOK_IT_UP:
+        fmt, category = _format_of(script_id)
+    else:
+        fmt = project_format
+        category = (project or {}).get("video_category")
+    if project is not None:
+        category = project.get("video_category")
+    summaries = parser_for(fmt, category).scene_summaries(content or "")
     if not summaries:
         # Nothing written yet. The structure-added rows are all there is, and
         # they are still the right answer for a storyboard.

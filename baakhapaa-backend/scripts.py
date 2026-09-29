@@ -754,7 +754,8 @@ def get_script(script_id: str, user_id: str = Depends(get_current_user)):
     # way to populate them was to make an edit. Everything downstream of the
     # scene rows was invisible until the draft was touched.
     scenes = scene_sync.sync_from_draft(script_id, script.get("content") or "",
-                                        project_format=project.get("format"))
+                                        project_format=project.get("format"),
+                                        project=project)
     # The project is embedded so the editor can title itself and drive AI calls
     # from the project's real genre/tone instead of guessing. Already read
     # above.
@@ -952,7 +953,8 @@ def save_script(script_id: str, data: ScriptSave, user_id: str = Depends(get_cur
     # inside sync_from_draft, which re-read the script too.
     _name_an_untitled_project(script, data.content or "", project=project)
     scenes = scene_sync.sync_from_draft(script_id, data.content or "",
-                                        project_format=project.get("format"))
+                                        project_format=project.get("format"),
+                                        project=project)
     return {
         **result.data[0],
         "scenes": scenes,
@@ -1008,7 +1010,8 @@ async def import_script(
 
     result = supabase.table("scripts").update({"content": content}).eq("id", script_id).execute()
     scenes = scene_sync.sync_from_draft(script_id, content,
-                                        project_format=project.get("format"))
+                                        project_format=project.get("format"),
+                                        project=project)
 
     # Replacing somebody else's draft is the loudest thing a collaborator can
     # do to a script, so it is logged even though the snapshot already exists.
@@ -1046,7 +1049,8 @@ def script_coverage(script_id: str, user_id: str = Depends(get_current_user)):
                                                  minimum="viewer")
     text = script.get("content") or ""
     scenes = scene_sync.sync_from_draft(script_id, text,
-                                        project_format=project.get("format"))
+                                        project_format=project.get("format"),
+                                        project=project)
     return coverage_report.coverage(text, scenes, project, _read_bible(script))
 
 
@@ -1073,7 +1077,8 @@ def _review_for(script: dict, project=None) -> dict:
     if project is None:
         project = get_project_by_id(script.get("project_id")) or {}
     scenes = scene_sync.sync_from_draft(script["id"], script.get("content") or "",
-                                        project_format=project.get("format"))
+                                        project_format=project.get("format"),
+                                        project=project)
     return review.review(script.get("content") or "", scenes, project)
 
 

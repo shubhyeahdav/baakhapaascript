@@ -61,7 +61,8 @@ def generate(script_id: str, user_id: str = Depends(get_current_user)):
     # generate from at all — which is how "Finalize & Storyboard" used to lead
     # to a page whose only button returned 404.
     scenes = scene_sync.sync_from_draft(script_id, script.get("content") or "",
-                                        project_format=project.get("format"))
+                                        project_format=project.get("format"),
+                                        project=project)
     if not scenes:
         raise HTTPException(
             status_code=404,
