@@ -30,6 +30,7 @@ import script_engine
 import linter
 import screenplay
 import scene_sync
+import videoscript
 import review
 import fingerprint
 import benchmark
@@ -765,6 +766,10 @@ def get_script(script_id: str, user_id: str = Depends(get_current_user)):
         # Parsed so the editor gets it in the same call that loads the draft —
         # the type-ahead needs character names before the first keystroke.
         "bible": _read_bible(script),
+        # Sent rather than duplicated in the client. The editor's status line
+        # computes written runtime live, and two copies of this number would
+        # agree only until one of them was edited.
+        "speaking_wpm": videoscript.wpm_for(project.get("language")),
         "project": {
             "title": project.get("title"),
             "genre": project.get("genre"),
