@@ -26,6 +26,7 @@ points at a scene id, and deleting the row would orphan a frame the user paid
 to generate — a destructive answer to a bookkeeping problem.
 """
 import json
+from types import SimpleNamespace
 from typing import List
 
 import screenplay
@@ -39,13 +40,29 @@ import videoscript
 _PARSERS = {"long_form": videoscript}
 
 
-def parser_for(project_format):
+def parser_for(project_format, video_category=None):
     """The module that turns this project's draft into summaries.
 
     Both expose `scene_summaries(text) -> list[dict]` with the same keys, which
     is what lets one sync function serve both formats with no special case.
+
+    Long-form video has two MODES (essay and course) with different section
+    vocabularies, and the mode lives on the project rather than in the text. It
+    is BOUND here rather than added as a third parameter, because the value of
+    this seam is that the call site does not know which parser it holds -- and
+    a parameter only one of them accepts would end that.
     """
-    return _PARSERS.get(project_format or "", screenplay)
+    mod = _PARSERS.get(project_format or "", screenplay)
+    if mod is not videoscript:
+        return mod
+    if video_category is None:
+        return videoscript
+    mode = videoscript.mode_for(video_category)
+    return SimpleNamespace(
+        scene_summaries=lambda text, language="English": videoscript.scene_summaries(
+            text, language, mode=mode
+        )
+    )
 
 
 def _draft_payload(summary: dict) -> dict:
@@ -181,7 +198,7 @@ _LOOK_IT_UP = object()
 
 
 def sync_from_draft(script_id: str, content: str,
-                    project_format=_LOOK_IT_UP) -> List[dict]:
+                    project_format=_LOOK_IT_UP, project=None) -> List[dict]:
     """Fold the draft's scenes onto the script's rows; return them in document
     order.
 
@@ -205,7 +222,7 @@ def sync_from_draft(script_id: str, content: str,
     # passes it. The default still looks it up: this is an optimisation
     # available to callers that have the answer, never a new obligation.
     fmt = _format_of(script_id) if project_format is _LOOK_IT_UP else project_format
-    summaries = parser_for(fmt).scene_summaries(content or "")
+    summaries = parser_for(fmt, (project or {}).get("video_category")).scene_summaries(content or "")
     if not summaries:
         # Nothing written yet. The structure-added rows are all there is, and
         # they are still the right answer for a storyboard.
