@@ -545,8 +545,14 @@ input[type="range"].custom-slider::-moz-range-thumb:hover {
    cannot load the image falls through to it rather than to nothing.
    --------------------------------------------------------------------------- */
 
+/* The nib rests ON the line and the barrel rises to the right, which is how a
+   hand holds a pen. It was drawn the other way up until 2026-09-29 -- nib at
+   the top-left, barrel trailing down-right -- which is the geometry of an
+   ARROW, not a pen: held like that the writer would be writing with the back
+   end. The hotspot moves with it, so the pixel the browser points at is the
+   pixel the nib touches. */
 .screenplay-page.cursor-pen {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M2 2 L10 5.5 L5.5 10 Z' fill='%23C9A227'/%3E%3Cpath d='M7.5 7.5 L19 19' stroke='%23C9A227' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 2 2, text;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M2 22 L5.5 14 L10 18.5 Z' fill='%23C9A227'/%3E%3Cpath d='M7.5 16.5 L19 5' stroke='%23C9A227' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 2 22, text;
 }
 
 .screenplay-page.cursor-ring {
@@ -555,7 +561,7 @@ input[type="range"].custom-slider::-moz-range-thumb:hover {
 
 /* Dark paper needs the brighter gold; the darker one disappears into it. */
 .screenplay-page.dark-page.cursor-pen {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M2 2 L10 5.5 L5.5 10 Z' fill='%23E4BE64'/%3E%3Cpath d='M7.5 7.5 L19 19' stroke='%23E4BE64' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 2 2, text;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M2 22 L5.5 14 L10 18.5 Z' fill='%23E4BE64'/%3E%3Cpath d='M7.5 16.5 L19 5' stroke='%23E4BE64' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 2 22, text;
 }
 .screenplay-page.dark-page.cursor-ring {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Ccircle cx='12' cy='12' r='7.5' fill='none' stroke='%23E4BE64' stroke-width='2'/%3E%3Ccircle cx='12' cy='12' r='1.25' fill='%23E4BE64'/%3E%3C/svg%3E") 12 12, crosshair;
