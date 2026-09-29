@@ -128,3 +128,49 @@ def test_medium_findings_do_not_block_ready():
     # With only medium findings and no high findings, ready should be True.
     assert result["counts"]["high"] == 0
     assert result["ready"] is True
+
+
+def test_runtime_check_uses_project_language_for_long_form(monkeypatch):
+    """The review runtime check computes at the project's language rate."""
+    import videoscript
+
+    # Separate the values so the language mapping is tested.
+    # EN rate: 180 WPM, NE rate: 100 WPM
+    monkeypatch.setitem(videoscript.SPEAKING_WPM, "english", 180.0)
+    monkeypatch.setitem(videoscript.SPEAKING_WPM, "nepali", 100.0)
+    monkeypatch.setitem(videoscript.SPEAKING_WPM, "bilingual", 100.0)
+
+    # Create a complete long-form course script with enough narration to
+    # trigger a runtime drift finding. 600 words at 100 WPM = 6 minutes.
+    # At 180 WPM, same text would be only 3.33 minutes.
+    narration = ("This is narration text. " * 25)  # 25*4 = 100 words, ~1 min at 100 WPM
+    long_section = f"{narration}\n" * 6  # 600 words = 6 min at 100 WPM
+
+    text = (
+        "## OBJECTIVE\n\n" + long_section +
+        "## CONCEPT\n\nConcept.\n\n" +
+        "## PROOF\n\nProof.\n\n" +
+        "## EXERCISE\n\nExercise.\n\n" +
+        "## CHECK\n\nCheck.\n"
+    )
+
+    # Project set up for 4 minutes, actual 6 minutes at Nepali rate (~50% over)
+    project = {
+        "format": "long_form",
+        "video_category": "course",
+        "duration_minutes": 4,
+        "language": "Nepali",
+    }
+
+    result = review.review(text, [], project)
+
+    # Should have a runtime_drift finding (over by 20%)
+    rules = [f["rule"] for f in result["findings"]]
+    assert "runtime_drift" in rules
+
+    # Verify it used the Nepali rate (not English)
+    runtime_findings = [f for f in result["findings"] if f["rule"] == "runtime_drift"]
+    assert len(runtime_findings) > 0
+    # The message should show ~6 min, not ~3.3 min
+    msg = runtime_findings[0]["message"]
+    assert "6" in msg or "5.9" in msg or "6.0" in msg, f"Expected ~6 min in '{msg}' for Nepali 100 WPM rate"

@@ -212,11 +212,11 @@ def spoken_words(text: str) -> int:
     )
 
 
-def wpm_for(language: str = "English") -> float:
+def wpm_for(language: Optional[str] = "English") -> float:
     """Look up the speaking rate for a given language.
 
     Handles English, Nepali, Bilingual (the minimum of the two), and any
-    unrecognized language (defaults to English).
+    unrecognized language (defaults to English). Handles None gracefully.
     """
     return SPEAKING_WPM.get(
         (language or "english").strip().lower(), SPEAKING_WPM["english"]

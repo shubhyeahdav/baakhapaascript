@@ -234,7 +234,7 @@ def check_act_balance(text: str, scenes: list) -> list:
     return findings
 
 
-def check_total_runtime(text: str, duration_minutes, project_format=None) -> list:
+def check_total_runtime(text: str, duration_minutes, project_format=None, language=None) -> list:
     """Estimated runtime against the length the project was set up for.
 
     HOW the runtime is estimated depends on what is being written, and getting
@@ -258,7 +258,7 @@ def check_total_runtime(text: str, duration_minutes, project_format=None) -> lis
 
     if project_format == "long_form":
         import videoscript
-        estimated = round(videoscript.runtime_seconds(text) / 60, 2)
+        estimated = round(videoscript.runtime_seconds(text, language) / 60, 2)
     else:
         estimated = screenplay.statistics(text)["estimated_minutes"]
     if estimated <= 0:
@@ -298,7 +298,8 @@ def review(text: str, scenes: list, project: dict) -> dict:
         + ([] if (project or {}).get("format") == "long_form"
            else check_act_balance(text, scenes))
         + check_total_runtime(text, (project or {}).get("duration_minutes"),
-                              (project or {}).get("format"))
+                              (project or {}).get("format"),
+                              (project or {}).get("language"))
         + ([] if (project or {}).get("format") != "long_form"
            else course_section_findings(text, (project or {}).get("video_category")))
     )
