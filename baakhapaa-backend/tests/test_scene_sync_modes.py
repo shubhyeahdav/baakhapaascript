@@ -106,14 +106,14 @@ def test_sync_from_draft_threads_category_to_parser_for_course(monkeypatch):
 def test_sync_from_draft_unrecognised_category_falls_back_to_essay(monkeypatch):
     """An unrecognised category must fall back to essay mode, never raise.
 
-    Uses a section kind that exists in essay mode (HOOK produces 'hook').
-    Verifies the result is an essay-mode section kind, confirming the
-    unrecognised category was handled safely (falling back to essay).
+    Uses EXERCISE (a course-only kind). In essay mode it is unknown and
+    parses as 'segment'. If mode_for wrongly mapped 'bogus' to course mode,
+    this would produce 'exercise' instead, failing the test.
     """
     from unittest.mock import Mock
     import json
 
-    content = "## HOOK\n\nWords.\n"
+    content = "## EXERCISE\n\nWords.\n"
 
     # Patch database functions
     mock_get_scenes = Mock(return_value=[])
@@ -146,9 +146,9 @@ def test_sync_from_draft_unrecognised_category_falls_back_to_essay(monkeypatch):
     draft = json.loads(rows[0]["draft_json"])
     section_kind = draft.get("section_kind")
 
-    # HOOK in essay mode produces 'hook'. If we got this, essay mode was used,
-    # confirming the unrecognised category fell back safely.
-    assert section_kind == "hook", (
-        f"Expected 'hook' (essay mode fallback), got '{section_kind}'. "
+    # EXERCISE in essay mode produces 'segment'. If we got this, essay mode was
+    # used, confirming the unrecognised category fell back safely.
+    assert section_kind == "segment", (
+        f"Expected 'segment' (essay mode fallback), got '{section_kind}'. "
         "Bogus category handling failed."
     )
