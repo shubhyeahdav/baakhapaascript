@@ -18,6 +18,10 @@ const SCRIPT = {
   id: "script-1",
   content: "",
   scenes: [],
+  // The AI tabs are gated on a declared first draft as well as on tier, so a
+  // fixture that omits this locks every generation test. These tests are about
+  // what generation DOES; the gate itself is covered in AssistPanel.test.jsx.
+  status: "first_draft",
   suggestions_json: null,
   bible: {
     logline: "", dramatic_question: "", theme: "", notes: "",

@@ -157,6 +157,9 @@ export const scripts = {
   bible: (id) => instance.get(`/scripts/${id}/bible`),
   saveBible: (id, bible) => instance.put(`/scripts/${id}/bible`, bible),
   finalize: (id) => instance.post(`/scripts/${id}/finalize`),
+  // The writer declaring their first pass done. A DECLARATION, not a
+  // measurement -- the server refuses only an empty page.
+  markFirstDraft: (id) => instance.post(`/scripts/${id}/first-draft`),
   // Proposal FR07: timing, character-name consistency and act balance.
   // Deterministic and free, so it can run before every finalize.
   review: (id) => instance.get(`/scripts/${id}/review`),

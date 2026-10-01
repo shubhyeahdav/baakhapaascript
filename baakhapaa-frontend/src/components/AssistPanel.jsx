@@ -61,6 +61,45 @@ const PAID_MODES = {
   suggest: "Three different ways this scene could continue, read from what you've written so far.",
 };
 
+/**
+ * The AI is waiting on a first draft, not on money.
+ *
+ * Deliberately NOT written as a refusal. A paywall says "you cannot"; this says
+ * "not yet, and here is why" — because the reason is a craft argument the
+ * product actually believes, not a billing rule. It is the same conviction that
+ * took structure generation out of the creation wizard: a writer used to arrive
+ * in an editor already holding scenes nobody had asked for.
+ *
+ * The button is right here rather than only in the header, because this panel
+ * is where a writer discovers the lock exists. Making them hunt for the release
+ * would turn an argument into an obstacle.
+ */
+function FirstDraftPrompt({ mode, onMark, busy }) {
+  return (
+    <div className="rounded-xl border border-borderSoft bg-surface/60 p-4 mb-4">
+      <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-2">
+        After your first draft
+      </div>
+      <p className="text-[12.5px] text-inkSoft leading-relaxed mb-2">
+        {PAID_MODES[mode] || "This opens once your first draft is done."}
+      </p>
+      <p className="text-[11.5px] text-inkMuted leading-snug mb-3">
+        Write the first pass yourself. A model that arrives before you have
+        found the scene writes its version of it, not yours — and the Patterns
+        tab, the craft check and the course all work right now, on whatever you
+        have.
+      </p>
+      <button
+        onClick={onMark}
+        disabled={busy}
+        className="btn-gold text-xs py-1.5 px-3.5 w-full disabled:opacity-50"
+      >
+        {busy ? "Marking…" : "I've finished my first draft"}
+      </button>
+    </div>
+  );
+}
+
 function UpgradePrompt({ mode, onUpgrade }) {
   return (
     <div className="rounded-xl border border-gold/25 bg-goldDim/40 p-4 mb-4">
@@ -148,7 +187,8 @@ export default function AssistPanel({
   content, setContent, textareaRef, caretLine, selection, selectionRange,
   insertAtPosition,
   // generation
-  aiMode, setAiMode, aiLocked, aiLoading, aiResponse, setAiResponse,
+  aiMode, setAiMode, aiLocked, lockReason, markFirstDraft, markingDraft,
+  aiLoading, aiResponse, setAiResponse,
   instruction, setInstruction, handleAI, acceptAI, aiError, setAiError,
   // patterns
   patterns, patternsLoading, loadPatterns, patternSource, diagnosed,
@@ -389,7 +429,9 @@ export default function AssistPanel({
           )}
         </>
       ) : aiLocked ? (
-        <UpgradePrompt mode={aiMode} onUpgrade={() => navigate("/pricing")} />
+        lockReason === "draft"
+          ? <FirstDraftPrompt mode={aiMode} onMark={markFirstDraft} busy={markingDraft} />
+          : <UpgradePrompt mode={aiMode} onUpgrade={() => navigate("/pricing")} />
       ) : (
         <>
           {/* What Improve is about to touch. A writer who has highlighted

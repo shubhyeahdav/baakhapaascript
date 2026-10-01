@@ -1102,3 +1102,53 @@ def finalize_script(script_id: str, user_id: str = Depends(get_current_user)):
     verdict = _review_for(script, project)
     result = supabase.table("scripts").update({"status": "finalized"}).eq("id", script_id).execute()
     return {**result.data[0], "review": verdict}
+
+
+# The three statuses a script moves through. `draft` and `finalized` were
+# already here; `first_draft` sits between them and is the one a writer
+# declares rather than earns.
+STATUS_DRAFT, STATUS_FIRST_DRAFT, STATUS_FINALIZED = "draft", "first_draft", "finalized"
+
+
+@router.post("/{script_id}/first-draft")
+def mark_first_draft(script_id: str, user_id: str = Depends(get_current_user)):
+    """The writer says their first draft is done.
+
+    A DECLARATION, not a measurement. Nothing here reads the draft and decides
+    whether it is good — that is the craft linter's job, and it reports rather
+    than judges. This records that the writer considers the first pass finished,
+    and the editor unlocks the AI tabs off the back of it.
+
+    Why gate AI on it at all: the product's whole argument is that a writer
+    should meet a blank page and fill it themselves before a model is allowed
+    near it. `generate-structure` was already moved out of the creation wizard
+    for the same reason — a writer used to arrive in an editor holding scenes
+    nobody asked for. This is that decision carried one step further.
+
+    It does NOT un-declare. A writer who keeps writing afterwards does not lose
+    the unlock: the declaration is about intent, and re-locking someone
+    mid-session over a word count would be the tool overruling the person.
+
+    The one refusal is an empty page. A declaration about nothing is not a
+    declaration, and unlocking the AI on a blank draft would hand a model the
+    blank page this gate exists to make the writer face.
+    """
+    script, project = require_script_and_project(script_id, user_id)
+
+    # Parsed with the project's own parser, so a long-form video's sections
+    # count exactly as a screenplay's scenes do. Using a word count instead
+    # would need a number nobody has measured, and would read a title page as
+    # a draft.
+    content = script.get("content") or ""
+    summaries = scene_sync.parser_for(project.get("format")).scene_summaries(content)
+    if not summaries:
+        raise HTTPException(
+            status_code=400,
+            detail="There is nothing here yet. Write at least one scene, "
+                   "then mark the draft complete.",
+        )
+
+    result = supabase.table("scripts").update(
+        {"status": STATUS_FIRST_DRAFT}
+    ).eq("id", script_id).execute()
+    return result.data[0]

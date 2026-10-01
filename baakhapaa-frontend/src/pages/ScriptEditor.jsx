@@ -149,7 +149,37 @@ export default function ScriptEditor() {
   // Set when the server refuses a generation the client thought was allowed —
   // a tier can change under a session that stays open for hours.
   const [serverLocked, setServerLocked] = useState(false);
-  const aiLocked = isFree || serverLocked;
+
+  /* The draft gate.
+     A writer should meet a blank page and fill it themselves before a model is
+     allowed near it — the same conviction that took `generate-structure` out of
+     the creation wizard, where a writer used to arrive in an editor already
+     holding scenes nobody had asked for. This carries it one step further.
+     `finalized` counts too: a finished script has self-evidently had a first
+     draft, and demanding the declaration afterwards would be bureaucracy. */
+  const draftComplete = ["first_draft", "finalized"].includes(script?.status);
+  const aiLocked = isFree || serverLocked || !draftComplete;
+
+  /* WHICH lock, because the two want different things said.
+     Tier wins when both apply. Telling a free writer to finish their draft
+     would be a promise the product cannot keep — they would finish it and
+     still meet a paywall — and that bait is the reason the gate is not shown
+     to them at all. */
+  const lockReason = (isFree || serverLocked) ? "tier" : "draft";
+
+  const [markingDraft, setMarkingDraft] = useState(false);
+  const markFirstDraft = async () => {
+    setMarkingDraft(true);
+    try {
+      const res = await scripts.markFirstDraft(scriptId);
+      setScript((prev) => (prev ? { ...prev, status: res.data.status } : prev));
+    } catch (err) {
+      alert(err.response?.data?.detail
+            || "Could not mark the draft complete just now.");
+    } finally {
+      setMarkingDraft(false);
+    }
+  };
 
   // The wizard sends the writer here when the project was created but its
   // structure suggestion never came back. Silently opening an editor with an
@@ -1616,6 +1646,9 @@ export default function ScriptEditor() {
             aiMode={aiMode}
             setAiMode={setAiMode}
             aiLocked={aiLocked}
+            lockReason={lockReason}
+            markFirstDraft={markFirstDraft}
+            markingDraft={markingDraft}
             aiLoading={aiLoading}
             aiResponse={aiResponse}
             setAiResponse={setAiResponse}
