@@ -135,6 +135,65 @@ function typeInto(el, value, caret = value.length) {
   fireEvent.keyUp(el, { key: value.slice(-1) || "a" });
 }
 
+describe("which typing rules the editor uses", () => {
+  /* The switch nothing else tests.
+     `videoKeymap.test.js` proves the video rules are right and
+     `screenplayKeymap.test.js` proves the screenplay ones are. Neither proves
+     the editor PICKS correctly, and a wrong pick is invisible: every unit test
+     stays green while every video writer gets screenplay indentation. That is
+     the same shape as the three features found this month that were correct,
+     fully tested, and connected to nothing. */
+
+  beforeEach(() => {
+    stubApi();
+    mockQuery = {};
+    mockTier = "pro";
+    mockParamId = "script-1";
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  async function openWithFormat(format) {
+    // Both load paths, because which one runs depends on how the editor was
+    // reached and this test is about the format, not the route.
+    const payload = { data: { ...SCRIPT, project: { ...SCRIPT.project, format } } };
+    scripts.getById.mockResolvedValue(payload);
+    scripts.getByProject.mockResolvedValue(payload);
+    render(<ScriptEditor />);
+    return screen.findByLabelText("Screenplay");
+  }
+
+  it("gives a long-form video project the video rules", async () => {
+    const el = await openWithFormat("long_form");
+    typeInto(el, "");
+
+    fireEvent.keyDown(el, { key: "Tab" });
+
+    // Tab opens a camera cue. On a screenplay page it would indent instead.
+    expect(el.value).toContain("[B-ROLL:");
+  });
+
+  it("gives a screenplay the screenplay rules", async () => {
+    const el = await openWithFormat("short");
+    typeInto(el, "");
+
+    fireEvent.keyDown(el, { key: "Tab" });
+
+    // Whatever the indent cycle produces, it is not a camera cue.
+    expect(el.value).not.toContain("[B-ROLL:");
+  });
+
+  it("never indents narration in a video script", async () => {
+    // The whole reason the split exists: an all-caps line is a speaker on a
+    // screenplay page and plain narration here.
+    const el = await openWithFormat("long_form");
+    typeInto(el, "SUNITA");
+
+    fireEvent.keyDown(el, { key: "Enter" });
+
+    expect(el.value.split(/\r?\n/).some((l) => l.startsWith(" "))).toBe(false);
+  });
+});
+
 describe("ScriptEditor", () => {
   let errors;
   beforeEach(() => {

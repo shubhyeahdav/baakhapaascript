@@ -11,6 +11,7 @@ import AssistPanel, { FOCUSES } from "../components/AssistPanel";
 import { readFacts, milestoneFor, dismissKey } from "../lib/milestones";
 import ScriptPage from "../components/ScriptPage";
 import { createScreenplayKeyHandler } from "../editor/screenplayKeymap";
+import { createVideoKeyHandler } from "../editor/videoKeymap";
 import { countWords } from "../utils/draft";
 import { saveRescue, clearRescue } from "../utils/draftRescue";
 import { transliterateWord, WORD_PATTERN } from "../utils/nepaliTransliterate";
@@ -1298,10 +1299,20 @@ export default function ScriptEditor() {
   // stale on the very first one.
   latestHandlers.current = { handleExport, handleFinalize };
 
-  // The keyboard rules live in `editor/screenplayKeymap.js` so they can be
-  // tested without mounting the editor. Recreated per render exactly as the
-  // inline handler was — it closes over nothing but this object.
-  const handleKeyDown = createScreenplayKeyHandler({
+  // The keyboard rules live in `editor/*Keymap.js` so they can be tested
+  // without mounting the editor. Recreated per render exactly as the inline
+  // handler was — each closes over nothing but this object.
+  //
+  // WHICH factory is a property of the format, decided once, here. A video
+  // script has no sluglines, no character cues and no dialogue column, so the
+  // screenplay indent cycle would be enforcing a grammar this format does not
+  // have. `screenplayKeymap.js` asks for exactly this in its own header: a
+  // second factory beside it, never a flag inside it. Both take the same
+  // options, so neither knows the other exists and this stays one expression.
+  const makeKeyHandler = (script?.project?.format || script?.format) === "long_form"
+    ? createVideoKeyHandler
+    : createScreenplayKeyHandler;
+  const handleKeyDown = makeKeyHandler({
     nepaliMode,
     transliterateBehindCaret,
     replaceRange,
