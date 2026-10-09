@@ -90,4 +90,4 @@ def test_a_format_lookup_that_fails_does_not_take_the_save_down():
     """`_format_of` reaches the database on every save. A save that raises
     because a lookup failed would lose a writer's work to a transient fault —
     the screenplay parser is the safe answer, not an exception."""
-    assert scene_sync._format_of("not-a-real-script-id") is None
+    assert scene_sync._format_of("not-a-real-script-id") == (None, None)

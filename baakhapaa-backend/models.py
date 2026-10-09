@@ -174,7 +174,10 @@ SHORT_FORM_CATEGORIES = ("educational", "storytime", "transformation", "comedy_s
 
 # What kind of long-form video, which shapes the section spine the way
 # SHORT_FORM_CATEGORIES shapes the short-form one.
-VIDEO_CATEGORIES = ("essay", "tutorial", "documentary", "commentary", "vlog")
+# `course` is a SIXTH category rather than a use of `tutorial`: a tutorial is
+# watched and a course is practised, which is the whole distinction the
+# mandatory `## EXERCISE` and `## CHECK` sections exist to hold.
+VIDEO_CATEGORIES = ("essay", "tutorial", "documentary", "commentary", "vlog", "course")
 
 MIN_DURATION_SECONDS = 5
 MAX_DURATION_SECONDS = 180

@@ -20,6 +20,7 @@ import difflib
 
 import screenplay
 import scene_sync
+import videoscript
 
 # One script page runs about a minute. The page itself is defined once, in
 # `screenplay.PAGE_LINES`, and everything measures against it — this file kept
@@ -47,6 +48,41 @@ RUNTIME_TOLERANCE = 0.25
 
 def _finding(rule, severity, message, detail=""):
     return {"rule": rule, "severity": severity, "message": message, "detail": detail}
+
+
+# The two sections a course lesson cannot do without, and why. `lessons.py`
+# enforces the same rule inside the module: a course that only presents
+# information does not get finished by anyone, and a course whose feedback is
+# "well done!" teaches nothing.
+COURSE_REQUIRED = (
+    ("exercise", "course_missing_exercise",
+     "This lesson has no exercise, so there is nothing for the learner to do.",
+     "Add a `## EXERCISE` section with the task and a starter they can begin from."),
+    ("check", "course_missing_check",
+     "This lesson has no check, so neither of you can tell whether it landed.",
+     "Add a `## CHECK` section describing how the learner knows they have it."),
+)
+
+
+def course_section_findings(content: str, video_category=None) -> list:
+    """The one structural rule that is a rule rather than a convention.
+
+    Course mode only. Every section in the video-essay framework is a
+    convention a writer may break knowingly; these two are not, because the
+    courses module has no way to present a lesson that lacks them.
+
+    Reports. Nothing here blocks a save.
+    """
+    if videoscript.mode_for(video_category) != "course":
+        return []
+    if not (content or "").strip():
+        return []
+    present = {s.kind for s in videoscript.sections(content, mode="course")}
+    return [
+        _finding(rule, "medium", message, detail)
+        for kind, rule, message, detail in COURSE_REQUIRED
+        if kind not in present
+    ]
 
 
 def _scene_minutes(scene, spans: dict | None = None) -> float:
@@ -198,7 +234,7 @@ def check_act_balance(text: str, scenes: list) -> list:
     return findings
 
 
-def check_total_runtime(text: str, duration_minutes, project_format=None) -> list:
+def check_total_runtime(text: str, duration_minutes, project_format=None, language=None) -> list:
     """Estimated runtime against the length the project was set up for.
 
     HOW the runtime is estimated depends on what is being written, and getting
@@ -222,7 +258,7 @@ def check_total_runtime(text: str, duration_minutes, project_format=None) -> lis
 
     if project_format == "long_form":
         import videoscript
-        estimated = round(videoscript.runtime_seconds(text) / 60, 2)
+        estimated = round(videoscript.runtime_seconds(text, language) / 60, 2)
     else:
         estimated = screenplay.statistics(text)["estimated_minutes"]
     if estimated <= 0:
@@ -262,7 +298,10 @@ def review(text: str, scenes: list, project: dict) -> dict:
         + ([] if (project or {}).get("format") == "long_form"
            else check_act_balance(text, scenes))
         + check_total_runtime(text, (project or {}).get("duration_minutes"),
-                              (project or {}).get("format"))
+                              (project or {}).get("format"),
+                              (project or {}).get("language"))
+        + ([] if (project or {}).get("format") != "long_form"
+           else course_section_findings(text, (project or {}).get("video_category")))
     )
 
     counts = {level: sum(1 for f in findings if f["severity"] == level)
