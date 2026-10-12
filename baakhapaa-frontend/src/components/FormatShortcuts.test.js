@@ -127,3 +127,70 @@ describe("suggestFor — parenthetical column", () => {
     expect(opts).toContain("(beat)");
   });
 });
+
+/* Devanagari names, harvested the way ASCII ones are.
+ *
+ * `/[A-Z]/.test(line)` excluded every Nepali name, so the one vocabulary that
+ * is supposed to come from the writer's own draft was empty for a writer
+ * working in Nepali. Fixed 2026-10-12 alongside the same assumption in
+ * `screenplay._looks_like_character_cue`. */
+describe("harvesting a Nepali draft", () => {
+  const NEPALI = [
+    "INT. CHIYA PASAL, PATAN - MORNING",
+    "",
+    "सुनिता",
+    "कस्तो छ",
+    "",
+    "राजा",
+    "तिमीले कहिल्यै मेरो कुरा सुनेनौ।",
+  ].join("\n");
+
+  it("harvests a Devanagari character name", () => {
+    expect(harvestVocabulary(NEPALI).characters).toContain("सुनिता");
+  });
+
+  it("harvests every speaker, not just the first", () => {
+    expect(harvestVocabulary(NEPALI).characters).toEqual(
+      expect.arrayContaining(["सुनिता", "राजा"]),
+    );
+  });
+
+  it("does not harvest a Nepali action sentence as a character", () => {
+    // Short, caseless, and would pass every other guard: the danda is the
+    // only thing that says this is a sentence rather than a name.
+    const draft = "INT. X - DAY\n\nसुनिता हाँस्छे।\nराजा जान्छ।\n";
+    const { characters } = harvestVocabulary(draft);
+    expect(characters).not.toContain("सुनिता हाँस्छे।");
+    expect(characters).not.toContain("राजा जान्छ।");
+  });
+
+  it("still harvests an ASCII name from a mixed draft", () => {
+    const mixed = "INT. X - DAY\n\nSUNITA\nकस्तो छ\n";
+    expect(harvestVocabulary(mixed).characters).toContain("SUNITA");
+  });
+
+  it("still rejects a line of digits", () => {
+    // What the `[A-Z]` test was actually for.
+    const draft = "INT. X - DAY\n\n1947\nThe year on the wall.\n";
+    expect(harvestVocabulary(draft).characters).not.toContain("1947");
+  });
+
+  it("offers a harvested Devanagari name in the character column", () => {
+    // The whole point of harvesting it. The character column is where names
+    // are offered for EVERY script -- at indent 0 `suggestFor` offers slugline
+    // prefixes and transitions only, for ASCII names too, so asking for one
+    // there would be testing a behaviour the product does not have.
+    const vocab = harvestVocabulary(NEPALI);
+    const typed = `${" ".repeat(22)}सुनि`;
+    const out = suggestFor(typed, typed.length, vocab);
+    expect(out?.options ?? []).toContain("सुनिता");
+  });
+
+  it("offers an ASCII name in that same column, unchanged", () => {
+    // The symmetry is the claim: one column, both scripts.
+    const vocab = harvestVocabulary("INT. X - DAY\n\nSUNITA\nHello there\n");
+    const typed = `${" ".repeat(22)}SUNI`;
+    const out = suggestFor(typed, typed.length, vocab);
+    expect(out?.options ?? []).toContain("SUNITA");
+  });
+});
