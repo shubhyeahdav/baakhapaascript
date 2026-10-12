@@ -56,3 +56,9 @@ docs/hooks/hooks_review_queue.csv
 
 # Brainstorming companion session files (mockups, event logs) — local only.
 .superpowers/
+
+# Demo video. Nothing here is committed -- `*.mp4` above already excludes the
+# finished cut, and this repo is right to keep binaries out. The whole thing
+# rebuilds from the two scripts and DEMO_VIDEO_SCRIPT.md:
+#   node scripts/demo-video.mjs && node scripts/demo-video-assemble.mjs
+docs/demo-video/
