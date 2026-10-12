@@ -59,6 +59,6 @@ docs/hooks/hooks_review_queue.csv
 
 # Demo video. Nothing here is committed -- `*.mp4` above already excludes the
 # finished cut, and this repo is right to keep binaries out. The whole thing
-# rebuilds from the two scripts and DEMO_VIDEO_SCRIPT.md:
-#   node scripts/demo-video.mjs && node scripts/demo-video-assemble.mjs
+# rebuilds from the scripts and DEMO_VIDEO_SCRIPT.md: the narration wavs, the
+# recorded cards and the app footage are all generated.
 docs/demo-video/

@@ -23,7 +23,7 @@
  * re-recordable one at a time: pass an id to redo just that one.
  */
 import { chromium } from "playwright";
-import { mkdirSync, writeFileSync, readFileSync, existsSync, renameSync, readdirSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, renameSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CARDS, cardHtml } from "./demo/cards.js";
@@ -196,11 +196,15 @@ await beat("02-linter", async (page) => {
   const editor = page.getByLabel("Screenplay");
   await editor.waitFor({ timeout: 20000 });
   await editor.fill("");
-  await typeDraft(page, editor, NEPALI_DRAFT);
+  // Typed fast on purpose. The beat's narration is about the FINDINGS, so the
+  // typing is throat-clearing -- the first cut of this spent ten of its
+  // sixteen seconds watching a draft appear and left under four seconds of
+  // the panel the voice was describing.
+  await typeDraft(page, editor, NEPALI_DRAFT, 60, 28);
   await page.keyboard.press("Control+s");
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(2000);
   await page.getByRole("button", { name: /^Craft$/i }).click();
-  await page.waitForTimeout(5000);
+  await page.waitForTimeout(9000);
 });
 
 // 3 · Craft retrieved against this draft, by line.

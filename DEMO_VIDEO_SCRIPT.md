@@ -1,176 +1,137 @@
 # Investor demo video — script and sources
 
-A 100-second demo of Baakhapaa, built from real product footage rather than
-mockups. Every on-screen claim is listed below with where the number comes
+68 seconds, narrated, built from real product footage rather than mockups.
+Every on-screen and spoken claim is listed below with where the number comes
 from, and there is a list at the end of things this video deliberately does
 **not** say.
 
 Why that matters more than usual here: the product is further along
 technically than it is commercially. It is deployed, it is heavily tested, and
 it has a real technical moat — and it has no revenue, no completed payment,
-and no writer trial. An investor finds all three of those out in the first
-meeting. A demo that implies otherwise spends the credibility that the honest
-version earns.
+and no writer trial. An investor finds all three out in the first meeting. A
+demo that implies otherwise spends the credibility the honest version earns.
 
 ---
 
-## Structure
+## How it is made
 
-| # | Time | Beat | What is on screen |
-|---|---|---|---|
-| 1 | 0:00–0:11 | The gap | Title card |
-| 2 | 0:11–0:26 | Writing Nepali, checked in Nepali | Live editor footage |
-| 3 | 0:26–0:40 | Craft, retrieved not generated | Live Patterns panel |
-| 4 | 0:40–0:52 | The course teaches, the linter grades | Live course footage |
-| 5 | 0:52–1:04 | A fourth format: long-form video | Live Outline + retention shape |
-| 6 | 1:04–1:18 | Why it is hard to copy | Numbers card |
-| 7 | 1:18–1:30 | Unit economics and payments | Numbers card |
-| 8 | 1:30–1:40 | Where it stands, honestly | Closing card |
+| | |
+|---|---|
+| **Narration** | Kokoro-82M (Apache 2.0) through ONNX Runtime, voice `af_heart`, run locally — nothing uploaded, no service signed into |
+| **Cards** | Animated HTML recorded by Playwright at wall-clock time, so keyframes and counting numbers are real motion |
+| **Footage** | Playwright screen recording of the application running in demo mode |
+| **Cut** | ffmpeg |
 
----
+**The voice is the clock.** `voice/lines.json` records each narration line's
+real duration, and every visual segment is cut to it. Nothing is timed by
+hand, so the picture cannot drift off the voice. That is also why there are no
+crossfades between beats — a crossfade eats real time at each join and the
+audio would walk away from the picture a little more at every one. The cards
+animate themselves in, so the transition is already there.
 
-## 1 · The gap (0:00–0:11)
+### Rebuild
 
-> **Nepal writes. Its writing tools do not read Nepali.**
->
-> Screenwriting software checks craft in English.
-> A Devanagari page is just characters it cannot parse.
-
-**Source.** This is the product's founding observation, not a market
-statistic — so it is phrased as a statement about software, which is checkable,
-rather than about market size, which we have not measured.
-
----
-
-## 2 · Writing Nepali, checked in Nepali (0:11–0:26)
-
-Footage: a scene typed in Devanagari; the craft linter returns findings.
-
-> **The craft linter reads Devanagari and romanised Nepali.**
-> On-the-nose dialogue. Emotional parentheticals. Greetings that open a scene
-> on nothing.
->
-> Deterministic. No AI call. Works on a half-written page.
-
-**Source.** `baakhapaa-backend/craft_linter.py` + `POST /scripts/lint`. Rules
-are built from each craft entry's `warning_sign`; the Nepali matching is
-pinned by the backend suite. Zero AI cost is a property of the
-implementation — there is no provider call on this path.
+```bash
+C:/addeity-video/.venv-tts/Scripts/python.exe scripts/demo/voice.py
+```
+```bash
+node scripts/demo-motion.mjs && node scripts/demo-video.mjs && node scripts/demo-assemble.mjs
+```
 
 ---
 
-## 3 · Craft, retrieved not generated (0:26–0:40)
+## The beats
 
-Footage: the editor's Patterns tab returning craft against the open draft.
+### 1 · The gap — 3.8s, card
 
-> **45 craft entries. Retrieved by meaning, not by keyword.**
->
-> Embedded locally — no API key, no per-query cost.
-> Every worked example is original prose.
+> *"Nepal writes. Its writing tools do not read Nepali."*
 
-**Sources.**
-- 45 entries: counted from `baakhapaa-backend/knowledge_base.json` on
-  2026-10-12 — 17 structure, 9 dialogue, 7 scene, 7 character, 5 image.
-- Local embeddings: fastembed `bge-small-en-v1.5`, 384-dim.
-- Original prose: this is what keeps the corpus publishable by construction,
-  and it is the reason the corpus can be shown at all.
+The product's founding observation, phrased as a statement about software —
+which is checkable — rather than about market size, which we have not measured.
 
----
+### 2 · Nepali, checked in Nepali — 9.9s, card then footage
 
-## 4 · The course teaches, the linter grades (0:40–0:52)
+> *"Baakhapaa does. The craft linter reads Devanagari. It finds the line that
+> states a feeling instead of playing it, and it does that without a single AI
+> call."*
 
-Footage: a lesson, an answer typed, the linter's response.
+Footage: the Craft panel on a Devanagari draft, reporting **3 high, 3 medium**
+— a greeting opening the scene, two lines stating the grievance out loud, an
+emotional parenthetical, an unfilmable action line.
 
-> **19 lessons. Free on every tier.**
-> Graded by the craft linter, not by a Next button.
->
-> Two tracks, because page craft and story craft fail independently.
+**Source.** `linter.py` + `POST /scripts/lint`. Rules are built from each craft
+entry's `warning_sign`. Zero AI cost is a property of the implementation —
+there is no provider call on this path.
 
-**Source.** `lessons.py` — 19 lessons, 10 on the Pen track, 9 on the Story
-track, counted 2026-10-12. Free on every tier is enforced in `learn.py`.
-All 19 are also served in Nepali (`lessons_ne.py`).
+**Worth knowing.** This claim was only half true until 2026-10-12. The linter's
+regexes were bilingual but the parser routing lines to them was ASCII-only, so
+a screenplay with Devanagari character cues produced no dialogue elements and
+therefore no dialogue findings at all. Fixed in `fa61b7f`; the footage is of
+the fixed build.
 
----
+### 3 · Craft, retrieved not generated — 10.4s, card then footage
 
-## 5 · A fourth format (0:52–1:04)
+> *"Craft comes from a library of forty-five techniques, matched to the page by
+> meaning. The embeddings run on this machine. No API key, nothing per query."*
 
-Footage: a long-form video project — sections, the Outline, the retention shape.
+**Sources.** 45 entries counted from `knowledge_base.json` on 2026-10-12 — 17
+structure, 9 dialogue, 7 scene, 7 character, 5 image. Local embeddings:
+fastembed `bge-small-en-v1.5`, 384-dim. Every worked example is original prose,
+which is what keeps the corpus publishable by construction.
 
-> **Long-form video is a first-class format, not a screenplay in disguise.**
->
-> Sections live in the document, so they survive export, diff and reorder.
-> Runtime is words over a speaking rate — not pages.
+### 4 · Why it is hard to copy — 19.3s, animated card
 
-**Source.** `videoscript.py`, `scene_sync.parser_for`. The retention shape
-states on its own face that the curve is a convention rather than a
-measurement, and a test pins that it never asserts a fault — that caption
-stays visible in the footage on purpose.
+> *"The obvious fix was to add a Nepali field to that library. We tested the
+> model first. On two sentences in Devanagari it scores 0.898 for the same
+> meaning, and 0.877 for different ones. A gap of 0.02. It cannot read the
+> script at all."*
 
----
+Two bars grow to almost exactly the same length. That is the argument, made
+before the sentence finishes explaining it.
 
-## 6 · Why it is hard to copy (1:04–1:18)
+### 5 · The fix we measured — 7.4s, counting card
 
-> **The obvious fix did not work, and we measured that.**
->
-> A Nepali craft query scored **16.7%** precision@1.
-> A Nepali gloss field looked like the answer — so we tested the embedding
-> model first. On two Devanagari sentences it scores **0.898** same-meaning
-> against **0.877** different-meaning. A 0.02 gap. It cannot read the script.
->
-> Translating out of Nepali before embedding took real-query precision@1 to
-> **90.0%**. CI fails below 0.85.
+> *"Translating out of Nepali before embedding lifted retrieval accuracy from
+> sixteen percent to ninety percent."*
 
-**Sources.** `craft_query.py`, `eval_retrieval.py`,
+The number counts 16 → 90 on screen.
+
+**Sources (4 and 5).** `craft_query.py`, `eval_retrieval.py`,
 `.github/workflows/ci.yml` (`--min-p1 0.80 --min-screenplay-p1 0.85`). The
-combined figure went 71.8% → 90.0%; screenplay retrieval measured 90.0%
-before long-form video existed and 90.0% after, which is the property the
-one-way craft exclusion was built to protect.
+combined figure went 71.8% → 90.0%; screenplay retrieval measured 90.0% before
+long-form video existed and 90.0% after, which is the property the one-way
+craft exclusion protects.
 
-**Why this is the strongest slide.** It is the one claim a competitor cannot
-shortcut. The result is counter-intuitive, it cost a measurement to find, and
-the measurement is in CI.
+**Why this is the strongest pair of beats.** It is the one claim a competitor
+cannot shortcut. The result is counter-intuitive, it cost a measurement to
+find, and the measurement is in CI.
 
----
+### 6 · Unit economics — 8.3s, card then footage
 
-## 7 · Unit economics and payments (1:18–1:30)
+> *"So the free tier costs nothing to serve. And it takes Khalti and eSewa,
+> because Stripe cannot collect from most Nepali cards."*
 
-> **The free tier costs nothing to serve.**
-> Craft retrieval runs on local embeddings. Linting, review, camera notes and
-> the whole course are deterministic.
->
-> **Khalti and eSewa, not just Stripe** — Stripe cannot collect from most
-> Nepali cards.
+Footage: the pricing page with all three gateways.
 
-**Sources.** `payments.py`, `khalti.py`, `esewa.py`. Free-tier gating is in
-place server-side: `generate-scene` / `improve` / `suggest` return 403 on
-free, and `generate-structure` gives free users a RAG-grounded skeleton.
+**Careful wording.** "Costs nothing to serve" is about AI spend, the dominant
+variable cost in this category. It is not a claim about hosting.
 
-**Careful wording.** "Costs nothing to serve" is about AI spend, which is the
-dominant variable cost in this category. It is not a claim about hosting.
+### 7 · Where it stands — 9.1s, closing card
 
----
+> *"It is deployed, with two and a half thousand tests behind it. No completed
+> payment yet, and no writer trial. That is what we are raising for."*
 
-## 8 · Where it stands (1:30–1:40)
-
-> **Deployed. 2,602 automated tests.**
->
-> Not yet proven: no completed payment, no writer trial, legal documents
-> unreviewed.
->
-> **Baakhapaa** · baakhapaascript.vercel.app
-
-**Sources.** 1,187 backend tests across 80 files and 1,415 frontend tests
-across 70 files, collected 2026-10-12 — 2,602 together. Deployed 2026-09-15:
-frontend on Vercel, backend on Railway, real Supabase; register, login,
-`/auth/me`, create project, save draft, cast, lint, recommendations and review
-all verified 200 against the deployed pair.
+**Sources.** 1,187 backend tests across 80 files and 1,415 frontend across 70,
+collected 2026-10-12 — 2,602 together. Deployed 2026-09-15: Vercel, Railway,
+real Supabase; register, login, `/auth/me`, create project, save draft, cast,
+lint, recommendations and review all verified 200 against the deployed pair.
 
 ---
 
 ## What this video does not claim
 
-Each of these is either unmeasured or untrue today, and all of them are the
-kind of thing an investor checks.
+Each is unmeasured or untrue today, and each is the kind of thing an investor
+checks.
 
 | Not claimed | Why |
 |---|---|
@@ -185,22 +146,20 @@ kind of thing an investor checks.
 
 ---
 
-## Production notes
+## Two limitations of the build, stated plainly
 
-- Footage is recorded from the real application running locally in **demo
-  mode** — mock AI, local SQLite, placeholder storyboards. This machine
-  otherwise runs against production Supabase with live keys, so the recording
-  harness forces demo mode through the environment rather than trusting it.
-  Nothing in this recording touched production data and no AI call was billed.
-- No audio. Every point is on screen, which is also what the product's own
-  marketing rule requires.
-- Cards are rendered in the product's real theme tokens — warm near-black
-  `#0B0B0A` and gold `#D4A843`, Spectral and Mukta — so the video and the app
-  do not look like two different products.
+**Pronunciation is verified by transcription, not by ear.** `voice.py` reads
+every line back with `onnx-asr` and reports what moved. That caught four
+mispronounced proper nouns on the first run — Kokoro said the product's own
+name as "baka padas", Devanagari as "dave agri", Khalti as "quality" and eSewa
+as "esua" — and they are now respelled phonetically for the model. But
+Whisper-base does not know those words either, so the check can confirm the
+sentence is intelligible and cannot certify the four names sound right.
+**Listen to beats 2, 6 and 7 before showing this to anyone.**
 
-### Rebuild
-
-```
-node scripts/demo-video.mjs          # records footage + renders cards
-node scripts/demo-video-assemble.mjs # ffmpeg assembly
-```
+**The footage is demo mode.** Mock AI, local SQLite, placeholder storyboards.
+This machine otherwise runs against production Supabase with live keys, so the
+recorder refuses to start unless `/health` reports `demo: true` — the same gate
+`responsive-audit.mjs` uses. Nothing in the recording touched production and no
+AI call was billed. Everything shown is real product behaviour; none of it is
+real user data.
