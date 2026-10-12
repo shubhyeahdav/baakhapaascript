@@ -1,0 +1,114 @@
+<title>u02 Devanagari cues</title>
+<style>
+  /* Geist has no Devanagari. Nirmala UI ships with Windows and the project
+     also bundles Noto Sans Devanagari for its PDF export; either renders the
+     cue correctly, and the fallback chain means a missing one degrades to a
+     visible box rather than to silence. */
+  .dev { font-family:'Nirmala UI','Noto Sans Devanagari','Mangal',sans-serif }
+  .mono { font-family:'Geist Mono',ui-monospace,monospace }
+  .ln   { font-size:30px; color:#EDEAE3; white-space:nowrap }
+  .chip { font-size:20px; letter-spacing:.06em; text-transform:uppercase;
+          padding:7px 14px; border-radius:9px; white-space:nowrap }
+  .chk  { font-size:25px; color:#9B968A; white-space:nowrap }
+</style>
+
+<div data-slot="shape">
+  <div class="L" id="Lpill">
+    <div class="row dev" style="transform:translate(-50%,-50%);gap:14px;color:#EDEAE3;font-size:36px">
+      सुनिता<span id="icA"></span>
+    </div>
+  </div>
+
+  <div class="L" id="Lparse">
+    <div class="a mono" style="left:-560px;top:46px;font-size:21px;letter-spacing:.09em;color:#7E7A6F">WHAT THE PARSER SEES</div>
+
+    <div class="a ln dev" id="r0t" style="left:-560px;top:104px">सुनिता</div>
+    <div class="a chip mono" id="r0c" style="left:240px;top:104px">action</div>
+
+    <div class="a ln dev" id="r1t" style="left:-560px;top:166px">(रिसाएर)</div>
+    <div class="a chip mono" id="r1c" style="left:240px;top:166px">action</div>
+
+    <div class="a ln dev" id="r2t" style="left:-560px;top:228px">तिमीले कहिल्यै मेरो कुरा सुनेनौ।</div>
+    <div class="a chip mono" id="r2c" style="left:240px;top:228px">action</div>
+
+    <div class="a mono" id="chh" style="left:-560px;top:320px;font-size:21px;letter-spacing:.09em;color:#7E7A6F">CHECKS THAT COULD NOT FIRE</div>
+    <div class="a chk" id="k0" style="left:-560px;top:372px">on the nose</div>
+    <div class="a chk" id="k1" style="left:-560px;top:424px">greeting opens the scene</div>
+    <div class="a chk" id="k2" style="left:-560px;top:476px">emotional parenthetical</div>
+    <div class="a" id="t0" style="left:-608px;top:372px"></div>
+    <div class="a" id="t1" style="left:-608px;top:424px"></div>
+    <div class="a" id="t2" style="left:-608px;top:476px"></div>
+  </div>
+</div><!--/shape-->
+
+<script>
+document.getElementById('icA').innerHTML = M.icon('arrow', 30, '#D4A843');
+
+const GOLD = '#D4A843', DEAD = '#2A2823', INK = '#EDEAE3', MUTE = '#7E7A6F';
+
+/* Narration, 16.9s. This clip covers the first 12.8 and hands the last of it
+   to real footage of the Craft panel -- the graphic explains the bug, the
+   application proves the fix.
+
+     0.0  "A screenplay written in Devanagari now lints."
+     2.6  "The craft rules always read Nepali."
+     4.6  "The parser feeding them did not,"
+     6.4  "so a script with Nepali character names produced no dialogue at all,"
+    10.0  "and three of the checks could never fire."
+
+   The flip lands on "did not": the chips are the sentence. */
+const FLIP = 6.2;
+
+// Rows arrive one per clause, then the wrong type sits there while the voice
+// explains it. Each chip is two tracks -- colour and text -- so the swap is a
+// property change on one element rather than two elements crossfading.
+const rowIn = [1.25, 1.62, 1.99];
+const TYPES = ['character', 'parenthetical', 'dialogue'];
+
+const chipBg = M.ctrack(DEAD, [[FLIP, '#3A2E12']]);
+const chipFg = M.ctrack(MUTE, [[FLIP, GOLD]]);
+const tickAt = [10.3, 10.9, 11.5];
+
+M.scene({
+  W:1920, H:1080, bg:'#0B0B0A', T:12.8, intro:0.1,
+  SH:{
+    pill:  { w:300, h:98,  r:49, bg:'#191813', cam:2.0 },
+    parse: { w:1320, h:320, r:40, bg:'#141311', cam:1.26 },
+    full:  { w:1320, h:570, r:40, bg:'#141311', cam:1.10 },
+  },
+  start:'pill',
+  SEQ:[[1.05,'parse'], [9.6,'full']],
+  layers:[
+    { el:'Lpill',  tin:0.1,  tout:1.05, o:{din:0.03} },
+    { el:'Lparse', tin:1.05, tout:null, anchor:'t', update:(t) => {
+        // rows
+        for (let i = 0; i < 3; i++) {
+          M.apply(document.getElementById('r' + i + 't'), M.vis(t, rowIn[i], null, {din:0.0, lin:0.26}));
+          const c = document.getElementById('r' + i + 'c');
+          M.apply(c, M.vis(t, rowIn[i] + 0.1, null, {din:0.0, lin:0.26}));
+          c.style.background = chipBg(t);
+          c.style.color = chipFg(t);
+          M.setText(c, t >= FLIP ? TYPES[i] : 'action');
+        }
+        // the three checks, and their ticks
+        M.apply(document.getElementById('chh'), M.vis(t, 9.75, null, {din:0.0, lin:0.3}));
+        for (let i = 0; i < 3; i++) {
+          const row = document.getElementById('k' + i);
+          M.apply(row, M.vis(t, 9.95 + i * 0.18, null, {din:0.0, lin:0.3}));
+          row.style.color = t >= tickAt[i] ? INK : MUTE;
+          const tick = document.getElementById('t' + i);
+          const v = M.vis(t, tickAt[i], null, {din:0.0, lin:0.22});
+          M.apply(tick, v);
+          if (!tick.dataset.done) { tick.innerHTML = M.icon('check', 26, GOLD); tick.dataset.done = '1'; }
+        }
+      } },
+  ],
+  // One click, on the word that flips them. A cursor that only ever moves is
+  // decoration; a cursor that causes the change is the point.
+  cursor:{ size:44,
+           keys:[[0.1, 660, 250], [4.4, 660, 250],
+                 [5.95, 330, 6], [7.6, 330, 6],
+                 [9.2, 600, 300]],
+           clicks:[FLIP] },
+});
+</script>

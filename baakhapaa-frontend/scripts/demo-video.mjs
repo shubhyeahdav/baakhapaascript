@@ -1,5 +1,10 @@
 /**
- * Record the investor demo: title cards, and real footage of the product.
+ * Record real footage of the product, for both demo videos.
+ *
+ * The cards used to be rendered here too, as stills. They are motion clips
+ * now (`demo-motion.mjs`, and the motion-graphics engine for the release
+ * note), so this script does one job: drive the running application and
+ * record what it does.
  *
  * Footage, not mockups. An investor who has seen a hundred decks has seen a
  * hundred mockups, and the thing worth showing here is that it runs.
@@ -23,10 +28,9 @@
  * re-recordable one at a time: pass an id to redo just that one.
  */
 import { chromium } from "playwright";
-import { mkdirSync, writeFileSync, readFileSync, renameSync, readdirSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CARDS, cardHtml } from "./demo/cards.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const APP = "http://localhost:3000";
@@ -45,7 +49,6 @@ const only = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const wanted = (id) => !only.length || only.includes(id);
 
 mkdirSync(OUT, { recursive: true });
-mkdirSync(join(OUT, "cards"), { recursive: true });
 mkdirSync(join(OUT, "footage"), { recursive: true });
 
 /* ── the production gate ─────────────────────────────────────────────── */
@@ -101,29 +104,7 @@ const VIDEO_DRAFT = [
 
 const log = (s) => console.log(`  ${s}`);
 
-/* ── cards ───────────────────────────────────────────────────────────── */
 const browser = await chromium.launch();
-
-if (wanted("cards")) {
-  console.log("cards:");
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-  for (const card of CARDS) {
-    const html = join(OUT, "cards", `${card.id}.html`);
-    writeFileSync(html, cardHtml(card), "utf8");
-    // A file:// navigation rather than setContent: `report-to-pdf.mjs` records
-    // why — setContent's about:blank origin cannot load subresources, and the
-    // webfont request is a subresource.
-    await page.goto(`file:///${html.replace(/\\/g, "/")}`);
-    // Fonts are the whole look of these cards. Waiting on the document's own
-    // font set is exact, where a fixed timeout is a guess that fails on a cold
-    // cache and wastes time on a warm one.
-    await page.evaluate(() => document.fonts.ready);
-    await page.waitForTimeout(250);
-    await page.screenshot({ path: join(OUT, "cards", `${card.id}.png`) });
-    log(`${card.id}.png  ${card.seconds}s`);
-  }
-  await page.close();
-}
 
 /* ── footage ─────────────────────────────────────────────────────────── */
 /**
@@ -253,5 +234,28 @@ await beat("07-pricing", async (page) => {
   await page.waitForTimeout(2500);
 });
 
+// u04 · the keymap, for the release note. Tab in a video script opens a cue
+// where Tab in a screenplay would indent to a dialogue column — the clearest
+// one-gesture demonstration that the two formats now have separate rules.
+await beat("u04-keys", async (page) => {
+  await signIn(page);
+  await openProject(page, /^Open Why Nepali web series/);
+  const editor = page.getByLabel(/Screenplay|Script|Draft/).first();
+  await editor.waitFor({ timeout: 20000 });
+  await editor.fill("## HOOK - 0:15\n\nNobody finishes a Nepali web series.\n\n");
+  await editor.click();
+  await page.keyboard.press("Control+End");
+  await page.waitForTimeout(1800);
+  // Tab, then type into the cue it opened: the caret has to land INSIDE the
+  // bracket, which is the part of the behaviour worth filming.
+  await page.keyboard.press("Tab");
+  await page.waitForTimeout(1400);
+  await page.keyboard.insertText("the same three-episode arc");
+  await page.waitForTimeout(1800);
+  await page.keyboard.press("Control+s");
+  await page.waitForTimeout(2500);
+});
+
 await browser.close();
 console.log("\nnext: node scripts/demo-video-assemble.mjs");
+

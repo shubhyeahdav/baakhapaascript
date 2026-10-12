@@ -19,12 +19,14 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, existsSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BEATS } from "./demo/motion.js";
+import { pickComposition } from "./demo/compositions.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, "..", "..", "docs", "demo-video");
 const WORK = join(OUT, ".work");
-const FINAL = join(OUT, "baakhapaa-demo.mp4");
+const COMP = pickComposition(process.argv.slice(2));
+const BEATS = COMP.beats;
+const FINAL = join(OUT, COMP.out);
 
 const W = 1920, H = 1080, FPS = 30;
 // Breath after each narration line. Long enough that two beats do not run
@@ -49,8 +51,16 @@ for (const [i, beat] of BEATS.entries()) {
   const total = line.seconds + GAP;
   const n = String(i).padStart(2, "0");
 
-  const cardSrc = join(OUT, "motion", `${beat.id}.webm`);
-  if (!existsSync(cardSrc)) throw new Error(`missing card: ${cardSrc} — run demo-motion.mjs`);
+  // A beat's card is either a motion-graphics render (frame-by-frame, with
+  // motion blur, from `motion/clips/`) or a CSS card recorded in real time by
+  // `demo-motion.mjs`. Both arrive here as video and are cut identically.
+  const cardSrc = beat.engine
+    ? join(HERE, "..", "..", "motion", "out", `${beat.id}.mp4`)
+    : join(OUT, "motion", `${beat.id}.webm`);
+  if (!existsSync(cardSrc)) {
+    throw new Error(`missing card: ${cardSrc} — run ${beat.engine
+      ? `the motion engine for ${beat.id}` : "demo-motion.mjs"}`);
+  }
 
   const cardFor = beat.clip ? beat.hold : total;
   const cardMp4 = join(WORK, `${n}a.mp4`);

@@ -1,0 +1,37 @@
+<title>u01 Progress</title>
+<style>
+  .num { font-size:150px; line-height:150px; font-weight:600; letter-spacing:-.05em; color:#D4A843 }
+  .ttl { font-size:58px; font-weight:600; letter-spacing:-.03em; color:#EDEAE3; white-space:nowrap }
+  .sub { font-size:27px; color:#9B968A; white-space:nowrap }
+</style>
+
+<div data-slot="shape">
+  <div class="L" id="Lpill">
+    <div class="row" style="transform:translate(-50%,-50%);gap:13px;color:#EDEAE3;font-size:31px;font-weight:500">
+      Progress<span id="icA"></span>
+    </div>
+  </div>
+  <div class="L" id="Lch">
+    <div class="a num" style="left:-470px;top:-88px">03</div>
+    <div class="a ttl" style="left:-232px;top:-66px">Three things changed</div>
+    <div class="a sub" style="left:-230px;top:14px">and one thing has not</div>
+  </div>
+</div><!--/shape-->
+
+<script>
+document.getElementById('icA').innerHTML = M.icon('arrow', 29, '#D4A843');
+/* The narration is 2.46s: "Three things changed, and one thing has not."
+   The morph lands on "changed", which is the word the card answers. */
+M.scene({
+  W:1920, H:1080, bg:'#0B0B0A', T:2.9, intro:0.08,
+  SH:{
+    pill:{ w:268, h:92, r:46, bg:'#191813', cam:2.0 },
+    ch:  { w:1180, h:300, r:48, bg:'#191813', cam:1.3 },
+  },
+  start:'pill', SEQ:[[0.86,'ch']],
+  layers:[
+    { el:'Lpill', tin:0.08, tout:0.86, o:{din:0.03} },
+    { el:'Lch',   tin:0.86, tout:null },
+  ],
+});
+</script>

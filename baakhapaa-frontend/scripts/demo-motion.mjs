@@ -19,7 +19,8 @@ import { chromium } from "playwright";
 import { mkdirSync, writeFileSync, readFileSync, existsSync, renameSync, readdirSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BEATS, motionHtml } from "./demo/motion.js";
+import { motionHtml } from "./demo/motion.js";
+import { pickComposition } from "./demo/compositions.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, "..", "..", "docs", "demo-video");
@@ -39,11 +40,13 @@ const VOICE = JSON.parse(readFileSync(linesPath, "utf8"));
 
 mkdirSync(CARDS, { recursive: true });
 
-const only = process.argv.slice(2);
+const COMP = pickComposition(process.argv.slice(2));
+const BEATS = COMP.beats;
+const only = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const wanted = (id) => !only.length || only.includes(id);
 
 const browser = await chromium.launch();
-console.log("animated cards:");
+console.log(`animated cards (${COMP.name}):`);
 
 for (const beat of BEATS) {
   if (!wanted(beat.id)) continue;
