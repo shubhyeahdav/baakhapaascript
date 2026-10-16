@@ -73,6 +73,36 @@ def verdicts() -> dict:
     return out
 
 
+# Headings the editor must resolve to the same KIND the parser does, per mode.
+# A kind matched here and missed there is not a cosmetic difference: the editor
+# offers craft guidance by kind, so a `## SEGMENT 2` the editor reads as unknown
+# gets a writer silence exactly where the guidance was the point.
+#
+# Chosen for the two places the rules differ from each other: kinds match the
+# first word, synonyms match the whole heading, and the same word means
+# different things in the two modes (`## REVIEW` is a course check and is
+# nothing at all in an essay).
+KIND_CASES = [
+    "HOOK", "PROMISE", "SEGMENT", "PAYOFF", "CTA",
+    "SEGMENT 2", "SEGMENT TWO",
+    "OBJECTIVE", "CONCEPT", "PROOF", "EXERCISE", "CHECK",
+    "INTRO", "INTRODUCTION", "COLD OPEN", "OUTRO", "CALL TO ACTION",
+    "WRAP UP", "CONCLUSION", "TAKEAWAY",
+    "GOAL", "OUTCOME", "IDEA", "THEORY", "EVIDENCE", "MEASUREMENT",
+    "PRACTICE", "TASK", "REVIEW", "FEEDBACK",
+    "hook", "Hook",                 # case must not decide a kind
+    "SOMETHING NOBODY DEFINED",     # unknown stays unknown in both
+]
+
+
+def kinds() -> dict:
+    """What `_kind_of` answers for each heading, in each mode."""
+    return {
+        mode: {name: videoscript._kind_of(name, mode) for name in KIND_CASES}
+        for mode in videoscript.SECTION_KINDS_BY_MODE
+    }
+
+
 if __name__ == "__main__":
     data = {
         "_comment": (
@@ -82,6 +112,10 @@ if __name__ == "__main__":
             "review it as one."
         ),
         "verdicts": verdicts(),
+        "section_kinds_by_mode": {
+            mode: list(k) for mode, k in videoscript.SECTION_KINDS_BY_MODE.items()
+        },
+        "kind_of": kinds(),
     }
     OUT.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"wrote {OUT} ({len(data['verdicts'])} cases)")

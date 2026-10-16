@@ -137,6 +137,25 @@ def mode_for(video_category) -> str:
     return "course" if video_category == "course" else DEFAULT_MODE
 
 
+# Where a heading nobody recognised lands, PER MODE.
+#
+# This was a bare `return "segment"` until 2026-10-09 — in both modes. So a
+# course section with a heading the course vocabulary does not hold came back
+# carrying `segment`, a kind that is not in `SECTION_KINDS_BY_MODE["course"]`
+# at all. That is the exact leak the mode split exists to prevent, and it was
+# not cosmetic: `section_kind` leaves this module on the API payload and the
+# editor seeds craft retrieval from it, so a course writer's unnamed section
+# drew a video essay's craft.
+#
+# `concept` is the course's body-content kind, the way `segment` is the essay's,
+# so an unrecognised section is read as "some of the lesson's substance" rather
+# than as nothing. It is a translation of the existing default, not a new rule.
+FALLBACK_KIND_BY_MODE = {
+    "essay": "segment",
+    "course": "concept",
+}
+
+
 def _kind_of(name: str, mode: str = DEFAULT_MODE) -> str:
     kinds = SECTION_KINDS_BY_MODE.get(mode, SECTION_KINDS_BY_MODE[DEFAULT_MODE])
     synonyms = SECTION_SYNONYMS_BY_MODE.get(mode, {})
@@ -146,7 +165,7 @@ def _kind_of(name: str, mode: str = DEFAULT_MODE) -> str:
     words = cleaned.split()
     if words and words[0] in kinds:
         return words[0]
-    return "segment"
+    return FALLBACK_KIND_BY_MODE.get(mode, FALLBACK_KIND_BY_MODE[DEFAULT_MODE])
 
 
 def parse(text: str) -> List[Element]:
