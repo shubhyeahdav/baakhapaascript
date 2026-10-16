@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import PenPrompt from "./PenPrompt";
+import { scaffoldFor } from "../lib/videoScaffold";
 import MilestoneNote from "./MilestoneNote";
 import FormatShortcuts from "./FormatShortcuts";
 import { countWords, scenesFromDraft } from "../utils/draft";
@@ -114,6 +115,14 @@ export default function ScriptPage({
                videoscript parses a slugline as narration — so following the
                product's own advice produced a draft with no sections at all. */
             format={script?.project?.format || script?.format}
+            /* The section spine, for long-form video only. `scaffoldFor`
+               returns null for every other format, so a screenplay writer is
+               offered nothing extra and the prompt is unchanged for them. */
+            scaffold={scaffoldFor({
+              format: script?.project?.format || script?.format,
+              videoCategory: script?.project?.video_category || script?.video_category,
+              durationMinutes: script?.project?.duration_minutes || script?.duration_minutes,
+            })}
             onInsert={(line) => {
               insertAtPosition(0, `${line}
 
