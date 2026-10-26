@@ -12,6 +12,9 @@ import { readFacts, milestoneFor, dismissKey } from "../lib/milestones";
 import ScriptPage from "../components/ScriptPage";
 import { createScreenplayKeyHandler } from "../editor/screenplayKeymap";
 import { createVideoKeyHandler } from "../editor/videoKeymap";
+import { sectionAt } from "../utils/videoFormat";
+import { kindOf, modeOf } from "../utils/videoSections";
+import { guideFor } from "../lib/sectionGuide";
 import { countWords } from "../utils/draft";
 import { saveRescue, clearRescue } from "../utils/draftRescue";
 import { transliterateWord, WORD_PATTERN } from "../utils/nepaliTransliterate";
@@ -138,11 +141,11 @@ export default function ScriptEditor() {
   // Which line the caret sits on, 1-indexed to match the Notes tab and the
   // linter's line numbers. Kept here because the textarea is the only thing
   // that knows it.
-  // Same shape as LearnPage's `completed`, the other way round: `caretLine`
-  // is read and `setCaretLine` is never called, so the value is frozen at 0
-  // for the life of the editor. Left reported rather than renamed away,
-  // because whatever used to move it is what needs finding.
-  // eslint-disable-next-line no-unused-vars
+  // `caretLine` was declared and never written -- frozen at 0 for the life of
+  // the editor, which the comment here used to admit while leaving it that
+  // way. `updateCaretPage` already counts the lines before the caret, so it
+  // now sets this too. Two things read it: the section pacing readout, and the
+  // craft panel, which seeds retrieval from the section the caret is in.
   const [caretLine, setCaretLine] = useState(0);
 
   const { user } = useAuth();
@@ -913,7 +916,9 @@ export default function ScriptEditor() {
   const updateCaretPage = (ta) => {
     if (!ta) return;
     const before = ta.value.slice(0, ta.selectionStart);
-    setCaretPage(Math.floor(before.split("\n").length / (pagination.page_lines || 45)) + 1);
+    const lines = before.split("\n").length;
+    setCaretPage(Math.floor(lines / (pagination.page_lines || 45)) + 1);
+    setCaretLine(lines);
   };
 
   /**
@@ -1071,6 +1076,16 @@ export default function ScriptEditor() {
   // explicitly rather than smuggled in as a fake FOCUSES entry, because a
   // typed question is not a chip: it has no key, no label, and it changes on
   // every submit, so caching or comparing it against `focus` would be wrong.
+  // The caret's section, for a long-form draft. Null for a screenplay, which
+  // has scenes rather than sections and whose craft is not indexed this way.
+  const sectionKind = React.useMemo(() => {
+    if ((script?.project?.format || script?.format) !== "long_form") return null;
+    const at = sectionAt(content, caretLine);
+    if (!at) return null;
+    return kindOf(at.name, modeOf(script?.project?.video_category || script?.video_category));
+  }, [content, caretLine, script?.project?.format, script?.format,
+      script?.project?.video_category, script?.video_category]);
+
   const loadPatterns = useCallback(async (focusKey, typedQuery) => {
     setPatternsLoading(true);
     try {
@@ -1100,6 +1115,13 @@ export default function ScriptEditor() {
           : (f.key === "scene" ? "" : f.query),
         genre,
         tone,
+        // Which section the caret is in, for a long-form draft. The craft a
+        // hook needs and the craft a payoff needs are different crafts, and
+        // until now this panel asked the same question wherever the writer
+        // was standing. Seeded from the caret rather than from a typed
+        // complaint, because a writer in the middle of a section has already
+        // told us what they are working on by being there.
+        ...(sectionKind ? { section_kind: sectionKind } : {}),
       });
       setPatterns(res.data.patterns);
       setSeen(res.data.seen || {});
@@ -1114,7 +1136,7 @@ export default function ScriptEditor() {
     } finally {
       setPatternsLoading(false);
     }
-  }, [scriptId, content, instruction, genre, tone]);
+  }, [scriptId, content, instruction, genre, tone, sectionKind]);
 
   // Load once when the Patterns tab is opened — no button press needed.
   useEffect(() => {
@@ -1607,6 +1629,7 @@ export default function ScriptEditor() {
           view={view}
           saving={saving}
           caretPage={caretPage}
+          caretLine={caretLine}
           pageCount={pageCount}
           milestone={milestone}
           milestoneFacts={milestoneFacts}
@@ -1674,6 +1697,7 @@ export default function ScriptEditor() {
             loadPatterns={loadPatterns}
             patternSource={patternSource}
             diagnosed={diagnosed}
+            sectionGuide={guideFor(sectionKind)}
             focus={focus}
             setFocus={setFocus}
             openPattern={openPattern}

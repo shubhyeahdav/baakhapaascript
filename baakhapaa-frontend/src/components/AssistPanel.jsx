@@ -192,6 +192,7 @@ export default function AssistPanel({
   instruction, setInstruction, handleAI, acceptAI, aiError, setAiError,
   // patterns
   patterns, patternsLoading, loadPatterns, patternSource, diagnosed,
+  sectionGuide,
   focus, setFocus, openPattern, setOpenPattern,
   showAllPatterns, setShowAllPatterns, seen,
 }) {
@@ -409,6 +410,21 @@ export default function AssistPanel({
               {patternsLoading ? "Matching…" : "↻ Refresh"}
             </button>
           </div>
+
+          {/* What the section the caret is in is FOR.
+              The retrieved patterns answer "what technique helps"; this
+              answers "what is this section's job", which is the question a
+              writer has before they know they have a problem. It states a
+              job and never a verdict — nothing here changes with what is
+              written, which is what keeps it from becoming a second linter. */}
+          {sectionGuide && (
+            <div className="mb-3 rounded-xl border border-borderSoft bg-elevated/40 p-3">
+              <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-1.5">
+                This section · {sectionGuide.job}
+              </div>
+              <p className="text-[11.5px] text-inkSoft leading-snug">{sectionGuide.line}</p>
+            </div>
+          )}
 
           {/* Say why. Generic advice is the single most common complaint
               writers make about paid script coverage — naming the line

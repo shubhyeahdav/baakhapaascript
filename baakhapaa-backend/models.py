@@ -393,6 +393,16 @@ class RecommendRequest(BaseModel):
     # itself, and the only evidence this product can gather that a technique
     # ever worked.
     script_id: Optional[str] = None
+    # Which section of a long-form video the caret is in, as a kind rather than
+    # as a heading: `hook`, `payoff`, `exercise`. The craft a hook needs and
+    # the craft a payoff needs are different crafts, and without this the panel
+    # asked the same question wherever the writer was standing.
+    #
+    # Not validated against the kind lists on purpose. An unrecognised value
+    # steers retrieval slightly and costs nothing; refusing the whole request
+    # over it would turn a cosmetic mismatch between client and server into a
+    # dead panel.
+    section_kind: Optional[str] = None
 
 class LessonSubmission(BaseModel):
     content: str = ""

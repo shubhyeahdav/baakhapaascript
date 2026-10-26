@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import PenPrompt from "./PenPrompt";
 import { scaffoldFor } from "../lib/videoScaffold";
+import SectionPacing from "./SectionPacing";
 import MilestoneNote from "./MilestoneNote";
 import FormatShortcuts from "./FormatShortcuts";
 import { countWords, scenesFromDraft } from "../utils/draft";
@@ -41,13 +42,16 @@ export default function ScriptPage({
   // completions
   suggest, setSuggest, suggestIndex, dismissed, setDismissed, applySuggestion,
   // where we are, and whether it is safe
-  view, saving, caretPage, pageCount, sessionStart, script,
+  view, saving, caretPage, caretLine, pageCount, sessionStart, script,
   milestone, milestoneFacts, onMilestoneAct, onMilestoneDismiss,
   // how the page looks
   zenMode, setZenMode, pageTheme, typewriter, cursor, resting, setResting,
   // handing off to the panel
   setPanelOpen, setPanelTab, setScript,
 }) {
+  // The format decides what the status line counts. Read once here so
+  // the two readouts cannot disagree about which format this is.
+  const isLongForm = (script?.project?.format || script?.format) === "long_form";
   /* The other half of the same rule. On a phone the rail and the page cannot
      both have the width, so exactly one of them is shown: the page while the
      view is `script`, the rail while it is anything else. Above `lg` the page
@@ -138,9 +142,22 @@ export default function ScriptPage({
 
         {zenMode && (
           <div className="zen-hint" aria-live="polite">
-            <span className="tabular-nums">
-              p. {Math.min(caretPage, pageCount)} / {pageCount}
-            </span>
+            {/* A video script has no pages -- runtime is words over a
+                speaking rate -- so `p. 4 / 12` there reports a number computed
+                from a page length that does not apply to the format. The
+                section the caret is in is this format's own unit. */}
+            {isLongForm ? (
+              <SectionPacing
+                content={content}
+                caretLine={caretLine}
+                videoCategory={script?.project?.video_category || script?.video_category}
+                speakingWpm={script?.speaking_wpm}
+              />
+            ) : (
+              <span className="tabular-nums">
+                p. {Math.min(caretPage, pageCount)} / {pageCount}
+              </span>
+            )}
             {sessionStart && (
               <span className="tabular-nums ml-4">
                 +{Math.max(0, countWords(content) - sessionStart.words)} words

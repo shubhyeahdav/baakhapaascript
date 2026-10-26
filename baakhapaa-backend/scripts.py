@@ -326,6 +326,32 @@ def _charge(user_id, usage_sink):
 
 RECOMMENDATION_COUNT = 3
 
+# What each section of a long-form video FAILS at, phrased as a writer would
+# complain about it.
+#
+# `rag.retrieve_relevant_patterns` embeds each craft entry's `problem` first,
+# because writers arrive with a symptom rather than a genre tag. So seeding
+# retrieval with the bare kind — "hook", "payoff" — queries the corpus in the
+# wrong register and returns whatever happens to share those letters. These
+# are the symptom sentences instead.
+#
+# Essay kinds and course kinds together; `videoscript` guarantees a kind comes
+# from its own mode's vocabulary, so the two sets cannot collide.
+SECTION_QUERIES = {
+    # essay
+    "hook": "my opening does not give anyone a reason to keep watching",
+    "promise": "viewers do not know what they are going to get from this",
+    "segment": "the middle sags and each part feels like the same point again",
+    "payoff": "the ending arrives without landing what the opening promised",
+    "cta": "my ask at the end feels tacked on and nobody acts on it",
+    # course
+    "objective": "the learner cannot tell what they will be able to do after this",
+    "concept": "my explanation is abstract and does not stick",
+    "proof": "I am asserting this works without showing that it does",
+    "exercise": "the practice task is vague and nobody knows how to start it",
+    "check": "neither of us can tell whether the lesson actually landed",
+}
+
 
 @router.post("/recommendations")
 def recommendations(req: RecommendRequest, background: BackgroundTasks,
@@ -410,6 +436,13 @@ def recommendations(req: RecommendRequest, background: BackgroundTasks,
             query = req.focus
         elif flags:
             query = " ".join(f["message"] for f in ranked[:3])
+        elif req.section_kind in SECTION_QUERIES:
+            # Nothing typed and nothing found, but we know where the caret is.
+            # A writer inside the hook has told us what they are working on by
+            # being there, and "hook" as a word retrieves nothing useful --
+            # the corpus is embedded on the PROBLEM a technique solves, so the
+            # seed has to be phrased as the problem that section fails at.
+            query = SECTION_QUERIES[req.section_kind]
         else:
             query = text[-1500:] or "starting a new scene"
         already = {p["technique"] for p in patterns}
