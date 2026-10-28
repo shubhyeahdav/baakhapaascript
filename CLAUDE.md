@@ -108,7 +108,7 @@ and `HANDOVER.md` the narrative. The numbers in it are counted by
 > — the asset is bundled and `tests/test_font_asset.py` now fails rather than
 > skips if anyone removes it. `check_docs.py` counts the tests but not the
 > skips, so that number was typed and drifted the way typed numbers do.
-> Frontend tests: **1575 across 80 files**, `npm run test:ci`.
+> Frontend tests: **1582 across 80 files**, `npm run test:ci`.
 >
 > **The backend suite takes about TWENTY minutes on this machine, not the 3.5
 > this file claimed until 2026-09-16.** That is not the old hang and nothing is
@@ -425,6 +425,17 @@ and `HANDOVER.md` the narrative. The numbers in it are counted by
   Pro account's scenes stopped at the limit and its boards did not. A board is
   capped at what the month's credits still pay for, and says so. The dollar
   ceiling stays the single source of truth; no migration
+- **Month 4 (2026-10-28)** — `MONTH_4_REPORT.md` has the account. In short:
+  a public **landing page at `/`** and a **tour at `/tour`** (both prerendered;
+  the SPA fallback is now `build/app.html`), each showing the linter's REAL
+  output, held to it by `tests/test_landing_hero.py`; **margin notes**
+  (`PageNotes`) beside flagged lines; the **short-form layer** folded in
+  (`rhythm.py`, `outlier.py`, `shorts.py`, the `short_measurements` table —
+  **migration not yet applied to production**); **course mode reachable** from
+  the wizard ("Kind of video"); the course, grader and editor toolbar in
+  Nepali; no invented pages, acts or screenplay milestones on video.
+  `scripts/walk.mjs` walks five journeys through the UI and refuses unless
+  demo; `scripts/landing-check.mjs` is a CI step
 - **Terms and Privacy are reachable** — `/terms` and `/privacy`, public, served
   from the root markdown through a build-time virtual module (one copy, no
   drift). Sign-up states what is being agreed to. Both documents are still

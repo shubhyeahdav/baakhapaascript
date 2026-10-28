@@ -276,15 +276,15 @@ the thing `check_docs.py` exists to prevent.
 
 ### Day 20 · Close the month
 
-- [ ] Recapture the figures with `capture-screenshots.mjs`
-- [ ] Check each image shows what its caption claims — the m3 run captured the wrong panel once
-- [ ] Re-run the retrieval eval and record the closing number
-- [ ] Recount with `check_docs.py`
-- [ ] Update CLAUDE.md's Current State
-- [ ] Write the Month 4 report against `MONTH_4_PROPOSAL.md`
-- [ ] Render it to PDF and verify every figure embedded
-- [ ] State plainly what is still built-but-unproven
-- [ ] Merge everything to `codebase`
+- [x] Recapture the figures with `capture-screenshots.mjs` — *`--only m4`, six figures; the flag exists because a full run overwrote earlier months' figures*
+- [x] Check each image shows what its caption claims — the m3 run captured the wrong panel once — *all six do; checking them found two more defects (screenplay milestones and a margin claim on a video draft), fixed and recaptured*
+- [ ] Re-run the retrieval eval and record the closing number — *NOT RUN in the cloud session (model download denied); the PR's CI runs it*
+- [x] Recount with `check_docs.py`
+- [x] Update CLAUDE.md's Current State
+- [x] Write the Month 4 report against `MONTH_4_PROPOSAL.md` — *`MONTH_4_REPORT.md`: 1 of the proposal's 4 deliverables met; the other 3 need money and writers*
+- [x] Render it to PDF and verify every figure embedded — *6 of 6; the footer said "Month 3" on every page, fixed*
+- [x] State plainly what is still built-but-unproven — *report §6*
+- [ ] Merge everything to `codebase` — *PR opened; merging is the owner's call*
 - [ ] Confirm the deployed site matches
 
 ---
@@ -295,5 +295,7 @@ Purchases, merchant applications, the legal review and the five-writer pilot.
 They are in `MONTH_4_PROPOSAL.md`, and they are what decides whether the month
 *mattered* — this file only decides whether the building got done.
 
-**179 of these 200 are already complete** (counted, not typed). Days 2 to 5 finish a format that is
-two-thirds built; Week 14 is the only genuinely new product surface.
+**186 of these 200 are already complete** (counted, not typed). What stays open is what
+building cannot close: real drafts for the on-the-nose rule, the retrieval
+re-measure (CI), CI itself, the merge and the deployed-site check, and the
+SDD ledger that lives only on the original machine.

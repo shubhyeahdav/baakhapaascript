@@ -286,9 +286,19 @@ describe("asking in your own words", () => {
    writing a little more first" over a draft the linter had just flagged. */
 describe("when the library has nothing to add", () => {
   it("points at the linter's notes instead of telling the writer to write more", () => {
-    panel({ panelTab: "ai", aiMode: "patterns", patterns: [], diagnosed: [{ technique: "x", line: 3 }] });
+    panel({ panelTab: "ai", aiMode: "patterns", patterns: [], diagnosed: [{ technique: "x", line: 3 }],
+            marginNotesShown: true });
     expect(screen.getByTestId("patterns-empty-diagnosed")).toBeInTheDocument();
+    expect(screen.getByText(/marked in the page margin/)).toBeInTheDocument();
     expect(screen.queryByText(/try writing a little more/)).toBeNull();
+  });
+
+  it("does not point at a margin that has no notes in it", () => {
+    /* Video drafts, or a writer who switched the notes off. */
+    panel({ panelTab: "ai", aiMode: "patterns", patterns: [], diagnosed: [{ technique: "x", line: 3 }],
+            marginNotesShown: false });
+    expect(screen.queryByText(/marked in the page margin/)).toBeNull();
+    expect(screen.getByText("Read them in Craft")).toBeInTheDocument();
   });
 
   it("asks for the problem in the writer's words when nothing was flagged", () => {

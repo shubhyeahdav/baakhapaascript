@@ -196,6 +196,7 @@ export default function AssistPanel({
   sectionGuide,
   focus, setFocus, openPattern, setOpenPattern,
   showAllPatterns, setShowAllPatterns, seen,
+  marginNotesShown = false,
 }) {
   // `t` is taken below by the tab loop variable, so the translator is `tr`.
   const tr = useT();
@@ -517,7 +518,11 @@ export default function AssistPanel({
                 {tr("The linter found something on this page.")}
               </p>
               <p className="text-[12px] text-inkMuted leading-snug mt-1.5">
-                {tr("They are marked in the page margin. The craft library has no technique to add to them yet.")}
+                {/* Only claim the margin when the margin has them: video drafts
+                    and a writer who turned the notes off have none there. */}
+                {marginNotesShown
+                  ? tr("They are marked in the page margin. The craft library has no technique to add to them yet.")
+                  : tr("The craft library has no technique to add to them yet.")}
               </p>
               <button
                 type="button"

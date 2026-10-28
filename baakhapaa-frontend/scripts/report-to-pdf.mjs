@@ -28,6 +28,10 @@ if (!SRC || !OUT) {
 const srcPath = resolve(process.cwd(), SRC);
 const baseDir = dirname(srcPath);
 const md = readFileSync(srcPath, "utf8");
+// The footer names the report it is printed on. It was a literal "Month 3
+// progress report", so the Month 4 PDF said Month 3 on every page.
+const FOOTER_TITLE = ((md.match(/^#\s+(.+)$/m) || [])[1] || "progress report").trim()
+  .replace(/[<>&]/g, "");
 
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -157,7 +161,7 @@ await page.pdf({
   headerTemplate: "<div></div>",
   footerTemplate:
     '<div style="width:100%;font:7.5pt sans-serif;color:#8a8a8a;padding:0 16mm;">'
-    + '<span style="float:left">Baakhapaa — Month 3 progress report</span>'
+    + `<span style="float:left">Baakhapaa — ${FOOTER_TITLE}</span>`
     + '<span style="float:right">'
     + '<span class="pageNumber"></span> / <span class="totalPages"></span></span></div>',
   margin: { top: "18mm", bottom: "16mm", left: "16mm", right: "16mm" },

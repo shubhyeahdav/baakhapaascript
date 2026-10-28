@@ -180,6 +180,7 @@ export const STRINGS = {
     "They are marked in the page margin. The craft library has no technique to add to them yet.":
       "ती पानाको किनारामा चिनो लगाइएका छन्। शिल्प-संग्रहमा तिनमा थप्ने प्रविधि अहिले छैन।",
     "Read them in Craft": "शिल्पमा पढ्नुहोस्",
+    "The craft library has no technique to add to them yet.": "शिल्प-संग्रहमा तिनमा थप्ने प्रविधि अहिले छैन।",
     "Nothing on this page asks for a technique yet. Keep writing, or name the problem above in your own words — the library answers complaints best.":
       "यो पानाले अहिले कुनै प्रविधि माग्दैन। लेख्दै जानुहोस्, वा माथि आफ्नै शब्दमा समस्या लेख्नुहोस् — संग्रहले गुनासोको जवाफ राम्रो दिन्छ।",
 

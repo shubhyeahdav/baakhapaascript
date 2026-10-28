@@ -8,7 +8,7 @@ import TeamPanel from "../components/TeamPanel";
 import SceneRail from "../components/SceneRail";
 import EditorHeader from "../components/EditorHeader";
 import AssistPanel, { FOCUSES } from "../components/AssistPanel";
-import { readFacts, milestoneFor, dismissKey } from "../lib/milestones";
+import { readFacts, milestoneFor, milestonesApply, dismissKey } from "../lib/milestones";
 import ScriptPage from "../components/ScriptPage";
 import { createScreenplayKeyHandler } from "../editor/screenplayKeymap";
 import { createVideoKeyHandler } from "../editor/videoKeymap";
@@ -761,9 +761,10 @@ export default function ScriptEditor() {
     () => readFacts({ pageCount, scenes: script?.scenes || [], suggestions }),
     [pageCount, script?.scenes, suggestions],
   );
+  const milestoneFormat = script?.project?.format || script?.format;
   const milestone = React.useMemo(
-    () => milestoneFor(milestoneFacts, milestonesOff),
-    [milestoneFacts, milestonesOff],
+    () => (milestonesApply(milestoneFormat) ? milestoneFor(milestoneFacts, milestonesOff) : null),
+    [milestoneFacts, milestonesOff, milestoneFormat],
   );
 
   // What the note's one button does. `corkboard` is the only action that
@@ -1738,6 +1739,7 @@ export default function ScriptEditor() {
             leaves nothing to write on. */}
         {!zenMode && (
           <AssistPanel
+            marginNotesShown={marginNotes && lintFormat !== "long_form"}
             panelOpen={panelOpen}
             setPanelOpen={setPanelOpen}
             panelTab={panelTab}
