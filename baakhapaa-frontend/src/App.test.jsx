@@ -76,6 +76,11 @@ vi.mock("./components/ProtectedRoute", () => {
   C.__isProtectedRoute = true;
   return { default: C };
 });
+vi.mock("./pages/LandingPage", () => {
+  const C = () => null;
+  C.__pageName = "LandingPage";
+  return { default: C };
+});
 vi.mock("./pages/LoginPage", () => {
   const C = () => null;
   C.__pageName = "LoginPage";
@@ -204,8 +209,12 @@ describe("what is public", () => {
     expect(route(path).protected).toBe(false);
   });
 
-  it("sends the root at the dashboard", () => {
-    expect(route("/").redirectTo).toBe("/dashboard");
+  it("serves the landing page at the root, open to strangers", () => {
+    /* It redirected to /dashboard, which bounced a signed-out visitor to a
+       password field. The page itself sends a signed-in writer on. */
+    expect(route("/").page).toBe("LandingPage");
+    expect(route("/").protected).toBe(false);
+    expect(route("/").redirectTo).toBeNull();
   });
 });
 

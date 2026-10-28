@@ -19,11 +19,19 @@
  * filesystem before it applies the SPA rewrite, so those files are served
  * directly and the rewrite keeps handling everything else.
  *
+ * THE SPA FALLBACK IS `build/app.html`, NOT `index.html`
+ *
+ *   `/` is the landing page now, and Vercel serves `build/index.html` for `/`
+ *   before any rewrite runs — so the landing page's markup has to live there.
+ *   But that file was also the SPA fallback for every unmatched path, and
+ *   overwriting it would hand the 404 page the landing page's title. So the
+ *   untouched shell is copied to `app.html` FIRST, before any check that can
+ *   skip the rest, and `vercel.json` rewrites to it. On a host with no
+ *   Chromium nothing is prerendered, `index.html` stays the shell, and both
+ *   files are the same SPA — which still works.
+ *
  * WHAT IT DELIBERATELY DOES NOT DO
  *
- *   - It does not touch `build/index.html`. That file is the SPA fallback for
- *     every unmatched path; overwriting it with one route's markup would give
- *     the 404 page the login page's title.
  *   - It does not prerender anything behind ProtectedRoute. Those redirect to
  *     /login for a signed-out visitor, so the captured HTML would be the login
  *     page wearing the wrong URL — and they are `noindex` anyway.
@@ -55,7 +63,8 @@ const SITE_ORIGIN = process.env.PRERENDER_ORIGIN || "https://baakhapaascript.ver
 // Public routes only, and the two legal documents first because they are the
 // pages with real prose — the audit noted they are the only ones with
 // substantial text and the only ones whose text a crawler cannot see.
-const ROUTES = ["/terms", "/privacy", "/pricing", "/login", "/register"];
+const ROUTES = ["/", "/terms", "/privacy", "/pricing", "/login", "/register"];
+const SHELL = "app.html";
 
 const TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -76,7 +85,7 @@ function serve(port) {
     let file = path.join(BUILD, url);
     if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) {
       const indexed = path.join(file, "index.html");
-      file = fs.existsSync(indexed) ? indexed : path.join(BUILD, "index.html");
+      file = fs.existsSync(indexed) ? indexed : path.join(BUILD, SHELL);
     }
     res.writeHead(200, { "content-type": TYPES[path.extname(file)] || "application/octet-stream" });
     fs.createReadStream(file).pipe(res);
@@ -98,6 +107,14 @@ const strip = (html) =>
 if (!fs.existsSync(path.join(BUILD, "index.html"))) {
   console.error("No build/index.html. Run `vite build` first.");
   process.exit(1);
+}
+
+// Before anything that can exit early: `vercel.json` rewrites every unmatched
+// path to this file, so it must exist on every build, prerendered or not.
+// Only copied when absent — `vite build` empties the folder, so a second
+// prerender run must not copy the already-prerendered landing page over it.
+if (!fs.existsSync(path.join(BUILD, SHELL))) {
+  fs.copyFileSync(path.join(BUILD, "index.html"), path.join(BUILD, SHELL));
 }
 
 let chromium;
@@ -130,7 +147,7 @@ try {
 }
 const page = await browser.newPage({ javaScriptEnabled: true });
 
-const before = strip(fs.readFileSync(path.join(BUILD, "index.html"), "utf8")).length;
+const before = strip(fs.readFileSync(path.join(BUILD, SHELL), "utf8")).length;
 const rows = [];
 
 for (const route of ROUTES) {

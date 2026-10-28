@@ -636,3 +636,54 @@ input[type="range"].custom-slider::-moz-range-thumb:hover {
 .screenplay-page.cursor-resting {
   cursor: none;
 }
+
+
+/* ---------------------------------------------------------------------------
+   The landing page (/).
+
+   One motion, and it has a job: the linter's two flags arrive in reading
+   order and the lines they name are marked as they do. Everything lands
+   inside three seconds and then holds. Reduced motion shows the finished
+   state at once — the claim is the flags, not the arrival.
+   ------------------------------------------------------------------------ */
+.landing-page {
+  font-family: "Courier Prime", "Mukta", monospace;
+}
+.landing-flagged {
+  background-image: linear-gradient(rgba(212, 168, 67, 0.32), rgba(212, 168, 67, 0.32));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  animation: landing-mark 0.6s ease-out forwards;
+}
+.landing-flag {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: landing-in 0.5s ease-out forwards;
+}
+.landing-rise {
+  animation: landing-in 0.6s ease-out both;
+}
+/* Letter-spacing and capitals are a Latin device. Spaced Devanagari breaks
+   its conjuncts apart (प्रि - प्रो ड क्स न), so a Nepali interface drops both. */
+html[lang="ne"] .latin-caps {
+  letter-spacing: normal;
+  text-transform: none;
+}
+@keyframes landing-mark {
+  to { background-size: 100% 100%; }
+}
+@keyframes landing-in {
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-flag,
+  .landing-rise {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .landing-flagged {
+    animation: none;
+    background-size: 100% 100%;
+  }
+}

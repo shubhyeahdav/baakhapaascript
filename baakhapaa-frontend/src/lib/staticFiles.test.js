@@ -235,3 +235,26 @@ describe("headers", () => {
     }
   });
 });
+
+/**
+ * `/` is the landing page, and Vercel serves `build/index.html` for `/` before
+ * any rewrite runs — so the prerendered landing page lives there, and the SPA
+ * fallback had to move to a file nothing prerenders over.
+ */
+describe("the SPA fallback is app.html", () => {
+  it("rewrites unmatched paths to /app.html, not the landing page", () => {
+    expect(vercel().rewrites[0].destination).toBe("/app.html");
+  });
+
+  it("prerender writes app.html before anything that can skip the rest", () => {
+    // A host with no Chromium exits early; the rewrite target must exist anyway.
+    const src = read("scripts/prerender.mjs");
+    const copy = src.indexOf("fs.copyFileSync(path.join(BUILD, \"index.html\"), path.join(BUILD, SHELL))");
+    expect(copy).toBeGreaterThan(-1);
+    expect(copy).toBeLessThan(src.indexOf("await import(\"playwright\")"));
+  });
+
+  it("prerenders the landing page", () => {
+    expect(read("scripts/prerender.mjs")).toMatch(/const ROUTES = \["\/",/);
+  });
+});

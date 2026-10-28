@@ -242,6 +242,14 @@ jobs:
         working-directory: baakhapaa-frontend
         run: node scripts/page-layout-check.mjs
 
+      # The page a stranger sees, built and prerendered with the browser just
+      # installed, then measured: no sideways scroll at four widths, flags
+      # beside the page, reduced motion, the h1 a crawler reads, and first
+      # paint on Slow 4G. Needs no backend — `/` calls no API.
+      - name: Landing page
+        working-directory: baakhapaa-frontend
+        run: npm run build && node scripts/landing-check.mjs
+
       # Same reason, different sense: no test in this repo can see a COLOUR
       # either, so `.field-label` shipped at 2.60:1 against a 4.5:1 floor and
       # `inkMuted` passed on the background it was picked against while failing

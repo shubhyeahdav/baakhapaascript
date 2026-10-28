@@ -224,29 +224,29 @@ the thing `check_docs.py` exists to prevent.
 
 ### Day 16 · The landing page
 
-- [ ] `/` redirects to `/dashboard`, which bounces to `/login` — a stranger meets a password field
-- [ ] Build a real page at `/`
-- [ ] One claim above the fold, and the proof directly under it
-- [ ] Use a number you can defend — 91.3% retrieval, nineteen free lessons, a linter that reads Nepali
-- [ ] Nepali and English
-- [ ] Terms and Privacy reachable without opening a menu
-- [ ] One action, repeated — the existing sign-up
-- [ ] Test the route renders without authentication
-- [ ] Test a signed-in visitor still lands on the dashboard
-- [ ] Commit
+- [x] `/` redirects to `/dashboard`, which bounces to `/login` — a stranger meets a password field — *`/` is now `LandingPage`; `App.test.jsx` pins that it is public and no longer a redirect*
+- [x] Build a real page at `/` — *`src/pages/LandingPage.jsx`*
+- [x] One claim above the fold, and the proof directly under it — *the h1, and beside it the linter's real output on a Devanagari scene; `tests/test_landing_hero.py` lints the same scene and fails if the page and the linter disagree*
+- [x] Use a number you can defend — 91.3% retrieval, nineteen free lessons, a linter that reads Nepali — *91.3% / 19 / 0 AI calls, each sourced in a comment; no testimonials, which a test also pins*
+- [x] Nepali and English — *every string through `t()`; letter-spaced capitals switched off under `lang=ne` because spacing breaks Devanagari conjuncts*
+- [x] Terms and Privacy reachable without opening a menu — *footer*
+- [x] One action, repeated — the existing sign-up — *twice, both to `/register`*
+- [x] Test the route renders without authentication
+- [x] Test a signed-in visitor still lands on the dashboard — *and does not see the page flash past while a stored token is checked*
+- [x] Commit
 
 ### Day 17 · Make it fast and findable
 
-- [ ] Measure the page's first paint on a throttled connection
-- [ ] Check the static meta tags a non-rendering crawler sees
-- [ ] Confirm the structured data still validates
-- [ ] Add the landing page to `prerender.mjs`
-- [ ] Check it at 375px
-- [ ] Check it at 1440px
-- [ ] Run the contrast check over any new colour
+- [x] Measure the page's first paint on a throttled connection — *884 ms FCP on Slow 4G at 375px, `scripts/landing-check.mjs`, budget 3000 ms, now a CI step*
+- [x] Check the static meta tags a non-rendering crawler sees — *prerendered `/` carries its own description, canonical and og tags*
+- [x] Confirm the structured data still validates — *`staticFiles.test.js` parses the JSON-LD; unchanged*
+- [x] Add the landing page to `prerender.mjs` — *33 → 1,552 crawler-visible characters on `/`. The SPA fallback moved to `app.html`, because Vercel serves `index.html` for `/` before any rewrite*
+- [x] Check it at 375px — *and 320 and 768; no horizontal scroll*
+- [x] Check it at 1440px — *flags measured beside the page, not on it*
+- [x] Run the contrast check over any new colour — *no new palette colour; check passes*
 - [ ] Run the responsive audit
 - [ ] Re-run the layout check
-- [ ] Commit
+- [x] Commit
 
 ### Day 18 · Close the open defects
 

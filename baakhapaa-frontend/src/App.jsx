@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { LanguageProvider } from "./i18n";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -29,6 +29,7 @@ import RouteChrome from "./components/RouteChrome";
  *
  * Measured before and after in `docs/perf/`.
  */
+const LandingPage = lazy(() => import("./pages/LandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -90,7 +91,10 @@ export default function App() {
               thing fifteen times. */}
           <Suspense fallback={<RouteLoading />}>
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* The page a stranger sees. It used to redirect to /dashboard,
+                which bounced a signed-out visitor to a password field. A
+                signed-in writer is still sent straight to their projects. */}
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/pricing" element={<PricingPage />} />

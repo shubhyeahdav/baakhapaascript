@@ -93,6 +93,38 @@ export const STRINGS = {
     Save: "सुरक्षित गर्नुहोस्",
     Loading: "लोड हुँदै",
     "Keep writing": "लेख्न जारी राख्नुहोस्",
+
+    // --- the landing page (/) ----------------------------------------------
+    Pricing: "मूल्य",
+    Terms: "सर्तहरू",
+    Privacy: "गोपनीयता",
+    Main: "मुख्य",
+    Legal: "कानुनी",
+    Proof: "प्रमाण",
+    High: "उच्च",
+    Medium: "मध्यम",
+    "Pre-Production Studio": "प्रि-प्रोडक्सन स्टुडियो",
+    "Screenwriting software that reads Nepali.": "नेपाली पढ्ने पटकथा सफ्टवेयर।",
+    "Write in Devanagari or English. As you type, a craft linter marks the line that says a feeling out loud instead of playing it — with no AI call, on every plan.":
+      "देवनागरी वा अंग्रेजीमा लेख्नुहोस्। लेख्दै गर्दा, क्राफ्ट लिन्टरले भावनालाई अभिनयमा देखाउनुको सट्टा सिधै बोलिदिने लाइन चिनाउँछ — एआई प्रयोग नगरी, सबै योजनामा।",
+    "Start writing — free": "निःशुल्क लेख्न सुरु गर्नुहोस्",
+    "See pricing": "मूल्य हेर्नुहोस्",
+    "Real output from the linter on this scene.": "यो दृश्यमा लिन्टरले दिएको वास्तविक नतिजा।",
+    "of real writers' problems matched to the right craft technique, Nepali included":
+      "लेखकका वास्तविक समस्यामा सही शिल्प-प्रविधि मिल्यो, नेपालीसमेत",
+    "graded lessons, free on every plan": "जाँचिने पाठ, सबै योजनामा निःशुल्क",
+    "AI calls to check a draft": "ड्राफ्ट जाँच्न एआई कल",
+    Write: "लेख्नुहोस्",
+    Plan: "योजना",
+    "Format as you type. Pages are counted by the same rule the PDF uses, so page six means one thing everywhere.":
+      "टाइप गर्दै ढाँचा मिल्छ। पाना PDF कै नियमले गनिन्छ, त्यसैले पाना छ जहाँ पनि एउटै हो।",
+    "Nineteen lessons in two tracks — the page and the story — each graded by the linter, not by a Next button.":
+      "दुई भागमा उन्नाइस पाठ — पाना र कथा — हरेक पाठ लिन्टरले जाँच्छ, 'अर्को' बटनले होइन।",
+    "Corkboard, outline, storyboard frames and a production package, built from the scenes you wrote.":
+      "तपाईंले लेखेकै दृश्यबाट कर्कबोर्ड, रूपरेखा, स्टोरीबोर्ड फ्रेम र प्रोडक्सन प्याकेज।",
+    "Your next script starts on a blank page.": "तपाईंको अर्को पटकथा खाली पानाबाट सुरु हुन्छ।",
+    "Free for three projects. Pro is Rs 999 a month, paid with Khalti or eSewa.":
+      "तीन परियोजनासम्म निःशुल्क। प्रो महिनाको रु ९९९ — खल्ती वा इसेवाबाट तिर्न सकिन्छ।",
   },
 };
 
