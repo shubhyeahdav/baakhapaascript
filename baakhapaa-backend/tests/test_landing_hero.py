@@ -38,3 +38,15 @@ def test_each_flag_points_at_the_line_the_page_marks():
     marked = {line["flag"]: i + 1 for i, line in enumerate(hero["scene"]) if "flag" in line}
 
     assert [f["line"] for f in found] == [marked[i] for i in range(len(found))]
+
+
+REWRITE = os.path.join(os.path.dirname(__file__), "..", "..", "baakhapaa-frontend",
+                       "src", "lib", "tourRewrite.json")
+
+
+def test_the_tours_rewrite_really_clears_the_notes():
+    """The tour shows the same scene rewritten and says the notes are gone.
+    That is a claim about the linter, so the linter has to agree."""
+    with open(REWRITE, encoding="utf-8") as f:
+        scene = json.load(f)["scene"]
+    assert linter.lint(_scene_text(scene)) == []

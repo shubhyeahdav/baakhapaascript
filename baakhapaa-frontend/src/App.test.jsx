@@ -81,6 +81,11 @@ vi.mock("./pages/LandingPage", () => {
   C.__pageName = "LandingPage";
   return { default: C };
 });
+vi.mock("./pages/TourPage", () => {
+  const C = () => null;
+  C.__pageName = "TourPage";
+  return { default: C };
+});
 vi.mock("./pages/LoginPage", () => {
   const C = () => null;
   C.__pageName = "LoginPage";
@@ -204,7 +209,7 @@ async function resolveLazy(type) {
 const route = (path) => seen.routes.find((r) => r.path === path);
 
 describe("what is public", () => {
-  it.each(["/login", "/register", "/pricing"])("leaves %s open", (path) => {
+  it.each(["/login", "/register", "/pricing", "/tour"])("leaves %s open", (path) => {
     expect(route(path)).toBeDefined();
     expect(route(path).protected).toBe(false);
   });

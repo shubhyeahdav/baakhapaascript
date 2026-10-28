@@ -687,3 +687,41 @@ html[lang="ne"] .latin-caps {
     background-size: 100% 100%;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   The tour (/tour).
+
+   One motion with a job: switching drafts, the notes arrive or leave and the
+   changed lines are marked as they appear. Nothing loops. Reduced motion
+   shows each state as it is, at once.
+   ------------------------------------------------------------------------ */
+.tour-swap {
+  animation: landing-in 0.45s ease-out both;
+}
+.tour-dot {
+  animation: tour-dot-in 0.4s ease-out both;
+  animation-delay: 0.25s;
+}
+.tour-changed {
+  background-image: linear-gradient(rgba(212, 168, 67, 0.22), rgba(212, 168, 67, 0.22));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  animation: landing-mark 0.7s ease-out forwards;
+  animation-delay: 0.2s;
+}
+@keyframes tour-dot-in {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-swap,
+  .tour-dot {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .tour-changed {
+    animation: none;
+    background-size: 100% 100%;
+  }
+}

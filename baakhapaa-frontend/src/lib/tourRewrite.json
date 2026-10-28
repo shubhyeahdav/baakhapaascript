@@ -1,0 +1,45 @@
+{
+  "_note": "The tour's rewritten scene. backend tests/test_landing_hero.py lints it and requires ZERO flags: the page claims the rewrite clears the notes, so the linter must agree.",
+  "scene": [
+    {
+      "kind": "heading",
+      "text": "INT. CHIYA PASAL - DAY"
+    },
+    {
+      "kind": "blank"
+    },
+    {
+      "kind": "action",
+      "text": "Sita sets two glasses on the counter. One has no sugar."
+    },
+    {
+      "kind": "blank"
+    },
+    {
+      "kind": "character",
+      "text": "SITA"
+    },
+    {
+      "kind": "dialogue",
+      "text": "आज तिम्रो चियामा चिनी छैन।",
+      "changed": true
+    },
+    {
+      "kind": "blank"
+    },
+    {
+      "kind": "character",
+      "text": "RAM"
+    },
+    {
+      "kind": "paren",
+      "text": "(pushes the glass back across the counter)",
+      "changed": true
+    },
+    {
+      "kind": "dialogue",
+      "text": "चिया त चिसो भइसक्यो",
+      "changed": true
+    }
+  ]
+}

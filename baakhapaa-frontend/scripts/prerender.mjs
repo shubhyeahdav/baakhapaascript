@@ -63,7 +63,7 @@ const SITE_ORIGIN = process.env.PRERENDER_ORIGIN || "https://baakhapaascript.ver
 // Public routes only, and the two legal documents first because they are the
 // pages with real prose — the audit noted they are the only ones with
 // substantial text and the only ones whose text a crawler cannot see.
-const ROUTES = ["/", "/terms", "/privacy", "/pricing", "/login", "/register"];
+const ROUTES = ["/", "/tour", "/terms", "/privacy", "/pricing", "/login", "/register"];
 const SHELL = "app.html";
 
 const TYPES = {

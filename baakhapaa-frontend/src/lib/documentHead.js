@@ -111,6 +111,11 @@ export const ROUTE_META = {
     description:
       "Screenwriting software that reads Nepali. A craft linter that checks Devanagari dialogue with no AI call, nineteen graded lessons free, and storyboards and production exports on Pro.",
   },
+  "/tour": {
+    title: "The tour",
+    description:
+      "Watch a Nepali scene get better: the craft linter's notes on the page, the same scene rewritten with none, and the five rooms of Baakhapaa — page, margin, course, plan and video.",
+  },
   "/login": {
     title: "Sign in",
     description:

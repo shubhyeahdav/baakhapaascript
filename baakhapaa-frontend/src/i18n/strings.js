@@ -183,6 +183,46 @@ export const STRINGS = {
     "Nothing on this page asks for a technique yet. Keep writing, or name the problem above in your own words — the library answers complaints best.":
       "यो पानाले अहिले कुनै प्रविधि माग्दैन। लेख्दै जानुहोस्, वा माथि आफ्नै शब्दमा समस्या लेख्नुहोस् — संग्रहले गुनासोको जवाफ राम्रो दिन्छ।",
 
+    // --- the tour (/tour) -------------------------------------------------
+    Tour: "भ्रमण",
+    "Take the tour": "भ्रमण गर्नुहोस्",
+    "The tour": "भ्रमण",
+    "Watch a scene get better.": "एउटा दृश्य राम्रो हुँदै गरेको हेर्नुहोस्।",
+    "One scene, written the way first drafts are, and what Baakhapaa does about it — in Devanagari, on the free plan, with no AI call. Then the five rooms the rest of the work happens in.":
+      "पहिलो ड्राफ्टजस्तै लेखिएको एउटा दृश्य, र त्यसमा बाखापाले के गर्छ — देवनागरीमा, निःशुल्क योजनामा, एआई बिना। त्यसपछि बाँकी काम हुने पाँच कोठा।",
+    "One scene, two drafts": "एउटै दृश्य, दुई ड्राफ्ट",
+    "Which draft": "कुन ड्राफ्ट",
+    "As written": "लेखिएजस्तै",
+    Rewritten: "पुनर्लेखित",
+    "notes from the linter.": "लिन्टरका टिप्पणी।",
+    "Nobody says the grievance now. Sita leaves the sugar out; Ram pushes the glass back and lets his line trail off. The fight is about tea, which is what the craft asks: let them fight about the small wrong thing.":
+      "अब कसैले गुनासो सिधै भन्दैन। सीताले चिनी हाल्दिनन्; रामले गिलास फर्काउँछ र आफ्नो कुरा अधुरै छोड्छ। झगडा चियाको हो — शिल्प यही माग्छ: सानो, गलत कुरामा झगडा गराउनुहोस्।",
+    "Press “Rewritten” to see the same scene after taking the notes.": "टिप्पणी मानेपछिको उही दृश्य हेर्न “पुनर्लेखित” थिच्नुहोस्।",
+    "Both drafts are run through the real linter by the test suite. The page cannot claim a fix the linter disagrees with.":
+      "दुवै ड्राफ्ट परीक्षणमा वास्तविक लिन्टरबाट चलाइन्छन्। लिन्टर असहमत हुने सुधारको दाबी यो पानाले गर्न सक्दैन।",
+    "The five rooms": "पाँच कोठा",
+    "The margin": "किनारा",
+    "The course": "पाठ्यक्रम",
+    "The plan": "योजना",
+    "Short and long video": "छोटो र लामो भिडियो",
+    "Format as you type: a letter and Tab give you the slugline, the cue, the parenthetical. Pages are counted by the PDF's own rule, in English or Devanagari.":
+      "टाइप गर्दै ढाँचा: एउटा अक्षर र Tab ले slugline, cue र parenthetical दिन्छ। पाना PDF कै नियमले गनिन्छ, अंग्रेजी वा देवनागरीमा।",
+    "The linter reads every pause and leaves a quiet dot beside the line it is about. Open it for what it saw and the technique that answers it. No AI call, on every plan.":
+      "हरेक रोकाइमा लिन्टरले पढ्छ र सम्बन्धित लाइनको छेउमा एउटा सानो थोप्लो छोड्छ। त्यसले के देख्यो र कुन प्रविधिले जवाफ दिन्छ, खोलेर हेर्नुहोस्। एआई बिना, सबै योजनामा।",
+    "Nineteen lessons in two tracks. Each ends with you writing something, graded by the same checks — and answered in the language you are reading in.":
+      "दुई भागमा उन्नाइस पाठ। हरेकको अन्त्यमा तपाईं केही लेख्नुहुन्छ, उही जाँचले जाँचिन्छ — र जवाफ तपाईंले पढिरहेकै भाषामा आउँछ।",
+    "Corkboard, outline and cast are three readings of the same scenes. Move a card and the scene moves in the script. Storyboards and a production package come from the page.":
+      "कर्कबोर्ड, रूपरेखा र पात्र उही दृश्यका तीन पढाइ हुन्। कार्ड सार्नुहोस्, स्क्रिप्टमा दृश्य सर्छ। स्टोरीबोर्ड र प्रोडक्सन प्याकेज पानाबाटै बन्छन्।",
+    "A beat spine with a rehook due every five to eight seconds, a rhythm meter that reads the draft as you type, and sections for essays and courses instead of pretend pages.":
+      "हरेक पाँचदेखि आठ सेकेन्डमा rehook चाहिने beat spine, टाइप गर्दै ड्राफ्ट पढ्ने rhythm meter, र नक्कली पानाको सट्टा essay र course का लागि खण्डहरू।",
+    "Your pages travel.": "तपाईंका पाना जहाँ पनि जान्छन्।",
+    "Write here, and take the script to the software your producer already uses. Nothing is locked in.":
+      "यहाँ लेख्नुहोस्, र स्क्रिप्ट तपाईंका प्रोड्युसरले चलाइरहेको सफ्टवेयरमा लैजानुहोस्। केही पनि थुनिँदैन।",
+    "Any reader": "जुनसुकै पाठक",
+    "A production": "प्रोडक्सन",
+    "Product names belong to their owners. They are listed because the file Baakhapaa exports opens in them, not because of any partnership.":
+      "उत्पादनका नाम तिनका मालिकका हुन्। बाखापाले निर्यात गर्ने फाइल तिनमा खुल्ने भएकाले मात्र यहाँ राखिएका हुन्, कुनै साझेदारीले होइन।",
+
     // --- the landing page (/) ----------------------------------------------
     Pricing: "मूल्य",
     Terms: "सर्तहरू",
