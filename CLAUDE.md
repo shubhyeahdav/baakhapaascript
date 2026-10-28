@@ -102,13 +102,13 @@ and `HANDOVER.md` the narrative. The numbers in it are counted by
 > disconnected` on the first request after an idle gap — a pooled connection
 > Supabase has already closed. See `HANDOVER.md`.
 >
-> Backend tests: **1223 across 82 files, none skipped, all passing**
+> Backend tests: **1226 across 83 files, none skipped, all passing**
 > (2026-09-17), `./venv/Scripts/python -m pytest`. It read "2 skipped" until
 > then, which had been wrong since the Devanagari font gate stopped skipping
 > — the asset is bundled and `tests/test_font_asset.py` now fails rather than
 > skips if anyone removes it. `check_docs.py` counts the tests but not the
 > skips, so that number was typed and drifted the way typed numbers do.
-> Frontend tests: **1514 across 74 files**, `npm run test:ci`.
+> Frontend tests: **1530 across 75 files**, `npm run test:ci`.
 >
 > **The backend suite takes about TWENTY minutes on this machine, not the 3.5
 > this file claimed until 2026-09-16.** That is not the old hang and nothing is

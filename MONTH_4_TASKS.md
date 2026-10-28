@@ -31,53 +31,53 @@ the thing `check_docs.py` exists to prevent.
 ### Day 2 · The video grammar
 
 - [x] `videoFormat.js` — element detection, Enter, Tab cycle, `sectionAt`
-- [ ] Review Task 6 — it is committed and unreviewed, and came back at 249 lines against ~110 planned
-- [ ] Cross-check the JS parser against `videoscript.py` on the same input
-- [ ] `videoKeymap.js` — the second factory the keymap header asks for
-- [ ] Choose the handler by format at the single call site
-- [ ] Confirm no column arithmetic survives in the video path
-- [ ] Tab cycles narration → `[B-ROLL: ]` → `[ON SCREEN: ]`, caret inside the bracket
-- [ ] Enter after a heading leaves a blank line; inside a cue, closes it
-- [ ] Run the screenplay keymap tests as the regression gate
-- [ ] Commit
+- [x] Review Task 6 — it is committed and unreviewed, and came back at 249 lines against ~110 planned — *reviewed 2026-10-28 (now 106 lines). One defect: Enter with the caret INSIDE a cue — where Tab leaves it — split `[B-ROLL: city|]` into two narration lines. Fixed in `videoKeymap.js`; the two new tests fail without the fix*
+- [x] Cross-check the JS parser against `videoscript.py` on the same input — *`1f2b345`: `export_parser_contract.py` + `videoFormat.contract.test.js`*
+- [x] `videoKeymap.js` — the second factory the keymap header asks for — *`cea8cdb`*
+- [x] Choose the handler by format at the single call site — *`cea8cdb`, with three tests on the switch itself*
+- [x] Confirm no column arithmetic survives in the video path — *a test asserts no inserted text ever begins with a space, across every key and line type*
+- [x] Tab cycles narration → `[B-ROLL: ]` → `[ON SCREEN: ]`, caret inside the bracket
+- [x] Enter after a heading leaves a blank line; inside a cue, closes it — *the "inside a cue" half only became true with the fix above*
+- [x] Run the screenplay keymap tests as the regression gate — *whole frontend suite, 1530 passing*
+- [x] Commit
 
 ### Day 3 · Completions and the scaffold
 
-- [ ] Video completions in `FormatShortcuts` — `## HOOK` … `## CTA`
-- [ ] Course completions — `## OBJECTIVE` … `## CHECK`
-- [ ] Keep the two vocabularies from leaking into each other
-- [ ] `[B-ROLL: ` and `[ON SCREEN: ` complete in both modes
-- [ ] `videoScaffold.js` — essay spine expanded from the project's runtime
-- [ ] Course scaffold — five sections, no durations, ever
-- [ ] Hang the scaffold off `PenPrompt`, which already shows only on an empty draft
-- [ ] Thread `duration` and `videoCategory` to the prompt
-- [ ] Test the essay targets sum to the runtime chosen
-- [ ] Commit
+- [x] Video completions in `FormatShortcuts` — `## HOOK` … `## CTA` — *`4824b78`*
+- [x] Course completions — `## OBJECTIVE` … `## CHECK`
+- [x] Keep the two vocabularies from leaking into each other — *`## H` in course mode offers nothing; tested*
+- [x] `[B-ROLL: ` and `[ON SCREEN: ` complete in both modes
+- [x] `videoScaffold.js` — essay spine expanded from the project's runtime
+- [x] Course scaffold — five sections, no durations, ever
+- [x] Hang the scaffold off `PenPrompt`, which already shows only on an empty draft
+- [x] Thread `duration` and `videoCategory` to the prompt
+- [x] Test the essay targets sum to the runtime chosen — *twelve runtimes*
+- [x] Commit
 
 ### Day 4 · The in-section layer
 
-- [ ] `sectionAt` wired to the caret
-- [ ] Pacing readout in the status line — section name, written, target
-- [ ] No target shown in course mode, because there is none to drift from
-- [ ] Nothing warns, badges or blocks when a section runs long
-- [ ] `section_kind` on the recommendations request
-- [ ] Seed retrieval from the caret's section rather than a typed complaint
-- [ ] Guide copy per section kind
-- [ ] `## PROOF` states the rule — a measurement, never a quotation
-- [ ] Run the retrieval eval; confirm both floors still clear
-- [ ] Commit
+- [x] `sectionAt` wired to the caret — *`9fa043d`; `caretLine` had been frozen at 0*
+- [x] Pacing readout in the status line — section name, written, target — *`SectionPacing`*
+- [x] No target shown in course mode, because there is none to drift from
+- [x] Nothing warns, badges or blocks when a section runs long — *a test renders triple the target and asserts identical markup*
+- [x] `section_kind` on the recommendations request
+- [x] Seed retrieval from the caret's section rather than a typed complaint
+- [x] Guide copy per section kind — *`sectionGuide.js`*
+- [x] `## PROOF` states the rule — a measurement, never a quotation
+- [x] Run the retrieval eval; confirm both floors still clear — *91.3% combined / 90.0% screenplay, recorded in `9fa043d`. Not re-run on 2026-10-28: the cloud box cannot download the embedding model*
+- [x] Commit
 
 ### Day 5 · The page
 
-- [ ] `.video-page` — proportional type, prose measure, same paper
-- [ ] Apply it only when the format is `long_form`
-- [ ] Verify the typewriter band against wrapped proportional text, in a browser
-- [ ] Suppress the retention overlay in course mode
-- [ ] Keep the section list visible without it
-- [ ] Add a video-page case to `page-layout-check.mjs`
-- [ ] Run the contrast check
-- [ ] Run both suites and the production build
-- [ ] Recount the documentation numbers with `check_docs.py`
+- [x] `.video-page` — proportional type, prose measure, same paper — *`1dee6c9`*
+- [x] Apply it only when the format is `long_form`
+- [x] Verify the typewriter band against wrapped proportional text, in a browser — *`typewriter-band-check.mjs`, re-run 2026-10-28: 0.0 lines out on the video page, where counting newlines would be 6.1*
+- [x] Suppress the retention overlay in course mode
+- [x] Keep the section list visible without it — *`OutlineView.test.jsx`*
+- [x] Add a video-page case to `page-layout-check.mjs` — *it measured the letter "x" in the system fallback and read 52 characters, failing on Linux. Now measured in Mukta on a sentence of narration: 71 characters, inside 66-75*
+- [x] Run the contrast check
+- [x] Run both suites and the production build
+- [x] Recount the documentation numbers with `check_docs.py`
 - [ ] Merge the branch
 
 ---
@@ -245,7 +245,7 @@ the thing `check_docs.py` exists to prevent.
 - [x] Check it at 1440px — *flags measured beside the page, not on it*
 - [x] Run the contrast check over any new colour — *no new palette colour; check passes*
 - [ ] Run the responsive audit
-- [ ] Re-run the layout check
+- [x] Re-run the layout check — *passes after the Mukta measurement fix (Day 5)*
 - [x] Commit
 
 ### Day 18 · Close the open defects
@@ -295,5 +295,5 @@ Purchases, merchant applications, the legal review and the five-writer pilot.
 They are in `MONTH_4_PROPOSAL.md`, and they are what decides whether the month
 *mattered* — this file only decides whether the building got done.
 
-**19 of these 200 are already complete** (counted, not typed). Days 2 to 5 finish a format that is
+**76 of these 200 are already complete** (counted, not typed). Days 2 to 5 finish a format that is
 two-thirds built; Week 14 is the only genuinely new product surface.

@@ -55,6 +55,30 @@ describe("Enter", () => {
     expect(replaceRange).toHaveBeenCalledWith(draft.length, draft.length, "\n\n");
   });
 
+  it("closes a cue from INSIDE the bracket, where Tab leaves the caret", () => {
+    /* The test above presses Enter after the `]`. Tab lands the caret before
+       it, so this is the common case — and it used to split the cue in two. */
+    const draft = "[B-ROLL: empty hall]";
+    const caret = draft.indexOf("]");
+    const { handler, replaceRange, el } = harness(draft, caret);
+    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => cb());
+
+    handler(key("Enter", el));
+
+    expect(replaceRange).toHaveBeenCalledWith(draft.length, draft.length, "\n\n");
+    expect(el.setSelectionRange).toHaveBeenCalledWith(draft.length + 2, draft.length + 2);
+    raf.mockRestore();
+  });
+
+  it("closes an on-screen cue the same way", () => {
+    const draft = "[ON SCREEN: 91%]";
+    const { handler, replaceRange, el } = harness(draft, 12);
+
+    handler(key("Enter", el));
+
+    expect(replaceRange).toHaveBeenCalledWith(draft.length, draft.length, "\n\n");
+  });
+
   it("is a plain newline inside narration", () => {
     const draft = "Nobody finishes it.";
     const { handler, replaceRange, el } = harness(draft, draft.length);

@@ -18,7 +18,7 @@
  * one person, and inheriting that geometry would indent narration into a
  * dialogue block the parser then reads as narration anyway.
  */
-import { enterText, tabCycle } from "../utils/videoFormat";
+import { ELEMENTS, elementOf, enterText, tabCycle } from "../utils/videoFormat";
 import { DANDA } from "../utils/nepaliTransliterate";
 
 // Shared with the screenplay factory on purpose: a writer switching formats
@@ -71,7 +71,19 @@ export function createVideoKeyHandler({
 
     if (e.key === "Enter") {
       e.preventDefault();
-      replaceRange(caret, caret, enterText(line));
+      // Inside a cue, Enter CLOSES it: the newline goes after the `]`, not at
+      // the caret. Tab lands the caret inside the bracket, so "type the cue,
+      // press Enter" is the normal path — and inserting at the caret split
+      // `[B-ROLL: city|]` into `[B-ROLL: city` and a stray `]`, both of which
+      // then parse as narration and count toward the runtime.
+      const el = elementOf(line);
+      const inCue = el === ELEMENTS.BROLL || el === ELEMENTS.ON_SCREEN;
+      const at = inCue ? end : caret;
+      replaceRange(at, at, enterText(line));
+      if (inCue && at !== caret) {
+        const landing = at + enterText(line).length;
+        requestAnimationFrame(() => ta.setSelectionRange(landing, landing));
+      }
       scrollCaretIntoView(typewriter || zenMode);
       return;
     }
