@@ -194,16 +194,16 @@ the thing `check_docs.py` exists to prevent.
 
 ### Day 14 · The structure rail
 
-- [ ] `SceneRail.scenePage()` computes a page number for a video section, which `videoscript` deliberately returns as null
-- [ ] Stop fabricating it
-- [ ] Draw section kind where a scene shows its page
-- [ ] Show target against written per section
-- [ ] Keep the rail silent in course mode about durations
-- [ ] Test a section card carries no page number
-- [ ] Test a scene card still does
-- [ ] Check the rail at 375px in all four views
-- [ ] Re-run the responsive audit
-- [ ] Commit
+- [x] `SceneRail.scenePage()` computes a page number for a video section, which `videoscript` deliberately returns as null — *and used `line / 45` for screenplays too, not the PDF's own page*
+- [x] Stop fabricating it — *the server's `draft_json.page` wins; a section returns null. The same fabrication was in two more places — the header's `p. 1 / 1` and the strip's "ACT I" over video sections — both gone*
+- [x] Draw section kind where a scene shows its page
+- [x] Show target against written per section — *"0:07 / 0:15"*
+- [x] Keep the rail silent in course mode about durations — *cards and totals*
+- [x] Test a section card carries no page number
+- [x] Test a scene card still does — *the server's p.6, where line/45 would have said p.7*
+- [x] Check the rail at 375px in all four views — *screenplay, essay and course, 375 and 1280, all four views: no overflow, no fabricated act or page on video*
+- [x] Re-run the responsive audit — *it caught my own regression: the icon-only Back button was 15px wide. Fixed; every route clean*
+- [x] Commit
 
 ### Day 15 · Craft and corpus
 

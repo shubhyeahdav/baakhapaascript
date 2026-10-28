@@ -333,3 +333,15 @@ describe("when there are too many scenes to label", () => {
     expect(block).toBeTruthy();
   });
 });
+
+it("labels no acts on a video draft — its sections are not acts", () => {
+  /* Sections are stored as scene rows with act 1, and the strip printed
+     "ACT I" over them: an act structure the format does not have. */
+  const section = (id, kind) => ({
+    id, title: `${kind.toUpperCase()}`, act_number: 1, scene_type: null,
+    draft_json: JSON.stringify({ section_kind: kind, minutes: 0.25, page: null }),
+  });
+  show({ scenes: [section("a", "hook"), section("b", "promise")] });
+  expect(screen.queryByText(/^ACT /)).toBeNull();
+  expect(screen.getByText(/written of/)).toBeInTheDocument();
+});

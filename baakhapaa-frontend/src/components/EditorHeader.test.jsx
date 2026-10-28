@@ -52,3 +52,21 @@ it("keeps the interface switch apart from the typing switch", () => {
   expect(screen.getAllByText("Typing: English").length).toBeGreaterThan(0);
   expect(screen.getAllByText("Interface: English").length).toBeGreaterThan(0);
 });
+
+it("shows no page counter on a video script, which has no pages", () => {
+  const t = (k) => k;
+  const noop = () => {};
+  const props = {
+    id: "s1", title: "Why", navigate: noop, t, saving: false, view: "script", setView: noop,
+    caretPage: 1, pageCount: 1, nepaliMode: false, setNepaliMode: noop, textareaRef: { current: null },
+    showShortcuts: false, setShowShortcuts: noop, suggestions: null, showStructure: false,
+    setShowStructure: noop, zenMode: false, setZenMode: noop, isFullPage: false, toggleFullPage: noop,
+    cursor: "pen", setCursor: noop, typewriter: false, setTypewriter: noop, pageTheme: "light",
+    setPageTheme: noop, handleExport: noop, handleFinalize: noop, reviewing: false,
+    setShowShare: noop, setPanelOpen: noop, importRef: { current: null }, onImported: noop,
+  };
+  const { rerender } = render(<LanguageProvider><EditorHeader {...props} /></LanguageProvider>);
+  expect(screen.getByText("p. 1 / 1")).toBeInTheDocument();
+  rerender(<LanguageProvider><EditorHeader {...props} showPages={false} /></LanguageProvider>);
+  expect(screen.queryByText("p. 1 / 1")).toBeNull();
+});

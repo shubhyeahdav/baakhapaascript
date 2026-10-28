@@ -1,5 +1,6 @@
 import React from "react";
 import { useT } from "../i18n";
+import { modeOf } from "../utils/videoSections";
 
 /**
  * The scene index down the left of the writing page.
@@ -46,10 +47,42 @@ function sceneAction(scene) {
   return (draftOf(scene).summary || "").trim();
 }
 
-/** Which page it starts on. Derived, so it needs no round trip. */
-function scenePage(scene) {
-  const line = Number(draftOf(scene).line_number);
-  return Number.isFinite(line) ? Math.floor(line / 45) + 1 : 1;
+/** A long-form video section rather than a screenplay scene. `scene_sync`
+ * writes `section_kind` only for video, so its presence is the test. */
+export function isSection(scene) {
+  return "section_kind" in draftOf(scene);
+}
+
+/** Which page it starts on, or null when there is no page to name.
+ *
+ * It computed `line / 45` for every card, which fabricated a page for a
+ * video section — the one thing `videoscript` deliberately returns as null,
+ * because a video script has no pages — and, for a screenplay, used a page
+ * rule of its own rather than the PDF's. The server's `page` is the PDF's
+ * page; it wins. The line count survives only for a row synced before `page`
+ * was stored. */
+export function scenePage(scene) {
+  if (isSection(scene)) return null;
+  const draft = draftOf(scene);
+  if (draft.page === null) return null;
+  const page = Number(draft.page);
+  if (Number.isFinite(page) && page > 0) return page;
+  const line = Number(draft.line_number);
+  return Number.isFinite(line) ? Math.floor(line / 45) + 1 : null;
+}
+
+const clock = (seconds) =>
+  `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, "0")}`;
+
+/** Written against target for a section — "0:07 / 0:15", or the written
+ * time alone when the heading carried no target. */
+function sectionTiming(scene) {
+  const draft = draftOf(scene);
+  const written = Math.round((Number(draft.minutes) || 0) * 60);
+  const target = Number(draft.target_seconds);
+  return Number.isFinite(target) && target > 0
+    ? `${clock(written)} / ${clock(target)}`
+    : clock(written);
 }
 
 function sceneRuntime(scene) {
@@ -83,7 +116,9 @@ export const VIEWS = [
  * the state every draft starts in — the moment a writer most needs the column
  * to look like it is doing something.
  */
-function Totals({ scenes }) {
+function Totals({ scenes, isCourse }) {
+  const t = useT();
+  const video = (scenes || []).length > 0 && (scenes || []).every(isSection);
   const written = scenes?.length || 0;
   const minutes = (scenes || []).reduce((sum, sc) => {
     let d = {};
@@ -98,12 +133,21 @@ function Totals({ scenes }) {
 
   return (
     <dl className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[11px] mt-4 pt-3 border-t border-borderSoft">
-      <dt className="text-inkMuted">Scenes</dt>
+      <dt className="text-inkMuted">{video ? t("Sections") : t("Scenes")}</dt>
       <dd className="text-ink text-right tabular-nums">{written}</dd>
-      <dt className="text-inkMuted">Major beats</dt>
-      <dd className="text-ink text-right tabular-nums">{major}</dd>
-      <dt className="text-inkMuted">Written runtime</dt>
-      <dd className="text-ink text-right tabular-nums font-mono">{runtime}</dd>
+      {/* A section has no scene type, so "major beats" would always read 0. */}
+      {!video && (
+        <>
+          <dt className="text-inkMuted">{t("Major beats")}</dt>
+          <dd className="text-ink text-right tabular-nums">{major}</dd>
+        </>
+      )}
+      {!(video && isCourse) && (
+        <>
+          <dt className="text-inkMuted">{t("Written runtime")}</dt>
+          <dd className="text-ink text-right tabular-nums font-mono">{runtime}</dd>
+        </>
+      )}
     </dl>
   );
 }
@@ -114,8 +158,12 @@ function Totals({ scenes }) {
  */
 export default function SceneRail({
   scenes, activeScene, onSceneClick, view = "script", onViewChange, children,
+  videoCategory,
 }) {
   const t = useT();
+  // A course lesson has no runtime to drift from — `videoscript` leaves its
+  // targets null for that reason — so the rail says nothing about durations.
+  const isCourse = modeOf(videoCategory) === "course";
   // Hidden on a phone. 256px of index cards beside a 375px screen leaves no
   // page left to write on, and the Corkboard is this same list in a form that
   // suits a small screen far better.
@@ -204,7 +252,9 @@ export default function SceneRail({
           <div className="flex-1 min-h-0 flex flex-col -mx-4">{children}</div>
         ) : (
         <>
-        <div className="text-[10px] font-bold text-inkMuted uppercase tracking-wider mb-4">Scene Index Cards</div>
+        <div className="latin-caps text-[10px] font-bold text-inkMuted uppercase tracking-wider mb-4">
+          {scenes?.length && scenes.every(isSection) ? t("Sections") : t("Scene Index Cards")}
+        </div>
         {scenes?.map((scene, i) => (
           <button
             key={scene.id}
@@ -218,11 +268,19 @@ export default function SceneRail({
           >
             <div className="flex items-baseline justify-between gap-2 mb-1">
               <span className="text-[10px] font-mono text-gold uppercase tracking-wider">
-                Scene {i + 1}
+                {isSection(scene) ? t("Section") : t("Scene")} {i + 1}
               </span>
               {/* Where it is, which the page cannot tell you without scrolling
-                  to it and counting. */}
-              <span className="text-[9.5px] font-mono text-inkMuted">p.{scenePage(scene)}</span>
+                  to it and counting. A section has no page, so it says what
+                  KIND of section it is instead — the fact a video writer
+                  flips through the index looking for. */}
+              {isSection(scene) ? (
+                <span className="text-[9.5px] font-mono text-inkMuted" data-testid="section-kind">
+                  {draftOf(scene).section_kind || ""}
+                </span>
+              ) : scenePage(scene) != null && (
+                <span className="text-[9.5px] font-mono text-inkMuted">p.{scenePage(scene)}</span>
+              )}
             </div>
             {/* The heading, smaller and quieter than it was. It IS on the page
                 three inches to the right — the card's job is to add what the
@@ -248,6 +306,15 @@ export default function SceneRail({
               </p>
             )}
             <div className="h-2" />
+            {isSection(scene) ? (
+              // Written against target, where a screenplay card shows its
+              // scene type and runtime. Nothing at all in course mode.
+              !isCourse && (
+                <div className="flex justify-end text-[10px] text-inkMuted font-mono" data-testid="section-timing">
+                  {sectionTiming(scene)}
+                </div>
+              )
+            ) : (
             <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider">
               <span className={scene.scene_type === "major" ? "text-skyAccent bg-skyDim px-2 py-0.5 rounded" : "text-inkMuted bg-borderSoft px-2 py-0.5 rounded"}>
                 {scene.scene_type}
@@ -258,6 +325,7 @@ export default function SceneRail({
                   because nothing had ever allocated those scenes anything. */}
               <span className="text-inkMuted font-mono normal-case">{sceneRuntime(scene)}</span>
             </div>
+            )}
           </button>
         ))}
         {!scenes?.length && (
@@ -267,7 +335,7 @@ export default function SceneRail({
             Scenes appear here as you write them.
           </p>
         )}
-        <Totals scenes={scenes} />
+        <Totals scenes={scenes} isCourse={isCourse} />
         </>
         )}
       </aside>

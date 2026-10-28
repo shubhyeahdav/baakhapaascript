@@ -44,7 +44,7 @@ function EditorHeader({
   // identity and navigation
   id, title, navigate, t,
   // save state and position
-  saving, view, setView, caretPage, pageCount,
+  saving, view, setView, caretPage, pageCount, showPages = true,
   // typing
   nepaliMode, setNepaliMode, textareaRef,
   showShortcuts, setShowShortcuts,
@@ -78,7 +78,7 @@ function EditorHeader({
           and at 375px those pixels pushed Finalize 8px off the screen; the
           arrow alone still reads as back, and the label stays for a reader. */}
       <button onClick={() => navigate("/dashboard")} aria-label={t("Back")}
-        className="flex items-center gap-1.5 shrink-0 text-inkMuted hover:text-ink transition duration-200 text-sm">
+        className="flex items-center justify-center gap-1.5 shrink-0 min-w-[32px] min-h-[32px] text-inkMuted hover:text-ink transition duration-200 text-sm">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         <span className="hidden sm:inline">{t("Back")}</span>
       </button>
@@ -134,7 +134,9 @@ function EditorHeader({
             screenplay note is "cut ten pages", never "cut some words" — and
             until now the editor could not answer "what page am I on" at all.
             Same page numbering as the exported PDF. */}
-        {view === "script" && (
+        {/* Not for a video script: it has no pages, and `p. 1 / 1` there
+            was a number computed from a page length that does not apply. */}
+        {view === "script" && showPages && (
           <span
             className="text-[11px] font-mono text-inkMuted tabular-nums whitespace-nowrap"
             title="Page under the caret / pages in the draft — matches the PDF export"

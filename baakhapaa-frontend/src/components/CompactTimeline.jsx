@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { isSection } from "./SceneRail";
 
 // Compact act/scene timeline — the "instrument, not diagram" strip from design
 // 2b. This is what the structure panel collapses into: the writer keeps a
@@ -54,6 +55,8 @@ export default function CompactTimeline({
 }) {
   // Which scene block is being renamed, by scene index.
   const [editing, setEditing] = useState(null);
+  // A long-form video draft: every row is a section. See the act labels below.
+  const videoDraft = scenes.length > 0 && scenes.every(isSection);
   // Which act's planned minutes are being edited, by act number.
   const [editingAct, setEditingAct] = useState(null);
   // Short-form has beats, not acts. Rather than returning null — which left
@@ -284,9 +287,14 @@ export default function CompactTimeline({
 
       {/* Act labels, each sitting over its own act rather than spread evenly.
           `justify-between` put ACT II above whatever happened to be in the
-          middle of the strip, which is only ever right by accident. */}
+          middle of the strip, which is only ever right by accident.
+
+          Not for a video script. Its sections are stored as scene rows with
+          act 1, and labelling them "ACT I" invented an act structure the
+          format does not have — `videoscript` leaves acts null on purpose. */}
       <div className="flex gap-[2px] text-[10px] text-inkMuted/60 mt-1.5">
-        {acts.map((a) => {
+        {videoDraft && <span className="flex-1" />}
+        {!videoDraft && acts.map((a) => {
           const style = { flex: `${a.blocks.reduce((m, b) => m + weight(b), 0) || MIN_WEIGHT} 1 0%` };
           const label = `ACT ${ROMAN[a.num] || a.num}${a.name ? ` — ${a.name.toUpperCase()}` : ""}`;
           if (editingAct === a.num) {

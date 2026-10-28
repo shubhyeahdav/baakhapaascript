@@ -1449,6 +1449,7 @@ export default function ScriptEditor() {
         saving={saving}
         view={view}
         setView={setView}
+        showPages={(script?.project?.format || script?.format) !== "long_form"}
         caretPage={caretPage}
         pageCount={pageCount}
         nepaliMode={nepaliMode}
@@ -1590,6 +1591,7 @@ export default function ScriptEditor() {
             onSceneClick={goToScene}
             view={view}
             onViewChange={setView}
+            videoCategory={script?.project?.video_category || script?.video_category}
           >
             {/* Corkboard and Outline live in the rail now, not over the page.
                 Restructuring happens BESIDE the writing rather than instead of
@@ -1671,7 +1673,7 @@ export default function ScriptEditor() {
           applySuggestion={applySuggestion}
           view={view}
           saving={saving}
-          caretPage={caretPage}
+        caretPage={caretPage}
           caretLine={caretLine}
           pageCount={pageCount}
           milestone={milestone}

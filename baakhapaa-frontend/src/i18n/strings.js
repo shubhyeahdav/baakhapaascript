@@ -163,6 +163,15 @@ export const STRINGS = {
     "Short-form": "छोटो भिडियो",
     Finishing: "टुंग्याउने",
 
+    Section: "खण्ड",
+    Scene: "दृश्य",
+
+    Sections: "खण्डहरू",
+    "Scene Index Cards": "दृश्य कार्डहरू",
+    Scenes: "दृश्यहरू",
+    "Major beats": "मुख्य बिट",
+    "Written runtime": "लेखिएको अवधि",
+
     // --- the landing page (/) ----------------------------------------------
     Pricing: "मूल्य",
     Terms: "सर्तहरू",
