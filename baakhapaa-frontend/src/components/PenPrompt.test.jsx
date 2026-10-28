@@ -15,6 +15,7 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import PenPrompt, { FIRST_LINE } from "./PenPrompt";
+import { scaffoldFor } from "../lib/videoScaffold";
 
 describe("on a screenplay's blank page", () => {
   it("offers a slugline", () => {
@@ -161,5 +162,54 @@ describe("it never stands between the writer and the page", () => {
     container.querySelectorAll("div, p").forEach((el) => {
       expect(String(el.className)).not.toContain("pointer-events-auto");
     });
+  });
+});
+
+/* The section scaffold, offered on an empty long-form draft.
+ *
+ * A screenplay gets no equivalent: its first scene is a human's invention and
+ * the wizard was deliberately stopped from guessing one. A video's sections
+ * are not invented per project — the writer's real question is how long each
+ * should be for the runtime they already chose. */
+describe("the scaffold offer", () => {
+  const essay = scaffoldFor({ format: "long_form", videoCategory: "essay", durationMinutes: 12 });
+  const course = scaffoldFor({ format: "long_form", videoCategory: "course", durationMinutes: 12 });
+
+  it("is absent when there is no scaffold", () => {
+    render(<PenPrompt onInsert={() => {}} onOpenGuide={() => {}} format="short" />);
+    expect(screen.queryByRole("button", { name: /lay out/i })).toBeNull();
+  });
+
+  it("names the runtime it is laying out", () => {
+    render(<PenPrompt onInsert={() => {}} onOpenGuide={() => {}} format="long_form" scaffold={essay} />);
+    expect(screen.getByRole("button", { name: /lay out .* 12 minutes/i })).toBeInTheDocument();
+  });
+
+  it("does not mention a runtime in course mode", () => {
+    // A lesson has no runtime to drift from, so the offer must not imply one.
+    render(<PenPrompt onInsert={() => {}} onOpenGuide={() => {}} format="long_form" scaffold={course} />);
+    const btn = screen.getByRole("button", { name: /lay out/i });
+    expect(btn.textContent).not.toMatch(/minute/i);
+  });
+
+  it("inserts the whole spine, not just a heading", () => {
+    const onInsert = vi.fn();
+    render(<PenPrompt onInsert={onInsert} onOpenGuide={() => {}} format="long_form" scaffold={essay} />);
+    fireEvent.click(screen.getByRole("button", { name: /lay out/i }));
+    expect(onInsert).toHaveBeenCalledWith(essay.text);
+    expect(onInsert.mock.calls[0][0]).toContain("## HOOK");
+    expect(onInsert.mock.calls[0][0]).toContain("## CTA");
+  });
+
+  it("leaves the single-line offer in place beside it", () => {
+    // The scaffold is an alternative, not a replacement: a writer who wants to
+    // start with one line should still be able to.
+    render(<PenPrompt onInsert={() => {}} onOpenGuide={() => {}} format="long_form" scaffold={essay} />);
+    expect(screen.getByRole("button", { name: FIRST_LINE.long_form })).toBeInTheDocument();
+  });
+
+  it("still offers the walkthrough", () => {
+    render(<PenPrompt onInsert={() => {}} onOpenGuide={() => {}} format="long_form" scaffold={essay} />);
+    expect(screen.getByRole("button", { name: /walk me through/i })).toBeInTheDocument();
   });
 });

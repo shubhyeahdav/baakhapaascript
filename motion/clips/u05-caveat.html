@@ -1,0 +1,78 @@
+<title>u05 Not shipped yet</title>
+<style>
+  .mono { font-family:'Geist Mono',ui-monospace,monospace }
+  .step { font-size:31px; color:#EDEAE3; white-space:nowrap }
+  .note { font-size:23px; color:#7E7A6F; white-space:nowrap }
+  .dot  { width:30px; height:30px; border-radius:50%; box-sizing:border-box }
+</style>
+
+<div data-slot="shape">
+  <div class="L" id="Lpill">
+    <div class="row" style="transform:translate(-50%,-50%);gap:13px;color:#EDEAE3;font-size:30px;font-weight:500">
+      Status<span id="icA"></span>
+    </div>
+  </div>
+
+  <div class="L" id="Lsteps">
+    <div class="a mono" style="left:-470px;top:44px;font-size:21px;letter-spacing:.09em;color:#7E7A6F">WHERE THIS IS</div>
+
+    <div class="a" id="d0" style="left:-470px;top:104px"></div>
+    <div class="a step" id="s0" style="left:-422px;top:103px">On a branch</div>
+    <div class="a note" id="n0" style="left:-422px;top:142px">feature/first-draft-gate</div>
+
+    <div class="a" id="d1" style="left:-470px;top:196px"></div>
+    <div class="a step" id="s1" style="left:-422px;top:195px">Tests green</div>
+    <div class="a note" id="n1" style="left:-422px;top:234px">1,187 backend · 1,422 frontend</div>
+
+    <div class="a" id="d2" style="left:-470px;top:288px"></div>
+    <div class="a step" id="s2" style="left:-422px;top:287px">Deployed</div>
+    <div class="a note" id="n2" style="left:-422px;top:326px">the live build still has the Devanagari bug</div>
+  </div>
+</div><!--/shape-->
+
+<script>
+const $ = (id) => document.getElementById(id);
+$('icA').innerHTML = M.icon('arrow', 29, '#D4A843');
+
+const GOLD = '#D4A843', MUTE = '#7E7A6F', DEAD = '#312E28';
+
+/* 6.71s: "None of this is deployed. It is on a branch with the tests green.
+   The live build still has the Devanagari bug."
+
+   The third step never ticks. That is the whole clip -- a release note that
+   shows two greens and lets the viewer assume the third is the reason nobody
+   believes the next one. */
+const IN = [1.15, 1.95, 2.75];
+const TICK = [3.3, 4.0];           // two only, on purpose
+
+M.scene({
+  W:1920, H:1080, bg:'#0B0B0A', T:7.1, intro:0.1,
+  SH:{
+    pill:  { w:252, h:92,  r:46, bg:'#191813', cam:2.0 },
+    steps: { w:1120, h:420, r:40, bg:'#141311', cam:1.28 },
+  },
+  start:'pill', SEQ:[[0.95,'steps']],
+  layers:[
+    { el:'Lpill',  tin:0.1,  tout:0.95, o:{din:0.03} },
+    { el:'Lsteps', tin:0.95, tout:null, anchor:'t', update:(t) => {
+        for (let i = 0; i < 3; i++) {
+          M.apply($('s' + i), M.vis(t, IN[i], null, {din:0.0, lin:0.28}));
+          M.apply($('n' + i), M.vis(t, IN[i] + 0.08, null, {din:0.0, lin:0.28}));
+          const d = $('d' + i);
+          M.apply(d, M.vis(t, IN[i], null, {din:0.0, lin:0.28}));
+          const done = i < 2 && t >= TICK[i];
+          if (done) {
+            if (d.dataset.state !== 'on') { d.innerHTML = M.icon('check', 28, GOLD); d.dataset.state = 'on'; }
+          } else if (d.dataset.state !== 'off') {
+            // An empty ring, not a cross. Undeployed is unfinished, not failed.
+            d.innerHTML = '<div class="dot" style="border:2.5px ' +
+                          (i === 2 ? 'dashed ' + MUTE : 'solid ' + DEAD) + '"></div>';
+            d.dataset.state = 'off';
+          }
+          $('s' + i).style.color = (i === 2) ? MUTE : '#EDEAE3';
+        }
+      } },
+  ],
+  cursor:{ size:44, keys:[[0.1, 560, 260], [2.9, 560, 260], [4.6, 430, 300], [7.1, 430, 300]] },
+});
+</script>

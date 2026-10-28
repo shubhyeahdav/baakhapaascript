@@ -60,9 +60,20 @@ export function harvestVocabulary(text) {
 
     // A character cue is a short all-caps line. Indented is the strong signal,
     // but unindented drafts are common enough to be worth accepting.
+    //
+    // `\p{L}` and the danda, not `[A-Z]` and ASCII punctuation — the same two
+    // fixes `screenplay._looks_like_character_cue` needed on 2026-10-12, for
+    // the same reason. Devanagari matches no `[A-Z]`, so `सुनिता` was never
+    // harvested and a writer working in Nepali got no name completions at all:
+    // the one vocabulary here that is supposed to come from their own draft.
+    // Devanagari is caseless, so the all-caps test passes it unchanged.
+    //
+    // The danda matters in the other direction. `सुनिता हाँस्छे।` is a short
+    // caseless line that would otherwise be harvested as a character named
+    // "Sunita laughs", and then offered back as a completion.
     const indent = raw.match(/^ */)[0].length;
-    const isShoutedAction = /[.!?,]$/.test(line);
-    if (line === line.toUpperCase() && /[A-Z]/.test(line) && line.length <= 40 && !isShoutedAction) {
+    const isShoutedAction = /[.!?,।]$/.test(line);
+    if (line === line.toUpperCase() && /\p{L}/u.test(line) && line.length <= 40 && !isShoutedAction) {
       if (indent >= CHARACTER_COL || line.split(/\s+/).length <= 4) {
         characters.add(line.replace(/\s*\((V\.O\.|O\.S\.|CONT'D)\)\s*$/i, "").trim());
       }

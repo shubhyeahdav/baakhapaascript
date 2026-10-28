@@ -11,6 +11,10 @@ import AssistPanel, { FOCUSES } from "../components/AssistPanel";
 import { readFacts, milestoneFor, dismissKey } from "../lib/milestones";
 import ScriptPage from "../components/ScriptPage";
 import { createScreenplayKeyHandler } from "../editor/screenplayKeymap";
+import { createVideoKeyHandler } from "../editor/videoKeymap";
+import { sectionAt } from "../utils/videoFormat";
+import { kindOf, modeOf } from "../utils/videoSections";
+import { guideFor } from "../lib/sectionGuide";
 import { countWords } from "../utils/draft";
 import { saveRescue, clearRescue } from "../utils/draftRescue";
 import { transliterateWord, WORD_PATTERN } from "../utils/nepaliTransliterate";
@@ -137,11 +141,11 @@ export default function ScriptEditor() {
   // Which line the caret sits on, 1-indexed to match the Notes tab and the
   // linter's line numbers. Kept here because the textarea is the only thing
   // that knows it.
-  // Same shape as LearnPage's `completed`, the other way round: `caretLine`
-  // is read and `setCaretLine` is never called, so the value is frozen at 0
-  // for the life of the editor. Left reported rather than renamed away,
-  // because whatever used to move it is what needs finding.
-  // eslint-disable-next-line no-unused-vars
+  // `caretLine` was declared and never written -- frozen at 0 for the life of
+  // the editor, which the comment here used to admit while leaving it that
+  // way. `updateCaretPage` already counts the lines before the caret, so it
+  // now sets this too. Two things read it: the section pacing readout, and the
+  // craft panel, which seeds retrieval from the section the caret is in.
   const [caretLine, setCaretLine] = useState(0);
 
   const { user } = useAuth();
@@ -149,7 +153,37 @@ export default function ScriptEditor() {
   // Set when the server refuses a generation the client thought was allowed —
   // a tier can change under a session that stays open for hours.
   const [serverLocked, setServerLocked] = useState(false);
-  const aiLocked = isFree || serverLocked;
+
+  /* The draft gate.
+     A writer should meet a blank page and fill it themselves before a model is
+     allowed near it — the same conviction that took `generate-structure` out of
+     the creation wizard, where a writer used to arrive in an editor already
+     holding scenes nobody had asked for. This carries it one step further.
+     `finalized` counts too: a finished script has self-evidently had a first
+     draft, and demanding the declaration afterwards would be bureaucracy. */
+  const draftComplete = ["first_draft", "finalized"].includes(script?.status);
+  const aiLocked = isFree || serverLocked || !draftComplete;
+
+  /* WHICH lock, because the two want different things said.
+     Tier wins when both apply. Telling a free writer to finish their draft
+     would be a promise the product cannot keep — they would finish it and
+     still meet a paywall — and that bait is the reason the gate is not shown
+     to them at all. */
+  const lockReason = (isFree || serverLocked) ? "tier" : "draft";
+
+  const [markingDraft, setMarkingDraft] = useState(false);
+  const markFirstDraft = async () => {
+    setMarkingDraft(true);
+    try {
+      const res = await scripts.markFirstDraft(scriptId);
+      setScript((prev) => (prev ? { ...prev, status: res.data.status } : prev));
+    } catch (err) {
+      alert(err.response?.data?.detail
+            || "Could not mark the draft complete just now.");
+    } finally {
+      setMarkingDraft(false);
+    }
+  };
 
   // The wizard sends the writer here when the project was created but its
   // structure suggestion never came back. Silently opening an editor with an
@@ -882,7 +916,9 @@ export default function ScriptEditor() {
   const updateCaretPage = (ta) => {
     if (!ta) return;
     const before = ta.value.slice(0, ta.selectionStart);
-    setCaretPage(Math.floor(before.split("\n").length / (pagination.page_lines || 45)) + 1);
+    const lines = before.split("\n").length;
+    setCaretPage(Math.floor(lines / (pagination.page_lines || 45)) + 1);
+    setCaretLine(lines);
   };
 
   /**
@@ -1040,6 +1076,16 @@ export default function ScriptEditor() {
   // explicitly rather than smuggled in as a fake FOCUSES entry, because a
   // typed question is not a chip: it has no key, no label, and it changes on
   // every submit, so caching or comparing it against `focus` would be wrong.
+  // The caret's section, for a long-form draft. Null for a screenplay, which
+  // has scenes rather than sections and whose craft is not indexed this way.
+  const sectionKind = React.useMemo(() => {
+    if ((script?.project?.format || script?.format) !== "long_form") return null;
+    const at = sectionAt(content, caretLine);
+    if (!at) return null;
+    return kindOf(at.name, modeOf(script?.project?.video_category || script?.video_category));
+  }, [content, caretLine, script?.project?.format, script?.format,
+      script?.project?.video_category, script?.video_category]);
+
   const loadPatterns = useCallback(async (focusKey, typedQuery) => {
     setPatternsLoading(true);
     try {
@@ -1069,6 +1115,13 @@ export default function ScriptEditor() {
           : (f.key === "scene" ? "" : f.query),
         genre,
         tone,
+        // Which section the caret is in, for a long-form draft. The craft a
+        // hook needs and the craft a payoff needs are different crafts, and
+        // until now this panel asked the same question wherever the writer
+        // was standing. Seeded from the caret rather than from a typed
+        // complaint, because a writer in the middle of a section has already
+        // told us what they are working on by being there.
+        ...(sectionKind ? { section_kind: sectionKind } : {}),
       });
       setPatterns(res.data.patterns);
       setSeen(res.data.seen || {});
@@ -1083,7 +1136,7 @@ export default function ScriptEditor() {
     } finally {
       setPatternsLoading(false);
     }
-  }, [scriptId, content, instruction, genre, tone]);
+  }, [scriptId, content, instruction, genre, tone, sectionKind]);
 
   // Load once when the Patterns tab is opened — no button press needed.
   useEffect(() => {
@@ -1298,10 +1351,20 @@ export default function ScriptEditor() {
   // stale on the very first one.
   latestHandlers.current = { handleExport, handleFinalize };
 
-  // The keyboard rules live in `editor/screenplayKeymap.js` so they can be
-  // tested without mounting the editor. Recreated per render exactly as the
-  // inline handler was — it closes over nothing but this object.
-  const handleKeyDown = createScreenplayKeyHandler({
+  // The keyboard rules live in `editor/*Keymap.js` so they can be tested
+  // without mounting the editor. Recreated per render exactly as the inline
+  // handler was — each closes over nothing but this object.
+  //
+  // WHICH factory is a property of the format, decided once, here. A video
+  // script has no sluglines, no character cues and no dialogue column, so the
+  // screenplay indent cycle would be enforcing a grammar this format does not
+  // have. `screenplayKeymap.js` asks for exactly this in its own header: a
+  // second factory beside it, never a flag inside it. Both take the same
+  // options, so neither knows the other exists and this stays one expression.
+  const makeKeyHandler = (script?.project?.format || script?.format) === "long_form"
+    ? createVideoKeyHandler
+    : createScreenplayKeyHandler;
+  const handleKeyDown = makeKeyHandler({
     nepaliMode,
     transliterateBehindCaret,
     replaceRange,
@@ -1540,6 +1603,14 @@ export default function ScriptEditor() {
                 onOpen={goToScene}
                 onAdd={addCustomScene}
                 adding={addingScene}
+                /* `format` was never passed, so `isLongForm` inside OutlineView
+                   was always false and `RetentionShape` -- built, unit-tested
+                   and documented -- had never rendered once in the running
+                   app. It also made the Outline call every video section a
+                   "scene". Both were invisible from the component's own tests,
+                   which supplied the prop the editor did not. */
+                format={script?.project?.format || script?.format}
+                videoCategory={script?.project?.video_category || script?.video_category}
               />
             )}
           </SceneRail>
@@ -1566,6 +1637,7 @@ export default function ScriptEditor() {
           view={view}
           saving={saving}
           caretPage={caretPage}
+          caretLine={caretLine}
           pageCount={pageCount}
           milestone={milestone}
           milestoneFacts={milestoneFacts}
@@ -1616,6 +1688,9 @@ export default function ScriptEditor() {
             aiMode={aiMode}
             setAiMode={setAiMode}
             aiLocked={aiLocked}
+            lockReason={lockReason}
+            markFirstDraft={markFirstDraft}
+            markingDraft={markingDraft}
             aiLoading={aiLoading}
             aiResponse={aiResponse}
             setAiResponse={setAiResponse}
@@ -1630,6 +1705,7 @@ export default function ScriptEditor() {
             loadPatterns={loadPatterns}
             patternSource={patternSource}
             diagnosed={diagnosed}
+            sectionGuide={guideFor(sectionKind)}
             focus={focus}
             setFocus={setFocus}
             openPattern={openPattern}

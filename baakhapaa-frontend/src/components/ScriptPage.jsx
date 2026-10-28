@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import PenPrompt from "./PenPrompt";
+import { scaffoldFor } from "../lib/videoScaffold";
+import SectionPacing from "./SectionPacing";
+import { caretLineTop } from "../lib/caretLine";
 import MilestoneNote from "./MilestoneNote";
 import FormatShortcuts from "./FormatShortcuts";
 import { countWords, scenesFromDraft } from "../utils/draft";
@@ -40,13 +43,16 @@ export default function ScriptPage({
   // completions
   suggest, setSuggest, suggestIndex, dismissed, setDismissed, applySuggestion,
   // where we are, and whether it is safe
-  view, saving, caretPage, pageCount, sessionStart, script,
+  view, saving, caretPage, caretLine, pageCount, sessionStart, script,
   milestone, milestoneFacts, onMilestoneAct, onMilestoneDismiss,
   // how the page looks
   zenMode, setZenMode, pageTheme, typewriter, cursor, resting, setResting,
   // handing off to the panel
   setPanelOpen, setPanelTab, setScript,
 }) {
+  // The format decides what the status line counts. Read once here so
+  // the two readouts cannot disagree about which format this is.
+  const isLongForm = (script?.project?.format || script?.format) === "long_form";
   /* The other half of the same rule. On a phone the rail and the page cannot
      both have the width, so exactly one of them is shown: the page while the
      view is `script`, the rail while it is anything else. Above `lg` the page
@@ -67,15 +73,19 @@ export default function ScriptPage({
      keystroke"; routing a per-keystroke pixel value through React would undo
      it. One property write, no render. */
   const bandRef = useRef(null);
+  /* Where the band goes. `caretLineTop` measures the caret's line through the
+   * browser's own wrapping; this only has to subtract the scroll.
+   *
+   * It counted hard newlines until 2026-10-26, which is very nearly right on
+   * a screenplay page and 6.1 lines out on a page of narration — see
+   * `lib/caretLine.js` for the measurements and `scripts/typewriter-band-check.mjs`
+   * for the check that holds it. */
   const paintBand = useCallback(() => {
     const ta = textareaRef.current;
     const el = bandRef.current;
     if (!ta || !el) return;
-    const cs = getComputedStyle(ta);
-    const lineHeight = parseFloat(cs.lineHeight) || 25;
-    const padTop = parseFloat(cs.paddingTop) || 0;
-    const line = ta.value.slice(0, ta.selectionStart || 0).split("\n").length - 1;
-    el.style.setProperty("--focus-y", `${padTop + line * lineHeight - ta.scrollTop}px`);
+    const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 25;
+    el.style.setProperty("--focus-y", `${caretLineTop(ta) - ta.scrollTop}px`);
     el.style.setProperty("--focus-lh", `${lineHeight}px`);
   }, [textareaRef]);
 
@@ -114,6 +124,14 @@ export default function ScriptPage({
                videoscript parses a slugline as narration — so following the
                product's own advice produced a draft with no sections at all. */
             format={script?.project?.format || script?.format}
+            /* The section spine, for long-form video only. `scaffoldFor`
+               returns null for every other format, so a screenplay writer is
+               offered nothing extra and the prompt is unchanged for them. */
+            scaffold={scaffoldFor({
+              format: script?.project?.format || script?.format,
+              videoCategory: script?.project?.video_category || script?.video_category,
+              durationMinutes: script?.project?.duration_minutes || script?.duration_minutes,
+            })}
             onInsert={(line) => {
               insertAtPosition(0, `${line}
 
@@ -129,9 +147,22 @@ export default function ScriptPage({
 
         {zenMode && (
           <div className="zen-hint" aria-live="polite">
-            <span className="tabular-nums">
-              p. {Math.min(caretPage, pageCount)} / {pageCount}
-            </span>
+            {/* A video script has no pages -- runtime is words over a
+                speaking rate -- so `p. 4 / 12` there reports a number computed
+                from a page length that does not apply to the format. The
+                section the caret is in is this format's own unit. */}
+            {isLongForm ? (
+              <SectionPacing
+                content={content}
+                caretLine={caretLine}
+                videoCategory={script?.project?.video_category || script?.video_category}
+                speakingWpm={script?.speaking_wpm}
+              />
+            ) : (
+              <span className="tabular-nums">
+                p. {Math.min(caretPage, pageCount)} / {pageCount}
+              </span>
+            )}
             {sessionStart && (
               <span className="tabular-nums ml-4">
                 +{Math.max(0, countWords(content) - sessionStart.words)} words
@@ -198,7 +229,7 @@ export default function ScriptPage({
           )}
           <textarea
           ref={textareaRef}
-          className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} ${typewriter && !zenMode ? "typewriter-page" : ""} ${cursor === "pen" ? "cursor-pen" : cursor === "ring" ? "cursor-ring" : ""} ${resting ? "cursor-resting" : ""} resize-none`}
+          className={`screenplay-page ${isLongForm ? "video-page" : ""} ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} ${typewriter && !zenMode ? "typewriter-page" : ""} ${cursor === "pen" ? "cursor-pen" : cursor === "ring" ? "cursor-ring" : ""} ${resting ? "cursor-resting" : ""} resize-none`}
           /* Short, because the Pen now says the useful version on an empty
              page. This read "Type Scene Headings starting with INT. or
              EXT., and press TAB to format characters, parentheticals, and

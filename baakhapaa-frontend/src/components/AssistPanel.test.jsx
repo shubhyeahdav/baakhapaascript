@@ -51,6 +51,67 @@ function panel(overrides = {}) {
   return { props, ...render(<AssistPanel {...props} />) };
 }
 
+describe("the first-draft gate", () => {
+  /* The AI opens on a declared first draft, not on money alone.
+
+     The conviction: a writer should meet a blank page and fill it themselves
+     before a model is near it — the same reason structure generation was taken
+     out of the creation wizard, where a writer used to arrive in an editor
+     already holding scenes nobody had asked for.
+
+     `lockReason` exists because the two locks want different things said. A
+     paywall and a craft argument are not the same message, and showing a free
+     writer "finish your draft" would promise an unlock the product cannot
+     deliver — they would finish it and still meet the paywall. */
+
+  it("asks for a first draft rather than for money", () => {
+    panel({ aiMode: "generate", aiLocked: true, lockReason: "draft",
+            markFirstDraft: vi.fn(), markingDraft: false });
+
+    expect(screen.getByRole("button", { name: /finished my first draft/i }))
+      .toBeInTheDocument();
+    // The upgrade prompt's own control, not the word "Pro" — the mode tabs
+    // carry a "Pro / Studio feature" title and would match a looser query.
+    expect(screen.queryByRole("button", { name: "See plans" })).not.toBeInTheDocument();
+  });
+
+  it("says the free tools still work, so the lock is not a dead end", () => {
+    panel({ aiMode: "generate", aiLocked: true, lockReason: "draft",
+            markFirstDraft: vi.fn() });
+
+    expect(screen.getByText(/Patterns tab, the craft check and the course/i))
+      .toBeInTheDocument();
+  });
+
+  it("marks the draft when pressed", () => {
+    const markFirstDraft = vi.fn();
+    panel({ aiMode: "generate", aiLocked: true, lockReason: "draft", markFirstDraft });
+
+    fireEvent.click(screen.getByRole("button", { name: /finished my first draft/i }));
+
+    expect(markFirstDraft).toHaveBeenCalled();
+  });
+
+  it("shows the paywall, NOT the draft prompt, to a free writer", () => {
+    // The bait this ordering exists to prevent: a free writer finishing a
+    // draft on the promise of an unlock, and meeting a paywall anyway.
+    panel({ aiMode: "generate", aiLocked: true, lockReason: "tier",
+            markFirstDraft: vi.fn() });
+
+    expect(screen.queryByRole("button", { name: /finished my first draft/i }))
+      .not.toBeInTheDocument();
+  });
+
+  it("shows neither prompt once the draft is declared", () => {
+    panel({ aiMode: "generate", aiLocked: false, lockReason: "draft",
+            markFirstDraft: vi.fn(), handleAI: vi.fn(), instruction: "",
+            setInstruction: vi.fn(), content: "", selectionRange: () => null });
+
+    expect(screen.queryByRole("button", { name: /finished my first draft/i }))
+      .not.toBeInTheDocument();
+  });
+});
+
 describe("a failed AI call", () => {
   /* The bug this pins, found by running the product on 2026-09-25 with both
      providers down: the catch in `ScriptEditor` wrote "Error: ..." into

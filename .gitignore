@@ -56,3 +56,14 @@ docs/hooks/hooks_review_queue.csv
 
 # Brainstorming companion session files (mockups, event logs) — local only.
 .superpowers/
+
+# Demo video. Nothing here is committed -- `*.mp4` above already excludes the
+# finished cut, and this repo is right to keep binaries out. The whole thing
+# rebuilds from the scripts and DEMO_VIDEO_SCRIPT.md: the narration wavs, the
+# recorded cards and the app footage are all generated.
+docs/demo-video/
+
+# Motion-graphics renders. The clip SOURCES in motion/clips/ are committed;
+# the built pages and the rendered mp4s are generated from them.
+motion/dist/
+motion/out/

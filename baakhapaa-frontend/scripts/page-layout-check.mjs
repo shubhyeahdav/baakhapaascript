@@ -95,9 +95,80 @@ async function measure(html, label) {
 
 const b = await measure(broken, "as shipped (2 children)");
 const f = await measure(fixed, "fixed (1 child)");
+
+/* The video page's MEASURE.
+ *
+ * A screenplay page is 61 Courier columns because that is what a screenplay
+ * line is. A video script is prose read aloud, and prose is read at 66-75
+ * characters a line — past that the eye loses the start of the next one.
+ * `.video-page` sets `max-width: 34em` to land there at any font size.
+ *
+ * Nothing in the suite can check this. jsdom has no layout engine and
+ * vite.config.js sets `css: false`, so the only way to know what the column
+ * actually holds is to fill it in a real engine and count.
+ *
+ * ON THE FONT. This harness loads index.css but not the webfont, so the video
+ * page measures in whatever proportional face the system supplies rather than
+ * in Mukta. That is fine for the measure — every proportional face of this
+ * size lands within a few characters — and it is why the band below is 60-80
+ * rather than a tight 66-75.
+ *
+ * It is NOT fine for comparing the two pages by character count: the
+ * screenplay page is monospace and a monospace column holding 64 characters
+ * is a narrower column than a proportional one holding 62. So the structural
+ * assertion is made in pixels, where the two are comparable. */
+const PROSE_MIN = 60;
+const PROSE_MAX = 80;
+
+async function measureChars(extraClass, label) {
+  await page.setContent(shell(`
+    <div class="wfull mx816 flex col minw0">
+      <div class="rel wfull flex">
+        <textarea class="screenplay-page ${extraClass}" id="page"></textarea>
+      </div>
+    </div>`));
+  const chars = await page.evaluate(() => {
+    const ta = document.getElementById("page");
+    const cs = getComputedStyle(ta);
+    // Measure the real advance of the real face, rather than assuming an em
+    // ratio: the whole point is what this font does in this column.
+    const probe = document.createElement("span");
+    probe.style.cssText = `position:absolute;visibility:hidden;white-space:pre;` +
+      `font:${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize}/${cs.lineHeight} ${cs.fontFamily}`;
+    probe.textContent = "x".repeat(100);
+    document.body.appendChild(probe);
+    const per = probe.getBoundingClientRect().width / 100;
+    probe.remove();
+    const inner = ta.clientWidth
+      - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    return { chars: inner / per, width: ta.getBoundingClientRect().width };
+  });
+  console.log(`${label.padEnd(28)} ${chars.chars.toFixed(0).padStart(3)} characters per line` +
+              `   ${chars.width.toFixed(0).padStart(4)}px wide`);
+  return chars;
+}
+
+const videoChars = await measureChars("video-page", "video page measure");
+const screenplayChars = await measureChars("", "screenplay page measure");
 await browser.close();
 
 console.log();
 if (b.drift < 20) { console.log("HARNESS INVALID: it did not reproduce the bug"); process.exit(2); }
 if (f.drift > 1)  { console.log(`FAIL: still off by ${f.drift.toFixed(0)}px`); process.exit(1); }
+if (videoChars.chars < PROSE_MIN || videoChars.chars > PROSE_MAX) {
+  console.log(`FAIL: the video page holds ${videoChars.chars.toFixed(0)} characters a line, ` +
+              `outside the ${PROSE_MIN}-${PROSE_MAX} prose band.`);
+  process.exit(1);
+}
+if (videoChars.width >= screenplayChars.width) {
+  // In pixels, where the two are comparable. Not a style preference: if the
+  // video column is no narrower than the screenplay page, `.video-page` is
+  // not applying at all and everything above measured the same element twice.
+  console.log(`FAIL: the video page is not narrower than the screenplay page ` +
+              `(${videoChars.width.toFixed(0)}px vs ${screenplayChars.width.toFixed(0)}px), ` +
+              `so .video-page is probably not applying.`);
+  process.exit(1);
+}
 console.log(`OK: reproduced the ${b.drift.toFixed(0)}px drift, and the fix removes it.`);
+console.log(`OK: the video page reads at ${videoChars.chars.toFixed(0)} characters a line, ` +
+            `in a ${videoChars.width.toFixed(0)}px column against the page's ${screenplayChars.width.toFixed(0)}px.`);

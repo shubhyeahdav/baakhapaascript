@@ -30,6 +30,7 @@ import script_engine
 import linter
 import screenplay
 import scene_sync
+import videoscript
 import review
 import fingerprint
 import benchmark
@@ -325,6 +326,32 @@ def _charge(user_id, usage_sink):
 
 RECOMMENDATION_COUNT = 3
 
+# What each section of a long-form video FAILS at, phrased as a writer would
+# complain about it.
+#
+# `rag.retrieve_relevant_patterns` embeds each craft entry's `problem` first,
+# because writers arrive with a symptom rather than a genre tag. So seeding
+# retrieval with the bare kind — "hook", "payoff" — queries the corpus in the
+# wrong register and returns whatever happens to share those letters. These
+# are the symptom sentences instead.
+#
+# Essay kinds and course kinds together; `videoscript` guarantees a kind comes
+# from its own mode's vocabulary, so the two sets cannot collide.
+SECTION_QUERIES = {
+    # essay
+    "hook": "my opening does not give anyone a reason to keep watching",
+    "promise": "viewers do not know what they are going to get from this",
+    "segment": "the middle sags and each part feels like the same point again",
+    "payoff": "the ending arrives without landing what the opening promised",
+    "cta": "my ask at the end feels tacked on and nobody acts on it",
+    # course
+    "objective": "the learner cannot tell what they will be able to do after this",
+    "concept": "my explanation is abstract and does not stick",
+    "proof": "I am asserting this works without showing that it does",
+    "exercise": "the practice task is vague and nobody knows how to start it",
+    "check": "neither of us can tell whether the lesson actually landed",
+}
+
 
 @router.post("/recommendations")
 def recommendations(req: RecommendRequest, background: BackgroundTasks,
@@ -409,6 +436,13 @@ def recommendations(req: RecommendRequest, background: BackgroundTasks,
             query = req.focus
         elif flags:
             query = " ".join(f["message"] for f in ranked[:3])
+        elif req.section_kind in SECTION_QUERIES:
+            # Nothing typed and nothing found, but we know where the caret is.
+            # A writer inside the hook has told us what they are working on by
+            # being there, and "hook" as a word retrieves nothing useful --
+            # the corpus is embedded on the PROBLEM a technique solves, so the
+            # seed has to be phrased as the problem that section fails at.
+            query = SECTION_QUERIES[req.section_kind]
         else:
             query = text[-1500:] or "starting a new scene"
         already = {p["technique"] for p in patterns}
@@ -754,7 +788,8 @@ def get_script(script_id: str, user_id: str = Depends(get_current_user)):
     # way to populate them was to make an edit. Everything downstream of the
     # scene rows was invisible until the draft was touched.
     scenes = scene_sync.sync_from_draft(script_id, script.get("content") or "",
-                                        project_format=project.get("format"))
+                                        project_format=project.get("format"),
+                                        project=project)
     # The project is embedded so the editor can title itself and drive AI calls
     # from the project's real genre/tone instead of guessing. Already read
     # above.
@@ -764,6 +799,10 @@ def get_script(script_id: str, user_id: str = Depends(get_current_user)):
         # Parsed so the editor gets it in the same call that loads the draft —
         # the type-ahead needs character names before the first keystroke.
         "bible": _read_bible(script),
+        # Sent rather than duplicated in the client. The editor's status line
+        # computes written runtime live, and two copies of this number would
+        # agree only until one of them was edited.
+        "speaking_wpm": videoscript.wpm_for(project.get("language")),
         "project": {
             "title": project.get("title"),
             "genre": project.get("genre"),
@@ -952,7 +991,8 @@ def save_script(script_id: str, data: ScriptSave, user_id: str = Depends(get_cur
     # inside sync_from_draft, which re-read the script too.
     _name_an_untitled_project(script, data.content or "", project=project)
     scenes = scene_sync.sync_from_draft(script_id, data.content or "",
-                                        project_format=project.get("format"))
+                                        project_format=project.get("format"),
+                                        project=project)
     return {
         **result.data[0],
         "scenes": scenes,
@@ -1008,7 +1048,8 @@ async def import_script(
 
     result = supabase.table("scripts").update({"content": content}).eq("id", script_id).execute()
     scenes = scene_sync.sync_from_draft(script_id, content,
-                                        project_format=project.get("format"))
+                                        project_format=project.get("format"),
+                                        project=project)
 
     # Replacing somebody else's draft is the loudest thing a collaborator can
     # do to a script, so it is logged even though the snapshot already exists.
@@ -1046,7 +1087,8 @@ def script_coverage(script_id: str, user_id: str = Depends(get_current_user)):
                                                  minimum="viewer")
     text = script.get("content") or ""
     scenes = scene_sync.sync_from_draft(script_id, text,
-                                        project_format=project.get("format"))
+                                        project_format=project.get("format"),
+                                        project=project)
     return coverage_report.coverage(text, scenes, project, _read_bible(script))
 
 
@@ -1073,7 +1115,8 @@ def _review_for(script: dict, project=None) -> dict:
     if project is None:
         project = get_project_by_id(script.get("project_id")) or {}
     scenes = scene_sync.sync_from_draft(script["id"], script.get("content") or "",
-                                        project_format=project.get("format"))
+                                        project_format=project.get("format"),
+                                        project=project)
     return review.review(script.get("content") or "", scenes, project)
 
 
@@ -1102,3 +1145,53 @@ def finalize_script(script_id: str, user_id: str = Depends(get_current_user)):
     verdict = _review_for(script, project)
     result = supabase.table("scripts").update({"status": "finalized"}).eq("id", script_id).execute()
     return {**result.data[0], "review": verdict}
+
+
+# The three statuses a script moves through. `draft` and `finalized` were
+# already here; `first_draft` sits between them and is the one a writer
+# declares rather than earns.
+STATUS_DRAFT, STATUS_FIRST_DRAFT, STATUS_FINALIZED = "draft", "first_draft", "finalized"
+
+
+@router.post("/{script_id}/first-draft")
+def mark_first_draft(script_id: str, user_id: str = Depends(get_current_user)):
+    """The writer says their first draft is done.
+
+    A DECLARATION, not a measurement. Nothing here reads the draft and decides
+    whether it is good — that is the craft linter's job, and it reports rather
+    than judges. This records that the writer considers the first pass finished,
+    and the editor unlocks the AI tabs off the back of it.
+
+    Why gate AI on it at all: the product's whole argument is that a writer
+    should meet a blank page and fill it themselves before a model is allowed
+    near it. `generate-structure` was already moved out of the creation wizard
+    for the same reason — a writer used to arrive in an editor holding scenes
+    nobody asked for. This is that decision carried one step further.
+
+    It does NOT un-declare. A writer who keeps writing afterwards does not lose
+    the unlock: the declaration is about intent, and re-locking someone
+    mid-session over a word count would be the tool overruling the person.
+
+    The one refusal is an empty page. A declaration about nothing is not a
+    declaration, and unlocking the AI on a blank draft would hand a model the
+    blank page this gate exists to make the writer face.
+    """
+    script, project = require_script_and_project(script_id, user_id)
+
+    # Parsed with the project's own parser, so a long-form video's sections
+    # count exactly as a screenplay's scenes do. Using a word count instead
+    # would need a number nobody has measured, and would read a title page as
+    # a draft.
+    content = script.get("content") or ""
+    summaries = scene_sync.parser_for(project.get("format")).scene_summaries(content)
+    if not summaries:
+        raise HTTPException(
+            status_code=400,
+            detail="There is nothing here yet. Write at least one scene, "
+                   "then mark the draft complete.",
+        )
+
+    result = supabase.table("scripts").update(
+        {"status": STATUS_FIRST_DRAFT}
+    ).eq("id", script_id).execute()
+    return result.data[0]

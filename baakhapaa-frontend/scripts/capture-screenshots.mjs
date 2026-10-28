@@ -109,5 +109,42 @@ await page.goto(`${APP}/pricing`);
 await page.waitForTimeout(1500);
 await shot(page, "m2-06-pricing", "tiers");
 
+/* ---- Month 3 ------------------------------------------------------------
+   Prefixed, like m2, because a report's figures are a record of the system as
+   it was. Overwriting them is how the Month 1 shots ended up in the Month 2
+   report after the editor had changed underneath them. */
+
+await page.goto(`${APP}/dashboard`);
+await page.waitForTimeout(1200);
+await page.getByRole("button", { name: /^Open / }).first().click();
+await page.waitForTimeout(5000);
+
+// The gate added this month. The demo account is on a paid tier, so what it
+// meets is the first-draft prompt rather than the paywall -- which is the
+// whole point of `lockReason`.
+// NOT anchored: a locked tab reads "Generate ✦", so /^Generate$/ never matches
+// and the catch below would swallow the miss silently.
+await page.getByRole("button", { name: /Generate/i }).first().click();
+await page.waitForTimeout(1500);
+await shot(page, "m3-01-first-draft-gate", "AI opens on a finished draft, not a blank page");
+
+// Diagnosis-first retrieval: the patterns are anchored to lines in THIS draft
+// rather than answering a typed complaint.
+await page.getByRole("button", { name: /Patterns/i }).first().click();
+await page.waitForTimeout(4000);
+await shot(page, "m3-02-patterns-diagnosed", "craft found in the draft, by line");
+
+// The free, deterministic half of the product: linter, draft statistics,
+// corpus benchmark and the coverage report. No AI call anywhere in this view.
+await page.getByRole("button", { name: /^Craft$/i }).click();
+await page.waitForTimeout(3500);
+await shot(page, "m3-03-craft-free", "linter, statistics and benchmark -- zero AI cost");
+
+// The course. Nineteen lessons, free on every tier, graded by the linter
+// rather than by a Next button.
+await page.goto(`${APP}/learn`);
+await page.waitForTimeout(2500);
+await shot(page, "m3-04-course", "two tracks, graded by the craft linter");
+
 await browser.close();
 console.log("done");
