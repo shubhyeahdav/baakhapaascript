@@ -156,6 +156,12 @@ for (const route of ROUTES) {
   // it a far better readiness signal than a timeout: it means the route's
   // component mounted, not merely that the network went quiet.
   await page.waitForSelector("main#main", { timeout: 15000 });
+  // A section below the fold is held hidden until it scrolls into view. The
+  // capture never scrolls, so without this a reader with no JavaScript would
+  // get those sections at opacity 0 — the words present and unreadable.
+  await page.evaluate(() =>
+    document.querySelectorAll("[data-reveal]").forEach((el) => el.removeAttribute("data-reveal")),
+  );
 
   const html = (await page.content()).split(`http://127.0.0.1:${PORT}`).join(SITE_ORIGIN);
   const chars = strip(html).length;

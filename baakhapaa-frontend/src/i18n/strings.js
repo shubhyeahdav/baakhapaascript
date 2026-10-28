@@ -253,6 +253,8 @@ export const STRINGS = {
     "Corkboard, outline, storyboard frames and a production package, built from the scenes you wrote.":
       "तपाईंले लेखेकै दृश्यबाट कर्कबोर्ड, रूपरेखा, स्टोरीबोर्ड फ्रेम र प्रोडक्सन प्याकेज।",
     "Your next script starts on a blank page.": "तपाईंको अर्को पटकथा खाली पानाबाट सुरु हुन्छ।",
+    Source: "स्रोत",
+    "See all five rooms on the tour": "पाँचै कोठा टुरमा हेर्नुहोस्",
     "Free for three projects. Pro is Rs 999 a month, paid with Khalti or eSewa.":
       "तीन परियोजनासम्म निःशुल्क। प्रो महिनाको रु ९९९ — खल्ती वा इसेवाबाट तिर्न सकिन्छ।",
   },

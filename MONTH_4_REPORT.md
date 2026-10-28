@@ -26,7 +26,7 @@ treats that as the month's second result.
 | Planned building tasks complete | **186 of 200** (`MONTH_4_TASKS.md`, counted by `check_docs.py`) |
 | Proposal deliverables met | **1 of 4**: the short-form layer. The other three need the deployed system, money and writers |
 | Commits on the branch since `codebase` | 55 |
-| Suite size | **1,319 backend tests in 87 files; 1,582 frontend tests in 80 files** |
+| Suite size | **1,319 backend tests in 87 files; 1,585 frontend tests in 80 files** |
 | Defects found that were on no plan | About 20, half of them found only by using the product in a browser |
 | Retrieval, real queries | **91.3%** combined (Month 3). Two craft entries were added and **not re-measured** (section 6) |
 | Real money moved | None |
@@ -39,11 +39,14 @@ field. A stranger's first sight of the product was a login form.
 
 ![The landing page](docs/screenshots/m4-01-landing.png)
 
-It is now one claim, "Screenwriting software that reads Nepali", with its proof
-beside it. The proof is the linter's **real output** on a Devanagari scene, not
-an illustration: a backend test lints the same scene and fails if the page and
-the linter ever disagree. The three numbers under it each trace to a script in
-the repository. There are no testimonials, because there are none yet, and a
+It is now one claim, "Screenwriting software that reads Nepali", with the
+product proving it underneath: the editor drawn in HTML, a Devanagari scene
+typed onto the page, and the linter's notes arriving in the margin beside the
+lines they name. That is the linter's **real output**, not an illustration: a
+backend test lints the same scene and fails if the page and the linter ever
+disagree. The three numbers under it each print the script in the repository
+they come from, and the three rooms below draw the same screen replicas as the
+tour, from one shared file. There are no testimonials, because there are none yet, and a
 test pins that too. Crawlers that run no JavaScript now read 1,564 characters
 of it instead of 33. First paint on throttled 4G is 884 ms, and that check is
 now a CI step.
@@ -150,7 +153,7 @@ interface and records every console error, failed request and stuck step.
 | | Month 3 | Month 4 |
 |---|---|---|
 | Backend tests | 1,146 in 75 files | **1,319 in 87 files** |
-| Frontend tests | 1,281 in 66 files | **1,582 in 80 files** |
+| Frontend tests | 1,281 in 66 files | **1,585 in 80 files** |
 | Browser checks | layout, contrast, responsive, load race | + landing page (CI), typewriter band, the walk |
 
 One backend test does not run in the cloud session: it needs the embedding

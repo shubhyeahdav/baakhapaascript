@@ -198,6 +198,10 @@ async function month4() {
   const stranger = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await stranger.goto(`${APP}/`, { waitUntil: "networkidle" });
   await stranger.waitForTimeout(3500);
+  // The claim sits above the product window; scroll far enough that the
+  // linter's notes — the figure's whole point — are in frame with it.
+  await stranger.evaluate(() => window.scrollTo(0, 140));
+  await stranger.waitForTimeout(300);
   await shot(stranger, "m4-01-landing", "the page a stranger sees, with the linter's real output");
   await stranger.goto(`${APP}/tour`, { waitUntil: "networkidle" });
   await stranger.getByRole("button", { name: "Rewritten" }).click();

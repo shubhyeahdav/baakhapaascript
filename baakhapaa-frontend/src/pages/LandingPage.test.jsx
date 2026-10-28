@@ -64,6 +64,24 @@ describe("for a stranger", () => {
     ["91.3%", "19", "0"].forEach((n) => expect(screen.getByText(n)).toBeInTheDocument());
   });
 
+  it("prints where each number comes from, beside the number", () => {
+    render(<LandingPage />);
+    ["eval_retrieval.py", "lessons.py", "linter.py"].forEach((src) =>
+      expect(screen.getByText(new RegExp(src))).toBeInTheDocument(),
+    );
+  });
+
+  it("names other software only as somewhere the export opens", () => {
+    render(<LandingPage />);
+    expect(screen.getByText(/not because of any partnership/)).toBeInTheDocument();
+  });
+
+  it("leaves every section visible where nothing can animate it", () => {
+    /* jsdom has no IntersectionObserver, like a crawler and a prerender. */
+    const { container } = render(<LandingPage />);
+    expect(container.querySelector('[data-reveal="pending"]')).toBeNull();
+  });
+
   it("shows no testimonial, user count or logo wall", () => {
     /* There are none yet, and an invented one costs more than it earns. */
     render(<LandingPage />);

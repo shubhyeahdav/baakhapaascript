@@ -14,7 +14,8 @@
  *   3. With `prefers-reduced-motion: reduce` the flags are fully visible at
  *      once — the claim is the flags, not their arrival.
  *   4. A crawler that runs no JavaScript reads the claim: the prerendered
- *      HTML carries the h1.
+ *      HTML carries the h1, and no section is captured still hidden
+ *      waiting for a scroll that will never come.
  *   5. First contentful paint on a throttled connection — reported, with a
  *      budget, because this is the page that has to open on mobile data.
  *
@@ -57,6 +58,14 @@ const URL_ = `http://127.0.0.1:${PORT}/`;
 const failures = [];
 const fail = (msg) => { failures.push(msg); console.log(`  FAIL  ${msg}`); };
 const pass = (msg) => console.log(`  ok    ${msg}`);
+
+// 4b — nothing in the captured file may be left waiting to reveal itself:
+// without JavaScript it would never arrive.
+if (/data-reveal="pending"/.test(fs.readFileSync(path.join(BUILD, "index.html"), "utf8"))) {
+  fail("prerendered index.html holds a section hidden until scroll");
+} else {
+  pass("prerendered index.html hides nothing until scroll");
+}
 
 // 4 — before the browser, because it is a property of the file.
 const raw = fs.readFileSync(path.join(BUILD, "index.html"), "utf8");
