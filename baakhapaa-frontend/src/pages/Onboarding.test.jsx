@@ -301,7 +301,7 @@ describe("the first lesson, taught by the Pen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check it" }));
 
     await waitFor(() => expect(learn.submit).toHaveBeenCalledWith(
-      "the-page", "INT. PASAL - DAY\n\nShe counts the till."));
+      "the-page", "INT. PASAL - DAY\n\nShe counts the till.", "en"));
   });
 
   it("celebrates a pass without pretending it was hard", async () => {

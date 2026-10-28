@@ -238,7 +238,10 @@ export const learn = {
   lessons: (lang = "en") => instance.get("/learn/lessons", { params: { lang } }),
   lesson: (id, lang = "en") => instance.get(`/learn/lessons/${id}`, { params: { lang } }),
   // Graded by the craft linter, so the verdict is deterministic and free.
-  submit: (id, content) => instance.post(`/learn/lessons/${id}/submit`, { content }),
+  // `lang` so the grader answers in the language the course is being read
+  // in; a Nepali writer used to pass in Nepali and fail in English.
+  submit: (id, content, lang = "en") =>
+    instance.post(`/learn/lessons/${id}/submit`, { content }, { params: { lang } }),
   forRule: (rule, lang = "en") =>
     instance.get(`/learn/for-rule/${rule}`, { params: { lang } }),
   // The escalation path from the craft panel. Technique names carry commas and

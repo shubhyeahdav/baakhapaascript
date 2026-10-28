@@ -168,16 +168,16 @@ the thing `check_docs.py` exists to prevent.
 
 ### Day 12 · Finish the course's Nepali
 
-- [ ] `lessons_ne.py` carries no `group` field — the section headers render English
-- [ ] Translate the three group headers
-- [ ] `FROM THE CORPUS`, `EXERCISE`, `CHECK MY WORK` are hardcoded in `LearnPage`
-- [ ] Move them into `strings.js`
-- [ ] Confirm the per-field fallback still works for an untranslated lesson
-- [ ] Walk all nineteen lessons in Nepali
-- [ ] Walk all nineteen in English
-- [ ] Test a lesson with a missing translation reads correctly
-- [ ] Re-check the grading messages in both languages
-- [ ] Commit
+- [x] `lessons_ne.py` carries no `group` field — the section headers render English — *the headers are the lessons' `module` names; `lessons_ne.MODULES_NE` now translates all four, applied in `public_lesson`*
+- [x] Translate the three group headers — *four: पाना, दृश्य, पूरा गर्ने, कथा. The Guide panel's five group headers too; the guides under them are still English, and that is written down as open*
+- [x] `FROM THE CORPUS`, `EXERCISE`, `CHECK MY WORK` are hardcoded in `LearnPage` — *as were "Passed.", "Not yet.", the no-penalty note, the placeholder, "Next" and the label*
+- [x] Move them into `strings.js`
+- [x] Confirm the per-field fallback still works for an untranslated lesson — *tested, module included*
+- [x] Walk all nineteen lessons in Nepali — *every field and module header Devanagari, against the running server, plus a failing and a starter submission each: clean*
+- [x] Walk all nineteen in English — *clean*
+- [x] Test a lesson with a missing translation reads correctly
+- [x] Re-check the grading messages in both languages — *they were English only: a Nepali writer passed in Nepali and failed in English. `lessons_ne.problem_ne` renders all nine linter rules and the four grader templates; a test runs the REAL linter so a reworded rule fails instead of silently falling back*
+- [x] Commit
 
 ### Day 13 · The on-the-nose rule
 

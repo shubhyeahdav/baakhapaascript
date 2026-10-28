@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { GUIDES, GUIDE_GROUPS, guideProgress } from "../utils/guides";
+import { useT } from "../i18n";
 import ThePen from "./ThePen";
 
 /**
@@ -155,6 +156,7 @@ function Running({ guide, content, onExit, onInsert }) {
 }
 
 export default function GuidePanel({ content, onInsert, onClose }) {
+  const t = useT();
   const [activeId, setActiveId] = useState(null);
   const active = GUIDES.find((g) => g.id === activeId);
 
@@ -195,8 +197,11 @@ export default function GuidePanel({ content, onInsert, onClose }) {
         if (!inGroup.length) return null;
         return (
           <div key={group} className="mb-5">
-            <p className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-1.5">
-              {group}
+            {/* The headers translate; the guides under them are still
+                English (see MONTH_4_TASKS Day 12), so a Nepali reader gets
+                a bilingual panel rather than a broken one. */}
+            <p className="latin-caps font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-1.5">
+              {t(group)}
             </p>
             <div className="space-y-1.5">
               {inGroup.map((guide) => {

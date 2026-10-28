@@ -218,7 +218,7 @@ describe("submitting", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check my work" }));
 
     await waitFor(() => expect(learn.submit).toHaveBeenCalledWith(
-      "l2", "She counts the till without looking up."));
+      "l2", "She counts the till without looking up.", "en"));
   });
 
   it("names the technique a pass unlocked", async () => {
@@ -663,5 +663,22 @@ test("switching the interface language re-fetches the course in that language", 
   fireEvent.click(screen.getByText("to nepali"));
 
   await waitFor(() => expect(learn.lessons).toHaveBeenLastCalledWith("ne"));
+  window.localStorage.removeItem("baakhapaa:lang");
+});
+
+test("a Nepali writer is graded in Nepali, and the page's own words are Nepali too", async () => {
+  /* Day 12. The lesson prose was translated; "From the corpus", "Exercise",
+     "Check my work" and the grader's verdict were not. */
+  window.localStorage.setItem("baakhapaa:lang", "ne");
+  learn.submit.mockResolvedValue({ data: { passed: false, problems: ["लाइन 1: पात्रले असली गुनासो सिधै बोलिदिन्छ।"] } });
+  render(<LanguageProvider><LearnPage /></LanguageProvider>);
+
+  expect(await screen.findByText("पटकथा संग्रहबाट")).toBeInTheDocument();
+  expect(screen.getByText("अभ्यास")).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("यो अभ्यासको तपाईंको उत्तर"), { target: { value: "x" } });
+  fireEvent.click(screen.getByRole("button", { name: "मेरो काम जाँच्नुहोस्" }));
+
+  await waitFor(() => expect(learn.submit).toHaveBeenLastCalledWith("l2", "x", "ne"));
+  expect(await screen.findByText("अझै भएन।")).toBeInTheDocument();
   window.localStorage.removeItem("baakhapaa:lang");
 });

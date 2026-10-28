@@ -270,3 +270,79 @@ LESSONS_NE = {
         ),
     },
 }
+
+
+# --- the module headers (Month 4, Day 12) ------------------------------------
+#
+# The lesson prose was translated and the headers above it were not, so a
+# Nepali course listed its lessons under "The page", "The scene" and "Finish".
+# Keyed by the English name, which is also what the Learn page groups on — so
+# a module with no translation still groups correctly, in English.
+MODULES_NE = {
+    "The page": "पाना",
+    "The scene": "दृश्य",
+    "Finish": "पूरा गर्ने",
+    "Story": "कथा",
+}
+
+
+# --- the grader's sentences ----------------------------------------------------
+#
+# A failed exercise is answered in the linter's own words, and those were only
+# ever English — so a writer doing the course in Nepali passed in Nepali and
+# failed in English. Matched by pattern, not by rule id, because the grader
+# composes its messages ("Line 4: ...") and the linter's carry counts.
+#
+# A message with no entry here comes back in English, unchanged. Same per-field
+# fallback the lesson prose uses: a rule added tomorrow still reads.
+import re as _re
+
+_LINTER_NE = [
+    (r"This action line describes what someone thinks or feels, which the camera cannot show\.",
+     lambda m: "यो action line ले कसैले के सोच्छ वा महसुस गर्छ भन्छ — क्यामेराले त्यो देखाउन सक्दैन।"),
+    (r"The emotion is stated rather than embodied\.",
+     lambda m: "भावना देखाइएको छैन, भनिएको मात्र छ।"),
+    (r"An emotional parenthetical is doing the actor's work\.",
+     lambda m: "भावुक parenthetical ले अभिनेताको काम गरिरहेको छ।"),
+    (r"The character states the real grievance out loud\.",
+     lambda m: "पात्रले असली गुनासो सिधै बोलिदिन्छ।"),
+    (r"This action paragraph runs (\d+) lines\. Past about four, readers skim it\.",
+     lambda m: f"यो action अनुच्छेद {m[1]} लाइन लामो छ। चार लाइनपछि पाठक हतारमा पढ्छन्।"),
+    (r"(.+) speaks for (\d+) lines without interruption\.",
+     lambda m: f"{m[1]} बिना अवरोध {m[2]} लाइन बोल्छ।"),
+    (r"The scene opens on a greeting\. The scene probably starts later than you think\.",
+     lambda m: "दृश्य अभिवादनबाट सुरु हुन्छ। दृश्य सायद तपाईंले सोचेभन्दा पछि सुरु हुन्छ।"),
+    (r"The scene ends on a goodbye\. Cut on the turn instead\.",
+     lambda m: "दृश्य बिदाइमा सकिन्छ। बरु मोड आउने ठाउँमै काट्नुहोस्।"),
+    (r"(\d+) of (\d+) dialogue lines end in a full stop\. Nobody is interrupting or trailing off\.",
+     lambda m: f"{m[2]} मध्ये {m[1]} संवाद पूर्णविरामले सकिन्छन्। कसैले बीचमा रोक्दैन, कसैको कुरा अधुरो छुट्दैन।"),
+    (r"(\d+) scenes in a row are two people alone talking\.",
+     lambda m: f"लगातार {m[1]} दृश्यमा दुई जना मात्र एक्लै कुरा गरिरहेका छन्।"),
+]
+
+_GRADER_NE = [
+    (r"Found (\d+) scene heading\(s\); this exercise needs (\d+)\. A heading looks like: INT\. LOCATION - DAY",
+     lambda m: f"{m[1]} वटा scene heading भेटियो; यो अभ्यासलाई {m[2]} चाहिन्छ। Heading यस्तो हुन्छ: INT. LOCATION - DAY"),
+    (r"Found (\d+) dialogue line\(s\); this exercise needs (\d+)\.",
+     lambda m: f"{m[1]} वटा संवाद लाइन भेटियो; यो अभ्यासलाई {m[2]} चाहिन्छ।"),
+    (r"Write at least (\d+) beats, one per line\.",
+     lambda m: f"कम्तीमा {m[1]} वटा beat लेख्नुहोस्, एक लाइनमा एउटा।"),
+    (r"Mark the pivot beat (\S+): so it is a decision, not an accident\.",
+     lambda m: f"मोड ल्याउने beat लाई {m[1]}: ले चिनाउनुहोस्, ताकि त्यो संयोग होइन, निर्णय होस्।"),
+]
+
+
+def _first(table, text):
+    for pattern, render in table:
+        m = _re.fullmatch(pattern, text)
+        if m:
+            return render(m)
+    return None
+
+
+def problem_ne(text: str) -> str:
+    """One grader sentence in Nepali, or the English unchanged."""
+    m = _re.fullmatch(r"Line (\d+): (.*)", text)
+    if m:
+        return f"लाइन {m[1]}: {_first(_LINTER_NE, m[2]) or m[2]}"
+    return _first(_GRADER_NE, text) or _first(_LINTER_NE, text) or text

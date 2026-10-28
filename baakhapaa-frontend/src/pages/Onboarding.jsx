@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { auth, learn } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import ThePen from "../components/ThePen";
+import { useLanguage } from "../i18n";
 
 /**
  * Onboarding, guided by the Pen.
@@ -123,6 +124,8 @@ function Guide({ mood, children }) {
 export default function Onboarding() {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
+  // The grader answers in the interface language, as the course page does.
+  const { lang } = useLanguage();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [saving, setSaving] = useState(false);
@@ -181,7 +184,7 @@ export default function Onboarding() {
   const check = async () => {
     setChecking(true);
     try {
-      const res = await learn.submit(FIRST_LESSON, draft);
+      const res = await learn.submit(FIRST_LESSON, draft, lang);
       setResult(res.data);
     } catch {
       // The lesson is optional, so a failed check must not become a wall. Let

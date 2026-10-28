@@ -138,6 +138,31 @@ export const STRINGS = {
     "Read one voice at a time": "एक पटकमा एउटा आवाज पढ्नुहोस्",
     Cast: "पात्रहरू",
 
+    // --- the course page (Month 4, Day 12) ----------------------------------
+    "Passed.": "पास।",
+    "Technique unlocked": "प्रविधि खुल्यो",
+    "Not yet.": "अझै भएन।",
+    "These are the same checks that run in the editor. Fix and resubmit — there is no penalty for trying.":
+      "सम्पादकमा चल्ने जाँच यही हो। सच्याएर फेरि पठाउनुहोस् — प्रयास गर्दा कुनै सजाय छैन।",
+    "Could not reach the server.": "सर्भरसम्म पुग्न सकिएन।",
+    "Hide the lesson list": "पाठ सूची लुकाउनुहोस्",
+    "Show the lesson list": "पाठ सूची देखाउनुहोस्",
+    "All lessons": "सबै पाठ",
+    completed: "पूरा भयो",
+    "From the corpus": "पटकथा संग्रहबाट",
+    Exercise: "अभ्यास",
+    "Write here…": "यहाँ लेख्नुहोस्…",
+    "Your answer to this exercise": "यो अभ्यासको तपाईंको उत्तर",
+    "Checking…": "जाँच्दै…",
+    "Check my work": "मेरो काम जाँच्नुहोस्",
+    Next: "अर्को",
+
+    // Guide panel groups
+    "Start here": "यहाँबाट सुरु",
+    "The page": "पाना",
+    "Short-form": "छोटो भिडियो",
+    Finishing: "टुंग्याउने",
+
     // --- the landing page (/) ----------------------------------------------
     Pricing: "मूल्य",
     Terms: "सर्तहरू",
