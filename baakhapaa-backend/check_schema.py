@@ -86,11 +86,19 @@ def _columns_written_to_invites() -> set:
     }
 
 
+def _columns_written_to_short_measurements() -> set:
+    """Every column `shorts.py` writes. Added 2026-10-28 with the table, so
+    the first time anyone asks whether it was applied, the database answers."""
+    return {"id", "user_id", "script_id", "kind", "platform", "video_id",
+            "numbers", "created_at"}
+
+
 CHECKS = (
     ("projects", _columns_written_to_projects),
     (rag.TABLE, _columns_written_to_patterns),
     ("payments", _columns_written_to_payments),
     ("project_invites", _columns_written_to_invites),
+    ("short_measurements", _columns_written_to_short_measurements),
 )
 
 # The exact statement to run, per column. Kept beside the check so the output

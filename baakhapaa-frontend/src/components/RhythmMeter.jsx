@@ -20,7 +20,7 @@ import { scripts as scriptsApi } from "../services/api";
  */
 export const DEBOUNCE_MS = 900;
 
-export default function RhythmMeter({ content, language, onJumpToLine }) {
+export default function RhythmMeter({ content, language, onJumpToLine, onMeasure }) {
   const [m, setM] = useState(null);
   const seq = useRef(0);
 
@@ -35,7 +35,10 @@ export default function RhythmMeter({ content, language, onJumpToLine }) {
         .rhythm({ text: content, language })
         .then((res) => {
           // A slow answer to an older draft must not overwrite a newer one.
-          if (mine === seq.current) setM(res.data);
+          if (mine === seq.current) {
+            setM(res.data);
+            if (onMeasure) onMeasure(res.data);
+          }
         })
         .catch(() => {
           // A meter that cannot measure says nothing rather than a stale number.
@@ -43,7 +46,9 @@ export default function RhythmMeter({ content, language, onJumpToLine }) {
         });
     }, DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [content, language]);
+    // `onMeasure` is the editor's state setter, which React keeps stable, so
+    // listing it costs no extra measurement.
+  }, [content, language, onMeasure]);
 
   if (!m || !m.word_count) return null;
 

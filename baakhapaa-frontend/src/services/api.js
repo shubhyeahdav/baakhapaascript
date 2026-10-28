@@ -265,6 +265,15 @@ export const subscription = {
   payments: () => instance.get("/subscription/payments"),
 };
 
+// Short-form outliers and posted results. Numbers only reach the server's
+// rows; a pasted transcript is measured and discarded.
+export const shorts = {
+  outliers: (scriptId) => instance.get(`/shorts/${scriptId}/outliers`),
+  addOutlier: (scriptId, data) => instance.post(`/shorts/${scriptId}/outliers`, data),
+  addResult: (scriptId, data) => instance.post(`/shorts/${scriptId}/results`, data),
+  results: () => instance.get("/shorts/results"),
+};
+
 export const exportApi = {
   pdf: (id) => instance.get(`/export/script/pdf/${id}`, { responseType: "blob" }),
   word: (id) => instance.get(`/export/script/word/${id}`, { responseType: "blob" }),

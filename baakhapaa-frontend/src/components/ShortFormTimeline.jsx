@@ -68,6 +68,7 @@ export default function ShortFormTimeline({ structure }) {
 
       {/* The bar carries the beats. Proportional, so the hook stays visibly
           tiny, and each segment is the control that opens its own detail. */}
+      <div className="relative">
       <div
         className="flex w-full h-9 rounded overflow-hidden border border-border"
         role="tablist"
@@ -105,6 +106,25 @@ export default function ShortFormTimeline({ structure }) {
           );
         })}
       </div>
+      {/* Where the next attention device is due — every five to eight
+          seconds, not once at zero. Ticks rather than beats: the spine is
+          unchanged, these mark where it expects a question or a turn. */}
+      {(structure.rehook_seconds || []).map((sec) => (
+        <span
+          key={sec}
+          data-testid="rehook-tick"
+          title={`Rehook due near ${sec}s`}
+          className="pointer-events-none absolute top-0 bottom-0 w-px bg-gold/45"
+          style={{ left: `${(sec / total) * 100}%` }}
+        />
+      ))}
+      </div>
+      {(structure.rehook_seconds || []).length > 0 && (
+        <p className="mt-1.5 text-[10.5px] text-inkMuted">
+          Ticks mark where the next question or turn is due — about every{" "}
+          {Math.round(structure.rehook_seconds[0])}s.
+        </p>
+      )}
 
       {/* One beat's prose, in the space one card used to take for five. */}
       {active && (

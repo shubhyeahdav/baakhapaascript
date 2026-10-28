@@ -212,3 +212,65 @@ def measure(
         "opens_on_question": opens_on_question(segments),
         "outlier_ratio": outlier_ratio(views, channel_median_views),
     }
+
+
+# --- a transcript a creator pasted (Month 4, Day 9) ---------------------------
+#
+# The measurement source, decided: a PASTED transcript, not a vendor. Every
+# platform shows one ("Show transcript" on YouTube; captions files for the
+# rest), it costs nothing, and the creator is the one choosing which video to
+# learn from. A vendor can replace this later behind the same function; until
+# then nothing here needs a key, a contract or money.
+#
+# Three shapes are accepted, which covers what people actually copy:
+#   YouTube's panel   "0:03" on its own line, then the text
+#   inline            "0:03 the text"  /  "1:02:03 the text"
+#   SRT / VTT         "00:00:03,000 --> 00:00:05,500" then the text
+
+_CLOCK = r"(?:(\d+):)?(\d{1,2}):(\d{2})(?:[.,](\d{1,3}))?"
+_CUE_TIMING = re.compile(rf"^\s*{_CLOCK}\s*-->\s*{_CLOCK}")
+_LEADING_CLOCK = re.compile(rf"^\s*\[?{_CLOCK}\]?\s*(.*)$")
+
+
+def _seconds(h, m, s, frac) -> float:
+    return int(h or 0) * 3600 + int(m) * 60 + int(s) + (int(frac) / 10 ** len(frac) if frac else 0)
+
+
+def parse_transcript(text: str, duration_seconds: Optional[float] = None) -> List[Segment]:
+    """Segments from a pasted transcript, or [] when it carries no timings.
+
+    An untimed transcript is not guessed at. Every measurement in this file is
+    a time, and inventing the times would report a guess as an observation.
+    """
+    starts: List[tuple] = []            # (start, end-or-None, text)
+    pending = None
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line or line.upper() == "WEBVTT" or line.isdigit():
+            continue
+        cue = _CUE_TIMING.match(line)
+        if cue:
+            g = cue.groups()
+            pending = (_seconds(*g[:4]), _seconds(*g[4:]))
+            continue
+        clock = _LEADING_CLOCK.match(line)
+        if clock and pending is None:
+            h, m, s, frac, rest = clock.groups()
+            pending = (_seconds(h, m, s, frac), None)
+            if rest:
+                starts.append((*pending, rest))
+                pending = None
+            continue
+        if pending is not None:
+            starts.append((*pending, line))
+            pending = None
+        elif starts:
+            # A second line of the same caption.
+            a, b, t = starts[-1]
+            starts[-1] = (a, b, f"{t} {line}")
+    segs = []
+    for i, (a, b, t) in enumerate(starts):
+        if b is None:
+            b = starts[i + 1][0] if i + 1 < len(starts) else (duration_seconds or a + 2.0)
+        segs.append(Segment(a, max(a, b), t))
+    return segs

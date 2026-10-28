@@ -94,60 +94,60 @@ the thing `check_docs.py` exists to prevent.
 - [x] A test that no output key may be a verdict
 - [x] A test that no transcript word reaches a record
 - [x] `RESEARCH.md` — how the competitors work and where they stop
-- [ ] Decide: fold into Baakhapaa's `short_form`, or keep standalone
-- [ ] Write that decision down with its reason
+- [x] Decide: fold into Baakhapaa's `short_form`, or keep standalone — *folded in: `rhythm.py`, `outlier.py`; moving them found two Nepali defects (matras split words; the danda ended no sentence)*
+- [x] Write that decision down with its reason — *`docs/SHORTS_RESEARCH.md`*
 
 ### Day 7 · The rhythm meter in the editor
 
-- [ ] Expose `measure_draft` through an endpoint, or compute client-side
-- [ ] Decide which, on the same one-source-of-truth rule as the speaking rate
-- [ ] Render sigma and the monotone run in the short-form editor
-- [ ] Report, never judge — no score, no colour that implies failure
-- [ ] Show the run's location, not only its length
-- [ ] Update live as the writer types, debounced
-- [ ] Test that an empty draft renders nothing rather than zeros
-- [ ] Test that one sentence shows no rhythm rather than perfect monotony
-- [ ] Check it on a phone-width viewport
-- [ ] Commit
+- [x] Expose `measure_draft` through an endpoint, or compute client-side — *endpoint: `POST /scripts/rhythm`*
+- [x] Decide which, on the same one-source-of-truth rule as the speaking rate — *server: one implementation needs no contract test*
+- [x] Render sigma and the monotone run in the short-form editor — *`RhythmMeter`*
+- [x] Report, never judge — no score, no colour that implies failure — *a test bans verdict words and percentages*
+- [x] Show the run's location, not only its length — *by line; click jumps there*
+- [x] Update live as the writer types, debounced — *900 ms; a stale answer never overwrites a newer draft*
+- [x] Test that an empty draft renders nothing rather than zeros
+- [x] Test that one sentence shows no rhythm rather than perfect monotony
+- [x] Check it on a phone-width viewport — *375px, demo backend: no horizontal scroll. The walk also found that opening the editor by PROJECT id loaded a script with no project, so every format feature was off and the title read "Untitled"; fixed and pinned*
+- [x] Commit
 
 ### Day 8 · The beat spine, reworked
 
-- [ ] Read `SHORT_FORM_BEATS` — one hook at second zero, then a linear body
-- [ ] Add rehook points so an attention device lands every 5–8 seconds
-- [ ] Keep it deterministic — grammar, not generation, no AI call
-- [ ] Preserve the existing hook types; add nothing unproven
-- [ ] A rehook check: a short whose only device is at 0s is reported
-- [ ] Phrase it as an observation, like every other finding
-- [ ] Test the beats still sum to the runtime asked for
-- [ ] Test the check is silent on a short that already rehooks
-- [ ] Update `ShortFormTimeline` to draw the new beats
-- [ ] Commit
+- [x] Read `SHORT_FORM_BEATS` — one hook at second zero, then a linear body
+- [x] Add rehook points so an attention device lands every 5–8 seconds — *`rehook_points`: every gap in 5-8s on runtimes 20s-3min*
+- [x] Keep it deterministic — grammar, not generation, no AI call
+- [x] Preserve the existing hook types; add nothing unproven — *ticks, not beats; the beat list is unchanged and tested so*
+- [x] A rehook check: a short whose only device is at 0s is reported — *`rhythm.observations`*
+- [x] Phrase it as an observation, like every other finding
+- [x] Test the beats still sum to the runtime asked for
+- [x] Test the check is silent on a short that already rehooks
+- [x] Update `ShortFormTimeline` to draw the new beats — *gold ticks on the bar*
+- [x] Commit
 
 ### Day 9 · Paste an outlier
 
-- [ ] Accept a pasted video URL in the short-form editor
-- [ ] Decide the measurement source — pasted transcript, or a vendor later
-- [ ] Measure it with `measure.py`
-- [ ] Show the outlier's numbers beside the draft's
-- [ ] Store numbers only; a test proves no text is kept
-- [ ] Handle a failed measurement without losing the draft
-- [ ] Say when a measurement is missing rather than showing a zero
-- [ ] Test the record shape is identical when measurement fails
-- [ ] Check the comparison reads clearly at 375px
-- [ ] Commit
+- [x] Accept a pasted video URL in the short-form editor — *kept as platform + id only*
+- [x] Decide the measurement source — pasted transcript, or a vendor later — *pasted transcript; written in `docs/SHORTS_RESEARCH.md`*
+- [x] Measure it with `measure.py` — *now `outlier.py`*
+- [x] Show the outlier's numbers beside the draft's — *"yours" beside spread and first turn*
+- [x] Store numbers only; a test proves no text is kept — *`test_shorts.py` reads the stored rows*
+- [x] Handle a failed measurement without losing the draft
+- [x] Say when a measurement is missing rather than showing a zero
+- [x] Test the record shape is identical when measurement fails
+- [x] Check the comparison reads clearly at 375px
+- [x] Commit
 
 ### Day 10 · The loop that compounds
 
-- [ ] A place for the creator to enter views and retention after posting
-- [ ] Store it against the draft that produced it
-- [ ] Correlate hook shape against result
-- [ ] Attach the sample size to every correlation, always
-- [ ] Say nothing at all below a sample that means nothing
-- [ ] Decide that floor deliberately and write the number down
-- [ ] Test that a single data point produces no claim
-- [ ] Test that the sample size is never omitted
-- [ ] Draw it where the writer already looks, not in a new tab
-- [ ] Commit
+- [x] A place for the creator to enter views and retention after posting — *"Log how it did"*
+- [x] Store it against the draft that produced it — *the draft's hook shape at logging time, as numbers*
+- [x] Correlate hook shape against result — *two splits, median outlier ratio*
+- [x] Attach the sample size to every correlation, always
+- [x] Say nothing at all below a sample that means nothing
+- [x] Decide that floor deliberately and write the number down — *five a side; `shorts.MIN_PER_GROUP` and the research doc*
+- [x] Test that a single data point produces no claim
+- [x] Test that the sample size is never omitted
+- [x] Draw it where the writer already looks, not in a new tab — *under the rhythm meter*
+- [x] Commit
 
 ---
 
@@ -295,5 +295,5 @@ Purchases, merchant applications, the legal review and the five-writer pilot.
 They are in `MONTH_4_PROPOSAL.md`, and they are what decides whether the month
 *mattered* — this file only decides whether the building got done.
 
-**76 of these 200 are already complete** (counted, not typed). Days 2 to 5 finish a format that is
+**118 of these 200 are already complete** (counted, not typed). Days 2 to 5 finish a format that is
 two-thirds built; Week 14 is the only genuinely new product surface.

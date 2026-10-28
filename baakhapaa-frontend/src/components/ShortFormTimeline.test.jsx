@@ -72,3 +72,18 @@ test("nothing renders without beats", () => {
   const { container } = render(<ShortFormTimeline structure={{ beats: [] }} />);
   expect(container).toBeEmptyDOMElement();
 });
+
+test("draws a tick where each rehook is due, proportional to the runtime", () => {
+  render(<ShortFormTimeline structure={{ ...STRUCTURE, rehook_seconds: [7, 14, 20, 27, 34] }} />);
+  const ticks = screen.getAllByTestId("rehook-tick");
+  expect(ticks).toHaveLength(5);
+  expect(ticks[0].style.left).toBe(`${(7 / 45) * 100}%`);
+  // Ticks, not beats: the tab count is unchanged.
+  expect(screen.getAllByRole("tab")).toHaveLength(5);
+});
+
+test("an older structure with no rehook points draws none and says nothing", () => {
+  render(<ShortFormTimeline structure={STRUCTURE} />);
+  expect(screen.queryByTestId("rehook-tick")).toBeNull();
+  expect(screen.queryByText(/Ticks mark/)).toBeNull();
+});

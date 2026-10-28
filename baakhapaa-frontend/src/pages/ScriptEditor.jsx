@@ -26,6 +26,7 @@ import { useT } from "../i18n";
 import StructureTimeline from "../components/StructureTimeline";
 import ShortFormTimeline from "../components/ShortFormTimeline";
 import RhythmMeter from "../components/RhythmMeter";
+import ShortsPanel from "../components/ShortsPanel";
 import CompactTimeline from "../components/CompactTimeline";
 import Corkboard from "../components/Corkboard";
 import OutlineView from "../components/OutlineView";
@@ -80,6 +81,9 @@ export default function ScriptEditor() {
      reach. */
   const scriptId = script?.id || id;
   const [content, setContent] = useState("");
+  // The rhythm meter's last measurement, shared with the outlier panel so an
+  // outlier's numbers can sit beside the draft's own.
+  const [rhythm, setRhythm] = useState(null);
   const [saving, setSaving] = useState(false);
   // Patterns, not Generate. Generate is a paid tab that needs an instruction
   // typed before it does anything; Patterns is free on every tier, costs no
@@ -645,7 +649,15 @@ export default function ScriptEditor() {
       .getById(id)
       .catch((err) => {
         if (err.response?.status !== 404) throw err;
-        return scripts.getByProject(id);
+        // `getByProject` resolves the id but returns the bare script row: no
+        // `project`, no scenes, no bible, no speaking rate. Opened that way the
+        // editor titled itself "Untitled", drove AI calls from the default
+        // genre, and switched off everything that reads the format — the video
+        // keymap and page, the short-form beat bar and rhythm meter — for the
+        // whole session. So load the script again by its own id for the full
+        // payload, and keep the bare row only if that second load fails.
+        return scripts.getByProject(id).then((bare) =>
+          scripts.getById(bare.data.id).catch(() => bare));
       })
       .then((res) => {
         if (!live) return;
@@ -1558,7 +1570,11 @@ export default function ScriptEditor() {
       {/* Short-form only, and below the beat bar it belongs beside. Not in
           focus mode, which hides everything but the page on purpose. */}
       {(script?.project?.format || script?.format) === "short_form" && !zenMode && (
-        <RhythmMeter content={content} language={language} onJumpToLine={goToLine} />
+        <>
+          <RhythmMeter content={content} language={language} onJumpToLine={goToLine}
+            onMeasure={setRhythm} />
+          <ShortsPanel scriptId={script?.id} rhythm={rhythm} />
+        </>
       )}
 
       <div className="flex-1 flex overflow-hidden">

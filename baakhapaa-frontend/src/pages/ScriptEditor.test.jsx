@@ -1051,6 +1051,22 @@ describe("opening the editor by either id", () => {
     expect(await screen.findByLabelText("Screenplay")).toBeInTheDocument();
   });
 
+  it("loads the FULL script after resolving a project id, project included", async () => {
+    /* The fallback used to stop at `getByProject`, whose row has no
+       `project` — so the editor read "Untitled" and every format-driven
+       feature was off. Found in a browser walk of a short-form project. */
+    stubApi();
+    const full = { ...SCRIPT, project: { ...(SCRIPT.project || {}), title: "Chiya Break" } };
+    scripts.getById
+      .mockRejectedValueOnce({ response: { status: 404 } })
+      .mockResolvedValueOnce({ data: full });
+    scripts.getByProject.mockResolvedValue({ data: { id: "script-1", content: SCRIPT.content } });
+    render(<ScriptEditor />);
+
+    await waitFor(() => expect(scripts.getById).toHaveBeenLastCalledWith("script-1"));
+    expect(await screen.findByText("Chiya Break")).toBeInTheDocument();
+  });
+
   it("still reports a real failure rather than retrying forever", async () => {
     stubApi();
     scripts.getById.mockRejectedValueOnce({

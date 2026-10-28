@@ -195,3 +195,23 @@ workflow.
 
 What it costs: the backend now owns two modules with no route a free user can
 reach yet, until Days 7-10 wire them. That is a week, and it is on the plan.
+
+## Decision: the measurement source is a pasted transcript
+
+*2026-10-28 (Day 9).* Not a vendor, yet. Every platform shows a transcript
+(YouTube's "Show transcript"; caption files for the rest), it costs nothing,
+and the creator chooses which video to learn from. `outlier.parse_transcript`
+reads YouTube's panel format, inline `0:03 text`, and SRT/VTT. An untimed paste
+is not guessed at: the row is written with every measurement `None` and a fixed
+reason, so the panel says "not measured" instead of showing a zero. A vendor can
+replace the paste behind the same function later; nothing else would change.
+
+## Decision: the floor for saying anything about results is five a side
+
+*2026-10-28 (Day 10).* `shorts.MIN_PER_GROUP = 5`. Below five results on either
+side of a split (opens on a question / does not; turns again within eight
+seconds / does not), the panel says nothing about results at all — only how
+many are logged. Five is the least at which a median is more than one video's
+luck, and it is still small, so above it every number is printed with its `n`
+and labelled "a comparison of your own posts, not a rule". Raise it before
+lowering it.
