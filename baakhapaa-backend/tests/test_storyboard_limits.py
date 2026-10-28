@@ -99,3 +99,59 @@ def test_generation_still_respects_ownership(client, make_user, make_script):
 
     r = client.post(f"/storyboard/generate/{script_id}", headers=intruder["headers"])
     assert r.status_code == 404
+
+
+# --- credits -----------------------------------------------------------------
+# Images were the one AI cost the monthly ceiling never counted: a Pro
+# account's scenes stopped at the limit and its storyboards did not.
+
+def _live_images(monkeypatch):
+    """Pretend a real image provider answered, without calling one."""
+    import storyboard_engine
+    monkeypatch.setattr(storyboard_engine, "MOCK_AI", False)
+    monkeypatch.setattr(storyboard_engine, "generate_frame",
+                        lambda *a, **k: "https://img.example/frame.png")
+
+
+def test_a_board_stops_where_the_months_credits_do(client, make_user, make_script,
+                                                  monkeypatch):
+    import ai_budget
+    _live_images(monkeypatch)
+    monkeypatch.setitem(ai_budget.CEILINGS_USD, "pro", 3 * ai_budget.IMAGE_USD_PER_FRAME)
+    user = make_user("pro")
+    _, script_id = make_script(user)
+    add_scenes(client, user, script_id, 6)
+
+    body = client.post(f"/storyboard/generate/{script_id}", headers=user["headers"]).json()
+
+    assert body["frames_generated"] == 3
+    assert body["credit_limited"] is True
+    assert ai_budget.summary(user["id"], "pro")["credits_left"] == 0
+
+
+def test_an_account_with_no_credits_left_is_refused_with_429(client, make_user,
+                                                            make_script, monkeypatch):
+    """429 like the text routes — the account has paid; it has used its month."""
+    import ai_budget
+    _live_images(monkeypatch)
+    monkeypatch.setitem(ai_budget.CEILINGS_USD, "pro", 0.01)
+    user = make_user("pro")
+    _, script_id = make_script(user)
+    add_scenes(client, user, script_id, 2)
+    ai_budget.record(user["id"], 100_000, 100_000)
+
+    r = client.post(f"/storyboard/generate/{script_id}", headers=user["headers"])
+
+    assert r.status_code == 429, r.text
+
+
+def test_demo_placeholders_cost_nothing(client, make_user, make_script):
+    """A placeholder never reached a provider, so it must not spend a credit."""
+    import ai_budget
+    user = make_user("pro")
+    _, script_id = make_script(user)
+    add_scenes(client, user, script_id, 3)
+
+    client.post(f"/storyboard/generate/{script_id}", headers=user["headers"])
+
+    assert ai_budget.summary(user["id"], "pro")["credits_used"] == 0

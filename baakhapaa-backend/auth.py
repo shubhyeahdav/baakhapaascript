@@ -187,7 +187,8 @@ def require_paid_tier(user_id: str = Depends(get_current_user)) -> str:
                    f"It resets at the start of next month. Everything that does "
                    f"not call a model — the craft panel, the linter, the review, "
                    f"the whole course — keeps working. "
-                   f"(Used ${summary['spent_usd']:.2f} of ${summary['ceiling_usd']:.2f}.)",
+                   f"(Used {summary['credits_used']} of {summary['credits_total']} "
+                   f"credits; resets {summary['resets_on']}.)",
         )
     return user_id
 

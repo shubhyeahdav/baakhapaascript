@@ -213,3 +213,46 @@ def test_free_users_can_read_their_usage_too(client, make_user):
 
     assert r.status_code == 200, r.text
     assert r.json()["metered"] is False
+
+
+# --- credits -----------------------------------------------------------------
+# The unit a writer plans in. A credit is one cent of provider cost, so the
+# dollar ceiling stays the single source of truth.
+
+def test_credits_round_up_so_a_plan_never_undercounts():
+    assert ai_budget.to_credits(0) == 0
+    assert ai_budget.to_credits(0.0001) == 1
+    assert ai_budget.to_credits(ai_budget.CREDIT_USD * 3) == 3
+
+
+def test_the_allowance_is_the_dollar_ceiling_in_credits():
+    assert ai_budget.allowance_credits("pro") == round(
+        ai_budget.CEILINGS_USD["pro"] / ai_budget.CREDIT_USD)
+    assert ai_budget.allowance_credits("free") == 0
+
+
+def test_the_summary_says_what_the_remainder_still_buys():
+    _clear("u-plan")
+    s = ai_budget.summary("u-plan", "pro")
+
+    assert s["credits_left"] == s["credits_total"] - s["credits_used"]
+    for action, cost in s["costs"].items():
+        assert cost >= 1
+        assert s["enough_for"][action] == s["credits_left"] // cost
+
+
+def test_the_summary_names_the_reset_date():
+    """A writer should be able to look at a date and know when it resets."""
+    from datetime import date
+    assert ai_budget._resets_on(date(2026, 12, 15)) == "2027-01-01"
+    assert ai_budget._resets_on(date(2026, 3, 31)) == "2026-04-01"
+
+
+def test_the_plans_route_is_public_and_matches_the_ceiling(client):
+    """The pricing page reads this before sign-in, and must advertise the
+    allowance the server actually enforces."""
+    r = client.get("/subscription/plans")
+
+    assert r.status_code == 200, r.text
+    assert r.json()["allowance"]["pro"] == ai_budget.allowance_credits("pro")
+    assert set(r.json()["costs"]) >= {"scene", "rewrite", "suggestions", "storyboard_frame"}

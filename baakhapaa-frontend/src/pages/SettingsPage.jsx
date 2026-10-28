@@ -223,30 +223,7 @@ export default function SettingsPage() {
                   ))}
                 </div>
                 {aiUsage?.metered ? (
-                  <div className="rounded-2xl border border-borderSoft bg-surface px-5 py-4 max-w-md">
-                    <div className="flex items-baseline justify-between gap-3 mb-2">
-                      <span className="text-inkMuted text-[11px] tracking-[0.14em] uppercase">
-                        AI generation · {aiUsage.period}
-                      </span>
-                      <span className="font-mono text-[12px] text-ink tabular-nums">
-                        ${aiUsage.spent_usd.toFixed(2)} / ${aiUsage.ceiling_usd.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-bgDeep overflow-hidden">
-                      <div
-                        className="h-full bg-gold"
-                        style={{
-                          width: `${Math.min(100, (aiUsage.spent_usd / (aiUsage.ceiling_usd || 1)) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                    <p className="text-inkMuted text-[12px] leading-relaxed mt-3">
-                      A monthly ceiling on generation, so a runaway cannot quietly
-                      spend the month. It resets on the first. Everything that does
-                      not call a model — the craft panel, the linter, the review,
-                      the course — is unaffected by it.
-                    </p>
-                  </div>
+                  <CreditCard usage={aiUsage} />
                 ) : (
                   <p className="text-inkMuted text-[12.5px] leading-relaxed max-w-md">
                     The counts above come from your project library. AI generation
@@ -262,6 +239,73 @@ export default function SettingsPage() {
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+
+// What one action costs, worded for a writer. Keys match `ai_budget.ACTION_TOKENS`
+// plus the storyboard frame.
+const ACTION_LABELS = {
+  scene: ["scenes", "a generated scene"],
+  rewrite: ["rewrites", "a rewrite"],
+  suggestions: ["suggestion rounds", "a round of suggestions"],
+  storyboard_frame: ["storyboard frames", "a storyboard frame"],
+};
+
+/**
+ * The month's AI credits, read as a plan rather than a bill.
+ *
+ * It showed "$1.50 / $6.00", which asks a screenwriter to know what a scene
+ * costs in dollars. Credits plus "enough for about N scenes" answers the
+ * question they actually have: can I finish this draft this month?
+ */
+function CreditCard({ usage }) {
+  // An older backend sends only dollars; derive credits rather than blank.
+  const total = usage.credits_total ?? Math.round((usage.ceiling_usd || 0) * 100);
+  const used = usage.credits_used ?? Math.ceil((usage.spent_usd || 0) * 100);
+  const left = usage.credits_left ?? Math.max(0, total - used);
+  const enough = usage.enough_for || {};
+  const costs = usage.costs || {};
+  return (
+    <div className="rounded-2xl border border-borderSoft bg-surface px-5 py-4 max-w-md">
+      <div className="flex items-baseline justify-between gap-3 mb-2">
+        <span className="text-inkMuted text-[11px] tracking-[0.14em] uppercase">
+          AI credits · {usage.period}
+        </span>
+        <span className="font-mono text-[12px] text-ink tabular-nums">
+          {left} of {total} left
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-bgDeep overflow-hidden">
+        <div
+          className="h-full bg-gold"
+          style={{ width: `${Math.min(100, (used / (total || 1)) * 100)}%` }}
+        />
+      </div>
+      {Object.keys(enough).length > 0 && (
+        <>
+          <p className="text-inkSoft text-[12.5px] mt-4 mb-1.5">What is left still covers about:</p>
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px]">
+            {Object.entries(ACTION_LABELS).filter(([k]) => k in enough).map(([k, [plural]]) => (
+              <li key={k} className="flex justify-between gap-2">
+                <span className="text-inkMuted">{plural}</span>
+                <span className="font-mono text-ink tabular-nums">{enough[k]}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-inkMuted text-[11.5px] leading-relaxed mt-2">
+            {Object.entries(ACTION_LABELS).filter(([k]) => k in costs)
+              .map(([k, [, one]]) => `${one} up to ${costs[k]}`).join(" · ")}
+            {" "}credits. Mix them however the draft needs.
+          </p>
+        </>
+      )}
+      <p className="text-inkMuted text-[12px] leading-relaxed mt-3">
+        Credits reset{usage.resets_on ? ` on ${usage.resets_on}` : " on the first"}.
+        Everything that does not call a model — the craft panel, the linter,
+        the review, the course — never uses them.
+      </p>
     </div>
   );
 }

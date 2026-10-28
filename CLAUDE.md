@@ -102,13 +102,13 @@ and `HANDOVER.md` the narrative. The numbers in it are counted by
 > disconnected` on the first request after an idle gap — a pooled connection
 > Supabase has already closed. See `HANDOVER.md`.
 >
-> Backend tests: **1138 across 74 files, none skipped, all passing**
+> Backend tests: **1146 across 74 files, none skipped, all passing**
 > (2026-09-17), `./venv/Scripts/python -m pytest`. It read "2 skipped" until
 > then, which had been wrong since the Devanagari font gate stopped skipping
 > — the asset is bundled and `tests/test_font_asset.py` now fails rather than
 > skips if anyone removes it. `check_docs.py` counts the tests but not the
 > skips, so that number was typed and drifted the way typed numbers do.
-> Frontend tests: **1272 across 65 files**, `npm run test:ci`.
+> Frontend tests: **1280 across 65 files**, `npm run test:ci`.
 >
 > **The backend suite takes about TWENTY minutes on this machine, not the 3.5
 > this file claimed until 2026-09-16.** That is not the old hang and nothing is
@@ -412,6 +412,17 @@ and `HANDOVER.md` the narrative. The numbers in it are counted by
   gives free 2 collaborators, pro 5, studio unlimited — enforced against the
   project OWNER's plan. This is what Studio buys; until now `PAID_TIERS` held
   both paid tiers and nothing branched on studio
+- **AI credits** (`ai_budget.py`, 2026-10-28) — the monthly spend ceiling is
+  shown to writers as credits (one credit = one cent of provider cost, so Pro's
+  $6 is 600, Studio's $40 is 4,000) with what the remainder still covers ("about
+  150 scenes or 450 frames") and the reset date. Costs per action are upper
+  bounds from each route's `max_tokens`, rounded up, so a plan made from them
+  never runs out early. The pricing page reads allowances from
+  `GET /subscription/plans` rather than typing them. **Storyboard frames now
+  spend credits** — images were the one AI cost the ceiling never counted, so a
+  Pro account's scenes stopped at the limit and its boards did not. A board is
+  capped at what the month's credits still pay for, and says so. The dollar
+  ceiling stays the single source of truth; no migration
 - **Terms and Privacy are reachable** — `/terms` and `/privacy`, public, served
   from the root markdown through a build-time virtual module (one copy, no
   drift). Sign-up states what is being agreed to. Both documents are still

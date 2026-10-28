@@ -101,6 +101,32 @@ describe("an empty board", () => {
       .toBeInTheDocument();
   });
 
+  it("says when a board stopped short because the month's credits ran out", async () => {
+    /* A partial board with no explanation reads as a bug. */
+    storyboard.generate.mockResolvedValue({ data: {
+      frames_generated: 4, scene_count: 10, truncated: true, frame_limit: 24,
+      credit_limited: true } });
+    render(<StoryboardView />);
+    await screen.findByText("No storyboard frames yet");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Generate Storyboard/ })[0]);
+
+    expect(await screen.findByText(/Drew 4 of 10 scenes — this month's AI credits ran out/))
+      .toBeInTheDocument();
+  });
+
+  it("says nothing extra when the whole board was drawn", async () => {
+    storyboard.generate.mockResolvedValue({ data: {
+      frames_generated: 3, scene_count: 3, truncated: false, credit_limited: false } });
+    render(<StoryboardView />);
+    await screen.findByText("No storyboard frames yet");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Generate Storyboard/ })[0]);
+
+    await waitFor(() => expect(storyboard.getAll).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/^Drew /)).toBeNull();
+  });
+
   it("lets the error be dismissed", async () => {
     storyboard.generate.mockRejectedValue(new Error("offline"));
     render(<StoryboardView />);

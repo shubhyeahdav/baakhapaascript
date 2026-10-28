@@ -25,13 +25,19 @@ vi.mock("../context/AuthContext", () => ({
 }));
 
 vi.mock("../services/api", () => ({
-  subscription: { providers: vi.fn(), checkout: vi.fn() },
+  subscription: { providers: vi.fn(), checkout: vi.fn(), plans: vi.fn() },
 }));
 
 // eslint-disable-next-line import/first
 import { subscription } from "../services/api";
+
+const PLANS = {
+  credit_usd: 0.01,
+  allowance: { free: 0, pro: 600, studio: 4000 },
+  costs: { scene: 3, rewrite: 3, suggestions: 2, storyboard_frame: 1 },
+};
 // eslint-disable-next-line import/first
-import PricingPage from "./PricingPage";
+import PricingPage, { creditLine } from "./PricingPage";
 
 const ALL_THREE = {
   data: {
@@ -47,6 +53,7 @@ const ALL_THREE = {
 beforeEach(() => {
   vi.clearAllMocks();
   subscription.providers.mockResolvedValue(ALL_THREE);
+  subscription.plans.mockResolvedValue({ data: PLANS });
 });
 
 test("offers every gateway the deployment can take money through", async () => {
@@ -223,5 +230,30 @@ describe("what each tier now actually buys", () => {
     render(<PricingPage />);
 
     expect(body()).toMatch(/3 active projects/i);
+  });
+});
+
+
+describe("monthly AI credits", () => {
+  it("says what a plan's credits cover in scenes and frames", () => {
+    expect(creditLine(PLANS, "pro")).toBe(
+      "600 AI credits a month — about 200 scenes or 600 storyboard frames");
+  });
+
+  it("claims no credits for a tier without an allowance", () => {
+    expect(creditLine(PLANS, "free")).toBeNull();
+    expect(creditLine(null, "pro")).toBeNull();
+  });
+
+  it("shows the served allowance on the paid cards", async () => {
+    render(<PricingPage />);
+    expect(await screen.findByText(/4,000 AI credits a month/)).toBeInTheDocument();
+  });
+
+  it("advertises no number at all when the allowance cannot be read", async () => {
+    subscription.plans.mockRejectedValue(new Error("network"));
+    render(<PricingPage />);
+    await waitFor(() => expect(subscription.plans).toHaveBeenCalled());
+    expect(screen.queryByText(/AI credits a month/)).toBeNull();
   });
 });

@@ -246,9 +246,12 @@ export const subscription = {
   // Which gateways this deployment can actually take money through. Stripe
   // declines most Nepali cards, so the pricing page cannot assume one.
   providers: () => instance.get("/subscription/providers"),
-  // Where this account stands against its monthly generation ceiling, in
-  // dollars. Free plans report `metered: false` rather than 0 of 0.
+  // This month's AI credits: used, left, what the rest still buys, and the
+  // reset date. Free plans report `metered: false` rather than 0 of 0.
   usage: () => instance.get("/subscription/usage"),
+  // Public: each tier's monthly credits and what an action costs, so the
+  // pricing page advertises the allowance the server enforces.
+  plans: () => instance.get("/subscription/plans"),
   checkout: (tier, provider) => instance.post("/subscription/checkout", { tier, provider }),
   // `params` is whatever the gateway put on the return URL. The server treats
   // it as a lookup key and confirms the payment with the gateway itself.
