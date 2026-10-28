@@ -207,13 +207,13 @@ the thing `check_docs.py` exists to prevent.
 
 ### Day 15 · Craft and corpus
 
-- [ ] Add the rehook craft entry to `knowledge_base.json` — original prose, as every entry is
-- [ ] Add the rhythm entry
-- [ ] Mark both `('video',)` so they stay out of screenplay results
-- [ ] Reload the corpus and confirm 47 rows
-- [ ] Re-run the retrieval eval
+- [x] Add the rehook craft entry to `knowledge_base.json` — original prose, as every entry is — *"Reopen the question before the last answer has finished landing"*
+- [x] Add the rhythm entry — *"Vary the length of what is said aloud" (dialogue level: it is about the spoken line)*
+- [x] Mark both `('video',)` so they stay out of screenplay results
+- [ ] Reload the corpus and confirm 47 rows — *NOT RUN: the embedding model cannot be downloaded in the cloud session (huggingface.co denied by its network policy). `knowledge_base.json` holds 47; the table needs `load_knowledge_base.py` on a machine with the model*
+- [ ] Re-run the retrieval eval — *NOT RUN, same reason. CI's "Retrieval quality" step caches the model and enforces both floors, so a PR will measure it*
 - [ ] Confirm screenplay p@1 is unchanged — that property is the whole point of the one-way exclusion
-- [ ] Add the new queries to the golden set
+- [x] Add the new queries to the golden set — *one per entry, phrased as complaints*
 - [ ] Confirm both CI floors still clear
 - [ ] Record the before and after in the commit
 - [ ] Commit
@@ -295,5 +295,5 @@ Purchases, merchant applications, the legal review and the five-writer pilot.
 They are in `MONTH_4_PROPOSAL.md`, and they are what decides whether the month
 *mattered* — this file only decides whether the building got done.
 
-**118 of these 200 are already complete** (counted, not typed). Days 2 to 5 finish a format that is
+**161 of these 200 are already complete** (counted, not typed). Days 2 to 5 finish a format that is
 two-thirds built; Week 14 is the only genuinely new product surface.

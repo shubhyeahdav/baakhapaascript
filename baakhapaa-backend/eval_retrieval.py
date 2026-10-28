@@ -190,6 +190,12 @@ VIDEO_QUERIES = {
     "talking to camera": "image",
     "the middle is just information, everything in it is true and it still "
     "feels like a list": "structure",
+    # Month 4, Day 15: the two short-form entries. Phrased as complaints, the
+    # register the corpus is embedded in, and not as the technique's name.
+    "people swipe away a few seconds in even though the hook is good, after it "
+    "it is just me explaining": "structure",
+    "my voiceover sounds flat and samey, every sentence is the same length and "
+    "it drags even though the short is short": "dialogue",
 }
 
 REAL_QUERIES = [

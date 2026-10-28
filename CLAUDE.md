@@ -102,13 +102,13 @@ and `HANDOVER.md` the narrative. The numbers in it are counted by
 > disconnected` on the first request after an idle gap — a pooled connection
 > Supabase has already closed. See `HANDOVER.md`.
 >
-> Backend tests: **1304 across 86 files, none skipped, all passing**
+> Backend tests: **1313 across 87 files, none skipped, all passing**
 > (2026-09-17), `./venv/Scripts/python -m pytest`. It read "2 skipped" until
 > then, which had been wrong since the Devanagari font gate stopped skipping
 > — the asset is bundled and `tests/test_font_asset.py` now fails rather than
 > skips if anyone removes it. `check_docs.py` counts the tests but not the
 > skips, so that number was typed and drifted the way typed numbers do.
-> Frontend tests: **1545 across 77 files**, `npm run test:ci`.
+> Frontend tests: **1556 across 78 files**, `npm run test:ci`.
 >
 > **The backend suite takes about TWENTY minutes on this machine, not the 3.5
 > this file claimed until 2026-09-16.** That is not the old hang and nothing is
@@ -291,7 +291,7 @@ and `HANDOVER.md` the narrative. The numbers in it are counted by
   (`/payment/return/{provider}`), never a query string: every gateway appends
   its own parameters and eSewa's docs do not say what it does when one is
   already there
-- **RAG craft grounding** — `knowledge_base.json` (**45 craft entries** across
+- **RAG craft grounding** — `knowledge_base.json` (**47 craft entries** across
   five levels: structure, scene, dialogue, character, image — 39 that serve
   both crafts plus the six long-form video ones) →
   `load_knowledge_base.py` → `script_patterns`; `rag.retrieve_relevant_patterns()`
@@ -344,7 +344,9 @@ and `HANDOVER.md` the narrative. The numbers in it are counted by
   last time.
   **`applies_to` is APPLIED** — checked against production 2026-09-17:
   `script_patterns` holds 45 rows, 39 carrying `('screenplay', 'video')` and 6
-  carrying `('video',)`, which is exactly the shape the loader writes. This
+  carrying `('video',)`, which is exactly the shape the loader writes. (Month 4
+  Day 15 added two more `('video',)` entries to `knowledge_base.json`;
+  production reaches 47 only after `load_knowledge_base.py` is re-run.) This
   paragraph read "needs a MIGRATION ... a video writer gets screenplay advice"
   until then, long after the migration and the loader had both been run — a
   stale warning is worse than none, because it sends the next session to fix
