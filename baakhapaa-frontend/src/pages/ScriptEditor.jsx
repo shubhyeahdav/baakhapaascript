@@ -25,6 +25,7 @@ import { useT } from "../i18n";
 // about which letters do what — this is the one place a human reads them.
 import StructureTimeline from "../components/StructureTimeline";
 import ShortFormTimeline from "../components/ShortFormTimeline";
+import RhythmMeter from "../components/RhythmMeter";
 import CompactTimeline from "../components/CompactTimeline";
 import Corkboard from "../components/Corkboard";
 import OutlineView from "../components/OutlineView";
@@ -452,6 +453,18 @@ export default function ScriptEditor() {
     if (!ta) return;
     const starts = sluglinePositions(ta.value);
     const pos = starts.length > index ? starts[index] : ta.value.length;
+    ta.focus();
+    ta.setSelectionRange(pos, pos);
+    scrollCaretIntoView(typewriter || zenMode);
+  };
+
+  // Put the caret at the start of a 1-based line. The rhythm meter names a
+  // flat run by line number; this is what makes that name a place to go.
+  const goToLine = (line) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const lines = ta.value.split("\n");
+    const pos = lines.slice(0, Math.max(0, line - 1)).reduce((n, l) => n + l.length + 1, 0);
     ta.focus();
     ta.setSelectionRange(pos, pos);
     scrollCaretIntoView(typewriter || zenMode);
@@ -1540,6 +1553,12 @@ export default function ScriptEditor() {
             onExpand={() => setShowStructure(true)}
           />
         )
+      )}
+
+      {/* Short-form only, and below the beat bar it belongs beside. Not in
+          focus mode, which hides everything but the page on purpose. */}
+      {(script?.project?.format || script?.format) === "short_form" && !zenMode && (
+        <RhythmMeter content={content} language={language} onJumpToLine={goToLine} />
       )}
 
       <div className="flex-1 flex overflow-hidden">

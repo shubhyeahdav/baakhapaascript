@@ -1,5 +1,5 @@
 import re
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 
 # Server-side mirror of the sign-up form's rules (frontend src/utils/password.js).
@@ -374,6 +374,15 @@ class ActDurations(BaseModel):
     not have to resend the others and risk clobbering an edit it never saw.
     """
     durations: dict[str, float] = {}
+
+
+class RhythmRequest(BaseModel):
+    """A short-form draft for the rhythm meter. Measured and discarded — the
+    response carries numbers and line numbers, never the text."""
+    text: str = Field("", max_length=50_000)
+    # The draft's language, for the speaking rate. Same lookup the long-form
+    # runtime uses (`videoscript.wpm_for`), so the two estimates cannot differ.
+    language: Optional[str] = "English"
 
 
 class RecommendRequest(BaseModel):

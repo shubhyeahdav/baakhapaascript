@@ -184,6 +184,9 @@ export const scripts = {
   // Deterministic craft diagnostics — every tier, no AI cost, works on a
   // partial draft. Returns flags with line numbers plus by_craft_level.
   lint: (data) => instance.post("/scripts/lint", data),
+  // Short-form rhythm: sentence-length spread, the flattest run and where it
+  // starts, estimated spoken length. Every tier, no AI, nothing stored.
+  rhythm: (data) => instance.post("/scripts/rhythm", data),
   // Shape comparison against the analysed corpus. Returns {ready:false} with
   // progress until the draft is big enough to say anything honest about.
   benchmark: (data) => instance.post("/scripts/benchmark", data),

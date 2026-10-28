@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from models import (
     GenerateStructureRequest, GenerateSceneRequest,
     ImproveSceneRequest, SuggestRequest, ScriptSave, AddSceneRequest,
-    RecommendRequest, StoryBible, ActDurations,
+    RecommendRequest, RhythmRequest, StoryBible, ActDurations,
 )
 from database import (
     supabase, get_project_by_id, get_versions_by_script, get_scene_by_id,
@@ -28,6 +28,7 @@ from auth import (
 )
 import script_engine
 import linter
+import rhythm
 import screenplay
 import scene_sync
 import videoscript
@@ -539,6 +540,21 @@ def lint_draft(req: RecommendRequest, user_id: str = Depends(get_current_user)):
             "low": sum(1 for f in flags if f["severity"] == "low"),
         },
     }
+
+
+@router.post("/rhythm")
+def rhythm_meter(req: RhythmRequest, user_id: str = Depends(get_current_user)):
+    """The short-form rhythm meter (Month 4, Day 7). Every tier, no model.
+
+    Computed here rather than in the browser on the same rule as the speaking
+    rate: one implementation. The JS and Python video parsers were two
+    implementations of one grammar and needed a contract test to stop them
+    drifting; this needs none, because there is only one.
+
+    Nothing is stored. The draft arrives, is measured, and the response carries
+    numbers, line numbers and fixed observation sentences — never the text.
+    """
+    return rhythm.meter(req.text or "", videoscript.wpm_for(req.language))
 
 
 # A benchmark needs a draft with enough shape to measure. Gate on what the

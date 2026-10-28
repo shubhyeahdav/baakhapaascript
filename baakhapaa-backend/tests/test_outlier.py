@@ -1,11 +1,6 @@
 """The measurements, and the rule that no text escapes with them."""
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-import measure  # noqa: E402
-from measure import Segment  # noqa: E402
+import outlier as measure
+from outlier import Segment
 
 
 def segs(*triples):

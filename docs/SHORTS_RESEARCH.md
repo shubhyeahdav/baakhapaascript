@@ -112,7 +112,7 @@ feature.
 > script.**
 
 The proof is already runnable. Two drafts of the same idea and near-identical
-length, measured by `draft.py`:
+length, measured by `draft.py` (now `baakhapaa-backend/rhythm.py`):
 
 | | words | sentence-length σ | longest monotone run |
 |---|---|---|---|
@@ -133,10 +133,10 @@ Three layers, in build order:
 
 **1 — The draft meter.** Rhythm, monotone runs, estimated spoken length,
 opening shape. Works on the first sentence typed. **Built** —
-`draft.py`, 17 tests.
+`draft.py`, 17 tests — now `rhythm.py`.
 
 **2 — The outlier measurer.** Hook close, first rehook, delivery speed,
-front-load, outlier ratio against channel median. **Built** — `measure.py`,
+front-load, outlier ratio against channel median. **Built** — `measure.py` (now `outlier.py`),
 21 tests. Needs timestamped transcripts, which is the one paid input.
 
 **3 — The feedback loop.** The creator enters views and retention after
@@ -169,3 +169,29 @@ first sentence ends, when something turns or a question arrives, and whether
 the sentence lengths feel varied or flat. Twenty rows. If the rehook interval
 clusters, that is the first real number this product owns — and it costs
 nothing but an afternoon.
+
+---
+
+## Decision: folded into Baakhapaa's `short_form`, not kept standalone
+
+*2026-10-28 (Month 4, Day 6).*
+
+**Folded in.** `draft.py` is now `baakhapaa-backend/rhythm.py` and
+`measure.py` is `baakhapaa-backend/outlier.py`, with their tests; this file
+moved to `docs/`.
+
+The reason is the gap itself. Section 6 says the category measures packaging
+and never touches the script — and the only place this product has a script is
+the editor. A standalone tool would ask a creator to paste their draft into a
+second app, which is the hand-off every competitor already makes and section 4
+says loses the writer. Inside `short_form`, the rhythm meter reads the draft as
+it is typed, the rehook check sits beside the beat spine it belongs to, and an
+outlier is measured next to the draft it is being compared with.
+
+What folding in does **not** change: the rule that no transcript or draft text
+reaches a record. It is enforced by the same tests, now in the backend suite
+where CI runs them, which it never did while they lived in a folder with no
+workflow.
+
+What it costs: the backend now owns two modules with no route a free user can
+reach yet, until Days 7-10 wire them. That is a week, and it is on the plan.

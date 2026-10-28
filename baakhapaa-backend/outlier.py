@@ -37,7 +37,9 @@ class Segment:
 # and speech punctuation comes from the transcription model rather than from
 # the speaker, so a clever parser would be inventing precision that is not in
 # the input.
-_SENTENCE_END = re.compile(r"[.!?]+")
+# The danda (।) and double danda (॥) end a Devanagari sentence the way a full
+# stop ends a Latin one. Without them a Nepali draft read as one sentence.
+_SENTENCE_END = re.compile(r"[.!?।॥]+")
 
 # A rehook opens a new loop. Without a language model the honest proxy is the
 # markers that actually carry one in speech -- a question, or a turn against
@@ -50,7 +52,11 @@ _REHOOK_MARKERS = (
     "the catch", "actually", "nobody tells you", "that's when",
 )
 
-_WORD = re.compile(r"[^\W\d_]+", re.UNICODE)
+# A word is a whitespace-separated token holding at least one letter. Not
+# `[^\W\d_]+`: Devanagari vowel signs are combining marks, which `\w` does
+# not match, so that pattern cut "कहिल्यै" into pieces and counted a five-word
+# Nepali sentence as twelve. Digit-only tokens still do not count.
+_WORD = re.compile(r"\S*[^\W\d_]\S*", re.UNICODE)
 
 
 def words(text: str) -> int:
