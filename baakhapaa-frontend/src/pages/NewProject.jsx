@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import TopNav from "../components/TopNav";
 import { projects, scripts } from "../services/api";
 import { useAuth } from "../context/AuthContext";
@@ -41,6 +41,24 @@ const HOOK_TYPES = [
   { key: "visual_shock", label: "Visual shock", blurb: "Lead with the image" },
   { key: "pattern_interrupt", label: "Pattern interrupt", blurb: "Break the expected rhythm" },
   { key: "question", label: "Question", blurb: "Ask the gap directly" },
+];
+
+// Long-form video. `course` is the one that changes the grammar — sections
+// become OBJECTIVE / CONCEPT / PROOF / EXERCISE / CHECK, a lesson is held to
+// having an exercise and a check, and nothing reports a runtime — so it says
+// so. The rest share the essay grammar and differ only in what the writer
+// calls their work. The keys are `models.VIDEO_CATEGORIES`.
+//
+// Nothing in the interface set this before (Month 4, Day 19 walk): course
+// mode was built, tested and unreachable — every long-form project was an
+// essay, because "essay" is the default.
+export const VIDEO_CATEGORIES = [
+  { key: "essay", label: "Video essay", blurb: "Hook, promise, segments, payoff" },
+  { key: "course", label: "Course lesson", blurb: "Objective → exercise → check" },
+  { key: "tutorial", label: "Tutorial", blurb: "Show how, step by step" },
+  { key: "documentary", label: "Documentary", blurb: "A story told with evidence" },
+  { key: "commentary", label: "Commentary", blurb: "An argument about something" },
+  { key: "vlog", label: "Vlog", blurb: "Your day, with a shape" },
 ];
 
 const SHORT_FORM_CATEGORIES = [
@@ -104,15 +122,18 @@ export default function NewProject() {
     duration_seconds: 45,
     hook_type: "relatable_pain",
     short_form_category: "storytime",
+    video_category: "essay",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [atLimit, setAtLimit] = useState(false);
   const navigate = useNavigate();
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
   const activeFormat = FORMATS.find((f) => f.key === form.format) || FORMATS[0];
   const isSeries = form.format === "web_series";
   const isShortForm = form.format === "short_form";
+  const isLongForm = form.format === "long_form";
 
   // Switching format retunes the duration to that format's typical runtime,
   // but only when the current value is still the previous format's default —
@@ -141,6 +162,7 @@ export default function NewProject() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setAtLimit(false);
     setLoading(true);
     try {
       const payload = { ...form, duration_minutes: parseInt(form.duration_minutes, 10) || 1 };
@@ -161,6 +183,7 @@ export default function NewProject() {
       navigate(`/projects/${script.data.id}/editor`);
     } catch (err) {
       const detail = err.response?.data?.detail;
+      setAtLimit(err.response?.status === 402);
       setError(
         typeof detail === "string"
           ? detail
@@ -233,6 +256,29 @@ export default function NewProject() {
               </div>
             </div>
 
+            {isLongForm && (
+              <div>
+                <label className="field-label mb-2">Kind of video</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Kind of video">
+                  {VIDEO_CATEGORIES.map((c) => (
+                    <button
+                      type="button" key={c.key}
+                      aria-pressed={form.video_category === c.key}
+                      onClick={() => set({ video_category: c.key })}
+                      className={`px-3 py-2 rounded-xl text-left border transition ${
+                        form.video_category === c.key
+                          ? "bg-goldDim border-gold text-gold"
+                          : "bg-surface border-border text-inkMuted hover:text-ink"
+                      }`}
+                    >
+                      <span className="block text-sm font-semibold">{c.label}</span>
+                      <span className="block text-[11.5px] opacity-80 mt-0.5">{c.blurb}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Everything below is already answered — genre and tone come from
                 onboarding, runtime from the format, language from the account.
                 Asking a writer to confirm seven decisions before they can type
@@ -240,6 +286,7 @@ export default function NewProject() {
                 of these is editable later in Project Setup. So: closed by
                 default, one click away, and nothing is hidden that does not
                 already have a real answer behind it. */}
+
             <details className="group rounded-xl border border-borderSoft bg-surface/40">
               {/* The summary of what is inside is a preview, so it truncates.
                   Without `min-w-0` + `truncate` it wrapped instead, and on a
@@ -417,6 +464,7 @@ export default function NewProject() {
                 </div>
               )}
 
+
               <div>
                 <label className="field-label mb-3">Language</label>
                 <div className="flex gap-2">
@@ -444,9 +492,22 @@ export default function NewProject() {
                 {error}
               </p>
             )}
+            {/* The free-plan limit used to end in a sentence naming a URL as
+                text — no link, and no mention of the way out that costs
+                nothing: a finished project can be deleted from Projects. */}
+            {atLimit && (
+              <p className="text-sm text-inkSoft -mt-1" data-testid="limit-ways-out">
+                <Link to="/pricing" className="text-gold underline underline-offset-2">See the plans</Link>
+                {" "}or{" "}
+                <Link to="/dashboard" className="text-gold underline underline-offset-2">delete a project you have finished with</Link>.
+              </p>
+            )}
 
             <button type="submit" disabled={loading} className="btn-gold w-full py-3.5 mt-4">
-              {loading ? "Generating Project Structure..." : "Generate Project Structure"}
+              {/* It said "Generate Project Structure" long after the wizard
+                  stopped generating one (see handleSubmit): the button promised
+                  a list of scenes and delivered a blank page. */}
+              {loading ? "Creating…" : "Create project"}
             </button>
           </form>
         </div>

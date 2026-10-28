@@ -43,7 +43,11 @@ def test_an_essay_is_not_held_to_the_course_rule():
     # Every section in the video framework is a convention. This rule is the
     # only one that is not, and it belongs to course mode alone.
     assert review.course_section_findings("## HOOK - 0:15\n\nWords.\n", "essay") == []
-    assert review.course_section_findings(FULL, None) == []
+    # An INCOMPLETE course script with no category. It was `FULL` here, which
+    # has every section and so reported nothing with or without the gate --
+    # the one assertion in this file that could not fail for the gate it
+    # names (Month 4, Day 18; found by deleting the gate and watching).
+    assert review.course_section_findings("## CONCEPT\n\nX.\n", None) == []
 
 
 def test_an_empty_draft_reports_nothing():

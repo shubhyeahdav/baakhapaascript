@@ -190,7 +190,7 @@ export default function CompactTimeline({
       {/* Scene blocks — proportional to runtime, act dividers between acts */}
       <div className="flex gap-[2px] h-[26px] relative">
         {acts.map((act, ai) => (
-          <React.Fragment key={act.num}>
+          <React.Fragment key={`act-${act.num}`}>
             {ai > 0 && <div className="w-px bg-white/20 shrink-0" />}
             {act.blocks.map((b) => {
               const isActive = b.written && b.index === activeScene;
@@ -300,7 +300,7 @@ export default function CompactTimeline({
           if (editingAct === a.num) {
             return (
               <form
-                key={a.num}
+                key={`act-${a.num}`}
                 style={style}
                 className="min-w-0 flex items-center gap-1"
                 onSubmit={(e) => {
@@ -334,7 +334,7 @@ export default function CompactTimeline({
           }
           return (
             <button
-              key={a.num}
+              key={`act-${a.num}`}
               type="button"
               style={style}
               onDoubleClick={() => setEditingAct(a.num)}

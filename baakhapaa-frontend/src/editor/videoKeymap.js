@@ -20,6 +20,7 @@
  */
 import { ELEMENTS, elementOf, enterText, tabCycle } from "../utils/videoFormat";
 import { DANDA } from "../utils/nepaliTransliterate";
+import { placeCaret } from "./placeCaret";
 
 // Shared with the screenplay factory on purpose: a writer switching formats
 // should not find the Nepali keys behaving differently.
@@ -81,8 +82,7 @@ export function createVideoKeyHandler({
       const at = inCue ? end : caret;
       replaceRange(at, at, enterText(line));
       if (inCue && at !== caret) {
-        const landing = at + enterText(line).length;
-        requestAnimationFrame(() => ta.setSelectionRange(landing, landing));
+        placeCaret(ta, at + enterText(line).length);
       }
       scrollCaretIntoView(typewriter || zenMode);
       return;
@@ -95,11 +95,7 @@ export function createVideoKeyHandler({
       // writer's next keystroke goes after the `]`.
       const { text, caretOffset } = tabCycle(line);
       replaceRange(start, end, text);
-      const landing = start + caretOffset;
-      requestAnimationFrame(() => {
-        ta.setSelectionRange(landing, landing);
-        scrollCaretIntoView(typewriter || zenMode);
-      });
+      placeCaret(ta, start + caretOffset, () => scrollCaretIntoView(typewriter || zenMode));
     }
   };
 }

@@ -20,6 +20,7 @@
  * `utils/screenplayFormat`. A second format needs a second factory beside this
  * one, not a flag inside it.
  */
+import { placeCaret } from "./placeCaret";
 import { enterText } from "../utils/screenplayFormat";
 import { DANDA } from "../utils/nepaliTransliterate";
 
@@ -132,11 +133,8 @@ export function createScreenplayKeyHandler({
         // and Tab runs on almost every line of a screenplay.
         replaceRange(lineStart, lineEnd === -1 ? value.length : lineEnd, newCurrentLine);
 
-        requestAnimationFrame(() => {
-          const newCursorPos = lineStart + newLeadingSpaces + lineContent.length;
-          e.target.setSelectionRange(newCursorPos, newCursorPos);
-          scrollCaretIntoView(typewriter || zenMode);
-        });
+        placeCaret(e.target, lineStart + newLeadingSpaces + lineContent.length,
+          () => scrollCaretIntoView(typewriter || zenMode));
       } else if (e.key === "Enter") {
         const { selectionStart, value } = e.target;
         const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
@@ -152,13 +150,10 @@ export function createScreenplayKeyHandler({
         const insertText = enterText(currentLine, atLineEnd);
         replaceRange(selectionStart, selectionStart, insertText);
 
-        requestAnimationFrame(() => {
-          const newCursorPos = selectionStart + insertText.length;
-          e.target.setSelectionRange(newCursorPos, newCursorPos);
-          // Every mode, not just zen: Enter is preventDefault-ed and inserted
-          // programmatically, so the browser will not follow the caret for us.
-          scrollCaretIntoView(typewriter || zenMode);
-        });
+        // Every mode, not just zen: Enter is preventDefault-ed and inserted
+        // programmatically, so the browser will not follow the caret for us.
+        placeCaret(e.target, selectionStart + insertText.length,
+          () => scrollCaretIntoView(typewriter || zenMode));
       }
   };
 }

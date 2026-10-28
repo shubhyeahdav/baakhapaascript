@@ -195,3 +195,32 @@ describe("safety", () => {
     expect(replaceRange).not.toHaveBeenCalled();
   });
 });
+
+
+describe("a writer who types straight after Tab (Day 19 walk)", () => {
+  it("has the caret inside the cue BEFORE the next frame", () => {
+    /* The caret used to move in a requestAnimationFrame, so a keystroke in
+       between landed after the `]`: "[B-ROLL: orty thumbnails]f". */
+    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 0);
+    const { handler, el } = harness("", 0);
+
+    handler(key("Tab", el));
+
+    expect(el.setSelectionRange).toHaveBeenCalledWith(9, 9);
+    raf.mockRestore();
+  });
+
+  it("does not drag the caret back if the writer typed before the frame", () => {
+    let frame;
+    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => { frame = cb; return 1; });
+    const { handler, el } = harness("", 0);
+    handler(key("Tab", el));
+    el.setSelectionRange.mockClear();
+
+    el.value = "[B-ROLL: f]";       // a letter arrived before the frame
+    frame();
+
+    expect(el.setSelectionRange).not.toHaveBeenCalled();
+    raf.mockRestore();
+  });
+});

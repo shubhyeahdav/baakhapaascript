@@ -70,7 +70,7 @@ test("a project can be created having answered only the title", async () => {
   fireEvent.change(screen.getByLabelText(/project title/i), {
     target: { value: "Chiya Pasal" },
   });
-  fireEvent.click(screen.getByRole("button", { name: /generate project structure/i }));
+  fireEvent.click(screen.getByRole("button", { name: /create project/i }));
 
   await waitFor(() => expect(projects.create).toHaveBeenCalled());
   const payload = projects.create.mock.calls[0][0];
@@ -83,7 +83,7 @@ test("a project can be created having answered only the title", async () => {
 test("onboarding answers arrive pre-filled", async () => {
   render(<NewProject />);
   fireEvent.change(screen.getByLabelText(/project title/i), { target: { value: "T" } });
-  fireEvent.click(screen.getByRole("button", { name: /generate project structure/i }));
+  fireEvent.click(screen.getByRole("button", { name: /create project/i }));
 
   await waitFor(() => expect(projects.create).toHaveBeenCalled());
   expect(projects.create.mock.calls[0][0].language).toBe("Nepali");
@@ -107,7 +107,7 @@ describe("the wizard does not write the script for you", () => {
     fireEvent.change(screen.getByLabelText(/project title/i), {
       target: { value: "Chiya Pasal" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /generate project structure/i }));
+    fireEvent.click(screen.getByRole("button", { name: /create project/i }));
   };
 
   it("creates the project without generating anything", async () => {
@@ -163,4 +163,42 @@ describe("long-form video", () => {
 
     expect(long.max).toBeLessThan(film.max);
   });
+});
+
+/* Month 4, Day 19 walk: course mode was built, tested and unreachable —
+   nothing in the interface set `video_category`, so every long-form project
+   was an essay. */
+describe("the kind of long-form video", () => {
+  it("is asked beside the format, not hidden in Details, and only for long-form", () => {
+    render(<NewProject />);
+    expect(screen.queryByRole("group", { name: "Kind of video" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Long-form Video/ }));
+    expect(screen.getByRole("group", { name: "Kind of video" })).toBeVisible();
+  });
+
+  it("creates a course project when Course lesson is chosen", async () => {
+    render(<NewProject />);
+    fireEvent.change(screen.getByLabelText(/project title/i), { target: { value: "Sluglines" } });
+    fireEvent.click(screen.getByRole("button", { name: /Long-form Video/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Course lesson/ }));
+    fireEvent.click(screen.getByRole("button", { name: /create project/i }));
+
+    await waitFor(() => expect(projects.create).toHaveBeenCalled());
+    const payload = projects.create.mock.calls[0][0];
+    expect(payload.format).toBe("long_form");
+    expect(payload.video_category).toBe("course");
+  });
+});
+
+
+test("at the free-plan limit, both ways out are links", async () => {
+  projects.create.mockRejectedValueOnce({ response: { status: 402,
+    data: { detail: "The free plan includes 3 active projects. Upgrade at /pricing to create more." } } });
+  render(<NewProject />);
+  fireEvent.change(screen.getByLabelText(/project title/i), { target: { value: "T" } });
+  fireEvent.click(screen.getByRole("button", { name: /create project/i }));
+
+  const ways = await screen.findByTestId("limit-ways-out");
+  expect(ways.querySelector('a[to="/pricing"]')).not.toBeNull();
+  expect(ways.querySelector('a[to="/dashboard"]')).toHaveTextContent(/delete a project/);
 });

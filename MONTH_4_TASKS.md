@@ -250,29 +250,29 @@ the thing `check_docs.py` exists to prevent.
 
 ### Day 18 · Close the open defects
 
-- [ ] `runtime_seconds` is annotated `str` but receives `None`
-- [ ] `_kind_of` falls back inconsistently on an unknown mode
-- [ ] Synonym coverage is partial — course synonyms untested
-- [ ] One course gate test cannot fail for the gate it names
-- [ ] Triage the deferred-minor list in the SDD ledger
-- [ ] Fix what a reviewer would call a defect; write down what you keep
-- [ ] Re-run both suites
-- [ ] Run `ruff` and `npm run lint`
+- [x] `runtime_seconds` is annotated `str` but receives `None` — *and `scene_summaries` likewise; both `Optional[str]`, tested with None*
+- [x] `_kind_of` falls back inconsistently on an unknown mode — *an unknown mode got essay kinds but no synonyms, so INTRO was "hook" in one and "segment" in the other. Normalised once; tested*
+- [x] Synonym coverage is partial — course synonyms untested — *every synonym in both modes now tested, plus that course synonyms mean nothing in an essay*
+- [x] One course gate test cannot fail for the gate it names — *found by deleting each gate and watching: `course_section_findings(FULL, None)` passed a COMPLETE script, so it could not fail. Now an incomplete one*
+- [ ] Triage the deferred-minor list in the SDD ledger — *NOT DONE: the ledger is in `.superpowers/`, which is gitignored, so it exists only on the machine that ran those sessions*
+- [x] Fix what a reviewer would call a defect; write down what you keep — *all four were defects and are fixed; nothing kept*
+- [x] Re-run both suites — *backend: all pass except the model-download test the cloud box cannot run; frontend: all pass*
+- [x] Run `ruff` and `npm run lint` — *both clean*
 - [ ] Confirm CI green
-- [ ] Commit
+- [x] Commit
 
 ### Day 19 · Walk it
 
-- [ ] Take one screenplay from blank page to export, without touching code
-- [ ] Take one long-form video from scaffold to export
-- [ ] Take one course lesson through the mandatory-section check
-- [ ] Take one short through the rhythm meter
-- [ ] Write down every confusion, in order, fixing nothing yet
-- [ ] Triage into fix-now and write-down
-- [ ] Add a test for each fix before fixing it
-- [ ] Fix only what stops someone finishing
-- [ ] Re-run both suites
-- [ ] Commit
+- [x] Take one screenplay from blank page to export, without touching code — *UI only, `scripts/walk.mjs`: sign up from `/`, shortcuts, margin note, finalize, PDF*
+- [x] Take one long-form video from scaffold to export — *found a caret race: a letter typed straight after Tab landed outside the cue, breaking it. Fixed (`placeCaret`), in both keymaps*
+- [x] Take one course lesson through the mandatory-section check — *could not be done at all: nothing in the interface set `video_category`, so course mode was unreachable. The wizard now asks "Kind of video" beside Format; the review then named the missing exercise*
+- [x] Take one short through the rhythm meter — *and through the free-plan limit on the way: the fourth project hit it, and the message named a URL as text. Now two links, including the free way out (delete a finished project)*
+- [x] Write down every confusion, in order, fixing nothing yet — *1 course unreachable; 2 cue caret race; 3 "Generate Project Structure" promised a structure the wizard stopped making; 4 limit message unlinked; 5 React key warning in CompactTimeline (null act keys)*
+- [x] Triage into fix-now and write-down — *all five stop or mislead someone finishing: all fix-now*
+- [x] Add a test for each fix before fixing it
+- [x] Fix only what stops someone finishing
+- [x] Re-run both suites
+- [x] Commit
 
 ### Day 20 · Close the month
 
@@ -295,5 +295,5 @@ Purchases, merchant applications, the legal review and the five-writer pilot.
 They are in `MONTH_4_PROPOSAL.md`, and they are what decides whether the month
 *mattered* — this file only decides whether the building got done.
 
-**161 of these 200 are already complete** (counted, not typed). Days 2 to 5 finish a format that is
+**179 of these 200 are already complete** (counted, not typed). Days 2 to 5 finish a format that is
 two-thirds built; Week 14 is the only genuinely new product surface.

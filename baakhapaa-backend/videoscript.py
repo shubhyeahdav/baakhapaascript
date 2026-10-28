@@ -157,7 +157,12 @@ FALLBACK_KIND_BY_MODE = {
 
 
 def _kind_of(name: str, mode: str = DEFAULT_MODE) -> str:
-    kinds = SECTION_KINDS_BY_MODE.get(mode, SECTION_KINDS_BY_MODE[DEFAULT_MODE])
+    # One fallback, applied once. It used to be applied piecemeal: an unknown
+    # mode got the ESSAY kinds and fallback but NO synonyms, so `## INTRO`
+    # meant "hook" in essay mode and "segment" in an unrecognised one.
+    if mode not in SECTION_KINDS_BY_MODE:
+        mode = DEFAULT_MODE
+    kinds = SECTION_KINDS_BY_MODE[mode]
     synonyms = SECTION_SYNONYMS_BY_MODE.get(mode, {})
     cleaned = (name or "").strip().lower()
     if cleaned in synonyms:
@@ -242,7 +247,9 @@ def wpm_for(language: Optional[str] = "English") -> float:
     )
 
 
-def runtime_seconds(text: str, language: str = "English") -> float:
+def runtime_seconds(text: str, language: Optional[str] = "English") -> float:
+    # Optional, as `wpm_for` is: review.check_total_runtime passes the
+    # project's language straight through, and a project may have none.
     wpm = wpm_for(language)
     if not wpm:
         return 0.0
@@ -254,7 +261,7 @@ def _section_text(sec: Section) -> str:
     return "\n".join(el.text for el in sec.elements if el.type == "narration")
 
 
-def scene_summaries(text: str, language: str = "English",
+def scene_summaries(text: str, language: Optional[str] = "English",
                     mode: str = DEFAULT_MODE) -> List[dict]:
     """One summary per section, in document order, keyed the way
     `screenplay.scene_summaries` keys its scenes.

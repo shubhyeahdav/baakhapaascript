@@ -91,3 +91,36 @@ def test_the_course_fallback_is_concept_not_segment():
 def test_an_unknown_mode_still_falls_back_to_the_essay_default():
     """A mode nobody recognised must not raise mid-parse."""
     assert v._kind_of("WHATEVER", "podcast") == "segment"
+
+
+# --- Month 4, Day 18 -----------------------------------------------------------
+import pytest  # noqa: E402
+
+import videoscript as _vs  # noqa: E402
+
+
+@pytest.mark.parametrize("mode", sorted(_vs.SECTION_SYNONYMS_BY_MODE))
+def test_every_synonym_resolves_to_a_kind_of_its_own_mode(mode):
+    """Course synonyms had no test at all. Every synonym, both modes, upper
+    and lower case, must land on a kind its mode actually has."""
+    for name, kind in _vs.SECTION_SYNONYMS_BY_MODE[mode].items():
+        assert kind in _vs.SECTION_KINDS_BY_MODE[mode], (mode, name, kind)
+        assert _vs._kind_of(name.upper(), mode) == kind, (mode, name)
+
+
+def test_course_synonyms_mean_nothing_in_an_essay():
+    """`## PRACTICE` is an exercise in a course and only a segment in an essay."""
+    assert _vs._kind_of("PRACTICE", "course") == "exercise"
+    assert _vs._kind_of("PRACTICE", "essay") == _vs.FALLBACK_KIND_BY_MODE["essay"]
+
+
+def test_an_unknown_mode_behaves_exactly_like_the_default():
+    """It got essay kinds but no synonyms, so INTRO was a hook in one and a
+    segment in the other."""
+    for name in ("INTRO", "OUTRO", "HOOK", "SOMETHING ELSE"):
+        assert _vs._kind_of(name, "nonsense") == _vs._kind_of(name, _vs.DEFAULT_MODE)
+
+
+def test_runtime_seconds_accepts_a_project_with_no_language():
+    assert _vs.runtime_seconds("## HOOK\nOne two three.", None) == \
+        _vs.runtime_seconds("## HOOK\nOne two three.", "English")

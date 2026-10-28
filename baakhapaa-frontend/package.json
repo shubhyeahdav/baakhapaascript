@@ -22,7 +22,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "check:band": "node scripts/typewriter-band-check.mjs",
-    "landing-check": "node scripts/landing-check.mjs"
+    "landing-check": "node scripts/landing-check.mjs",
+    "walk": "node scripts/walk.mjs"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
