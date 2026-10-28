@@ -20,7 +20,8 @@
     "build:spa": "vite build",
     "prerender": "node scripts/prerender.mjs",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "check:band": "node scripts/typewriter-band-check.mjs"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

@@ -197,6 +197,57 @@ html, body {
   transition: background-color 0.2s, color 0.2s;
 }
 
+/* A video script is prose read aloud by one person.
+
+   Everything above this rule exists to preserve a screenplay page: Courier at
+   a size derived from 61 columns, a 1.5in left margin because screenplays are
+   bound down the left, a height counted in 45-line pages. Every one of those
+   is correct for a screenplay and wrong for a video essay, which has no
+   columns, no binding and no pages -- its runtime is words over a speaking
+   rate, which is why `SectionPacing` replaced the page counter on this format.
+
+   Monospace is the part that actually costs a writer something. Narration is
+   read aloud, so the writer is judging rhythm and breath, and Courier gives
+   every letter the same width -- which is exactly the information a
+   proportional face carries and a monospace one throws away. The screenplay
+   page needs that trade because the line breaks have to fall where the PDF
+   says they fall. Nothing in a video script depends on where a line wraps.
+
+   So: the same paper, the same caret, the same focus band. A different column.
+
+   THE MEASURE IS 68 CHARACTERS, not the page's 816px. Prose is read at
+   66-75 characters a line; past that the eye loses the start of the next one.
+   Mukta averages about 0.5em per character, so 34em lands in that band and
+   holds it at any font size, which a pixel width does not. */
+.screenplay-page.video-page {
+  font-family: Mukta, 'Segoe UI', system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.75;
+  max-width: 34em;
+  /* Even margins: there is no binding edge to leave room for. */
+  padding: var(--page-margin-y) 3rem;
+  /* A video script has no fixed page height to reserve. Let it be as long as
+     it is, rather than opening on two-thirds of a screen of blank paper. */
+  min-height: 24rem;
+}
+
+/* The cues keep the monospace, because they are not read aloud.
+   `[B-ROLL: ...]` is an instruction to the person editing, and giving it the
+   same face as the narration is how a writer reads one out by accident. This
+   cannot be done inside the textarea -- see the focus-band comment below for
+   why there are no lines in there to style -- so it is the one thing the
+   video page cannot distinguish visually, and it is recorded here rather than
+   quietly dropped. */
+
+@media (max-width: 767px) {
+  .screenplay-page.video-page {
+    /* No column count to defend, so the padding can simply be comfortable. */
+    padding: 1.5rem 1.25rem;
+    font-size: 16px;
+    max-width: 100%;
+  }
+}
+
 /* Dark page mode (default per design): pageless — script sits directly on
    the app background, no card, no border. Warm off-white text. */
 /* Zen / focus mode — the page becomes the whole surface. Generous vertical

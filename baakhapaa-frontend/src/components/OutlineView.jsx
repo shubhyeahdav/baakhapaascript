@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import RetentionShape from "./RetentionShape";
+import { modeOf } from "../utils/videoSections";
 
 /**
  * The script as a collapsible act → scene tree.
@@ -32,8 +33,14 @@ function clock(n) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export default function OutlineView({ scenes = [], suggestions, activeScene, onOpen, onAdd, adding, format }) {
+export default function OutlineView({
+  scenes = [], suggestions, activeScene, onOpen, onAdd, adding, format, videoCategory,
+}) {
   const [collapsed, setCollapsed] = useState({});
+  // `modeOf` is the same rule `videoscript.mode_for` applies: only `course`
+  // differs, and anything unrecognised reads as an essay.
+  const isCourse = modeOf(videoCategory) === "course";
+
 
   /* A long-form video has no acts, so the act balance this view is built around
      reads as nothing for it. What it has instead is a runtime with known places
@@ -44,6 +51,15 @@ export default function OutlineView({ scenes = [], suggestions, activeScene, onO
      them there and `scene_sync` stores them. Reading them here rather than
      adding columns is why this needed no migration. */
   const isLongForm = format === "long_form";
+  /* What this format calls the things in its outline.
+     A screenplay has scenes; a video essay has sections and a course lesson
+     has sections too. The distinction is not pedantry -- `videoscript` leaves
+     `act_number`, `time_allocation` and INT/EXT null for a section rather than
+     repurposing them, precisely because a section is not a scene, and the
+     Outline then went on to call them scenes anyway. */
+  const unitOne = isLongForm ? "section" : "scene";
+  const unit = (n) => (n === 1 ? unitOne : `${unitOne}s`);
+
   const videoSections = isLongForm
     ? scenes.map((sc) => {
         const draft = draftOf(sc);
@@ -81,7 +97,13 @@ export default function OutlineView({ scenes = [], suggestions, activeScene, onO
       {/* For a video, the shape IS the outline. Acts are a screenplay idea and
           reading them for a video essay produces a single act called "1" — an
           answer to a question nobody asked. */}
-      {isLongForm && (
+      {/* Not in course mode. The curve is a convention about PURCHASED
+          attention -- where a viewer who has not committed tends to leave --
+          and a learner working through a lesson has already decided to be
+          there. Drawing it would assert a shape nobody has measured for a
+          format it does not describe. The section list below stays, because
+          the sections are still the outline. */}
+      {isLongForm && !isCourse && (
         <RetentionShape
           sections={videoSections}
           onOpen={(band) => {
@@ -97,7 +119,10 @@ export default function OutlineView({ scenes = [], suggestions, activeScene, onO
         </span>
         <span className="font-mono text-[10px] text-inkMuted">
           {clock(totalWritten)} written across {scenes.length}{" "}
-          {scenes.length === 1 ? "scene" : "scenes"}
+          {/* A section is not a scene. Calling one the other here is the same
+              category error as offering a video writer a slugline, and it was
+              on screen in every long-form Outline. */}
+          {unit(scenes.length)}
         </span>
       </div>
 
@@ -202,7 +227,7 @@ export default function OutlineView({ scenes = [], suggestions, activeScene, onO
                       disabled={!!adding}
                       className="w-full text-left rounded-lg px-3 py-2 text-[11.5px] text-inkMuted hover:text-gold transition disabled:opacity-50"
                     >
-                      + Add a scene to Act {ROMAN[num] || num}
+                      + Add a {unitOne} to Act {ROMAN[num] || num}
                     </button>
                   )}
                 </div>

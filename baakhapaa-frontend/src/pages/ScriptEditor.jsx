@@ -1603,6 +1603,14 @@ export default function ScriptEditor() {
                 onOpen={goToScene}
                 onAdd={addCustomScene}
                 adding={addingScene}
+                /* `format` was never passed, so `isLongForm` inside OutlineView
+                   was always false and `RetentionShape` -- built, unit-tested
+                   and documented -- had never rendered once in the running
+                   app. It also made the Outline call every video section a
+                   "scene". Both were invisible from the component's own tests,
+                   which supplied the prop the editor did not. */
+                format={script?.project?.format || script?.format}
+                videoCategory={script?.project?.video_category || script?.video_category}
               />
             )}
           </SceneRail>

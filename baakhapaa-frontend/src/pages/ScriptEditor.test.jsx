@@ -196,6 +196,48 @@ describe("which typing rules the editor uses", () => {
 
     expect(el.value.split(/\r?\n/).some((l) => l.startsWith(" "))).toBe(false);
   });
+
+  /* The format has to REACH the things that branch on it.
+     `OutlineView` took a `format` prop that `ScriptEditor` never passed, so
+     `isLongForm` was always false there: the retention shape had never drawn
+     once in the running app, and every video section was labelled a "scene".
+     `OutlineView`'s own tests passed the prop and so could not see it — the
+     defect lived in the gap between them, which is where this test sits. */
+  it("sets the page up for prose, not for a screenplay column", async () => {
+    const el = await openWithFormat("long_form");
+    expect(el.className).toContain("video-page");
+  });
+
+  it("leaves a screenplay page alone", async () => {
+    const el = await openWithFormat("short");
+    expect(el.className).not.toContain("video-page");
+  });
+
+  it("draws the retention shape in the Outline", async () => {
+    // The test that would have caught it. Removing `format` from the
+    // OutlineView call site leaves that component's own 35 tests green,
+    // because they supply the prop themselves — so the assertion has to be
+    // made here, through the editor, with nothing stubbed in between.
+    const sections = [
+      { id: "s1", title: "HOOK - 0:15", scene_number: 1,
+        draft_json: { section_kind: "hook", target_seconds: 15, written_seconds: 12, minutes: 0.2 } },
+      { id: "s2", title: "PAYOFF - 2:40", scene_number: 2,
+        draft_json: { section_kind: "payoff", target_seconds: 160, written_seconds: 90, minutes: 1.5 } },
+    ];
+    const payload = { data: {
+      ...SCRIPT, scenes: sections,
+      project: { ...SCRIPT.project, format: "long_form", video_category: "essay" },
+    } };
+    scripts.getById.mockResolvedValue(payload);
+    scripts.getByProject.mockResolvedValue(payload);
+    render(<ScriptEditor />);
+    await screen.findByLabelText("Screenplay");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Outline" }));
+
+    expect(await screen.findByRole("region", { name: /shape of this video/i }))
+      .toBeInTheDocument();
+  });
 });
 
 describe("ScriptEditor", () => {

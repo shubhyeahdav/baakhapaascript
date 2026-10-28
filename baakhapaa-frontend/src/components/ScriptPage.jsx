@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef } from "react";
 import PenPrompt from "./PenPrompt";
 import { scaffoldFor } from "../lib/videoScaffold";
 import SectionPacing from "./SectionPacing";
+import { caretLineTop } from "../lib/caretLine";
 import MilestoneNote from "./MilestoneNote";
 import FormatShortcuts from "./FormatShortcuts";
 import { countWords, scenesFromDraft } from "../utils/draft";
@@ -72,15 +73,19 @@ export default function ScriptPage({
      keystroke"; routing a per-keystroke pixel value through React would undo
      it. One property write, no render. */
   const bandRef = useRef(null);
+  /* Where the band goes. `caretLineTop` measures the caret's line through the
+   * browser's own wrapping; this only has to subtract the scroll.
+   *
+   * It counted hard newlines until 2026-10-26, which is very nearly right on
+   * a screenplay page and 6.1 lines out on a page of narration — see
+   * `lib/caretLine.js` for the measurements and `scripts/typewriter-band-check.mjs`
+   * for the check that holds it. */
   const paintBand = useCallback(() => {
     const ta = textareaRef.current;
     const el = bandRef.current;
     if (!ta || !el) return;
-    const cs = getComputedStyle(ta);
-    const lineHeight = parseFloat(cs.lineHeight) || 25;
-    const padTop = parseFloat(cs.paddingTop) || 0;
-    const line = ta.value.slice(0, ta.selectionStart || 0).split("\n").length - 1;
-    el.style.setProperty("--focus-y", `${padTop + line * lineHeight - ta.scrollTop}px`);
+    const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 25;
+    el.style.setProperty("--focus-y", `${caretLineTop(ta) - ta.scrollTop}px`);
     el.style.setProperty("--focus-lh", `${lineHeight}px`);
   }, [textareaRef]);
 
@@ -224,7 +229,7 @@ export default function ScriptPage({
           )}
           <textarea
           ref={textareaRef}
-          className={`screenplay-page ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} ${typewriter && !zenMode ? "typewriter-page" : ""} ${cursor === "pen" ? "cursor-pen" : cursor === "ring" ? "cursor-ring" : ""} ${resting ? "cursor-resting" : ""} resize-none`}
+          className={`screenplay-page ${isLongForm ? "video-page" : ""} ${pageTheme === "dark" ? "dark-page" : ""} ${zenMode ? "zen-page" : ""} ${typewriter && !zenMode ? "typewriter-page" : ""} ${cursor === "pen" ? "cursor-pen" : cursor === "ring" ? "cursor-ring" : ""} ${resting ? "cursor-resting" : ""} resize-none`}
           /* Short, because the Pen now says the useful version on an empty
              page. This read "Type Scene Headings starting with INT. or
              EXT., and press TAB to format characters, parentheticals, and
