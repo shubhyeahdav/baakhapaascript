@@ -134,6 +134,18 @@ export function readFacts({ pageCount = 0, scenes = [], suggestions = null } = {
  * two due at once, and the midpoint is the more timely thing to say — the
  * unmarked-scenes note will still be true, and still due, tomorrow.
  */
+/**
+ * Whether these notes speak to a format at all. Every one of them is
+ * screenplay craft — a turning point, an inciting incident at a fraction of
+ * the PAGES, act balance — so on a video essay, a course lesson or a reel
+ * they were advice about a structure the draft does not have. Found in the
+ * Month 4 figures: a three-section video essay was told "3 scenes, and none
+ * of them is marked a turning point".
+ */
+export function milestonesApply(format) {
+  return format !== "long_form" && format !== "short_form";
+}
+
 export function milestoneFor(facts, dismissedKeys = []) {
   const dismissed = new Set(dismissedKeys);
   let found = null;

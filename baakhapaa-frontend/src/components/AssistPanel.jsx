@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { learn } from "../services/api";
+import { useT } from "../i18n";
 import VersionHistory from "./VersionHistory";
 import CommentThreads from "./CommentThreads";
 import CraftPanel from "./CraftPanel";
@@ -60,6 +61,45 @@ const PAID_MODES = {
   improve: "Rewrite a line you have highlighted, or the whole scene if you have not, keeping the characters and the beat.",
   suggest: "Three different ways this scene could continue, read from what you've written so far.",
 };
+
+/**
+ * The AI is waiting on a first draft, not on money.
+ *
+ * Deliberately NOT written as a refusal. A paywall says "you cannot"; this says
+ * "not yet, and here is why" — because the reason is a craft argument the
+ * product actually believes, not a billing rule. It is the same conviction that
+ * took structure generation out of the creation wizard: a writer used to arrive
+ * in an editor already holding scenes nobody had asked for.
+ *
+ * The button is right here rather than only in the header, because this panel
+ * is where a writer discovers the lock exists. Making them hunt for the release
+ * would turn an argument into an obstacle.
+ */
+function FirstDraftPrompt({ mode, onMark, busy }) {
+  return (
+    <div className="rounded-xl border border-borderSoft bg-surface/60 p-4 mb-4">
+      <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-2">
+        After your first draft
+      </div>
+      <p className="text-[12.5px] text-inkSoft leading-relaxed mb-2">
+        {PAID_MODES[mode] || "This opens once your first draft is done."}
+      </p>
+      <p className="text-[11.5px] text-inkMuted leading-snug mb-3">
+        Write the first pass yourself. A model that arrives before you have
+        found the scene writes its version of it, not yours — and the Patterns
+        tab, the craft check and the course all work right now, on whatever you
+        have.
+      </p>
+      <button
+        onClick={onMark}
+        disabled={busy}
+        className="btn-gold text-xs py-1.5 px-3.5 w-full disabled:opacity-50"
+      >
+        {busy ? "Marking…" : "I've finished my first draft"}
+      </button>
+    </div>
+  );
+}
 
 function UpgradePrompt({ mode, onUpgrade }) {
   return (
@@ -148,13 +188,18 @@ export default function AssistPanel({
   content, setContent, textareaRef, caretLine, selection, selectionRange,
   insertAtPosition,
   // generation
-  aiMode, setAiMode, aiLocked, aiLoading, aiResponse, setAiResponse,
+  aiMode, setAiMode, aiLocked, lockReason, markFirstDraft, markingDraft,
+  aiLoading, aiResponse, setAiResponse,
   instruction, setInstruction, handleAI, acceptAI, aiError, setAiError,
   // patterns
   patterns, patternsLoading, loadPatterns, patternSource, diagnosed,
+  sectionGuide,
   focus, setFocus, openPattern, setOpenPattern,
   showAllPatterns, setShowAllPatterns, seen,
+  marginNotesShown = false,
 }) {
+  // `t` is taken below by the tab loop variable, so the translator is `tr`.
+  const tr = useT();
   // What the writer types when no chip fits. The chips reach at most eighteen
   // of the corpus's thirty-nine entries, so more than half the library had no
   // door in the interface at all — a writer whose problem was "my flashback
@@ -209,11 +254,11 @@ export default function AssistPanel({
             key={t.key}
             onClick={() => setPanelTab(t.key)}
             aria-pressed={panelTab === t.key}
-            className={`text-[11px] font-semibold uppercase tracking-wide px-2 py-1.5 rounded-lg flex-1 min-w-0 transition duration-200 border ${
+            className={`latin-caps text-[11px] font-semibold uppercase tracking-wide px-2 py-1.5 rounded-lg flex-1 min-w-0 transition duration-200 border ${
               panelTab === t.key ? "bg-goldDim text-gold border-gold/30" : "text-inkMuted hover:text-ink border-transparent"
             }`}
           >
-            {t.label}
+            {tr(t.label)}
           </button>
         ))}
       </div>
@@ -370,6 +415,21 @@ export default function AssistPanel({
             </button>
           </div>
 
+          {/* What the section the caret is in is FOR.
+              The retrieved patterns answer "what technique helps"; this
+              answers "what is this section's job", which is the question a
+              writer has before they know they have a problem. It states a
+              job and never a verdict — nothing here changes with what is
+              written, which is what keeps it from becoming a second linter. */}
+          {sectionGuide && (
+            <div className="mb-3 rounded-xl border border-borderSoft bg-elevated/40 p-3">
+              <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-1.5">
+                This section · {sectionGuide.job}
+              </div>
+              <p className="text-[11.5px] text-inkSoft leading-snug">{sectionGuide.line}</p>
+            </div>
+          )}
+
           {/* Say why. Generic advice is the single most common complaint
               writers make about paid script coverage — naming the line
               that triggered each pattern is what separates this from it. */}
@@ -389,7 +449,9 @@ export default function AssistPanel({
           )}
         </>
       ) : aiLocked ? (
-        <UpgradePrompt mode={aiMode} onUpgrade={() => navigate("/pricing")} />
+        lockReason === "draft"
+          ? <FirstDraftPrompt mode={aiMode} onMark={markFirstDraft} busy={markingDraft} />
+          : <UpgradePrompt mode={aiMode} onUpgrade={() => navigate("/pricing")} />
       ) : (
         <>
           {/* What Improve is about to touch. A writer who has highlighted
@@ -442,7 +504,39 @@ export default function AssistPanel({
             ))}
           </div>
         ) : patterns?.length === 0 ? (
-          <p className="text-inkMuted text-sm">No patterns matched — try writing a little more first.</p>
+          /* It said "No patterns matched — try writing a little more first"
+             even when the linter had just flagged three high problems in the
+             same draft: the panel told a writer to write more about a page
+             it had found things wrong with. An empty library answer is not an
+             empty diagnosis, and the two now say different things. */
+          diagnosed?.length ? (
+            <div className="rounded-xl border border-borderSoft bg-elevated/40 p-3.5" data-testid="patterns-empty-diagnosed">
+              {/* No count: `diagnosed` holds one entry per technique, the
+                  margin one marker per line, and two different numbers for
+                  "how much is wrong" is worse than none. */}
+              <p className="text-[13px] text-ink leading-snug">
+                {tr("The linter found something on this page.")}
+              </p>
+              <p className="text-[12px] text-inkMuted leading-snug mt-1.5">
+                {/* Only claim the margin when the margin has them: video drafts
+                    and a writer who turned the notes off have none there. */}
+                {marginNotesShown
+                  ? tr("They are marked in the page margin. The craft library has no technique to add to them yet.")
+                  : tr("The craft library has no technique to add to them yet.")}
+              </p>
+              <button
+                type="button"
+                onClick={() => setPanelTab("craft")}
+                className="mt-2.5 text-[12px] text-gold underline decoration-dotted underline-offset-2"
+              >
+                {tr("Read them in Craft")}
+              </button>
+            </div>
+          ) : (
+            <p className="text-inkMuted text-sm leading-relaxed">
+              {tr("Nothing on this page asks for a technique yet. Keep writing, or name the problem above in your own words — the library answers complaints best.")}
+            </p>
+          )
         ) : (
           <div className="space-y-2">
             {patterns?.map((p, i) => {

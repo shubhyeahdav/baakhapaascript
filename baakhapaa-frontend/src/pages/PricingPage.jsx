@@ -79,6 +79,23 @@ const TIERS = [
   },
 ];
 
+/**
+ * "600 AI credits a month — about 200 scenes or 600 storyboard frames".
+ * A writer choosing a plan asks whether it covers a draft, so the line says it
+ * in scenes and frames. Both counts use each action's upper-bound cost, so the
+ * real figure is never lower. Null when the tier has no allowance.
+ */
+export function creditLine(plans, tierKey) {
+  const credits = plans?.allowance?.[tierKey];
+  if (!credits) return null;
+  const { scene, storyboard_frame: frame } = plans.costs || {};
+  const parts = [];
+  if (scene) parts.push(`${Math.floor(credits / scene)} scenes`);
+  if (frame) parts.push(`${Math.floor(credits / frame)} storyboard frames`);
+  return `${credits.toLocaleString("en-US")} AI credits a month` +
+    (parts.length ? ` — about ${parts.join(" or ")}` : "");
+}
+
 function Check() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -127,6 +144,7 @@ export default function PricingPage() {
   const [loadingTier, setLoadingTier] = useState(null);
   const [providers, setProviders] = useState([]);
   const [provider, setProvider] = useState(null);
+  const [plans, setPlans] = useState(null);
 
   // Which gateways this deployment can actually take money through. Asked of
   // the server rather than hardcoded, because the answer differs between the
@@ -143,6 +161,15 @@ export default function PricingPage() {
         // pricing page. Checkout will report the real error when clicked.
         setProviders([]);
       });
+  }, []);
+
+  // Each tier's monthly AI credits, from the constants the server enforces.
+  // No fallback number: if this fails the line is simply absent, which is
+  // better than advertising an allowance nobody checked.
+  useEffect(() => {
+    subscription.plans()
+      .then((res) => setPlans(res.data))
+      .catch(() => setPlans(null));
   }, []);
 
   const handleCta = async (tier) => {
@@ -252,6 +279,12 @@ export default function PricingPage() {
             </div>
 
             <ul className="space-y-3 mb-8 flex-1">
+              {creditLine(plans, tier.key) && (
+                <li className="flex items-start gap-2.5 text-sm text-ink">
+                  <span className="mt-0.5"><Check /></span>
+                  {creditLine(plans, tier.key)}
+                </li>
+              )}
               {tier.features.map((f) => (
                 <li key={f} className="flex items-start gap-2.5 text-sm text-inkSoft">
                   <span className="mt-0.5"><Check /></span>

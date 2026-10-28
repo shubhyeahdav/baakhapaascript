@@ -757,5 +757,37 @@
     "applies_to": [
       "video"
     ]
+  },
+  {
+    "title_ref": "The hook that has to happen again (short-form video)",
+    "source_type": "craft",
+    "craft_level": "structure",
+    "genre": "video",
+    "origin_tradition": "screen craft",
+    "technique": "Reopen the question before the last answer has finished landing",
+    "problem": "My short opens strong and people still swipe away a few seconds later. After the hook it is just me explaining, and the explanation is correct, but nothing pulls them through it.",
+    "how_it_works": "A hook is not a one-time event at second zero. It buys about five to eight seconds of attention, and then the viewer is deciding again. A short that holds is a chain: set something up, then turn it or ask something before the set-up is fully paid, so the viewer is always one question ahead of the answer. Explanation is not the enemy; explanation with no open question in front of it is.",
+    "how_to_apply": "Read the script aloud against a timer and mark every point where something is asked, turned or withheld. Any gap longer than about eight seconds is a place a viewer leaves. Fill it with a turn — a 'but', a surprising number, a question the next line answers — rather than with more information.",
+    "worked_example": "Not: 'Momo shops close by nine. The rent is high. Staff go home early. So they close.' Instead: 'Every momo shop on this street closes at nine. Except one. The rent is the same, the staff go home at the same time — so why is that one still open at midnight?' Same facts; now each one arrives as the answer to something.",
+    "warning_sign": "There is a stretch of more than eight seconds in which nothing is asked, turned or held back.",
+    "applies_to": [
+      "video"
+    ]
+  },
+  {
+    "title_ref": "The voice that never changes pace (short-form video)",
+    "source_type": "craft",
+    "craft_level": "dialogue",
+    "genre": "video",
+    "origin_tradition": "screen craft",
+    "technique": "Vary the length of what is said aloud, and let the short line land the point",
+    "problem": "My narration sounds flat. The content is good, but every sentence comes out at the same length and the same speed, and people say it drags even when it is short.",
+    "how_it_works": "An ear tracks rhythm before it tracks meaning. A run of sentences of the same length becomes a drone, and a drone is easy to stop listening to. A short sentence after long ones lands like a beat in music, and it is where a listener's attention returns. Varying length is how spoken writing does emphasis without raising its voice.",
+    "how_to_apply": "Count the words in each sentence. Where three or more in a row are within a word of each other, break one into two, or join two into one long, running sentence and follow it with a very short one. Put the line you most need remembered in the shortest sentence.",
+    "worked_example": "Not: 'The bus was late again today. The driver did not say anything at all. The passengers did not complain either.' Instead: 'The bus was late again, forty minutes this time, and the driver said nothing, and nobody on board said anything back. Nobody ever does.'",
+    "warning_sign": "Three or more sentences in a row are within a word of each other in length.",
+    "applies_to": [
+      "video"
+    ]
   }
 ]

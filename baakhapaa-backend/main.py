@@ -15,6 +15,7 @@ import collaboration
 import export
 import subscription
 import learn
+import shorts
 from rate_limit import limiter
 from security_headers import SecurityHeadersMiddleware
 
@@ -113,6 +114,7 @@ app.include_router(collaboration.router)
 app.include_router(export.router)
 app.include_router(subscription.router)
 app.include_router(learn.router)
+app.include_router(shorts.router)
 
 
 @app.get("/health")

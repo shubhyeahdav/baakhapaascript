@@ -304,3 +304,48 @@ describe("adding a scene inline", () => {
     expect(screen.queryByDisplayValue("INT. LOCATION - DAY")).not.toBeInTheDocument();
   });
 });
+
+/* Long-form video: the retention shape, and what the things are called.
+ *
+ * `format` was never passed by `ScriptEditor`, so `isLongForm` was always
+ * false in the running app: the retention shape had never drawn once, and
+ * every video section was labelled a "scene". Neither showed up here, because
+ * these tests supplied the prop the editor did not — which is why the last
+ * test in this block asserts the call site rather than the component. */
+describe("a long-form video outline", () => {
+  const VIDEO = [
+    { id: "s1", title: "HOOK - 0:15", scene_number: 1,
+      draft_json: { section_kind: "hook", target_seconds: 15, written_seconds: 12, minutes: 0.2 } },
+    { id: "s2", title: "PAYOFF - 2:40", scene_number: 2,
+      draft_json: { section_kind: "payoff", target_seconds: 160, written_seconds: 90, minutes: 1.5 } },
+  ];
+
+  it("draws the retention shape for an essay", () => {
+    render(<OutlineView scenes={VIDEO} format="long_form" videoCategory="essay" />);
+    expect(screen.getByRole("region", { name: /shape of this video/i })).toBeInTheDocument();
+  });
+
+  it("does not draw it for a course", () => {
+    // The curve is a convention about PURCHASED attention. A learner working
+    // through a lesson has already decided to be there, so the shape would
+    // assert something nobody has measured for a format it does not describe.
+    render(<OutlineView scenes={VIDEO} format="long_form" videoCategory="course" />);
+    expect(screen.queryByRole("region", { name: /shape of this video/i })).toBeNull();
+  });
+
+  it("keeps the section list when the curve is suppressed", () => {
+    render(<OutlineView scenes={VIDEO} format="long_form" videoCategory="course" />);
+    expect(screen.getByText(/HOOK/)).toBeInTheDocument();
+    expect(screen.getByText(/PAYOFF/)).toBeInTheDocument();
+  });
+
+  it("calls them sections, not scenes", () => {
+    render(<OutlineView scenes={VIDEO} format="long_form" videoCategory="essay" />);
+    expect(screen.getByText(/written across 2 sections/)).toBeInTheDocument();
+  });
+
+  it("still calls them scenes for a screenplay", () => {
+    render(<OutlineView scenes={VIDEO} format="short" />);
+    expect(screen.getByText(/written across 2 scenes/)).toBeInTheDocument();
+  });
+});

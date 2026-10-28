@@ -1,5 +1,5 @@
 import re
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 
 # Server-side mirror of the sign-up form's rules (frontend src/utils/password.js).
@@ -174,7 +174,10 @@ SHORT_FORM_CATEGORIES = ("educational", "storytime", "transformation", "comedy_s
 
 # What kind of long-form video, which shapes the section spine the way
 # SHORT_FORM_CATEGORIES shapes the short-form one.
-VIDEO_CATEGORIES = ("essay", "tutorial", "documentary", "commentary", "vlog")
+# `course` is a SIXTH category rather than a use of `tutorial`: a tutorial is
+# watched and a course is practised, which is the whole distinction the
+# mandatory `## EXERCISE` and `## CHECK` sections exist to hold.
+VIDEO_CATEGORIES = ("essay", "tutorial", "documentary", "commentary", "vlog", "course")
 
 MIN_DURATION_SECONDS = 5
 MAX_DURATION_SECONDS = 180
@@ -373,6 +376,15 @@ class ActDurations(BaseModel):
     durations: dict[str, float] = {}
 
 
+class RhythmRequest(BaseModel):
+    """A short-form draft for the rhythm meter. Measured and discarded — the
+    response carries numbers and line numbers, never the text."""
+    text: str = Field("", max_length=50_000)
+    # The draft's language, for the speaking rate. Same lookup the long-form
+    # runtime uses (`videoscript.wpm_for`), so the two estimates cannot differ.
+    language: Optional[str] = "English"
+
+
 class RecommendRequest(BaseModel):
     scene_text: str = ""
     genre: str = "Drama"
@@ -390,6 +402,16 @@ class RecommendRequest(BaseModel):
     # itself, and the only evidence this product can gather that a technique
     # ever worked.
     script_id: Optional[str] = None
+    # Which section of a long-form video the caret is in, as a kind rather than
+    # as a heading: `hook`, `payoff`, `exercise`. The craft a hook needs and
+    # the craft a payoff needs are different crafts, and without this the panel
+    # asked the same question wherever the writer was standing.
+    #
+    # Not validated against the kind lists on purpose. An unrecognised value
+    # steers retrieval slightly and costs nothing; refusing the whole request
+    # over it would turn a cosmetic mismatch between client and server into a
+    # dead panel.
+    section_kind: Optional[str] = None
 
 class LessonSubmission(BaseModel):
     content: str = ""

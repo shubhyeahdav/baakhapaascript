@@ -51,7 +51,16 @@ OPENAI_API_KEY=<yours>
 PAYMENT_SANDBOX=true
 AI_MONTHLY_CEILING_PRO=6.00
 AI_MONTHLY_CEILING_STUDIO=40.00
+AI_CREDIT_USD=0.01
+AI_IMAGE_USD_PER_FRAME=0.01
 ```
+
+The two ceilings are what writers see as **monthly AI credits** — $6.00 is 600
+credits on Pro, $40.00 is 4,000 on Studio, at one credit per cent. The pricing
+page reads them from `GET /subscription/plans`, so changing a ceiling here
+changes what is advertised; nothing in the frontend needs editing. Storyboard
+frames now spend credits too (one each), and a board stops where the month's
+credits do instead of drawing past the ceiling.
 
 `CORS_ORIGINS` is a chicken and egg: you do not know the Vercel domain yet. Put
 a placeholder, deploy the frontend, then come back and set it properly. Leaving

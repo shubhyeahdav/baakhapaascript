@@ -115,8 +115,34 @@ CLAIMS = [
 ]
 
 
+# Claims made in OTHER documents. Same shape plus the file they live in. Kept
+# apart from CLAIMS because every entry there must appear in CLAUDE.md, and the
+# test that enforces it should not have to know about a second file.
+MONTH_4_TASKS = os.path.join(REPO, "MONTH_4_TASKS.md")
+
+OTHER_CLAIMS = [
+    ("Month 4 tasks complete",
+     r"(\*\*)(\d+)( of these )(\d+)( are already complete\*\*)",
+     lambda c: (c["m4_done"], c["m4_total"]),
+     MONTH_4_TASKS),
+]
+
+
+def month_4_ticks() -> tuple:
+    """Ticked and total checkboxes in the Month 4 plan. The plan's summary
+    line said "(counted, not typed)" while nothing counted it."""
+    if not os.path.exists(MONTH_4_TASKS):
+        return None
+    text = io.open(MONTH_4_TASKS, encoding="utf-8").read()
+    done = len(re.findall(r"^- \[x\]", text, flags=re.M))
+    return done, done + len(re.findall(r"^- \[ \]", text, flags=re.M))
+
+
 def counted(cheap_only: bool = False) -> dict:
     c = {"craft": craft_entries()}
+    m4 = month_4_ticks()
+    if m4:
+        c["m4_done"], c["m4_total"] = m4
     if cheap_only:
         return c
     c["backend_tests"], c["backend_files"] = backend_tests()
@@ -136,7 +162,7 @@ def _numeric_groups(match) -> list:
     return [i for i, g in enumerate(match.groups(), start=1) if g and g.isdigit()]
 
 
-def drift(text: str, counts: dict) -> list:
+def drift(text: str, counts: dict, claims=None) -> list:
     """Every claim whose numbers disagree with the count.
 
     A claim this file can no longer FIND is reported too. A document that
@@ -144,7 +170,7 @@ def drift(text: str, counts: dict) -> list:
     which is the state that produced this script.
     """
     out = []
-    for label, pattern, pick in CLAIMS:
+    for label, pattern, pick, *_ in (claims or CLAIMS):
         try:
             want = pick(counts)
         except KeyError:
@@ -159,8 +185,8 @@ def drift(text: str, counts: dict) -> list:
     return out
 
 
-def apply_fix(text: str, counts: dict) -> str:
-    for _label, pattern, pick in CLAIMS:
+def apply_fix(text: str, counts: dict, claims=None) -> str:
+    for _label, pattern, pick, *_ in (claims or CLAIMS):
         try:
             want = list(pick(counts))
         except KeyError:
@@ -191,6 +217,23 @@ def main() -> int:
     else:
         print("  frontend       -- not counted (vitest unavailable here)")
     print(f"  corpus     {counts['craft']:>5} craft entries\n")
+
+    # The other documents, one file at a time.
+    for path in sorted({claim[3] for claim in OTHER_CLAIMS}):
+        if not os.path.exists(path):
+            continue
+        claims = [c for c in OTHER_CLAIMS if c[3] == path]
+        other = io.open(path, encoding="utf-8").read()
+        found = drift(other, counts, claims)
+        name = os.path.basename(path)
+        for label, said, want in found:
+            print(f"  [DRIFT] {name}: {label}: says {said}, is {want}" if said
+                  else f"  [GONE] {name} no longer states the {label}")
+        if found and fix:
+            io.open(path, "w", encoding="utf-8", newline="\n").write(
+                apply_fix(other, counts, claims))
+        if found and not fix:
+            problems = problems + found
 
     if not problems:
         print("CLAUDE.md matches the repository.")

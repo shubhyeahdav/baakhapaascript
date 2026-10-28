@@ -72,14 +72,14 @@ def get_lesson(lesson_id: str, lang: str = "en", user_id: str = Depends(get_curr
 
 
 @router.post("/lessons/{lesson_id}/submit")
-def submit_lesson(lesson_id: str, body: LessonSubmission,
+def submit_lesson(lesson_id: str, body: LessonSubmission, lang: str = "en",
                   user_id: str = Depends(get_current_user)):
     """Grade a submission with the craft linter.
 
     Deterministic on purpose: the same submission always gets the same verdict,
     and the verdict is about the writing rather than about clicking Next.
     """
-    result = lessons.grade(lesson_id, body.content)
+    result = lessons.grade(lesson_id, body.content, lang)
     if result is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
 

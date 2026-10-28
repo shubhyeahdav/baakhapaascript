@@ -724,6 +724,31 @@ CATEGORY_SHAPE = {
     ),
 }
 
+# A short is not hook-then-body. The craft (docs/SHORTS_RESEARCH.md) is set-up
+# -> rehook, set-up -> rehook: an attention device lands every five to eight
+# seconds, not once at second zero. These are where the spine expects one.
+REHOOK_MIN_SECONDS = 5
+REHOOK_MAX_SECONDS = 8
+REHOOK_TARGET_SECONDS = 6.5
+
+
+def rehook_points(total_seconds, cta_start):
+    """Seconds at which the next attention device is due, after the hook at 0
+    and before the CTA. Deterministic: grammar, not generation.
+
+    Evenly spaced at the interval nearest 6.5s that divides the span, so on any
+    runtime from twenty seconds to three minutes every gap lands inside 5-8s.
+    A span too short to owe a second device gets none rather than a device
+    squeezed in to satisfy the rule.
+    """
+    span = min(total_seconds, cta_start)
+    if span < REHOOK_MIN_SECONDS * 2:
+        return []
+    n = max(1, round(span / REHOOK_TARGET_SECONDS))
+    interval = span / n
+    return [round(k * interval) for k in range(1, n)]
+
+
 HOOK_GUIDANCE = {
     "pattern_interrupt": "Break the expected rhythm in frame one — an unexpected cut, sound, or position.",
     "bold_claim": "Open on a contestable statement delivered as settled fact.",
@@ -772,12 +797,16 @@ def shorts_structure(genre, tone, duration_seconds, language, target_audience,
         })
         elapsed += secs
 
+    cta_start = beats[-1]["start_second"]
     return {
         "short_form": True,
         "hook_type": hook_type,
         "category": category,
         "total_seconds": elapsed,
         "beats": beats,
+        # Where the next device is due. Drawn as ticks on the beat bar; the
+        # beats themselves are unchanged, so no hook type or beat was added.
+        "rehook_seconds": rehook_points(elapsed, cta_start),
         "pattern_sources": [
             {"takeaway": p.get("technique") or p.get("one_line_takeaway"),
              "tradition": p["origin_tradition"]}

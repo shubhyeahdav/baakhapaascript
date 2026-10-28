@@ -337,12 +337,37 @@ describe("AI generation this month", () => {
     fireEvent.click(screen.getByRole("button", { name: /usage/i }));
   };
 
-  it("shows what has been spent against the ceiling", async () => {
+  it("shows credits left, not dollars", async () => {
+    await openUsage({ period: "2026-09", spent_usd: 1.5, ceiling_usd: 6,
+                      remaining_usd: 4.5, metered: true,
+                      credits_total: 600, credits_used: 150, credits_left: 450,
+                      resets_on: "2026-10-01",
+                      costs: { scene: 3, storyboard_frame: 1 },
+                      enough_for: { scene: 150, storyboard_frame: 450 } });
+
+    expect(await screen.findByText("450 of 600 left")).toBeInTheDocument();
+    expect(screen.getByText(/AI credits · 2026-09/)).toBeInTheDocument();
+    expect(screen.queryByText(/\$/)).toBeNull();
+  });
+
+  it("says what the remainder still covers, so a writer can plan the month", async () => {
+    await openUsage({ period: "2026-09", spent_usd: 1.5, ceiling_usd: 6,
+                      remaining_usd: 4.5, metered: true,
+                      credits_total: 600, credits_used: 150, credits_left: 450,
+                      resets_on: "2026-10-01",
+                      costs: { scene: 3, storyboard_frame: 1 },
+                      enough_for: { scene: 150, storyboard_frame: 450 } });
+
+    const scenes = (await screen.findByText("scenes")).closest("li");
+    expect(scenes).toHaveTextContent("150");
+    expect(screen.getByText(/reset on 2026-10-01/)).toBeInTheDocument();
+  });
+
+  it("still reads an older backend that only sends dollars", async () => {
     await openUsage({ period: "2026-09", spent_usd: 1.5, ceiling_usd: 6,
                       remaining_usd: 4.5, metered: true });
 
-    expect(await screen.findByText(/\$1\.50 \/ \$6\.00/)).toBeInTheDocument();
-    expect(screen.getByText(/AI generation · 2026-09/)).toBeInTheDocument();
+    expect(await screen.findByText("450 of 600 left")).toBeInTheDocument();
   });
 
   it("says what the ceiling does and does not stop", async () => {
@@ -371,6 +396,6 @@ describe("AI generation this month", () => {
     /* A spend figure that might be wrong is worse than none. */
     await openUsage(null);
 
-    expect(screen.queryByText(/AI generation ·/)).toBeNull();
+    expect(screen.queryByText(/AI credits ·/)).toBeNull();
   });
 });

@@ -171,8 +171,16 @@ html, body {
   /* The caret is the one part of this interface a writer looks at for hours.
      It was gold only inside focus mode, which meant the nicest detail in the
      product was invisible unless you had already found a mode most people
-     never open. It belongs to the page. */
-  caret-color: #C9A227;
+     never open. It belongs to the page.
+
+     DARKER than the rest of the gold, and measured: #C9A227 on this paper is
+     2.30:1, under the 3:1 that WCAG 1.4.11 asks of a control you have to
+     locate — so the one element a writer stares at for hours was the faintest
+     thing on a page whose text runs at 15.81:1. #8A6A18 is 4.80:1, which
+     clears the TEXT floor rather than scraping the component one, because a
+     caret is one pixel wide and gets no help from letterforms.
+     The dark page keeps #E4BE64 at 11.11:1 and is untouched. */
+  caret-color: #8A6A18;
   width: 100%;
   max-width: 816px;   /* 8.5in at 96dpi */
   min-height: calc(var(--page-lines) * var(--page-line-h)
@@ -187,6 +195,57 @@ html, body {
   outline: none;
   white-space: pre-wrap;
   transition: background-color 0.2s, color 0.2s;
+}
+
+/* A video script is prose read aloud by one person.
+
+   Everything above this rule exists to preserve a screenplay page: Courier at
+   a size derived from 61 columns, a 1.5in left margin because screenplays are
+   bound down the left, a height counted in 45-line pages. Every one of those
+   is correct for a screenplay and wrong for a video essay, which has no
+   columns, no binding and no pages -- its runtime is words over a speaking
+   rate, which is why `SectionPacing` replaced the page counter on this format.
+
+   Monospace is the part that actually costs a writer something. Narration is
+   read aloud, so the writer is judging rhythm and breath, and Courier gives
+   every letter the same width -- which is exactly the information a
+   proportional face carries and a monospace one throws away. The screenplay
+   page needs that trade because the line breaks have to fall where the PDF
+   says they fall. Nothing in a video script depends on where a line wraps.
+
+   So: the same paper, the same caret, the same focus band. A different column.
+
+   THE MEASURE IS 68 CHARACTERS, not the page's 816px. Prose is read at
+   66-75 characters a line; past that the eye loses the start of the next one.
+   Mukta averages about 0.5em per character, so 34em lands in that band and
+   holds it at any font size, which a pixel width does not. */
+.screenplay-page.video-page {
+  font-family: Mukta, 'Segoe UI', system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.75;
+  max-width: 34em;
+  /* Even margins: there is no binding edge to leave room for. */
+  padding: var(--page-margin-y) 3rem;
+  /* A video script has no fixed page height to reserve. Let it be as long as
+     it is, rather than opening on two-thirds of a screen of blank paper. */
+  min-height: 24rem;
+}
+
+/* The cues keep the monospace, because they are not read aloud.
+   `[B-ROLL: ...]` is an instruction to the person editing, and giving it the
+   same face as the narration is how a writer reads one out by accident. This
+   cannot be done inside the textarea -- see the focus-band comment below for
+   why there are no lines in there to style -- so it is the one thing the
+   video page cannot distinguish visually, and it is recorded here rather than
+   quietly dropped. */
+
+@media (max-width: 767px) {
+  .screenplay-page.video-page {
+    /* No column count to defend, so the padding can simply be comfortable. */
+    padding: 1.5rem 1.25rem;
+    font-size: 16px;
+    max-width: 100%;
+  }
 }
 
 /* Dark page mode (default per design): pageless — script sits directly on
@@ -545,8 +604,14 @@ input[type="range"].custom-slider::-moz-range-thumb:hover {
    cannot load the image falls through to it rather than to nothing.
    --------------------------------------------------------------------------- */
 
+/* The nib rests ON the line and the barrel rises to the right, which is how a
+   hand holds a pen. It was drawn the other way up until 2026-09-29 -- nib at
+   the top-left, barrel trailing down-right -- which is the geometry of an
+   ARROW, not a pen: held like that the writer would be writing with the back
+   end. The hotspot moves with it, so the pixel the browser points at is the
+   pixel the nib touches. */
 .screenplay-page.cursor-pen {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M2 2 L10 5.5 L5.5 10 Z' fill='%23C9A227'/%3E%3Cpath d='M7.5 7.5 L19 19' stroke='%23C9A227' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 2 2, text;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M2 22 L5.5 14 L10 18.5 Z' fill='%23C9A227'/%3E%3Cpath d='M7.5 16.5 L19 5' stroke='%23C9A227' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 2 22, text;
 }
 
 .screenplay-page.cursor-ring {
@@ -555,7 +620,7 @@ input[type="range"].custom-slider::-moz-range-thumb:hover {
 
 /* Dark paper needs the brighter gold; the darker one disappears into it. */
 .screenplay-page.dark-page.cursor-pen {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M2 2 L10 5.5 L5.5 10 Z' fill='%23E4BE64'/%3E%3Cpath d='M7.5 7.5 L19 19' stroke='%23E4BE64' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 2 2, text;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M2 22 L5.5 14 L10 18.5 Z' fill='%23E4BE64'/%3E%3Cpath d='M7.5 16.5 L19 5' stroke='%23E4BE64' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 2 22, text;
 }
 .screenplay-page.dark-page.cursor-ring {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Ccircle cx='12' cy='12' r='7.5' fill='none' stroke='%23E4BE64' stroke-width='2'/%3E%3Ccircle cx='12' cy='12' r='1.25' fill='%23E4BE64'/%3E%3C/svg%3E") 12 12, crosshair;
@@ -570,4 +635,177 @@ input[type="range"].custom-slider::-moz-range-thumb:hover {
    moving the mouse is exactly the gesture that means you want it. */
 .screenplay-page.cursor-resting {
   cursor: none;
+}
+
+
+/* ---------------------------------------------------------------------------
+   The landing page (/).
+
+   One motion, and it has a job: the linter's two flags arrive in reading
+   order and the lines they name are marked as they do. Everything lands
+   inside three seconds and then holds. Reduced motion shows the finished
+   state at once — the claim is the flags, not the arrival.
+   ------------------------------------------------------------------------ */
+.landing-page {
+  font-family: "Courier Prime", "Mukta", monospace;
+}
+.landing-flagged {
+  background-image: linear-gradient(rgba(212, 168, 67, 0.32), rgba(212, 168, 67, 0.32));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  animation: landing-mark 0.6s ease-out forwards;
+}
+.landing-flag {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: landing-in 0.5s ease-out forwards;
+}
+.landing-rise {
+  animation: landing-in 0.6s ease-out both;
+}
+/* Letter-spacing and capitals are a Latin device. Spaced Devanagari breaks
+   its conjuncts apart (प्रि - प्रो ड क्स न), so a Nepali interface drops both. */
+html[lang="ne"] .latin-caps {
+  letter-spacing: normal;
+  text-transform: none;
+}
+@keyframes landing-mark {
+  to { background-size: 100% 100%; }
+}
+@keyframes landing-in {
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-flag,
+  .landing-rise {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .landing-flagged {
+    animation: none;
+    background-size: 100% 100%;
+  }
+}
+
+/* The premium layer (Month 4 close). Each motion still has one job:
+   the scene is typed onto the page, so the reader watches it being written;
+   the notes arrive after it, in reading order; sections below the fold rise
+   once as they arrive, and the 91.3% meter fills to its measured width.
+   Nothing loops except the caret, which is what a page being written shows.
+   Reduced motion gets every finished state at once. */
+.landing-glow {
+  position: absolute;
+  inset: -8% 6% auto;
+  height: 70%;
+  background: radial-gradient(ellipse at 50% 30%, rgba(212, 168, 67, 0.16), transparent 65%);
+  filter: blur(24px);
+  pointer-events: none;
+}
+.landing-window {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 40px 80px -32px rgba(0, 0, 0, 0.85),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+.landing-type {
+  opacity: 0;
+  transform: translateY(3px);
+  animation: landing-in 0.32s ease-out forwards;
+}
+.landing-dot {
+  opacity: 0;
+  animation: tour-dot-in 0.4s ease-out forwards;
+}
+.landing-caret {
+  display: inline-block;
+  width: 1px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: #1b1a17;
+  animation: landing-blink 1.1s steps(1) infinite;
+}
+.landing-stage {
+  background:
+    radial-gradient(ellipse at 70% 0%, rgba(212, 168, 67, 0.07), transparent 60%),
+    #0f0e0c;
+}
+.landing-cta {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(212, 168, 67, 0.14), transparent 62%),
+    #0f0e0c;
+}
+.landing-meter {
+  transform-origin: left center;
+  animation: landing-fill 1.2s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.landing-reveal[data-reveal="pending"] {
+  opacity: 0;
+  transform: translateY(16px);
+}
+.landing-reveal[data-reveal="pending"] .landing-meter {
+  animation: none;
+  transform: scaleX(0);
+}
+.landing-reveal[data-reveal="in"] {
+  animation: landing-in 0.7s ease-out both;
+}
+@keyframes landing-blink {
+  50% { opacity: 0; }
+}
+@keyframes landing-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-type,
+  .landing-dot,
+  .landing-reveal[data-reveal] {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .landing-caret,
+  .landing-meter {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The tour (/tour).
+
+   One motion with a job: switching drafts, the notes arrive or leave and the
+   changed lines are marked as they appear. Nothing loops. Reduced motion
+   shows each state as it is, at once.
+   ------------------------------------------------------------------------ */
+.tour-swap {
+  animation: landing-in 0.45s ease-out both;
+}
+.tour-dot {
+  animation: tour-dot-in 0.4s ease-out both;
+  animation-delay: 0.25s;
+}
+.tour-changed {
+  background-image: linear-gradient(rgba(212, 168, 67, 0.22), rgba(212, 168, 67, 0.22));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  animation: landing-mark 0.7s ease-out forwards;
+  animation-delay: 0.2s;
+}
+@keyframes tour-dot-in {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-swap,
+  .tour-dot {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .tour-changed {
+    animation: none;
+    background-size: 100% 100%;
+  }
 }

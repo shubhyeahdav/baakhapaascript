@@ -542,6 +542,9 @@ LESSON_BY_TECHNIQUE = {
 # Translated fields, keyed by lesson id. Kept in its own module so this file
 # stays the English source text — see `lessons_ne` for why.
 TRANSLATIONS = {"ne": lessons_ne.LESSONS_NE}
+MODULE_NAMES = {"ne": lessons_ne.MODULES_NE}
+# How a grader sentence is rendered per language. English is the identity.
+PROBLEM_TRANSLATORS = {"ne": lessons_ne.problem_ne}
 
 
 def public_lesson(lesson: dict, completed_ids=(), lang: str = "en") -> dict:
@@ -560,7 +563,7 @@ def public_lesson(lesson: dict, completed_ids=(), lang: str = "en") -> dict:
 
     return {
         "id": lesson["id"],
-        "module": lesson["module"],
+        "module": MODULE_NAMES.get(lang, {}).get(lesson["module"], lesson["module"]),
         "track": lesson.get("track", "pen"),
         "title": field("title"),
         "concept": field("concept"),
@@ -576,7 +579,7 @@ def curriculum(completed_ids=(), lang: str = "en") -> List[dict]:
     return [public_lesson(l, completed_ids, lang) for l in LESSONS]
 
 
-def grade(lesson_id: str, text: str) -> Optional[dict]:
+def grade(lesson_id: str, text: str, lang: str = "en") -> Optional[dict]:
     """Run a submission against its lesson's check.
 
     Returns None for an unknown lesson id. Feedback is the linter's own
@@ -588,6 +591,11 @@ def grade(lesson_id: str, text: str) -> Optional[dict]:
         return None
 
     passed, problems = lesson["check"](text or "")
+    # A writer doing the course in Nepali used to pass in Nepali and fail in
+    # English. Untranslated sentences come back as they were.
+    translate = PROBLEM_TRANSLATORS.get(lang)
+    if translate:
+        problems = [translate(p) for p in problems]
     return {
         "lesson_id": lesson_id,
         "passed": passed,

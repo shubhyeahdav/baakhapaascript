@@ -6,8 +6,9 @@ from database import (
     get_scenes_by_script,
 )
 import membership
-from auth import (get_current_user, require_script_access,
+from auth import (get_current_user, get_user_tier, require_script_access,
                   require_script_and_project, require_tier)
+import ai_budget
 from updates import apply_whitelist
 import scene_sync
 import storyboard_engine
@@ -32,6 +33,30 @@ FRAME_UPDATE_FIELDS = {"shot_type", "camera_notes", "order_index"}
 MAX_FRAMES_PER_STORYBOARD = int(os.getenv("MAX_STORYBOARD_FRAMES", "24"))
 
 router = APIRouter(prefix="/storyboard", tags=["storyboard"])
+
+
+def _frame_budget(user_id):
+    """How many frames this account may still draw this month, or None if
+    unmetered. Raises 429 at zero — same status and reason as the text routes,
+    because images were the one AI cost nothing counted: a Pro account's
+    ceiling stopped its scenes and left its storyboards unbounded."""
+    affordable = ai_budget.frames_affordable(user_id, get_user_tier(user_id))
+    if affordable is not None and affordable < 1:
+        raise HTTPException(
+            status_code=429,
+            detail="You have used this month's AI credits, so no new frames can "
+                   "be drawn. They reset on the first. Your existing board, the "
+                   "shot list and the exports keep working.",
+        )
+    return affordable
+
+
+def _charge_frames(user_id, frames):
+    """Charge only frames that came back with an image. A refused image costs
+    its own frame nothing, and demo placeholders never reached a provider."""
+    if storyboard_engine.MOCK_AI:
+        return
+    ai_budget.record_images(user_id, sum(1 for f in frames if f.get("image_url")))
 
 
 def require_frame_access(frame_id: str, user_id: str) -> str:
@@ -61,7 +86,8 @@ def generate(script_id: str, user_id: str = Depends(get_current_user)):
     # generate from at all — which is how "Finalize & Storyboard" used to lead
     # to a page whose only button returned 404.
     scenes = scene_sync.sync_from_draft(script_id, script.get("content") or "",
-                                        project_format=project.get("format"))
+                                        project_format=project.get("format"),
+                                        project=project)
     if not scenes:
         raise HTTPException(
             status_code=404,
@@ -69,10 +95,14 @@ def generate(script_id: str, user_id: str = Depends(get_current_user)):
                    "in the script, or add a scene from the structure panel.",
         )
 
-    capped = scenes[:MAX_FRAMES_PER_STORYBOARD]
+    affordable = _frame_budget(user_id)
+    limit = MAX_FRAMES_PER_STORYBOARD if affordable is None else min(
+        MAX_FRAMES_PER_STORYBOARD, affordable)
+    capped = scenes[:limit]
     frames = storyboard_engine.generate_storyboard(
         script_id, capped, supabase, genre=project.get("genre") or "drama"
     )
+    _charge_frames(user_id, frames)
     return {
         "frames": frames,
         "scene_count": len(scenes),
@@ -81,6 +111,10 @@ def generate(script_id: str, user_id: str = Depends(get_current_user)):
         # silently imply the whole script was covered.
         "truncated": len(scenes) > len(capped),
         "frame_limit": MAX_FRAMES_PER_STORYBOARD,
+        # True when the board stopped short because the month's credits ran
+        # out rather than at the frame cap, so the UI can say which.
+        "credit_limited": affordable is not None and affordable < min(
+            len(scenes), MAX_FRAMES_PER_STORYBOARD),
     }
 
 
@@ -97,6 +131,7 @@ def regenerate(frame_id: str, description: str = "", shot_type: str = "",
     """
     require_tier(user_id, "Regenerating a storyboard frame")
     script_id = require_frame_access(frame_id, user_id)
+    _frame_budget(user_id)
 
     existing = supabase.table("storyboard_frames").select("*").eq("id", frame_id).execute()
     frame = existing.data[0] if existing.data else {}
@@ -112,12 +147,14 @@ def regenerate(frame_id: str, description: str = "", shot_type: str = "",
     ) or {}
     visual["genre"] = project.get("genre") or "drama"
 
-    return storyboard_engine.regenerate_frame(
+    redrawn = storyboard_engine.regenerate_frame(
         frame_id, description or visual["description"], shot, supabase,
         visual=visual,
         previous_note=frame.get("camera_notes") or "",
         previous_shot=frame.get("shot_type") or "",
     )
+    _charge_frames(user_id, [redrawn])
+    return redrawn
 
 
 # Shot types the board offers as an override (FR09). A fixed vocabulary rather

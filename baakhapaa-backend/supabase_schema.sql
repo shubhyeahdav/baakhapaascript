@@ -374,6 +374,22 @@ CREATE TABLE IF NOT EXISTS ai_usage (
 );
 CREATE INDEX IF NOT EXISTS ai_usage_user_idx ON ai_usage (user_id, period DESC);
 
+-- Short-form outliers and posted results (Month 4, Days 9-10; shorts.py).
+-- NUMBERS ONLY: `numbers` holds measurements, never transcript or draft text,
+-- and a video is kept as platform + id. tests/test_shorts.py enforces it.
+CREATE TABLE IF NOT EXISTS short_measurements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  script_id UUID REFERENCES scripts(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('outlier', 'result')),
+  platform TEXT,
+  video_id TEXT,
+  numbers JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS short_measurements_script_idx ON short_measurements (script_id);
+CREATE INDEX IF NOT EXISTS short_measurements_user_idx ON short_measurements (user_id, kind);
+
 -- ---------------------------------------------------------------------------
 -- REPAIR: columns added to this file after a database was first created.
 --

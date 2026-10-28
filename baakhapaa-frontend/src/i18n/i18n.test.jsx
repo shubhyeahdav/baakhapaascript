@@ -83,3 +83,12 @@ test("no Nepali string was left identical to its English key", () => {
     expect(value).not.toBe(key);
   }
 });
+
+test("an unknown stored language falls back to English rather than blanking", () => {
+  // A value from an older build, or typed into devtools. `STRINGS["xx"]` is
+  // undefined, and a lookup against it must not empty every label.
+  window.localStorage.setItem("baakhapaa:lang", "xx");
+  show();
+  expect(screen.getByTestId("lang")).toHaveTextContent("en");
+  expect(screen.getByTestId("known")).toHaveTextContent("Projects");
+});

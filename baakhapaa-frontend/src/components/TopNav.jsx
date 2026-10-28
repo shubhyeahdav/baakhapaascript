@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import PlanNotice from "./PlanNotice";
-import { useT, useLanguage, LANGUAGES } from "../i18n";
+import { useT } from "../i18n";
+import LanguageToggle from "./LanguageToggle";
 
 // Shared top navigation for the whole app shell — both the editorial (dashboard,
 // wizard, exports) and utilitarian (editor, storyboard, structure) modes hang
@@ -22,7 +23,6 @@ export default function TopNav({ active = "Projects", right }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const t = useT();
-  const { lang, setLang } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -147,22 +147,7 @@ export default function TopNav({ active = "Projects", right }) {
                       what they are called. A writer hunting for it is hunting
                       for the word in their own script, so the Nepali option is
                       labelled नेपाली rather than "Nepali". */}
-                  <div className="flex gap-1 px-3 py-2.5 border-b border-borderSoft">
-                    {LANGUAGES.map((l) => (
-                      <button
-                        key={l.code}
-                        onClick={() => setLang(l.code)}
-                        aria-pressed={lang === l.code}
-                        className={`flex-1 text-[12px] py-1 rounded-md transition ${
-                          lang === l.code
-                            ? "bg-goldDim text-gold"
-                            : "text-inkMuted hover:text-ink"
-                        }`}
-                      >
-                        {l.label}
-                      </button>
-                    ))}
-                  </div>
+                  <LanguageToggle variant="bar" className="px-3 py-2.5 border-b border-borderSoft" />
                   <button
                     role="menuitem"
                     onClick={() => {

@@ -34,15 +34,15 @@ function ProgressRing({ done, total }) {
   );
 }
 
-function Feedback({ result }) {
+function Feedback({ result, t }) {
   if (!result) return null;
 
   if (result.passed) {
     return (
       <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-4">
-        <p className="text-[13px] text-emerald-300 font-semibold mb-1">Passed.</p>
+        <p className="text-[13px] text-emerald-300 font-semibold mb-1">{t("Passed.")}</p>
         <p className="text-[12px] text-inkSoft leading-relaxed">
-          Technique unlocked — <span className="text-gold">{result.technique_unlocked}</span>
+          {t("Technique unlocked")} — <span className="text-gold">{result.technique_unlocked}</span>
         </p>
       </div>
     );
@@ -50,15 +50,14 @@ function Feedback({ result }) {
 
   return (
     <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
-      <p className="text-[13px] text-amber-300 font-semibold mb-2">Not yet.</p>
+      <p className="text-[13px] text-amber-300 font-semibold mb-2">{t("Not yet.")}</p>
       <ul className="space-y-1.5">
         {result.problems.map((p, i) => (
           <li key={i} className="text-[12px] text-inkSoft leading-snug">— {p}</li>
         ))}
       </ul>
       <p className="text-[11px] text-inkMuted mt-2.5 leading-snug">
-        These are the same checks that run in the editor. Fix and resubmit —
-        there is no penalty for trying.
+        {t("These are the same checks that run in the editor. Fix and resubmit — there is no penalty for trying.")}
       </p>
     </div>
   );
@@ -148,11 +147,11 @@ export default function LearnPage() {
     if (!active) return;
     setSubmitting(true);
     try {
-      const res = await learn.submit(active.id, draft);
+      const res = await learn.submit(active.id, draft, lang);
       setResult(res.data);
       if (res.data.passed) await load();
     } catch (err) {
-      setResult({ passed: false, problems: ["Could not reach the server."] });
+      setResult({ passed: false, problems: [t("Could not reach the server.")] });
     } finally {
       setSubmitting(false);
     }
@@ -231,7 +230,7 @@ export default function LearnPage() {
       <TopNav active="Learn" />
       <main id="main" tabIndex={-1} className="max-w-6xl mx-auto px-8 py-8 animate-fade-up">
         <div className="mb-6">
-          <p className="text-inkMuted text-xs tracking-[0.2em] uppercase mb-2">Learn</p>
+          <p className="latin-caps text-inkMuted text-xs tracking-[0.2em] uppercase mb-2">{t("Learn")}</p>
           <h1 className="font-display text-4xl text-ink mb-1">
             {t("Write your first short")}
           </h1>
@@ -294,13 +293,13 @@ export default function LearnPage() {
             onClick={() => setCurriculumOpen((v) => !v)}
             aria-expanded={curriculumOpen}
             aria-controls="track-curriculum"
-            aria-label={curriculumOpen ? "Hide the lesson list" : "Show the lesson list"}
+            aria-label={curriculumOpen ? t("Hide the lesson list") : t("Show the lesson list")}
             className="lg:hidden w-full flex items-center gap-2 bg-surface border border-borderSoft
                        rounded-2xl px-4 py-3 text-left text-[13px] text-inkSoft hover:text-ink transition"
           >
             <span aria-hidden="true" className={`text-inkMuted transition-transform shrink-0 ${curriculumOpen ? "rotate-90" : ""}`}>›</span>
             <span aria-hidden="true" className="min-w-0 truncate">
-              {active ? active.title : "All lessons"}
+              {active ? active.title : t("All lessons")}
             </span>
           </button>
 
@@ -315,7 +314,7 @@ export default function LearnPage() {
           >
             {byModule.map((mod) => (
               <div key={mod.module}>
-                <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-2">
+                <div className="latin-caps font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-2">
                   {mod.module}
                 </div>
                 <ul className="space-y-1">
@@ -345,9 +344,9 @@ export default function LearnPage() {
           {active && (
             <div className="bg-surface border border-borderSoft rounded-2xl p-7 space-y-5">
               <div>
-                <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-1.5">
+                <div className="latin-caps font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-1.5">
                   {active.module}
-                  {active.completed && <span className="text-emerald-400 ml-2">· completed</span>}
+                  {active.completed && <span className="text-emerald-400 ml-2">· {t("completed")}</span>}
                 </div>
                 <h2 className="font-display text-2xl text-ink">{active.title}</h2>
               </div>
@@ -357,15 +356,15 @@ export default function LearnPage() {
               {/* A measurement from the corpus, never a quotation — this is the
                   only place the script library speaks, and it speaks in numbers. */}
               <div className="rounded-xl border-l-2 border-gold/40 bg-elevated/30 pl-4 pr-3 py-2.5">
-                <div className="font-mono text-[9px] uppercase tracking-wider text-gold/70 mb-1">
-                  From the corpus
+                <div className="latin-caps font-mono text-[9px] uppercase tracking-wider text-gold/70 mb-1">
+                  {t("From the corpus")}
                 </div>
                 <p className="text-[12px] text-inkMuted leading-snug">{active.corpus_proof}</p>
               </div>
 
               <div>
-                <div className="font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-2">
-                  Exercise
+                <div className="latin-caps font-mono text-[9.5px] uppercase tracking-wider text-inkMuted mb-2">
+                  {t("Exercise")}
                 </div>
                 <p className="text-[13px] text-ink leading-relaxed whitespace-pre-wrap mb-3">
                   {active.exercise}
@@ -380,12 +379,12 @@ export default function LearnPage() {
                   onChange={(e) => setDraft(e.target.value)}
                   spellCheck={false}
                   className="w-full h-56 bg-bgDeep/50 border border-border rounded-xl p-4 text-[13px] text-inkSoft font-mono leading-relaxed resize-y focus:outline-none focus:border-gold/40"
-                  placeholder="Write here…"
-                  aria-label="Your answer to this exercise"
+                  placeholder={t("Write here…")}
+                  aria-label={t("Your answer to this exercise")}
                 />
               </div>
 
-              <Feedback result={result} />
+              <Feedback result={result} t={t} />
 
               <div className="flex items-center gap-3">
                 <button
@@ -393,14 +392,14 @@ export default function LearnPage() {
                   disabled={submitting || !draft.trim()}
                   className="btn-gold px-6 py-2.5 text-sm disabled:opacity-40"
                 >
-                  {submitting ? "Checking…" : "Check my work"}
+                  {submitting ? t("Checking…") : t("Check my work")}
                 </button>
                 {result?.passed && nextLesson && (
                   <button
                     onClick={() => openLesson(nextLesson)}
                     className="text-sm text-inkMuted hover:text-gold transition-colors"
                   >
-                    Next: {nextLesson.title} →
+                    {t("Next")}: {nextLesson.title} →
                   </button>
                 )}
               </div>

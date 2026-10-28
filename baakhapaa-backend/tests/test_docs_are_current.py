@@ -119,3 +119,22 @@ def test_each_claim_has_a_name_worth_reading_in_a_failure(label, _pattern, _pick
     """The label is what a failing build prints. "claim 3" would send someone
     to read this file to find out what broke."""
     assert len(label) > 4 and not label.isdigit()
+
+
+# --- other documents ---------------------------------------------------------
+
+def test_the_month_4_tick_count_is_counted_not_typed():
+    """The plan said "(counted, not typed)" while nothing counted it. Cheap —
+    one file read — so it runs on every suite."""
+    import os
+
+    if not os.path.exists(check_docs.MONTH_4_TASKS):
+        pytest.skip("no Month 4 plan in this checkout")
+    text = io.open(check_docs.MONTH_4_TASKS, encoding="utf-8").read()
+    problems = check_docs.drift(text, check_docs.counted(cheap_only=True),
+                                check_docs.OTHER_CLAIMS)
+
+    assert not problems, (
+        f"MONTH_4_TASKS.md is out of date: {problems}. "
+        "Run `python check_docs.py --fix` and commit the diff."
+    )

@@ -125,3 +125,41 @@ describe("the runtime shown per scene", () => {
     expect(cardText("3:06")).toBeTruthy();
   });
 });
+
+/* Month 4, Day 14. `scenePage` computed `line / 45` for every card, which
+   gave a long-form video section a page number — the one thing `videoscript`
+   deliberately returns as null, because a video script has no pages. */
+describe("a video section is not a scene", () => {
+  const section = (over = {}) => ({
+    id: "v1", title: "HOOK - 0:15", scene_type: null,
+    draft_json: JSON.stringify({ section_kind: "hook", target_seconds: 15,
+                                 minutes: 7 / 60, page: null, line_number: 1, ...over }),
+  });
+  const scene = { id: "s1", title: "INT. CHIYA PASAL - DAY", scene_type: "major",
+                  draft_json: JSON.stringify({ page: 6, line_number: 270, minutes: 1.5 }) };
+
+  it("carries no page number, and says what kind of section it is", () => {
+    render(<SceneRail scenes={[section()]} activeScene={0} onSceneClick={() => {}} />);
+    expect(screen.queryByText(/^p\.\d/)).toBeNull();
+    expect(screen.getByTestId("section-kind")).toHaveTextContent("hook");
+  });
+
+  it("shows written against target", () => {
+    render(<SceneRail scenes={[section()]} activeScene={0} onSceneClick={() => {}} />);
+    expect(screen.getByTestId("section-timing")).toHaveTextContent("0:07 / 0:15");
+  });
+
+  it("says nothing about durations in course mode", () => {
+    render(<SceneRail scenes={[section({ section_kind: "objective", target_seconds: null })]}
+      activeScene={0} onSceneClick={() => {}} videoCategory="course" />);
+    expect(screen.queryByTestId("section-timing")).toBeNull();
+    expect(screen.queryByText(/Written runtime/)).toBeNull();
+  });
+
+  it("a screenplay scene still carries its page — the server's, not line/45", () => {
+    // line 270 / 45 would say p.7; the PDF's own page says p.6.
+    render(<SceneRail scenes={[scene]} activeScene={0} onSceneClick={() => {}} />);
+    expect(screen.getByText("p.6")).toBeInTheDocument();
+    expect(screen.queryByTestId("section-kind")).toBeNull();
+  });
+});

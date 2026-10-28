@@ -170,3 +170,17 @@ describe("dismissals", () => {
     expect(dismissKey("abc")).toContain("abc");
   });
 });
+
+/* Month 4: every milestone is screenplay craft. A three-section video essay
+   was told "3 scenes, and none of them is marked a turning point". */
+// eslint-disable-next-line import/first
+import { milestonesApply } from "./milestones";
+
+describe("which formats the notes speak to", () => {
+  it.each(["short", "film", "web_series", undefined])("speaks to %s", (f) => {
+    expect(milestonesApply(f)).toBe(true);
+  });
+  it.each(["long_form", "short_form"])("stays silent on %s", (f) => {
+    expect(milestonesApply(f)).toBe(false);
+  });
+});

@@ -46,9 +46,42 @@ ELEMENT_TYPES = ("section_heading", "narration", "broll", "on_screen")
 # would shift every section index by one.
 UNTITLED_SECTION = "(untitled opening)"
 
-# The section kinds the format knows. Anything else parses as `segment` — a
-# writer inventing their own section name is writing, not erring.
-SECTION_KINDS = ("hook", "promise", "segment", "payoff", "cta")
+# The section kinds the format knows, PER MODE.
+#
+# This was a flat tuple until 2026-09-29, which is why every course section
+# and every essay synonym fell through to `segment`: one vocabulary cannot
+# serve two crafts. A video essay is written for purchased attention and a
+# course lesson for committed attention -- see
+# docs/superpowers/specs/2026-09-16-long-form-writing-framework.md.
+SECTION_KINDS_BY_MODE = {
+    "essay": ("hook", "promise", "segment", "payoff", "cta"),
+    "course": ("objective", "concept", "proof", "exercise", "check"),
+}
+
+# Names writers actually type for a kind the list already holds. Per mode, so
+# `## OUTRO` means CTA in an essay without meaning anything in a course.
+# Matched on the WHOLE heading, unlike kinds, which match the first word --
+# "CALL TO ACTION" has no single word that identifies it.
+SECTION_SYNONYMS_BY_MODE = {
+    "essay": {
+        "intro": "hook", "introduction": "hook", "cold open": "hook",
+        "outro": "cta", "call to action": "cta", "wrap up": "cta",
+        "conclusion": "payoff", "takeaway": "payoff",
+    },
+    "course": {
+        "goal": "objective", "outcome": "objective",
+        "idea": "concept", "theory": "concept",
+        "evidence": "proof", "measurement": "proof",
+        "practice": "exercise", "task": "exercise",
+        "review": "check", "feedback": "check",
+    },
+}
+
+# Kept for consumers that predate modes. Essay is the default mode, so this is
+# the same tuple those consumers already saw.
+SECTION_KINDS = SECTION_KINDS_BY_MODE["essay"]
+
+DEFAULT_MODE = "essay"
 
 # See `.env.example`. EN is the conventional English narration figure. NE is the
 # same number and is NOT measured: there is no Nepali narration sample on this
@@ -93,11 +126,51 @@ class Section:
         ).strip()
 
 
-def _kind_of(name: str) -> str:
-    words = (name or "").strip().lower().split()
-    if words and words[0] in SECTION_KINDS:
+def mode_for(video_category) -> str:
+    """Which section vocabulary a project uses.
+
+    Only `course` differs. Everything else -- essay, tutorial, documentary,
+    commentary, vlog, and any value written by a future version -- is an essay,
+    because an unrecognised stored value is far more likely to be one than to
+    be a course, and guessing course would draw the wrong instrument.
+    """
+    return "course" if video_category == "course" else DEFAULT_MODE
+
+
+# Where a heading nobody recognised lands, PER MODE.
+#
+# This was a bare `return "segment"` until 2026-10-09 — in both modes. So a
+# course section with a heading the course vocabulary does not hold came back
+# carrying `segment`, a kind that is not in `SECTION_KINDS_BY_MODE["course"]`
+# at all. That is the exact leak the mode split exists to prevent, and it was
+# not cosmetic: `section_kind` leaves this module on the API payload and the
+# editor seeds craft retrieval from it, so a course writer's unnamed section
+# drew a video essay's craft.
+#
+# `concept` is the course's body-content kind, the way `segment` is the essay's,
+# so an unrecognised section is read as "some of the lesson's substance" rather
+# than as nothing. It is a translation of the existing default, not a new rule.
+FALLBACK_KIND_BY_MODE = {
+    "essay": "segment",
+    "course": "concept",
+}
+
+
+def _kind_of(name: str, mode: str = DEFAULT_MODE) -> str:
+    # One fallback, applied once. It used to be applied piecemeal: an unknown
+    # mode got the ESSAY kinds and fallback but NO synonyms, so `## INTRO`
+    # meant "hook" in essay mode and "segment" in an unrecognised one.
+    if mode not in SECTION_KINDS_BY_MODE:
+        mode = DEFAULT_MODE
+    kinds = SECTION_KINDS_BY_MODE[mode]
+    synonyms = SECTION_SYNONYMS_BY_MODE.get(mode, {})
+    cleaned = (name or "").strip().lower()
+    if cleaned in synonyms:
+        return synonyms[cleaned]
+    words = cleaned.split()
+    if words and words[0] in kinds:
         return words[0]
-    return "segment"
+    return FALLBACK_KIND_BY_MODE.get(mode, FALLBACK_KIND_BY_MODE[DEFAULT_MODE])
 
 
 def parse(text: str) -> List[Element]:
@@ -121,7 +194,7 @@ def parse(text: str) -> List[Element]:
     return out
 
 
-def sections(text: str) -> List[Section]:
+def sections(text: str, mode: str = DEFAULT_MODE) -> List[Section]:
     found: List[Section] = []
     current: Optional[Section] = None
     for el in parse(text):
@@ -133,7 +206,7 @@ def sections(text: str) -> List[Section]:
                 target = int(m.group("mins")) * 60 + int(m.group("secs"))
             current = Section(
                 heading=el.text.lstrip("#").strip(),
-                kind=_kind_of(name),
+                kind=_kind_of(name, mode),
                 target_seconds=target,
                 line_number=el.line_number,
             )
@@ -163,10 +236,21 @@ def spoken_words(text: str) -> int:
     )
 
 
-def runtime_seconds(text: str, language: str = "English") -> float:
-    wpm = SPEAKING_WPM.get(
+def wpm_for(language: Optional[str] = "English") -> float:
+    """Look up the speaking rate for a given language.
+
+    Handles English, Nepali, Bilingual (the minimum of the two), and any
+    unrecognized language (defaults to English). Handles None gracefully.
+    """
+    return SPEAKING_WPM.get(
         (language or "english").strip().lower(), SPEAKING_WPM["english"]
     )
+
+
+def runtime_seconds(text: str, language: Optional[str] = "English") -> float:
+    # Optional, as `wpm_for` is: review.check_total_runtime passes the
+    # project's language straight through, and a project may have none.
+    wpm = wpm_for(language)
     if not wpm:
         return 0.0
     return round(spoken_words(text) / wpm * 60, 1)
@@ -177,7 +261,8 @@ def _section_text(sec: Section) -> str:
     return "\n".join(el.text for el in sec.elements if el.type == "narration")
 
 
-def scene_summaries(text: str, language: str = "English") -> List[dict]:
+def scene_summaries(text: str, language: Optional[str] = "English",
+                    mode: str = DEFAULT_MODE) -> List[dict]:
     """One summary per section, in document order, keyed the way
     `screenplay.scene_summaries` keys its scenes.
 
@@ -189,7 +274,7 @@ def scene_summaries(text: str, language: str = "English") -> List[dict]:
     no time of day, no interior and no printed page.
     """
     out = []
-    for index, sec in enumerate(sections(text)):
+    for index, sec in enumerate(sections(text, mode)):
         narration = sec.narration
         out.append({
             "index": index,

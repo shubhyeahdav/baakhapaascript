@@ -25,6 +25,33 @@ class TestShortFormStructure:
         assert sum(b["duration_seconds"] for b in s["beats"]) == secs
         assert s["total_seconds"] == secs
 
+    @pytest.mark.parametrize("secs", [20, 30, 45, 60, 90, 120, 180])
+    def test_a_device_is_due_every_five_to_eight_seconds(self, secs):
+        """Set-up -> rehook, set-up -> rehook: not one hook at second zero
+        and a linear body. Every gap, from 0 to the CTA, inside 5-8s."""
+        s = script_engine.shorts_structure("Drama", "Wry", secs, "Bilingual", "Youth")
+        cta = s["beats"][-1]["start_second"]
+        points = [0, *s["rehook_seconds"], cta]
+        gaps = [b - a for a, b in zip(points, points[1:], strict=False)]
+        assert s["rehook_seconds"], "a short this long owes a second device"
+        assert all(5 <= g <= 8 for g in gaps), gaps
+
+    def test_a_short_too_brief_to_owe_a_rehook_gets_none(self):
+        s = script_engine.shorts_structure("Drama", "Wry", 8, "Bilingual", "Youth")
+        assert s["rehook_seconds"] == []
+
+    def test_rehooks_add_no_beat_and_change_no_hook_type(self):
+        """Ticks on the bar, not new beats: nothing unproven is added."""
+        s = script_engine.shorts_structure("Drama", "Wry", 45, "Bilingual", "Youth",
+                                           hook_type="question")
+        assert [b["name"] for b in s["beats"]] == [n for n, _, _ in script_engine.SHORT_FORM_BEATS]
+        assert s["hook_type"] == "question"
+
+    def test_rehook_points_are_deterministic(self):
+        a = script_engine.shorts_structure("Drama", "Wry", 60, "Bilingual", "Youth")
+        b = script_engine.shorts_structure("Drama", "Wry", 60, "Bilingual", "Youth")
+        assert a["rehook_seconds"] == b["rehook_seconds"]
+
     def test_hook_is_capped_in_absolute_seconds(self):
         """The window where a viewer decides to stay is ~3s whether the video
         runs 20 seconds or 90, so the hook must not scale with runtime."""

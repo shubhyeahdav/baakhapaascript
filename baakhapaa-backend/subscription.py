@@ -67,12 +67,21 @@ def payment_history(user_id: str = Depends(get_current_user)):
     return {"payments": payments.history(user_id)}
 
 
+@router.get("/plans")
+def plans():
+    """Monthly AI credits per tier and what each action costs. Public, because
+    the pricing page needs it before anyone signs in — and served rather than
+    typed into the page, so the advertised allowance is the enforced one."""
+    import ai_budget
+
+    return ai_budget.plans()
+
+
 @router.get("/usage")
 def ai_usage(user_id: str = Depends(get_current_user)):
-    """What this account has spent on generation this month, and its ceiling.
-
-    Reported in dollars because that is what the ceiling is denominated in — a
-    token count means nothing to a screenwriter. Free plans report
+    """This month's AI credits: used, left, what the remainder still buys, and
+    the date it resets. Credits rather than dollars or tokens — a writer plans
+    in scenes and frames, not in either of those. Free plans report
     `metered: false`: they never call a model, so there is nothing to meter and
     a progress bar reading 0% of 0 would be worse than no bar at all.
     """

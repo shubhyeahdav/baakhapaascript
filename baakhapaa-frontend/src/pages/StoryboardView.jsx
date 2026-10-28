@@ -27,6 +27,10 @@ export default function StoryboardView() {
   const [loading, setLoading] = useState(false);
   const [busyFrame, setBusyFrame] = useState(null);
   const [error, setError] = useState("");
+  // Not an error: the board was drawn, just not all of it. Said in gold
+  // rather than red so a writer who ran out of credits is not told they broke
+  // something.
+  const [notice, setNotice] = useState("");
   // Notes are edited locally and committed on blur: saving each keystroke would
   // be a request per character, and saving only on an explicit button is how
   // notes get lost when someone clicks away.
@@ -52,8 +56,15 @@ export default function StoryboardView() {
   const handleGenerate = async () => {
     setLoading(true);
     setError("");
+    setNotice("");
     try {
-      await storyboard.generate(id);
+      const res = await storyboard.generate(id);
+      const g = res?.data || {};
+      if (g.credit_limited) {
+        setNotice(`Drew ${g.frames_generated} of ${g.scene_count} scenes — this month's AI credits ran out. The rest can be drawn when they reset on the first.`);
+      } else if (g.truncated) {
+        setNotice(`Drew the first ${g.frames_generated} of ${g.scene_count} scenes — a board is capped at ${g.frame_limit} frames.`);
+      }
       await load(); // refetch, so frames arrive with their scene attached
     } catch (err) {
       setError(err.response?.data?.detail || "Storyboard generation failed.");
@@ -152,6 +163,15 @@ export default function StoryboardView() {
         <div className="bg-red-400/10 border-b border-red-400/25 px-6 py-2.5 flex items-start gap-3 shrink-0">
           <p className="text-[12px] text-red-300 leading-snug flex-1">{error}</p>
           <button onClick={() => setError("")} className="text-[11px] text-red-300/70 hover:text-red-200 shrink-0">
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {notice && (
+        <div className="bg-gold/10 border-b border-gold/25 px-6 py-2.5 flex items-start gap-3 shrink-0">
+          <p className="text-[12px] text-gold leading-snug flex-1">{notice}</p>
+          <button onClick={() => setNotice("")} className="text-[11px] text-gold/70 hover:text-gold shrink-0">
             Dismiss
           </button>
         </div>

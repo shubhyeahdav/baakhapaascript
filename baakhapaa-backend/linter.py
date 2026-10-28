@@ -61,6 +61,19 @@ DIRECTED_EMOTION = re.compile(
 )
 
 # Dialogue that states the real grievance out loud instead of circling it.
+#
+# DECIDED NOT TO WIDEN, 2026-10-28 (Month 4, Day 13). This is a fixed phrase
+# list, and it misses a character stating a feeling plainly ("म धेरै दुःखी
+# छु", "I'm so angry with you"). The plan said to collect those misses from a
+# REAL draft before changing anything, and there is none to collect from: the
+# pilot has not run, and the only Nepali draft in the repo is the demo, which
+# was written to trip these rules (6 flags in 19 lines). Widening on invented
+# examples is how a linter starts flagging everything and gets switched off,
+# and this is already the most contestable rule here (confidence: judgement).
+# So the gap stays, named; the paid tier's improve route reads meaning rather
+# than phrases and covers it for now; and PILOT.md now asks the five writers
+# for exactly the misses this needs. Widen from those, Nepali and romanised
+# forms together, never English alone.
 ON_THE_NOSE = re.compile(
     r"\b(you never (supported|understood|listened|cared|believed)|"
     r"you always|i feel like you|my dreams?|you don'?t (understand|care) (about )?me|"

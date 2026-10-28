@@ -157,6 +157,9 @@ export const scripts = {
   bible: (id) => instance.get(`/scripts/${id}/bible`),
   saveBible: (id, bible) => instance.put(`/scripts/${id}/bible`, bible),
   finalize: (id) => instance.post(`/scripts/${id}/finalize`),
+  // The writer declaring their first pass done. A DECLARATION, not a
+  // measurement -- the server refuses only an empty page.
+  markFirstDraft: (id) => instance.post(`/scripts/${id}/first-draft`),
   // Proposal FR07: timing, character-name consistency and act balance.
   // Deterministic and free, so it can run before every finalize.
   review: (id) => instance.get(`/scripts/${id}/review`),
@@ -181,6 +184,9 @@ export const scripts = {
   // Deterministic craft diagnostics — every tier, no AI cost, works on a
   // partial draft. Returns flags with line numbers plus by_craft_level.
   lint: (data) => instance.post("/scripts/lint", data),
+  // Short-form rhythm: sentence-length spread, the flattest run and where it
+  // starts, estimated spoken length. Every tier, no AI, nothing stored.
+  rhythm: (data) => instance.post("/scripts/rhythm", data),
   // Shape comparison against the analysed corpus. Returns {ready:false} with
   // progress until the draft is big enough to say anything honest about.
   benchmark: (data) => instance.post("/scripts/benchmark", data),
@@ -232,7 +238,10 @@ export const learn = {
   lessons: (lang = "en") => instance.get("/learn/lessons", { params: { lang } }),
   lesson: (id, lang = "en") => instance.get(`/learn/lessons/${id}`, { params: { lang } }),
   // Graded by the craft linter, so the verdict is deterministic and free.
-  submit: (id, content) => instance.post(`/learn/lessons/${id}/submit`, { content }),
+  // `lang` so the grader answers in the language the course is being read
+  // in; a Nepali writer used to pass in Nepali and fail in English.
+  submit: (id, content, lang = "en") =>
+    instance.post(`/learn/lessons/${id}/submit`, { content }, { params: { lang } }),
   forRule: (rule, lang = "en") =>
     instance.get(`/learn/for-rule/${rule}`, { params: { lang } }),
   // The escalation path from the craft panel. Technique names carry commas and
@@ -246,14 +255,26 @@ export const subscription = {
   // Which gateways this deployment can actually take money through. Stripe
   // declines most Nepali cards, so the pricing page cannot assume one.
   providers: () => instance.get("/subscription/providers"),
-  // Where this account stands against its monthly generation ceiling, in
-  // dollars. Free plans report `metered: false` rather than 0 of 0.
+  // This month's AI credits: used, left, what the rest still buys, and the
+  // reset date. Free plans report `metered: false` rather than 0 of 0.
   usage: () => instance.get("/subscription/usage"),
+  // Public: each tier's monthly credits and what an action costs, so the
+  // pricing page advertises the allowance the server enforces.
+  plans: () => instance.get("/subscription/plans"),
   checkout: (tier, provider) => instance.post("/subscription/checkout", { tier, provider }),
   // `params` is whatever the gateway put on the return URL. The server treats
   // it as a lookup key and confirms the payment with the gateway itself.
   verify: (provider, params) => instance.post("/subscription/verify", { provider, params }),
   payments: () => instance.get("/subscription/payments"),
+};
+
+// Short-form outliers and posted results. Numbers only reach the server's
+// rows; a pasted transcript is measured and discarded.
+export const shorts = {
+  outliers: (scriptId) => instance.get(`/shorts/${scriptId}/outliers`),
+  addOutlier: (scriptId, data) => instance.post(`/shorts/${scriptId}/outliers`, data),
+  addResult: (scriptId, data) => instance.post(`/shorts/${scriptId}/results`, data),
+  results: () => instance.get("/shorts/results"),
 };
 
 export const exportApi = {

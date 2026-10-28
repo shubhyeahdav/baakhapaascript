@@ -22,8 +22,17 @@ def test_long_form_is_measured_in_minutes_not_seconds():
 
 
 def test_a_video_category_shapes_the_section_spine():
+    """The WHOLE tuple is pinned, not just membership.
+
+    A category picks a beat spine, so adding one without giving it a spine
+    hands that writer another category's shape. `course` arrived on
+    2026-09-29 and is the reason this list is six long; `videoscript.mode_of`
+    is where it stops behaving like an essay. Membership and the five
+    survivors are covered in `test_course_category.py` — this is the pin that
+    makes the NEXT addition fail here until someone has decided its mode.
+    """
     assert models.VIDEO_CATEGORIES == (
-        "essay", "tutorial", "documentary", "commentary", "vlog",
+        "essay", "tutorial", "documentary", "commentary", "vlog", "course",
     )
 
 

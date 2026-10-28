@@ -1,0 +1,58 @@
+{
+  "_note": "The landing page hero. backend tests/test_landing_hero.py runs linter.lint() on `scene` and requires exactly `flags` back, so the page cannot advertise output the linter does not produce.",
+  "scene": [
+    {
+      "kind": "heading",
+      "text": "INT. CHIYA PASAL - DAY"
+    },
+    {
+      "kind": "blank"
+    },
+    {
+      "kind": "action",
+      "text": "Sita sets two glasses on the counter. One has no sugar."
+    },
+    {
+      "kind": "blank"
+    },
+    {
+      "kind": "character",
+      "text": "SITA"
+    },
+    {
+      "kind": "dialogue",
+      "text": "तिमीले कहिल्यै मेरो साथ दिएनौ।",
+      "flag": 0
+    },
+    {
+      "kind": "blank"
+    },
+    {
+      "kind": "character",
+      "text": "RAM"
+    },
+    {
+      "kind": "paren",
+      "text": "(रिसाएर)",
+      "flag": 1
+    },
+    {
+      "kind": "dialogue",
+      "text": "चिया चिसो भयो।"
+    }
+  ],
+  "flags": [
+    {
+      "rule": "on_the_nose",
+      "severity": "high",
+      "message": "The character states the real grievance out loud.",
+      "technique": "Let them fight about the small wrong thing"
+    },
+    {
+      "rule": "directed_emotion",
+      "severity": "medium",
+      "message": "An emotional parenthetical is doing the actor's work.",
+      "technique": "Put the feeling into a physical thing that changes hands"
+    }
+  ]
+}

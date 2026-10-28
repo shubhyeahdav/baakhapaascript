@@ -95,9 +95,94 @@ async function measure(html, label) {
 
 const b = await measure(broken, "as shipped (2 children)");
 const f = await measure(fixed, "fixed (1 child)");
+
+/* The video page's MEASURE.
+ *
+ * A screenplay page is 61 Courier columns because that is what a screenplay
+ * line is. A video script is prose read aloud, and prose is read at 66-75
+ * characters a line — past that the eye loses the start of the next one.
+ * `.video-page` sets `max-width: 34em` to land there at any font size.
+ *
+ * Nothing in the suite can check this. jsdom has no layout engine and
+ * vite.config.js sets `css: false`, so the only way to know what the column
+ * actually holds is to fill it in a real engine and count.
+ *
+ * ON THE FONT. The measure is taken in Mukta, the face the page actually
+ * uses, loaded from Google Fonts for this one check. It used to measure in
+ * whatever the system supplied and count the advance of the letter "x" —
+ * which on Linux (CI, and the cloud box) is Inter or DejaVu, whose "x" is
+ * wider than an average letter of prose, so the column read 52 characters
+ * and failed while Windows passed. The probe is now a sentence of narration,
+ * because "characters a line" means characters of text, not of one glyph.
+ * If the webfont cannot be fetched the check says so and measures anyway in
+ * the fallback, which is why the band below is 60-80 rather than 66-75.
+ *
+ * It is NOT fine for comparing the two pages by character count: the
+ * screenplay page is monospace and a monospace column holding 64 characters
+ * is a narrower column than a proportional one holding 62. So the structural
+ * assertion is made in pixels, where the two are comparable. */
+// A line of narration as a writer would type it: mixed case, spaces,
+// punctuation. Average advance over real text is what "characters a line" means.
+const SAMPLE = "Most people think the hard part of a video is the edit. " +
+  "It is not. The hard part is the first fifteen seconds, and almost nobody plans them.";
+const MUKTA = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mukta:wght@400&display=block">';
+const PROSE_MIN = 60;
+const PROSE_MAX = 80;
+
+async function measureChars(extraClass, label) {
+  await page.setContent(MUKTA + shell(`
+    <div class="wfull mx816 flex col minw0">
+      <div class="rel wfull flex">
+        <textarea class="screenplay-page ${extraClass}" id="page"></textarea>
+      </div>
+    </div>`), { waitUntil: "networkidle" });
+  const loaded = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return document.fonts.check("17px Mukta");
+  });
+  if (extraClass && !loaded) console.log("note: Mukta did not load; measuring in the fallback face");
+  const chars = await page.evaluate((sample) => {
+    const ta = document.getElementById("page");
+    const cs = getComputedStyle(ta);
+    // Measure the real advance of the real face, rather than assuming an em
+    // ratio: the whole point is what this font does in this column.
+    const probe = document.createElement("span");
+    probe.style.cssText = `position:absolute;visibility:hidden;white-space:pre;` +
+      `font:${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize}/${cs.lineHeight} ${cs.fontFamily}`;
+    probe.textContent = sample;
+    document.body.appendChild(probe);
+    const per = probe.getBoundingClientRect().width / sample.length;
+    probe.remove();
+    const inner = ta.clientWidth
+      - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    return { chars: inner / per, width: ta.getBoundingClientRect().width };
+  }, SAMPLE);
+  console.log(`${label.padEnd(28)} ${chars.chars.toFixed(0).padStart(3)} characters per line` +
+              `   ${chars.width.toFixed(0).padStart(4)}px wide`);
+  return chars;
+}
+
+const videoChars = await measureChars("video-page", "video page measure");
+const screenplayChars = await measureChars("", "screenplay page measure");
 await browser.close();
 
 console.log();
 if (b.drift < 20) { console.log("HARNESS INVALID: it did not reproduce the bug"); process.exit(2); }
 if (f.drift > 1)  { console.log(`FAIL: still off by ${f.drift.toFixed(0)}px`); process.exit(1); }
+if (videoChars.chars < PROSE_MIN || videoChars.chars > PROSE_MAX) {
+  console.log(`FAIL: the video page holds ${videoChars.chars.toFixed(0)} characters a line, ` +
+              `outside the ${PROSE_MIN}-${PROSE_MAX} prose band.`);
+  process.exit(1);
+}
+if (videoChars.width >= screenplayChars.width) {
+  // In pixels, where the two are comparable. Not a style preference: if the
+  // video column is no narrower than the screenplay page, `.video-page` is
+  // not applying at all and everything above measured the same element twice.
+  console.log(`FAIL: the video page is not narrower than the screenplay page ` +
+              `(${videoChars.width.toFixed(0)}px vs ${screenplayChars.width.toFixed(0)}px), ` +
+              `so .video-page is probably not applying.`);
+  process.exit(1);
+}
 console.log(`OK: reproduced the ${b.drift.toFixed(0)}px drift, and the fix removes it.`);
+console.log(`OK: the video page reads at ${videoChars.chars.toFixed(0)} characters a line, ` +
+            `in a ${videoChars.width.toFixed(0)}px column against the page's ${screenplayChars.width.toFixed(0)}px.`);

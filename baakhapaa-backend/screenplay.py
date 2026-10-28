@@ -32,8 +32,25 @@ TRANSITION_RE = re.compile(
     re.IGNORECASE,
 )
 # SANJANA · SANJANA (V.O.) · MRS. SHRESTHA (CONT'D) · RAAJA AND SANJANA
+# Devanagari, for a cue written in the script the dialogue is in.
+#
+# This was `[A-Z][A-Z0-9 .'\-]{0,38}` until 2026-10-12, and the consequence was
+# the quiet opposite of the product's headline claim. The craft linter's
+# dialogue rules — on-the-nose, greeting-opens-the-scene — all require
+# `el.type == "dialogue"`, and dialogue only exists after a cue. Devanagari
+# matches no `[A-Z]`, so a screenplay written the way a Nepali writer writes
+# one (`सुनिता` over `तिमीले कहिल्यै...`) parsed as a run of ACTION lines:
+# no cues, no dialogue, no parentheticals, and therefore not one dialogue flag
+# on the entire draft. The regexes in `linter.py` were bilingual; the parser
+# that routes lines to them was not, so the whole differentiator was
+# unreachable for exactly the writers it exists for.
+#
+# Caseless by nature: `'सुनिता'.upper() == 'सुनिता'`, so the all-caps test in
+# `_looks_like_character_cue` passes a Devanagari name without being relaxed.
+DEVANAGARI = r"ऀ-ॿ"
+
 CHARACTER_RE = re.compile(
-    r"^\s*(?P<name>[A-Z][A-Z0-9 .'\-]{0,38})"
+    r"^\s*(?P<name>[A-Z" + DEVANAGARI + r"][A-Z0-9 .'\-" + DEVANAGARI + r"]{0,38})"
     r"(?P<ext>\s*\((V\.O\.|O\.S\.|O\.C\.|CONT'D|CONT’D|CONTD)\))?\s*$"
 )
 PARENTHETICAL_RE = re.compile(r"^\s*\(.*\)\s*$")
@@ -133,11 +150,21 @@ def _looks_like_character_cue(line: str, next_line: str) -> bool:
         return False
     if stripped != stripped.upper():
         return False
-    if stripped.endswith((".", "!", "?", ",")) and not stripped.endswith(("JR.", "SR.")):
+    # `।` (danda) is how a Devanagari sentence ends, and it is the guard that
+    # keeps a Nepali ACTION line out of the cue branch now that the name
+    # pattern accepts Devanagari. Without it, `सुनिता भित्र सम्झ्छे ...।` is
+    # 44 characters of caseless script with a non-empty line after it — a
+    # perfect false cue, which would put the next action line in her mouth.
+    if (stripped.endswith((".", "!", "?", ",", "।"))
+            and not stripped.endswith(("JR.", "SR."))):
         return False
     if not CHARACTER_RE.match(line):
         return False
-    if not re.search(r"[A-Z]", stripped):
+    # At least one LETTER, in any script. This read `re.search(r"[A-Z]", ...)`
+    # and was the second of the two ASCII assumptions that made a Devanagari
+    # cue impossible. Its job is only to reject a line of digits or
+    # punctuation, which `isalpha` does without naming an alphabet.
+    if not any(ch.isalpha() for ch in stripped):
         return False
     return bool(next_line.strip())
 

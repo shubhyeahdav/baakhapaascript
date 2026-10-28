@@ -23,8 +23,9 @@ Three properties worth keeping:
   * **The limit is per tier and per calendar month.** Not a rolling window: a
     writer should be able to look at a date and know when it resets.
 """
+import math
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 TABLE = "ai_usage"
 
@@ -50,6 +51,58 @@ CEILINGS_USD = {
     "pro": float(os.getenv("AI_MONTHLY_CEILING_PRO", "6.00")),
     "studio": float(os.getenv("AI_MONTHLY_CEILING_STUDIO", "40.00")),
 }
+
+
+# ---------------------------------------------------------------------------
+# Credits: the unit a writer sees.
+#
+# The ceiling is kept in dollars because that is what the provider bills, but
+# "$3.41 of $6.00" asks a screenwriter to know what a scene costs in dollars,
+# which nobody does. A credit is one US cent of provider cost, so the
+# conversion is exact and the dollar ceiling above stays the single source of
+# truth: Pro's $6 is 600 credits, and changing the env var changes both.
+CREDIT_USD = float(os.getenv("AI_CREDIT_USD", "0.01"))
+
+# One storyboard frame. Images are billed per image, not per token, so they
+# cannot go through `cost_usd`. `gpt-image-1-mini` at low quality is under a
+# cent; this rounds up to one credit so the number a writer plans with never
+# undercounts. Override when `STORYBOARD_IMAGE_MODEL` or quality changes.
+IMAGE_USD_PER_FRAME = float(os.getenv("AI_IMAGE_USD_PER_FRAME", "0.01"))
+
+# What a writer can plan with: the most each action can cost, worked out from
+# the `max_tokens` each route passes in `script_engine` and a generous prompt
+# size (the story bible and three craft patterns ride along on every call).
+# An upper bound rather than an average because a plan built on an average is
+# wrong half the time in the direction that runs out early.
+ACTION_TOKENS = {
+    "scene": (4000, 2000),        # generate-scene
+    "rewrite": (4000, 2000),      # improve, whole scene
+    "suggestions": (3000, 1000),  # suggest
+}
+
+
+def to_credits(usd):
+    """Dollars to credits, rounded UP. A writer told they have 12 left who then
+    finds 11 is worse off than one told 11 who finds 12."""
+    return math.ceil(round(usd / CREDIT_USD, 6)) if usd > 0 else 0
+
+
+def action_credits():
+    """The most each action costs, in credits. Same for every tier."""
+    costs = {name: to_credits(cost_usd(i, o)) for name, (i, o) in ACTION_TOKENS.items()}
+    costs["storyboard_frame"] = to_credits(IMAGE_USD_PER_FRAME)
+    return costs
+
+
+def allowance_credits(tier):
+    return int(round(CEILINGS_USD.get((tier or "free").lower(), 0.0) / CREDIT_USD))
+
+
+def _resets_on(today=None):
+    """The first of next month, as an ISO date — the day the period rolls."""
+    today = today or datetime.now(timezone.utc).date()
+    return (date(today.year + 1, 1, 1) if today.month == 12
+            else date(today.year, today.month + 1, 1)).isoformat()
 
 
 def _period(now=None):
@@ -138,17 +191,82 @@ def record(user_id, input_tokens=0, output_tokens=0):
         print(f"AI usage not recorded ({e}).")
 
 
+def frames_affordable(user_id, tier):
+    """How many storyboard frames this month's remainder pays for, or None
+    when the tier is not metered. Used to cap a board BEFORE drawing it — the
+    images are bought the moment they are requested."""
+    ceiling = CEILINGS_USD.get((tier or "free").lower(), 0.0)
+    if ceiling <= 0 or IMAGE_USD_PER_FRAME <= 0:
+        return None
+    # Rounded before flooring: 0.03 // 0.01 is 2.0 in binary floating point.
+    return math.floor(round(remaining_usd(user_id, tier) / IMAGE_USD_PER_FRAME, 6))
+
+
+def record_images(user_id, count):
+    """Add `count` drawn frames to this month's total.
+
+    Goes into the same `cost_usd` the token calls do, so one number is checked
+    and no column was added. `calls` counts requests, and a board is one."""
+    if not user_id or count <= 0:
+        return
+    try:
+        from database import supabase
+        period = _period()
+        row = _row(user_id, period)
+        added = count * IMAGE_USD_PER_FRAME
+        now = datetime.now(timezone.utc).isoformat()
+        if row:
+            supabase.table(TABLE).update({
+                "cost_usd": round(float(row.get("cost_usd") or 0.0) + added, 6),
+                "calls": (row.get("calls") or 0) + 1,
+                "updated_at": now,
+            }).eq("id", row["id"]).execute()
+        else:
+            supabase.table(TABLE).insert({
+                "user_id": user_id, "period": period,
+                "input_tokens": 0, "output_tokens": 0,
+                "cost_usd": round(added, 6), "calls": 1, "updated_at": now,
+            }).execute()
+    except Exception as e:
+        print(f"Storyboard usage not recorded ({e}).")
+
+
 def summary(user_id, tier):
     """What to show a writer who asks where they are.
 
-    Reports dollars because that is what the ceiling is denominated in, and a
-    token count means nothing to a screenwriter."""
+    Credits first, because a writer plans in actions, not dollars: "about 40
+    scenes left" is a plan, "$1.20 remaining" is a puzzle. The dollar fields
+    stay for anything that already reads them."""
     ceiling = CEILINGS_USD.get((tier or "free").lower(), 0.0)
     spent = spent_usd(user_id)
+    remaining = max(0.0, ceiling - spent)
+    total = allowance_credits(tier)
+    used = min(total, to_credits(spent))
+    left = total - used
+    costs = action_credits()
     return {
         "period": _period(),
+        "resets_on": _resets_on(),
         "spent_usd": round(spent, 4),
         "ceiling_usd": ceiling,
-        "remaining_usd": round(max(0.0, ceiling - spent), 4),
+        "remaining_usd": round(remaining, 4),
         "metered": ceiling > 0,
+        "credits_total": total,
+        "credits_used": used,
+        "credits_left": left,
+        "costs": costs,
+        # What the remainder buys if spent on one thing. Floors, from the
+        # upper-bound costs above, so the real number is never smaller.
+        "enough_for": {name: (left // c if c else None) for name, c in costs.items()},
+    }
+
+
+def plans():
+    """Every tier's monthly allowance and the action costs, for the pricing
+    page — read from the same constants the ceiling enforces, so the page
+    cannot advertise a number the server does not honour."""
+    return {
+        "credit_usd": CREDIT_USD,
+        "allowance": {tier: allowance_credits(tier) for tier in CEILINGS_USD},
+        "costs": action_credits(),
     }

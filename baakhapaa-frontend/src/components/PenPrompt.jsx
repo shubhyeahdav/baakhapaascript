@@ -102,7 +102,19 @@ const PAPER = {
   },
 };
 
-export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light", format }) {
+/* How a scaffold offer reads, per mode.
+ *
+ * A count, not a list. "Lay out the six sections" is a promise a writer can
+ * picture; naming all six is a menu they have to read before they can decline
+ * it, on the one screen where they are already stuck. */
+const SCAFFOLD_COPY = {
+  essay: (n, mins) => `Lay out ${n} sections for ${mins} minutes`,
+  course: (n) => `Lay out the ${n} lesson sections`,
+};
+
+export default function PenPrompt({
+  onInsert, onOpenGuide, pageTheme = "light", format, scaffold,
+}) {
   const ink = PAPER[pageTheme] || PAPER.light;
   const voice = voiceFor(format);
   const copy = COPY[voice];
@@ -183,7 +195,27 @@ export default function PenPrompt({ onInsert, onOpenGuide, pageTheme = "light", 
           {firstLine}
         </button>
 
-        <p className={`text-[12px] ${ink.sub} mt-5`}>
+        {/* The scaffold, for long-form video only.
+            A screenplay gets no equivalent on purpose: its first scene is a
+            human's invention and the wizard was deliberately stopped from
+            guessing one. A video's sections are not invented per project —
+            the writer's real question is how long each should be for the
+            runtime they already chose, which is arithmetic. */}
+        {scaffold && (
+          <p className={`text-[12px] ${ink.sub} mt-4`}>
+            or{" "}
+            <button
+              type="button"
+              onClick={() => onInsert(scaffold.text)}
+              className={`pointer-events-auto tap underline decoration-dotted
+                          underline-offset-2 transition-colors ${ink.link}`}
+            >
+              {SCAFFOLD_COPY[scaffold.mode](scaffold.rows.length, scaffold.minutes)}
+            </button>
+          </p>
+        )}
+
+        <p className={`text-[12px] ${ink.sub} ${scaffold ? "mt-2" : "mt-5"}`}>
           or{" "}
           <button
             type="button"

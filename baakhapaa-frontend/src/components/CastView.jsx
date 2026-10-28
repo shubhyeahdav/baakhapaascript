@@ -155,7 +155,7 @@ export default function CastView({ scriptId, onOpenLine }) {
             </button>
 
             {expanded && (
-              <div className="border-t border-borderSoft divide-y divide-borderSoft/60">
+              <div className="border-t border-borderSoft divide-y divide-borderSoft">
                 {c.lines.map((l) => (
                   <button
                     key={l.line}
