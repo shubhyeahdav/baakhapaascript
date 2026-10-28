@@ -181,16 +181,16 @@ the thing `check_docs.py` exists to prevent.
 
 ### Day 13 · The on-the-nose rule
 
-- [ ] `linter.py:64` is a fixed phrase list — it misses a character stating their feelings plainly
-- [ ] Collect the misses from a real draft rather than inventing them
-- [ ] Decide whether to widen the list or accept the gap as the paid tier's job
-- [ ] Write that decision down either way
-- [ ] If widening: add Nepali and romanised forms together, never English alone
-- [ ] Re-run the craft linter tests
-- [ ] Confirm no existing finding changed severity
-- [ ] Check the flags still group by craft level
-- [ ] Measure how many flags a real draft now produces — a linter that flags everything gets switched off
-- [ ] Commit
+- [x] `linter.py:64` is a fixed phrase list — it misses a character stating their feelings plainly — *confirmed; the line number has moved, the rule has not*
+- [ ] Collect the misses from a real draft rather than inventing them — *there is no real draft to collect from: the pilot has not run and the repo's only Nepali draft is the demo, built to trip these rules. Not done, and not faked; PILOT.md now collects them*
+- [x] Decide whether to widen the list or accept the gap as the paid tier's job — *accept the gap until there is evidence*
+- [x] Write that decision down either way — *above `ON_THE_NOSE` in `linter.py`, and as a pilot measure*
+- [x] If widening: add Nepali and romanised forms together, never English alone — *not widening; the rule is restated beside the list for whoever does*
+- [x] Re-run the craft linter tests
+- [x] Confirm no existing finding changed severity — *nothing in the rule changed*
+- [x] Check the flags still group by craft level — *`/scripts/lint` tests*
+- [x] Measure how many flags a real draft now produces — a linter that flags everything gets switched off — *demo draft: 6 flags in 19 lines, unchanged. A REAL draft's number is the pilot's to supply*
+- [x] Commit
 
 ### Day 14 · The structure rail
 

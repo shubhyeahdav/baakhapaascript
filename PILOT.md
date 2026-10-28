@@ -74,6 +74,7 @@ they do with it diverge.
 | Where they stop | Last action before a gap of more than three days |
 | Craft value | Whether recommendations are opened, and whether a flagged line changes afterwards |
 | Nepali | Lint flags raised on Devanagari/romanised lines, and whether they were acted on |
+| On-the-nose misses | Lines a writer marks as "this states the feeling" that the linter did NOT flag — the evidence Month 4 Day 13 needed and did not have (see the note above `ON_THE_NOSE` in `linter.py`) |
 
 The last one is the interesting one: the linter naming a problem is worthless
 if the writer does not then change the line.
