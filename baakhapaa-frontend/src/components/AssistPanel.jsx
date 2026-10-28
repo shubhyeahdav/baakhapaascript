@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { learn } from "../services/api";
+import { useT } from "../i18n";
 import VersionHistory from "./VersionHistory";
 import CommentThreads from "./CommentThreads";
 import CraftPanel from "./CraftPanel";
@@ -196,6 +197,8 @@ export default function AssistPanel({
   focus, setFocus, openPattern, setOpenPattern,
   showAllPatterns, setShowAllPatterns, seen,
 }) {
+  // `t` is taken below by the tab loop variable, so the translator is `tr`.
+  const tr = useT();
   // What the writer types when no chip fits. The chips reach at most eighteen
   // of the corpus's thirty-nine entries, so more than half the library had no
   // door in the interface at all — a writer whose problem was "my flashback
@@ -250,11 +253,11 @@ export default function AssistPanel({
             key={t.key}
             onClick={() => setPanelTab(t.key)}
             aria-pressed={panelTab === t.key}
-            className={`text-[11px] font-semibold uppercase tracking-wide px-2 py-1.5 rounded-lg flex-1 min-w-0 transition duration-200 border ${
+            className={`latin-caps text-[11px] font-semibold uppercase tracking-wide px-2 py-1.5 rounded-lg flex-1 min-w-0 transition duration-200 border ${
               panelTab === t.key ? "bg-goldDim text-gold border-gold/30" : "text-inkMuted hover:text-ink border-transparent"
             }`}
           >
-            {t.label}
+            {tr(t.label)}
           </button>
         ))}
       </div>

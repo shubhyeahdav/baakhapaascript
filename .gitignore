@@ -67,3 +67,6 @@ docs/demo-video/
 # the built pages and the rendered mp4s are generated from them.
 motion/dist/
 motion/out/
+
+# Throwaway browser walk-throughs; never committed.
+*.tmp.mjs

@@ -2,6 +2,7 @@ import React, { memo } from "react";
 import ToolbarMenu from "./ToolbarMenu";
 import ImportScript from "./ImportScript";
 import { VIEWS } from "./SceneRail";
+import { useLanguage, LANGUAGES } from "../i18n";
 
 /**
  * The editor's toolbar, lifted out of `ScriptEditor` unchanged.
@@ -57,11 +58,29 @@ function EditorHeader({
   setShowShare, setPanelOpen,
   importRef, onImported,
 }) {
+  // The INTERFACE language. Not the "Typing" toggle below, which sets what the
+  // keyboard writes into the script: a writer may type Nepali under English
+  // menus, or the reverse. Until this, a writer inside the editor had no way
+  // to change the interface at all — the switch lived only in the account
+  // dropdown, and the editor has none.
+  const { lang, setLang } = useLanguage();
+  const nextLang = LANGUAGES[(LANGUAGES.findIndex((l) => l.code === lang) + 1) % LANGUAGES.length];
+  const langLabel = (LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0]).label;
+  const interfaceItem = {
+    key: "interface",
+    label: `${t("Interface")}: ${langLabel}`,
+    hint: t("The language of menus and labels, not your script"),
+    onSelect: () => setLang(nextLang.code),
+  };
   return (
     <header className="h-14 bg-surface border-b border-border flex items-center gap-1.5 lg:gap-4 px-2 md:px-6 shrink-0 relative z-20 lg:overflow-visible">
-      <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1.5 shrink-0 text-inkMuted hover:text-ink transition duration-200 text-sm">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        Back
+      {/* The word only from `sm` up. In Nepali "पछाडि" is wider than "Back",
+          and at 375px those pixels pushed Finalize 8px off the screen; the
+          arrow alone still reads as back, and the label stays for a reader. */}
+      <button onClick={() => navigate("/dashboard")} aria-label={t("Back")}
+        className="flex items-center gap-1.5 shrink-0 text-inkMuted hover:text-ink transition duration-200 text-sm">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <span className="hidden sm:inline">{t("Back")}</span>
       </button>
       {/* The only region allowed to shrink, because a truncated title still
           identifies the project while a truncated control is just broken.
@@ -89,9 +108,9 @@ function EditorHeader({
         <button
           onClick={() => navigate(`/projects/${id}/setup`)}
           className="hidden lg:inline-block shrink-0 text-[11px] font-sans text-inkMuted hover:text-gold border border-border hover:border-gold/40 rounded-full px-2.5 py-0.5 transition"
-          title="Story bible and project format"
+          title={t("Story bible and format")}
         >
-          Setup
+          {t("Setup")}
         </button>
       </div>
       {/* `gap-1.5` below `lg`: four controls with 12px between them spend
@@ -101,7 +120,7 @@ function EditorHeader({
             stays on the surface at every width — but as a dot below `lg`,
             because the word costs 42px and a phone header has none spare. */}
         <span className="hidden lg:inline text-[11px] font-semibold text-inkMuted uppercase tracking-wider whitespace-nowrap">
-          {saving ? "Saving..." : "Synced"}
+          {saving ? t("Saving...") : t("Synced")}
         </span>
         <span
           className={`lg:hidden h-2 w-2 rounded-full shrink-0 ${
@@ -206,7 +225,7 @@ function EditorHeader({
             }`}
             title="Show/hide the AI-suggested three-act structure"
           >
-            Structure
+            {t("Structure")}
           </button>
         )}
         {/* One menu rather than a button per format. Two of the four were
@@ -221,32 +240,32 @@ function EditorHeader({
           className="text-xs py-1.5 px-3 rounded-lg border border-border text-inkMuted hover:text-ink transition"
           title="Import a screenplay from Final Draft, Fountain, Word, plain text or PDF"
         >
-          Import
+          {t("Import")}
         </button>
 
         <button
           onClick={() => setShowShare(true)}
-          title="Share this project"
+          title={t("Share this project")}
           className="text-xs py-1.5 px-3 rounded-lg border border-border text-inkMuted
                      hover:text-ink transition"
         >
-          Share
+          {t("Share")}
         </button>
 
         <ToolbarMenu
-          label="Export"
+          label={t("Export")}
           title="Download this script"
           items={[
-            { key: "pdf", label: "PDF", hint: "For reading and sending", onSelect: () => handleExport("pdf") },
-            { key: "fdx", label: "Final Draft (.fdx)", hint: "Opens in Final Draft, Celtx, Arc Studio", onSelect: () => handleExport("fdx") },
-            { key: "word", label: "Word (.docx)", hint: "For editing outside the app", onSelect: () => handleExport("word") },
+            { key: "pdf", label: "PDF", hint: t("For reading and sending"), onSelect: () => handleExport("pdf") },
+            { key: "fdx", label: "Final Draft (.fdx)", hint: t("Opens in Final Draft, Celtx, Arc Studio"), onSelect: () => handleExport("fdx") },
+            { key: "word", label: "Word (.docx)", hint: t("For editing outside the app"), onSelect: () => handleExport("word") },
             { key: "d1", divider: true },
-            { key: "package", label: "Production package", hint: "Script, shot list and storyboard in one PDF", onSelect: () => handleExport("package") },
+            { key: "package", label: t("Production package"), hint: t("Script, shot list and storyboard in one PDF"), onSelect: () => handleExport("package") },
           ]}
         />
 
         <ToolbarMenu
-          label="View"
+          label={t("View")}
           title="Display options"
           items={[
             {
@@ -256,8 +275,8 @@ function EditorHeader({
               // writer asking for fewer things on screen means all of them.
               // One control now does both, and leaving focus restores both.
               key: "zen",
-              label: "Focus mode",
-              hint: "Nothing on screen but the page",
+              label: t("Focus mode"),
+              hint: t("Nothing on screen but the page"),
               active: zenMode,
               onSelect: () => {
                 const next = !zenMode;
@@ -270,21 +289,22 @@ function EditorHeader({
               // items to three and adding three more would undo that; a
               // cycling control says what it is and what comes next.
               key: "cursor",
-              label: `Cursor: ${CURSORS[cursor].label}`,
+              label: `${t("Cursor")}: ${t(CURSORS[cursor].label)}`,
               hint: CURSORS[cursor].hint,
               onSelect: () => setCursor(CURSORS[cursor].next),
             },
             {
               key: "typewriter",
-              label: typewriter ? "Typewriter mode: on" : "Typewriter mode",
-              hint: "Hold the caret at the middle, and fade the rest",
+              label: typewriter ? t("Typewriter mode: on") : t("Typewriter mode"),
+              hint: t("Hold the caret at the middle, and fade the rest"),
               onSelect: () => setTypewriter((t) => !t),
             },
             {
-              label: pageTheme === "dark" ? "Light page" : "Dark page",
-              hint: "The colour of the paper, not the app",
+              label: pageTheme === "dark" ? t("Light page") : t("Dark page"),
+              hint: t("The colour of the paper, not the app"),
               onSelect: () => setPageTheme(pageTheme === "light" ? "dark" : "light"),
             },
+            interfaceItem,
           ]}
         />
         </div>
@@ -308,26 +328,26 @@ function EditorHeader({
                might do to it. */
             ...VIEWS.map((v) => ({
               key: `view-${v.key}`,
-              label: v.label,
-              hint: v.hint,
+              label: t(v.label),
+              hint: t(v.hint),
               active: view === v.key,
               onSelect: () => setView?.(v.key),
             })),
             { key: "dv", divider: true },
-            { key: "setup", label: "Story bible and format",
-              hint: "Logline, characters, what the story is for",
+            { key: "setup", label: t("Story bible and format"),
+              hint: t("Logline, characters, what the story is for"),
               onSelect: () => navigate(`/projects/${id}/setup`) },
             ...(suggestions
               ? [{ key: "structure",
-                   label: showStructure ? "Hide the structure" : "Show the structure",
-                   hint: "The suggested three acts",
+                   label: showStructure ? t("Hide the structure") : t("Show the structure"),
+                   hint: t("The suggested three acts"),
                    active: showStructure,
                    onSelect: () => setShowStructure((v) => !v) }]
               : []),
             { key: "d0", divider: true },
             { key: "nepali",
-              label: nepaliMode ? "Typing: नेपाली" : "Typing: English",
-              hint: "Write ‘namaste’, get नमस्ते",
+              label: `${t("Typing")}: ${nepaliMode ? "नेपाली" : "English"}`,
+              hint: t("Write ‘namaste’, get नमस्ते"),
               active: nepaliMode,
               onSelect: () => {
                 const next = !nepaliMode;
@@ -335,12 +355,12 @@ function EditorHeader({
                 window.localStorage.setItem("baakhapaa:nepali", next ? "on" : "off");
                 textareaRef.current?.focus();
               } },
-            { key: "shortcuts", label: "Format shortcuts",
-              hint: "Type the letter, press Tab",
+            { key: "shortcuts", label: t("Format shortcuts"),
+              hint: t("Type the letter, press Tab"),
               active: showShortcuts,
               onSelect: () => setShowShortcuts((v) => !v) },
-            { key: "zen", label: "Focus mode",
-              hint: "Nothing on screen but the page",
+            { key: "zen", label: t("Focus mode"),
+              hint: t("Nothing on screen but the page"),
               active: zenMode,
               onSelect: () => {
                 const next = !zenMode;
@@ -348,27 +368,28 @@ function EditorHeader({
                 if (next !== isFullPage) toggleFullPage();
               } },
             { key: "pagetheme",
-              label: pageTheme === "dark" ? "Light page" : "Dark page",
-              hint: "The colour of the paper, not the app",
+              label: pageTheme === "dark" ? t("Light page") : t("Dark page"),
+              hint: t("The colour of the paper, not the app"),
               onSelect: () => setPageTheme(pageTheme === "light" ? "dark" : "light") },
+            interfaceItem,
             { key: "d1", divider: true },
-            { key: "import", label: "Import a screenplay",
+            { key: "import", label: t("Import a screenplay"),
               hint: "Final Draft, Fountain, Word, text or PDF",
               onSelect: () => importRef.current?.open() },
-            { key: "share", label: "Share this project",
-              hint: "Invite a reader or an editor",
+            { key: "share", label: t("Share this project"),
+              hint: t("Invite a reader or an editor"),
               onSelect: () => setShowShare(true) },
             { key: "d2", divider: true },
-            { key: "pdf", label: "Export PDF", hint: "For reading and sending",
+            { key: "pdf", label: t("Export PDF"), hint: t("For reading and sending"),
               onSelect: () => handleExport("pdf") },
-            { key: "fdx", label: "Export Final Draft (.fdx)",
-              hint: "Opens in Final Draft, Celtx, Arc Studio",
+            { key: "fdx", label: t("Export Final Draft (.fdx)"),
+              hint: t("Opens in Final Draft, Celtx, Arc Studio"),
               onSelect: () => handleExport("fdx") },
-            { key: "word", label: "Export Word (.docx)",
-              hint: "For editing outside the app",
+            { key: "word", label: t("Export Word (.docx)"),
+              hint: t("For editing outside the app"),
               onSelect: () => handleExport("word") },
-            { key: "package", label: "Export production package",
-              hint: "Script, shot list and storyboard in one PDF",
+            { key: "package", label: t("Export production package"),
+              hint: t("Script, shot list and storyboard in one PDF"),
               onSelect: () => handleExport("package") },
           ]}
         />
@@ -399,13 +420,13 @@ function EditorHeader({
         </button>
 
         <button onClick={handleFinalize} disabled={reviewing} className="btn-gold text-xs py-1.5 px-3.5 whitespace-nowrap">
-          {reviewing ? "Reviewing…" : (
+          {reviewing ? t("Reviewing…") : (
             <>
               {/* 139px of label is a third of a phone screen. The word alone
                   still says what the button does, and this is the one control
                   that must never be the thing that gets moved into a menu. */}
-              <span className="lg:hidden">Finalize</span>
-              <span className="hidden lg:inline">Finalize &amp; Storyboard</span>
+              <span className="lg:hidden">{t("Finalize")}</span>
+              <span className="hidden lg:inline">{t("Finalize & Storyboard")}</span>
             </>
           )}
         </button>

@@ -155,16 +155,16 @@ the thing `check_docs.py` exists to prevent.
 
 ### Day 11 · The language toggle
 
-- [ ] `LanguageToggle` is mounted on login and register only — a signed-in writer cannot switch
-- [ ] Put it in the account dropdown
-- [ ] Confirm the preference persists, as `baakhapaa:lang` already does
-- [ ] Confirm the course re-fetches on change — `LearnPage` already depends on `lang`
-- [ ] Check every nav label has a Nepali string
-- [ ] Check the editor toolbar does
-- [ ] Test the toggle changes what the course returns
-- [ ] Test an unknown stored language falls back rather than blanking
-- [ ] Check both languages at 375px
-- [ ] Commit
+- [x] `LanguageToggle` is mounted on login and register only — a signed-in writer cannot switch — *half true by 2026-10-28: `TopNav`'s dropdown had a hand-copied switch (the drift `LanguageToggle` exists to prevent), and the EDITOR, which has no dropdown, had none at all. Both fixed*
+- [x] Put it in the account dropdown — *`TopNav` now mounts `LanguageToggle`; the editor gets "Interface: English / नेपाली" in View and ⋯, apart from the Typing switch*
+- [x] Confirm the preference persists, as `baakhapaa:lang` already does — *existing test*
+- [x] Confirm the course re-fetches on change — `LearnPage` already depends on `lang` — *now pinned by a test*
+- [x] Check every nav label has a Nepali string — *every `t()` key in TopNav and EditorHeader checked by script: none missing*
+- [x] Check the editor toolbar does — *it did not: the whole toolbar was hard-coded English, as were the rail's view tabs and the panel's four tabs. All through `t()` now*
+- [x] Test the toggle changes what the course returns
+- [x] Test an unknown stored language falls back rather than blanking
+- [x] Check both languages at 375px — *and 1280, dashboard / both editors / course. Nepali at 375 pushed Finalize 8px off the video editor; Back is now an arrow below `sm`*
+- [x] Commit
 
 ### Day 12 · Finish the course's Nepali
 

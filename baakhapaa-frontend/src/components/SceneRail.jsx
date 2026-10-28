@@ -1,4 +1,5 @@
 import React from "react";
+import { useT } from "../i18n";
 
 /**
  * The scene index down the left of the writing page.
@@ -114,6 +115,7 @@ function Totals({ scenes }) {
 export default function SceneRail({
   scenes, activeScene, onSceneClick, view = "script", onViewChange, children,
 }) {
+  const t = useT();
   // Hidden on a phone. 256px of index cards beside a 375px screen leaves no
   // page left to write on, and the Corkboard is this same list in a form that
   // suits a small screen far better.
@@ -179,7 +181,7 @@ export default function SceneRail({
               key={v.key}
               role="tab"
               aria-selected={view === v.key}
-              title={v.hint}
+              title={t(v.hint)}
               onClick={() => onViewChange?.(v.key)}
               className={`flex-1 text-[11px] py-1.5 transition ${
                 view === v.key
@@ -187,7 +189,7 @@ export default function SceneRail({
                   : "text-inkMuted hover:text-ink hover:bg-elevated/50"
               }`}
             >
-              {v.label}
+              {t(v.label)}
             </button>
           ))}
           </div>

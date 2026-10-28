@@ -644,3 +644,24 @@ describe("the ?track= deep link", () => {
     expect(await screen.findByRole("heading", { level: 2 })).toBeInTheDocument();
   });
 });
+
+/* Month 4, Day 11. The course fetches `?lang=` and `lang` is a dependency of
+   the load effect; nothing pinned that switching language actually re-asks. */
+// eslint-disable-next-line import/first
+import { LanguageProvider, useLanguage } from "../i18n";
+
+function SwitchToNepali() {
+  const { setLang } = useLanguage();
+  return <button onClick={() => setLang("ne")}>to nepali</button>;
+}
+
+test("switching the interface language re-fetches the course in that language", async () => {
+  window.localStorage.removeItem("baakhapaa:lang");
+  render(<LanguageProvider><SwitchToNepali /><LearnPage /></LanguageProvider>);
+  await waitFor(() => expect(learn.lessons).toHaveBeenCalledWith("en"));
+
+  fireEvent.click(screen.getByText("to nepali"));
+
+  await waitFor(() => expect(learn.lessons).toHaveBeenLastCalledWith("ne"));
+  window.localStorage.removeItem("baakhapaa:lang");
+});
