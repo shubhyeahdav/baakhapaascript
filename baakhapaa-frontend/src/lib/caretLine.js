@@ -64,3 +64,49 @@ export function caretLineTop(ta) {
   const line = ta.value.slice(0, ta.selectionStart || 0).split("\n").length - 1;
   return (parseFloat(cs.paddingTop) || 0) + line * (parseFloat(cs.lineHeight) || 25);
 }
+
+/**
+ * The top of each of several lines (1-based), in one measurement.
+ *
+ * The margin notes need a position for every flagged line, and building a
+ * mirror per line would be one layout per flag on every keystroke. This
+ * builds one mirror with a zero-width marker at the start of each requested
+ * line and reads them all. Same wrapping, same fonts, same rule as
+ * `caretLineTop`: the browser says where the line is.
+ *
+ * Returns { [lineNumber]: topPx }. Lines past the end of the draft are left
+ * out rather than pinned to the last line.
+ */
+export function lineTops(ta, lineNumbers) {
+  const out = {};
+  if (!ta || !lineNumbers?.length) return out;
+  const wanted = new Set(lineNumbers.filter((n) => Number.isFinite(n) && n >= 1));
+  const lines = ta.value.split("\n");
+  const cs = getComputedStyle(ta);
+  const mirror = document.createElement("div");
+  mirror.style.cssText = mirrorStyle(ta, cs);
+
+  const markers = [];
+  lines.forEach((text, i) => {
+    const n = i + 1;
+    if (wanted.has(n)) {
+      const m = document.createElement("span");
+      m.textContent = "​";
+      markers.push([n, m]);
+      mirror.appendChild(m);
+    }
+    mirror.appendChild(document.createTextNode(i < lines.length - 1 ? `${text}\n` : text));
+  });
+
+  (ta.parentNode || document.body).appendChild(mirror);
+  const laidOut = mirror.offsetHeight > 0;
+  markers.forEach(([n, m]) => { out[n] = m.offsetTop; });
+  mirror.remove();
+  if (laidOut) return out;
+
+  // No layout (jsdom, a hidden page): count lines, as caretLineTop does.
+  const pad = parseFloat(cs.paddingTop) || 0;
+  const lh = parseFloat(cs.lineHeight) || 25;
+  markers.forEach(([n]) => { out[n] = pad + (n - 1) * lh; });
+  return out;
+}

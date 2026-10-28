@@ -281,3 +281,18 @@ describe("asking in your own words", () => {
     expect(props.loadPatterns).toHaveBeenCalledWith("flat", undefined);
   });
 });
+
+/* An empty library answer is not an empty diagnosis. It used to say "try
+   writing a little more first" over a draft the linter had just flagged. */
+describe("when the library has nothing to add", () => {
+  it("points at the linter's notes instead of telling the writer to write more", () => {
+    panel({ panelTab: "ai", aiMode: "patterns", patterns: [], diagnosed: [{ technique: "x", line: 3 }] });
+    expect(screen.getByTestId("patterns-empty-diagnosed")).toBeInTheDocument();
+    expect(screen.queryByText(/try writing a little more/)).toBeNull();
+  });
+
+  it("asks for the problem in the writer's words when nothing was flagged", () => {
+    panel({ panelTab: "ai", aiMode: "patterns", patterns: [], diagnosed: [] });
+    expect(screen.getByText(/name the problem above in your own words/)).toBeInTheDocument();
+  });
+});

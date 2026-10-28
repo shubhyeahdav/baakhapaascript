@@ -503,7 +503,35 @@ export default function AssistPanel({
             ))}
           </div>
         ) : patterns?.length === 0 ? (
-          <p className="text-inkMuted text-sm">No patterns matched — try writing a little more first.</p>
+          /* It said "No patterns matched — try writing a little more first"
+             even when the linter had just flagged three high problems in the
+             same draft: the panel told a writer to write more about a page
+             it had found things wrong with. An empty library answer is not an
+             empty diagnosis, and the two now say different things. */
+          diagnosed?.length ? (
+            <div className="rounded-xl border border-borderSoft bg-elevated/40 p-3.5" data-testid="patterns-empty-diagnosed">
+              {/* No count: `diagnosed` holds one entry per technique, the
+                  margin one marker per line, and two different numbers for
+                  "how much is wrong" is worse than none. */}
+              <p className="text-[13px] text-ink leading-snug">
+                {tr("The linter found something on this page.")}
+              </p>
+              <p className="text-[12px] text-inkMuted leading-snug mt-1.5">
+                {tr("They are marked in the page margin. The craft library has no technique to add to them yet.")}
+              </p>
+              <button
+                type="button"
+                onClick={() => setPanelTab("craft")}
+                className="mt-2.5 text-[12px] text-gold underline decoration-dotted underline-offset-2"
+              >
+                {tr("Read them in Craft")}
+              </button>
+            </div>
+          ) : (
+            <p className="text-inkMuted text-sm leading-relaxed">
+              {tr("Nothing on this page asks for a technique yet. Keep writing, or name the problem above in your own words — the library answers complaints best.")}
+            </p>
+          )
         ) : (
           <div className="space-y-2">
             {patterns?.map((p, i) => {

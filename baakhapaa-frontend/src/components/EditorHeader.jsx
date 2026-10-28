@@ -45,6 +45,7 @@ function EditorHeader({
   id, title, navigate, t,
   // save state and position
   saving, view, setView, caretPage, pageCount, showPages = true,
+  marginNotes, setMarginNotes,
   // typing
   nepaliMode, setNepaliMode, textareaRef,
   showShortcuts, setShowShortcuts,
@@ -306,6 +307,12 @@ function EditorHeader({
               hint: t("The colour of the paper, not the app"),
               onSelect: () => setPageTheme(pageTheme === "light" ? "dark" : "light"),
             },
+            ...(setMarginNotes ? [{
+              key: "notes",
+              label: marginNotes ? t("Notes in the margin: on") : t("Notes in the margin: off"),
+              hint: t("The linter's notes beside the lines they are about"),
+              onSelect: () => setMarginNotes(!marginNotes),
+            }] : []),
             interfaceItem,
           ]}
         />

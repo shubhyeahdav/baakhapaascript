@@ -172,6 +172,17 @@ export const STRINGS = {
     "Major beats": "मुख्य बिट",
     "Written runtime": "लेखिएको अवधि",
 
+    // --- feedback on the page --------------------------------------------
+    "Notes in the margin: on": "किनारामा टिप्पणी: खुला",
+    "Notes in the margin: off": "किनारामा टिप्पणी: बन्द",
+    "The linter's notes beside the lines they are about": "लिन्टरका टिप्पणी, सम्बन्धित लाइनकै छेउमा",
+    "The linter found something on this page.": "लिन्टरले यो पानामा केही भेट्यो।",
+    "They are marked in the page margin. The craft library has no technique to add to them yet.":
+      "ती पानाको किनारामा चिनो लगाइएका छन्। शिल्प-संग्रहमा तिनमा थप्ने प्रविधि अहिले छैन।",
+    "Read them in Craft": "शिल्पमा पढ्नुहोस्",
+    "Nothing on this page asks for a technique yet. Keep writing, or name the problem above in your own words — the library answers complaints best.":
+      "यो पानाले अहिले कुनै प्रविधि माग्दैन। लेख्दै जानुहोस्, वा माथि आफ्नै शब्दमा समस्या लेख्नुहोस् — संग्रहले गुनासोको जवाफ राम्रो दिन्छ।",
+
     // --- the landing page (/) ----------------------------------------------
     Pricing: "मूल्य",
     Terms: "सर्तहरू",

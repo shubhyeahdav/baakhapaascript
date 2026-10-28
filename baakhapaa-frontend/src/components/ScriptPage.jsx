@@ -4,6 +4,7 @@ import { scaffoldFor } from "../lib/videoScaffold";
 import SectionPacing from "./SectionPacing";
 import { caretLineTop } from "../lib/caretLine";
 import MilestoneNote from "./MilestoneNote";
+import PageNotes from "./PageNotes";
 import FormatShortcuts from "./FormatShortcuts";
 import { countWords, scenesFromDraft } from "../utils/draft";
 
@@ -49,6 +50,8 @@ export default function ScriptPage({
   zenMode, setZenMode, pageTheme, typewriter, cursor, resting, setResting,
   // handing off to the panel
   setPanelOpen, setPanelTab, setScript,
+  // the linter's notes in the margin
+  pageFlags = [], marginNotes = true, onGoToLine,
 }) {
   // The format decides what the status line counts. Read once here so
   // the two readouts cannot disagree about which format this is.
@@ -225,6 +228,17 @@ export default function ScriptPage({
               ref={bandRef}
               aria-hidden="true"
               className={`focus-band pointer-events-none ${pageTheme === "dark" ? "focus-band--dark" : ""}`}
+            />
+          )}
+          {/* The linter's notes, beside the lines they are about. */}
+          {view === "script" && !zenMode && marginNotes && (
+            <PageNotes
+              flags={pageFlags}
+              textareaRef={textareaRef}
+              content={content}
+              pageTheme={pageTheme}
+              onGoToLine={onGoToLine}
+              onOpenCraft={() => { setPanelTab("craft"); setPanelOpen(true); }}
             />
           )}
           <textarea

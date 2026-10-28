@@ -84,6 +84,16 @@ export default function ScriptEditor() {
   // The rhythm meter's last measurement, shared with the outlier panel so an
   // outlier's numbers can sit beside the draft's own.
   const [rhythm, setRhythm] = useState(null);
+  // The linter's flags for the margin notes, and whether the writer wants
+  // them. Remembered per machine, like the page theme.
+  const [pageFlags, setPageFlags] = useState([]);
+  const [marginNotes, setMarginNotesState] = useState(() => {
+    try { return localStorage.getItem("baakhapaa:margin-notes") !== "off"; } catch { return true; }
+  });
+  const setMarginNotes = (on) => {
+    setMarginNotesState(on);
+    try { localStorage.setItem("baakhapaa:margin-notes", on ? "on" : "off"); } catch { /* session only */ }
+  };
   const [saving, setSaving] = useState(false);
   // Patterns, not Generate. Generate is a paid tab that needs an instruction
   // typed before it does anything; Patterns is free on every tier, costs no
@@ -461,6 +471,25 @@ export default function ScriptEditor() {
     ta.setSelectionRange(pos, pos);
     scrollCaretIntoView(typewriter || zenMode);
   };
+
+  /* Lint the page for the margin notes, once the writer pauses.
+     Free — regular expressions, no model — so it can run on every pause. Not
+     for long-form video: the linter reads screenplay grammar, and narration
+     would trip its dialogue rules for reasons that are not about the craft. */
+  const lintFormat = script?.project?.format || script?.format;
+  useEffect(() => {
+    if (!marginNotes || lintFormat === "long_form" || !content.trim()) {
+      setPageFlags([]);
+      return undefined;
+    }
+    let live = true;
+    const timer = setTimeout(() => {
+      scripts.lint({ scene_text: content })
+        .then((res) => { if (live) setPageFlags(res.data?.flags || []); })
+        .catch(() => { if (live) setPageFlags([]); });
+    }, 1500);
+    return () => { live = false; clearTimeout(timer); };
+  }, [content, marginNotes, lintFormat]);
 
   // Put the caret at the start of a 1-based line. The rhythm meter names a
   // flat run by line number; this is what makes that name a place to go.
@@ -1450,6 +1479,8 @@ export default function ScriptEditor() {
         view={view}
         setView={setView}
         showPages={(script?.project?.format || script?.format) !== "long_form"}
+        marginNotes={marginNotes}
+        setMarginNotes={setMarginNotes}
         caretPage={caretPage}
         pageCount={pageCount}
         nepaliMode={nepaliMode}
@@ -1694,6 +1725,9 @@ export default function ScriptEditor() {
           setPanelOpen={setPanelOpen}
           setPanelTab={setPanelTab}
           setScript={setScript}
+          pageFlags={pageFlags}
+          marginNotes={marginNotes}
+          onGoToLine={goToLine}
         />
 
         {/* Format guide — sits between the page and the assistant so the
