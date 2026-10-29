@@ -99,9 +99,21 @@ Covered by `tests/test_privacy.py` (29 tests).
    bump the generation on password change too.
 3. **No access audit log.** Nothing records who opened or exported which script.
    With sharing and roles now live, "who read my draft" has no answer.
-4. **AI provider retention is unverified.** Confirm current Anthropic and OpenAI
-   API terms on retention and training use, and state them plainly in the policy.
-   Do not assert what has not been read.
+4. **AI provider retention is unverified for Anthropic and OpenAI.** Confirm their
+   current API terms on retention and training use, and state them plainly in the
+   policy. Do not assert what has not been read.
+
+   **Groq was read, on 2026-10-29** (see `FREE_AI_PROVIDERS.md`). Its own "Your
+   Data" page says inference data is not retained by default, apart from logs
+   kept up to 30 days for reliability and abuse investigation, and Zero Data
+   Retention is free for every account in Data Controls. That page does NOT
+   cover training. Third-party summaries say the DPA prohibits it, but the DPA
+   itself has not been read. So: retention verified, training not yet.
+
+   The public `Privacy_Policy.md` deliberately still names only Anthropic. Groq
+   runs in local development only (`website (free AI)`), and naming it there
+   before it handles a live writer's draft would be untrue in the other
+   direction. Add it in the same commit that sets `LLM_PROVIDER=groq` on Railway.
 5. **No backup or retention policy.** How long deleted data survives in backups
    is exactly the proposal's own open question, and it is still unanswered.
 6. **Legal review has not happened.** `Terms_of_Use.md`, `Privacy_Policy.md` and
