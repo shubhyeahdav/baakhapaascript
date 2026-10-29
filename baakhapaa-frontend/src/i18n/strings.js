@@ -82,7 +82,15 @@ export const STRINGS = {
     Guide: "मार्गदर्शन",
     History: "इतिहास",
     Synced: "सुरक्षित",
+    // "Saved" replaced "Synced" in the editor header. The Nepali already said
+    // सुरक्षित — saved — so only the English was catching up.
+    Saved: "सुरक्षित",
     "Saving...": "सुरक्षित गर्दै...",
+    // The consolidated File menu: Import and Export were two buttons.
+    File: "फाइल",
+    "Import or export this script": "यो स्क्रिप्ट आयात वा निर्यात गर्नुहोस्",
+    "Import a screenplay…": "स्क्रिनप्ले आयात गर्नुहोस्…",
+    "Ask about something specific": "कुनै खास कुरा सोध्नुहोस्",
     "Finalize & Storyboard": "अन्तिम रूप र स्टोरीबोर्ड",
     "Focus mode": "एकाग्र मोड",
     Reading: "पढ्दै",

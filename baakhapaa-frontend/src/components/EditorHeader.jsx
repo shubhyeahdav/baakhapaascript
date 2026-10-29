@@ -121,7 +121,7 @@ function EditorHeader({
             stays on the surface at every width — but as a dot below `lg`,
             because the word costs 42px and a phone header has none spare. */}
         <span className="hidden lg:inline text-[11px] font-semibold text-inkMuted uppercase tracking-wider whitespace-nowrap">
-          {saving ? t("Saving...") : t("Synced")}
+          {saving ? t("Saving...") : t("Saved")}
         </span>
         <span
           className={`lg:hidden h-2 w-2 rounded-full shrink-0 ${
@@ -150,22 +150,27 @@ function EditorHeader({
             rule `ToolbarMenu` already states — it was applied for desktop and
             never extended down. On a phone they are in the overflow menu
             below. */}
-        <div className="hidden lg:flex items-center gap-3">
-        {/* Shortcut reference. A dropdown rather than a standing panel:
-            you need it while learning the letters and never again, so it
-            shouldn't hold editor width permanently. */}
+        {/* The shortcut reference, OUTSIDE the desktop-only row.
+            It used to live inside `hidden lg:flex`, which meant the phone
+            menu's "Format shortcuts" item toggled a popover that could never
+            render. Its trigger is now a View-menu item at every width; this is
+            only where the reference itself appears. */}
         <div className="relative" data-shortcuts>
-          <button
-            onClick={() => setShowShortcuts((v) => !v)}
-            title="Format shortcuts"
-            className={`px-2.5 py-2 rounded-lg border transition duration-200 font-mono text-[11px] ${
-              showShortcuts ? "bg-goldDim border-gold text-gold" : "bg-bg border-border text-inkMuted hover:text-ink whitespace-nowrap"
-            }`}
-          >
-            ⌨ shortcuts
-          </button>
           {showShortcuts && (
-            <div className="absolute right-0 top-full mt-1.5 w-72 z-30 rounded-xl border border-borderSoft bg-surface shadow-card p-3">
+            <div
+              role="dialog"
+              aria-label={t("Format shortcuts")}
+              /* Fixed to the viewport on a phone, anchored on a desktop.
+                 Anchored at every width, it opened 87px past the LEFT edge
+                 of a 375px screen: its anchor sits at x=201 there and the
+                 reference is 288px wide, so `right-0` pushed it off-screen.
+                 Measured in the browser, which is the only place it shows —
+                 jsdom applies no CSS. Below `lg` it spans the screen with an
+                 8px margin, just under the 56px header. */
+              className="fixed left-2 right-2 top-16 z-30
+                         lg:absolute lg:left-auto lg:right-0 lg:top-full lg:mt-8 lg:w-72
+                         rounded-xl border border-borderSoft bg-surface shadow-card p-3"
+            >
               <p className="text-[11px] text-inkMuted mb-2.5 leading-snug">
                 Type the letter, press <kbd className="px-1 py-0.5 rounded bg-elevated border border-borderSoft font-mono text-[10px]">Tab</kbd>.
               </p>
@@ -185,7 +190,25 @@ function EditorHeader({
             </div>
           )}
         </div>
-        <div className="h-4 w-px bg-borderSoft mx-1" />
+
+        {/* THE DESKTOP ROW, consolidated. It was thirteen things of equal
+            weight: shortcuts, typing, structure, import, share, export, view,
+            each its own bordered button. A writer looking up from the page
+            met a wall of choices, none of them the thing they came to do.
+
+            Now four, plus the one gold action:
+              typing   A | अ — changes what the keys write, used mid-sentence,
+                       so it stays one click away
+              Share    a conversation with another person, not a setting
+              File     Import and Export were "the same question asked in two
+                       directions" (the comment that used to sit here) — so
+                       they are one menu
+              View     everything about how the page LOOKS, now including the
+                       shortcut reference and the structure overlay, which are
+                       both things you show rather than things you do
+            Nothing was removed: every action is still one click into a
+            labelled menu, and the phone menu below still carries all of it. */}
+        <div className="hidden lg:flex items-center gap-2">
         {/* Nepali phonetic input. Labelled in both scripts rather than with
             an icon, because the thing it switches between IS the two scripts
             — a glyph would need explaining and these explain themselves. */}
@@ -213,57 +236,31 @@ function EditorHeader({
             </button>
           ))}
         </div>
-        {/* Script / Corkboard / Outline moved into the left rail. They name
-            what you are LOOKING AT, and the left column is that thing; up
-            here they sat beside Import and Export, which are things you do
-            TO a script rather than ways of reading it. */}
-        <div className="h-4 w-px bg-borderSoft mx-1" />
-        {suggestions && (
-          <button
-            onClick={() => setShowStructure((s) => !s)}
-            className={`text-xs py-1.5 px-3 rounded-full border transition ${
-              showStructure
-                ? "bg-goldDim border-gold/40 text-gold"
-                : "border-border text-inkMuted hover:text-ink"
-            }`}
-            title="Show/hide the AI-suggested three-act structure"
-          >
-            {t("Structure")}
-          </button>
-        )}
-        {/* One menu rather than a button per format. Two of the four were
-            only reachable from a different page entirely, and naming them
-            in a list says what each is FOR — which "Export PDF" beside
-            ".fdx" never did. */}
-        {/* Beside Export, because "get a script out" and "get a script in"
-            are the same question asked in two directions. */}
-        <button
-          type="button"
-          onClick={() => importRef.current?.open()}
-          className="text-xs py-1.5 px-3 rounded-lg border border-border text-inkMuted hover:text-ink transition"
-          title="Import a screenplay from Final Draft, Fountain, Word, plain text or PDF"
-        >
-          {t("Import")}
-        </button>
-
         <button
           onClick={() => setShowShare(true)}
           title={t("Share this project")}
-          className="text-xs py-1.5 px-3 rounded-lg border border-border text-inkMuted
-                     hover:text-ink transition"
+          className="text-xs py-1.5 px-3 rounded-lg text-inkMuted hover:text-ink hover:bg-elevated/60 transition"
         >
           {t("Share")}
         </button>
 
+        {/* File: getting a script in, and getting it out. Import leads
+            because it is what a writer arriving with an existing draft needs
+            first; the export formats follow, each named for what it is FOR,
+            which "Export PDF" beside ".fdx" never said. */}
         <ToolbarMenu
-          label={t("Export")}
-          title="Download this script"
+          label={t("File")}
+          title={t("Import or export this script")}
           items={[
-            { key: "pdf", label: "PDF", hint: t("For reading and sending"), onSelect: () => handleExport("pdf") },
-            { key: "fdx", label: "Final Draft (.fdx)", hint: t("Opens in Final Draft, Celtx, Arc Studio"), onSelect: () => handleExport("fdx") },
-            { key: "word", label: "Word (.docx)", hint: t("For editing outside the app"), onSelect: () => handleExport("word") },
+            { key: "import", label: t("Import a screenplay…"),
+              hint: "Final Draft, Fountain, Word, text or PDF",
+              onSelect: () => importRef.current?.open() },
+            { key: "d0", divider: true },
+            { key: "pdf", label: t("Export PDF"), hint: t("For reading and sending"), onSelect: () => handleExport("pdf") },
+            { key: "fdx", label: t("Export Final Draft (.fdx)"), hint: t("Opens in Final Draft, Celtx, Arc Studio"), onSelect: () => handleExport("fdx") },
+            { key: "word", label: t("Export Word (.docx)"), hint: t("For editing outside the app"), onSelect: () => handleExport("word") },
             { key: "d1", divider: true },
-            { key: "package", label: t("Production package"), hint: t("Script, shot list and storyboard in one PDF"), onSelect: () => handleExport("package") },
+            { key: "package", label: t("Export production package"), hint: t("Script, shot list and storyboard in one PDF"), onSelect: () => handleExport("package") },
           ]}
         />
 
@@ -271,6 +268,22 @@ function EditorHeader({
           label={t("View")}
           title="Display options"
           items={[
+            // Things you SHOW rather than do, moved in from their own buttons.
+            ...(suggestions ? [{
+              key: "structure",
+              label: showStructure ? t("Hide the structure") : t("Show the structure"),
+              hint: t("The suggested three acts"),
+              active: showStructure,
+              onSelect: () => setShowStructure((s) => !s),
+            }] : []),
+            {
+              key: "shortcuts",
+              label: t("Format shortcuts"),
+              hint: t("Type the letter, press Tab"),
+              active: showShortcuts,
+              onSelect: () => setShowShortcuts((v) => !v),
+            },
+            { key: "dv", divider: true },
             {
               // Focus mode and Full page were separate entries — one hid the
               // app's chrome, the other the browser's. True, and a
@@ -428,16 +441,20 @@ function EditorHeader({
           </svg>
         </button>
 
-        <button onClick={handleFinalize} disabled={reviewing} className="btn-gold text-xs py-1.5 px-3.5 whitespace-nowrap">
-          {reviewing ? t("Reviewing…") : (
-            <>
-              {/* 139px of label is a third of a phone screen. The word alone
-                  still says what the button does, and this is the one control
-                  that must never be the thing that gets moved into a menu. */}
-              <span className="lg:hidden">{t("Finalize")}</span>
-              <span className="hidden lg:inline">{t("Finalize & Storyboard")}</span>
-            </>
-          )}
+        {/* The one gold action, and the only filled button in the header.
+            "Finalize" alone at every width: "& Storyboard" was 139px of a
+            label repeating what the review step itself explains, and it made
+            the primary action the widest thing in a row that was trying to be
+            quiet. The full name stays as its accessible name and tooltip, so a
+            screen reader and a hovering writer still hear what it does. */}
+        <button
+          onClick={handleFinalize}
+          disabled={reviewing}
+          aria-label={reviewing ? t("Reviewing…") : t("Finalize & Storyboard")}
+          title={t("Finalize & Storyboard")}
+          className="btn-gold text-xs py-1.5 px-4 whitespace-nowrap"
+        >
+          {reviewing ? t("Reviewing…") : t("Finalize")}
         </button>
       </div>
     </header>

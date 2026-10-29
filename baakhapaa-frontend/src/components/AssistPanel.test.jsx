@@ -22,6 +22,11 @@ vi.mock("../services/api", () => ({
   scripts: {},
 }));
 
+/** Open "Ask about something specific", where the named problems and the
+ *  free-text box now live. */
+const openSpecific = () =>
+  fireEvent.click(screen.getByRole("button", { name: /ask about something specific/i }));
+
 function panel(overrides = {}) {
   const props = {
     panelOpen: true,
@@ -155,6 +160,7 @@ describe("a failed AI call", () => {
 describe("the focus chips", () => {
   it("offers one chip per focus", () => {
     panel();
+    openSpecific();
     for (const f of FOCUSES) {
       expect(screen.getByRole("button", { name: f.label })).toBeInTheDocument();
     }
@@ -165,6 +171,7 @@ describe("the focus chips", () => {
     // query. Passing the label or the query string from here instead would
     // put the same text in two files and let them drift.
     const { props } = panel();
+    openSpecific();
 
     fireEvent.click(screen.getByRole("button", { name: "Feels flat" }));
 
@@ -206,6 +213,7 @@ describe("asking in your own words", () => {
 
   it("sends what the writer typed", () => {
     const { props } = panel();
+    openSpecific();
 
     fireEvent.change(screen.getByLabelText(/describe what is wrong/i), {
       target: { value: "my flashback kills the momentum" },
@@ -225,6 +233,7 @@ describe("asking in your own words", () => {
     // answered. The panel itself must not filter or transliterate — it passes
     // the string through untouched.
     const { props } = panel();
+    openSpecific();
     const nepali = "मेरो नायक बोरिङ छ";
 
     fireEvent.change(screen.getByLabelText(/describe what is wrong/i), {
@@ -237,6 +246,7 @@ describe("asking in your own words", () => {
 
   it("trims, so a stray space is not a different question", () => {
     const { props } = panel();
+    openSpecific();
 
     fireEvent.change(screen.getByLabelText(/describe what is wrong/i), {
       target: { value: "  the middle sags  " },
@@ -250,6 +260,7 @@ describe("asking in your own words", () => {
     // Submitting empty would re-run whichever chip was last selected, which
     // reads as the button being broken rather than as a no-op.
     const { props } = panel();
+    openSpecific();
 
     fireEvent.click(screen.getByRole("button", { name: "Ask" }));
 
@@ -304,5 +315,53 @@ describe("when the library has nothing to add", () => {
   it("asks for the problem in the writer's words when nothing was flagged", () => {
     panel({ panelTab: "ai", aiMode: "patterns", patterns: [], diagnosed: [] });
     expect(screen.getByText(/name the problem above in your own words/)).toBeInTheDocument();
+  });
+});
+
+/* One default, and a door to the rest.
+ *
+ * The panel offered eight equal choices under two rows of tabs: three layers
+ * of navigation before any advice. Seven of the eight are for a writer who
+ * already knows what is wrong; the first is for one who does not, which is
+ * most of the time and is what loads on open anyway. */
+describe("the simplified focus row", () => {
+  it("shows Read my page on its own by default", () => {
+    panel({ focus: FOCUSES[0].key });
+    expect(screen.getByRole("button", { name: FOCUSES[0].label })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Feels flat" })).toBeNull();
+    expect(screen.queryByLabelText(/describe what is wrong/i)).toBeNull();
+  });
+
+  it("says it is collapsed, so a screen reader knows there is more", () => {
+    panel({ focus: FOCUSES[0].key });
+    expect(screen.getByRole("button", { name: /ask about something specific/i }))
+      .toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("opens to the named problems and the free-text box", () => {
+    panel({ focus: FOCUSES[0].key });
+    openSpecific();
+    expect(screen.getByRole("button", { name: /ask about something specific/i }))
+      .toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Feels flat" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/describe what is wrong/i)).toBeInTheDocument();
+  });
+
+  it("opens itself when the active focus is one of the hidden chips", () => {
+    // A selected chip the writer cannot see is a state they cannot read or
+    // undo, so it is never hidden behind a closed door.
+    panel({ focus: "flat" });
+    expect(screen.getByRole("button", { name: "Feels flat" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("opens itself when the writer asked in their own words", () => {
+    panel({ focus: "asked" });
+    expect(screen.getByLabelText(/describe what is wrong/i)).toBeInTheDocument();
+  });
+
+  it("still reaches every focus — nothing was removed", () => {
+    panel({ focus: FOCUSES[0].key });
+    openSpecific();
+    expect(FOCUSES.every((f) => screen.queryByRole("button", { name: f.label }))).toBe(true);
   });
 });

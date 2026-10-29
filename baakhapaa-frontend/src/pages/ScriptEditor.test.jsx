@@ -354,9 +354,29 @@ describe("ScriptEditor", () => {
     render(<ScriptEditor />);
     await waitFor(() => expect(editor()).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole("button", { name: /shortcuts/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^View$/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Format shortcuts/ }));
 
     expect(screen.getByText(/Type the letter/i)).toBeInTheDocument();
+  });
+
+  it("renders the shortcut reference outside the desktop-only row", async () => {
+    // It used to live inside `hidden lg:flex`, so on a phone the "Format
+    // shortcuts" menu item toggled a reference that could never appear.
+    // jsdom applies no CSS (vite.config sets css:false), so this cannot test
+    // visibility directly — it pins the structure that caused it instead.
+    render(<ScriptEditor />);
+    await waitFor(() => expect(editor()).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /^View$/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Format shortcuts/ }));
+
+    const reference = screen.getByRole("dialog", { name: /Format shortcuts/ });
+    let el = reference.parentElement;
+    while (el) {
+      const cls = el.className || "";
+      expect(typeof cls === "string" && /\bhidden\b/.test(cls) && /\blg:flex\b/.test(cls)).toBe(false);
+      el = el.parentElement;
+    }
   });
 
   it("shows a notice when the wizard could not generate a structure", async () => {
@@ -641,7 +661,7 @@ describe("focus mode", () => {
     // the visual noise still there.
     await enterFocus();
 
-    expect(screen.queryByRole("button", { name: /Export/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^File$/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Back/ })).not.toBeInTheDocument();
   });
 
@@ -653,7 +673,7 @@ describe("focus mode", () => {
     fireEvent.click(screen.getByRole("button", { name: "Esc to leave" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Export/ })).toBeInTheDocument());
+      expect(screen.getByRole("button", { name: /^File$/ })).toBeInTheDocument());
   });
 
   it("counts this session's words, not the script's total", async () => {
@@ -782,7 +802,7 @@ describe("focus mode takes the whole screen", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: /Focus mode/ }));
 
     await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /Export/ })).not.toBeInTheDocument());
+      expect(screen.queryByRole("button", { name: /^File$/ })).not.toBeInTheDocument());
   });
 
   it("survives a browser that refuses fullscreen", async () => {
@@ -794,7 +814,7 @@ describe("focus mode takes the whole screen", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: /Focus mode/ }));
 
     await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /Export/ })).not.toBeInTheDocument());
+      expect(screen.queryByRole("button", { name: /^File$/ })).not.toBeInTheDocument());
     expect(screen.getByLabelText("Screenplay")).toBeInTheDocument();
   });
 });
@@ -1722,8 +1742,8 @@ describe("the two terminal actions actually run", () => {
   it("exports without throwing, and asks the API for the format chosen", async () => {
     await openEditor();
 
-    fireEvent.click(screen.getByRole("button", { name: /^Export$/i }));
-    fireEvent.click(await screen.findByText("PDF"));
+    fireEvent.click(screen.getByRole("button", { name: /^File$/ }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Export PDF/ }));
 
     await waitFor(() => expect(exportApi.pdf).toHaveBeenCalled());
   });

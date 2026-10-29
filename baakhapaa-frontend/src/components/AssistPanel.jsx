@@ -208,6 +208,9 @@ export default function AssistPanel({
   // UI choosing the question on the writer's behalf. Nepali works in it, in
   // both scripts, as of `craft_query.normalise`.
   const [asked, setAsked] = useState("");
+  // Whether the named problems and the free-text box are showing. Closed
+  // by default; opens itself when the active focus is inside it.
+  const [specificOpen, setSpecificOpen] = useState(false);
 
   return (
     <>
@@ -333,44 +336,73 @@ export default function AssistPanel({
 
       {aiMode === "patterns" ? (
         <>
-          {/* One tap = the kind of help you need. Loads on open; each
-              chip re-queries for that problem type. */}
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {FOCUSES.map((f, i) => (
-              <React.Fragment key={f.key}>
-                {/* A hairline after the first chip. It reads the draft;
-                    every chip after it names a problem instead. The rule
-                    shows that split without a sentence explaining it. */}
-                {i === 1 && (
-                  <span
-                    aria-hidden="true"
-                    className="self-center h-3.5 w-px bg-borderSoft mx-0.5"
-                  />
-                )}
-                <button
-                  onClick={() => { setFocus(f.key); setOpenPattern(null); loadPatterns(f.key); }}
-                  title={
-                    f.key === "scene"
-                      ? "Match against what you have written so far"
-                      : `Match against: ${f.query}`
-                  }
-                  className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
-                    focus === f.key
-                      ? "bg-goldDim border-gold/40 text-gold"
-                      : "border-border text-inkMuted hover:text-ink"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              </React.Fragment>
-            ))}
-          </div>
+          {/* ONE default, and a door to the rest.
+              This was eight equal-weight choices in a row — "Read my page",
+              six named problems, and a free-text box — sitting under two rows
+              of tabs, so a writer met three layers of navigation before any
+              advice. Seven of the eight are for when the writer already knows
+              what is wrong; the first is for when they do not, which is most of
+              the time and is what loads on open anyway.
+
+              So "Read my page" stands alone, and the named problems and the
+              free-text box are one disclosure away. Nothing is removed. The
+              disclosure opens itself whenever the active focus is one of the
+              things inside it, because a selected chip the writer cannot see
+              is a state they cannot read or undo. */}
+          {(() => {
+            const primary = FOCUSES[0];
+            const specific = FOCUSES.slice(1);
+            const showSpecific = specificOpen || focus !== primary.key;
+            const chip = (f) => (
+              <button
+                key={f.key}
+                onClick={() => { setFocus(f.key); setOpenPattern(null); loadPatterns(f.key); }}
+                title={
+                  f.key === "scene"
+                    ? "Match against what you have written so far"
+                    : `Match against: ${f.query}`
+                }
+                aria-pressed={focus === f.key}
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                  focus === f.key
+                    ? "bg-goldDim border-gold/40 text-gold"
+                    : "border-border text-inkMuted hover:text-ink"
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+            return (
+              <div className="mb-3">
+                <div className="flex items-center justify-between gap-2">
+                  {chip(primary)}
+                  <button
+                    type="button"
+                    onClick={() => setSpecificOpen((v) => !v)}
+                    aria-expanded={showSpecific}
+                    aria-controls="craft-specific"
+                    className="text-[11px] text-inkMuted hover:text-ink transition-colors inline-flex items-center gap-1"
+                  >
+                    {tr("Ask about something specific")}
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                         aria-hidden="true"
+                         className={`transition-transform ${showSpecific ? "rotate-180" : ""}`}>
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                </div>
+                {showSpecific && (
+                  <div id="craft-specific" className="mt-2.5 pt-2.5 border-t border-borderSoft">
+                    <div className="flex flex-wrap gap-1.5 mb-2.5">
+                      {specific.map(chip)}
+                    </div>
           {/* The writer's own words. A form, so Enter submits and the mobile
               keyboard shows a Search key instead of a newline. Submitting an
               empty box would silently re-run whichever chip was last selected,
               which reads as the button being broken, so it is a no-op. */}
           <form
-            className="mb-3"
+            className=""
             onSubmit={(e) => {
               e.preventDefault();
               const q = asked.trim();
@@ -401,6 +433,11 @@ export default function AssistPanel({
               </button>
             </div>
           </form>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <div className="flex items-center justify-between mb-3">
             <span className="font-mono text-[10px] uppercase tracking-wider text-inkMuted">
