@@ -38,7 +38,9 @@ is a new tool:
 
 **The English launch film** (asset 2, 2026-10-29) —
 `docs/promo/baakhapaa-promo-en.mp4`, 67 s, 1920×1080, no audio track, with
-`baakhapaa-promo-en-poster.jpg` beside it. Four chapters (Write, Read, Learn,
+`baakhapaa-promo-en-poster.jpg` beside it. The MP4 is not in git, because
+`.gitignore` keeps all video out. Rebuild it from source with the render
+command below. Four chapters (Write, Read, Learn,
 Plan), each a caption beside a replica of the real screen. It is made to be
 read with the sound off.
 
