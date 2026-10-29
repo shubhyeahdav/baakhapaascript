@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Baakhapaa Promo Film</title>
+<!--
+  The English launch film (PROMO_MOTION.md, asset 2): what Baakhapaa is, in
+  four steps — Write, Read, Learn, Plan — for a viewer with the sound off.
+
+  Everything on screen is a function of one number, the time. `seek(t)` draws
+  the frame at t seconds and holds no other state, so the same file plays in a
+  browser and renders frame by frame to video (scripts/promo-render.mjs) with
+  no dropped frames — the problem wall-clock recording has under load.
+
+  What it shows is real:
+    - the scene and the linter's two notes are landingHero.json, word for word;
+      backend tests/test_landing_hero.py runs the linter on that scene
+    - the rewrite is tourRewrite.json, which the same tests require to lint clean
+    - the lesson and its "Not yet" message are lessons.py's lesson 1 and its
+      grader text
+    - 91.3% is eval_retrieval.py on 46 real queries (Month 3)
+  What it does not show: AI generation, testimonials, user counts, or anything
+  another product lacks. See PROMO_MOTION.md, "What none of these videos may say".
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;1,400&family=Mukta:wght@300;400;500;600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b0b0a; --deep: #080807; --surface: #141311; --elevated: #191813;
+    --line: rgba(255,255,255,0.08); --soft-line: rgba(255,255,255,0.05);
+    --gold: #d4a843; --gold-bright: #e4be64; --ink: #edeae3; --ink-soft: #9b968a;
+    --ink-muted: #7e7a6f; --paper: #faf9f6; --paper-ink: #1b1a17;
+    --high: #c0563b; --medium: #b8871e;
+    --display: "Spectral", Georgia, serif;
+    --ui: "Mukta", "Segoe UI", system-ui, sans-serif;
+    --page: "Courier Prime", "Mukta", "Courier New", monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  body { font-family: var(--ui); color: var(--ink); }
+
+  /* A fixed 1920x1080 stage, scaled to fit whatever window plays it. */
+  #viewport { position: fixed; inset: 0; display: grid; place-items: center; }
+  #stage {
+    position: relative; width: 1920px; height: 1080px; overflow: hidden;
+    background: var(--bg); transform-origin: center center; flex: none;
+  }
+  .abs { position: absolute; }
+  .layer { position: absolute; inset: 0; }
+  [data-o] { opacity: 0; }
+
+  .glow { position: absolute; border-radius: 50%; filter: blur(60px); pointer-events: none;
+          background: radial-gradient(closest-side, rgba(212,168,67,0.22), transparent); }
+  .grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
+           background: radial-gradient(ellipse at 50% 120%, rgba(0,0,0,0.6), transparent 60%),
+                       radial-gradient(ellipse at 50% -20%, rgba(0,0,0,0.5), transparent 55%); }
+
+  .kicker { font: 500 22px/1 var(--ui); letter-spacing: 0.28em; text-transform: uppercase; color: var(--gold); }
+  .display { font-family: var(--display); font-weight: 400; color: var(--ink); letter-spacing: -0.01em; }
+  .soft { color: var(--ink-soft); }
+  .muted { color: var(--ink-muted); }
+  .gold { color: var(--gold); }
+  .mono { font-family: var(--page); }
+
+  /* --- chrome that persists across chapters --- */
+  #rail { left: 96px; top: 64px; display: flex; gap: 40px; font: 500 21px/1 var(--ui); }
+  #rail span { color: var(--ink-muted); display: inline-flex; gap: 10px; align-items: baseline; }
+  #rail b { font: 400 16px/1 var(--page); color: inherit; opacity: 0.8; }
+  #rail span.on { color: var(--ink); }
+  #rail span.on b { color: var(--gold); opacity: 1; }
+  #rail span.done { color: var(--ink-soft); }
+  #mark { right: 96px; top: 62px; font: 600 22px/1 var(--ui); letter-spacing: 0.34em; color: var(--ink); }
+  #progress { left: 0; bottom: 0; height: 3px; background: var(--gold); width: 0; opacity: 0.85; }
+
+  /* --- chapter captions (left column) --- */
+  .cap { left: 96px; top: 300px; width: 640px; }
+  .cap .n { font: 400 22px/1 var(--page); color: var(--gold); margin-bottom: 26px; }
+  .cap h2 { font: 400 92px/1 var(--display); margin: 0; color: var(--ink); letter-spacing: -0.015em; }
+  .cap p { font: 400 33px/1.4 var(--ui); color: var(--ink-soft); margin: 28px 0 0; max-width: 600px; }
+  .cap p strong { color: var(--ink); font-weight: 500; }
+  .cap .foot { font: 400 24px/1.4 var(--ui); color: var(--ink-muted); margin-top: 26px; display: flex; gap: 12px; align-items: center; }
+  .cap .foot i { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); display: inline-block; }
+
+  /* --- the editor window --- */
+  #win { left: 800px; top: 214px; width: 1024px; border-radius: 22px; border: 1px solid var(--line);
+         background: var(--surface); overflow: hidden;
+         box-shadow: 0 60px 120px -40px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.05); }
+  #win .bar { height: 58px; display: flex; align-items: center; gap: 16px; padding: 0 22px;
+              border-bottom: 1px solid var(--soft-line); background: rgba(25,24,19,0.7); font-size: 17px; }
+  #win .dots { display: flex; gap: 8px; }
+  #win .dots i { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.1); }
+  #win .title { color: var(--ink); font-weight: 500; }
+  #win .tabs { display: inline-flex; border: 1px solid var(--soft-line); border-radius: 8px; padding: 3px; margin-left: 10px; }
+  #win .tabs span { padding: 3px 14px; border-radius: 6px; color: var(--ink-muted); }
+  #win .tabs span:first-child { background: rgba(212,168,67,0.15); color: var(--gold); }
+  #win .pg { margin-left: auto; font: 15px var(--page); color: var(--ink-muted); }
+  #win .body { background: var(--deep); padding: 40px 36px 44px; display: flex; gap: 28px; align-items: flex-start; height: 640px; }
+  /* One sheet of paper; the two drafts are text layers on it, so the
+     rewrite changes the words and never the page. */
+  .papers { display: grid; width: 600px; flex: none; background: var(--paper); border-radius: 4px;
+            box-shadow: 0 30px 60px -30px rgba(0,0,0,0.9); }
+  .paper { grid-area: 1 / 1; color: var(--paper-ink);
+           font: 19px/1.72 var(--page); padding: 34px 40px 34px 64px; min-height: 548px; }
+  .paper p { margin: 0; position: relative; min-height: 1.72em; white-space: pre-wrap; }
+  .paper .heading { font-weight: 700; }
+  .paper .character { padding-left: 38%; }
+  .paper .paren { padding-left: 28%; }
+  .paper .dialogue { padding-left: 18%; padding-right: 8%; }
+  .paper .blank { height: 1.72em; }
+  .paper mark { background: linear-gradient(rgba(212,168,67,0.34), rgba(212,168,67,0.34)) no-repeat;
+                background-size: 0% 100%; color: inherit; padding: 0 1px; }
+  .paper .dot { position: absolute; left: -40px; top: 0.62em; width: 12px; height: 12px; border-radius: 50%; }
+  .caret { display: inline-block; width: 2px; height: 1.05em; margin-left: 1px; vertical-align: -0.16em; background: var(--paper-ink); }
+  .notes { width: 312px; flex: none; position: relative; padding-top: 176px; }
+  .note { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; }
+  .note .sev { display: flex; gap: 10px; align-items: center; font: 500 13px/1 var(--ui); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-muted); }
+  .note .sev i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .note .msg { font: 400 19px/1.35 var(--ui); color: var(--ink); margin-top: 10px; }
+  .note .fix { font: 400 17px/1.35 var(--ui); color: var(--gold); margin-top: 8px; }
+  #zero { position: absolute; top: 176px; left: 0; width: 312px; }
+  #zero .big { font: 400 120px/1 var(--display); color: var(--gold); }
+  #zero .lbl { font: 400 22px/1.35 var(--ui); color: var(--ink); margin-top: 8px; }
+  #zero .sub { font: 400 17px/1.4 var(--ui); color: var(--ink-muted); margin-top: 14px; }
+
+  /* keystrokes under the Write caption */
+  .keys { margin-top: 44px; display: grid; gap: 14px; }
+  .key { display: flex; align-items: center; gap: 18px; font: 22px var(--page); color: var(--ink-muted); }
+  .key kbd { min-width: 74px; text-align: center; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line);
+             background: var(--deep); color: var(--ink-soft); font: 20px var(--page); }
+  .key.lit kbd { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 0 4px rgba(212,168,67,0.12); }
+  .key.lit span { color: var(--ink); }
+
+  /* the lesson card */
+  #lesson { left: 860px; top: 238px; width: 900px; border-radius: 22px; border: 1px solid var(--line);
+            background: var(--surface); padding: 44px 48px; box-shadow: 0 60px 120px -40px rgba(0,0,0,0.9); }
+  #lesson .eyebrow { font: 500 16px/1 var(--ui); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-muted); }
+  #lesson h3 { font: 400 52px/1.1 var(--display); margin: 16px 0 0; }
+  #lesson .task { font: 400 23px/1.45 var(--ui); color: var(--ink-soft); margin-top: 18px; }
+  #lesson .input { margin-top: 26px; background: var(--paper); color: var(--paper-ink); border-radius: 8px;
+                   font: 21px/1.7 var(--page); padding: 20px 26px; min-height: 144px; white-space: pre-wrap; }
+  .verdict { margin-top: 22px; border-radius: 12px; padding: 16px 22px; position: relative; }
+  .verdict b { font: 600 22px/1 var(--ui); display: block; }
+  .verdict span { font: 400 19px/1.4 var(--ui); color: var(--ink-soft); display: block; margin-top: 8px; }
+  #notyet { border: 1px solid rgba(251,191,36,0.3); background: rgba(251,191,36,0.05); }
+  #notyet b { color: #fcd34d; }
+  #passed { border: 1px solid rgba(110,231,183,0.3); background: rgba(110,231,183,0.06); position: absolute; left: 48px; right: 48px; }
+  #passed b { color: #6ee7b7; }
+
+  /* the plan */
+  .card { position: absolute; width: 330px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); padding: 20px 22px; }
+  .card .no { font: 700 15px/1 var(--page); color: var(--gold); letter-spacing: 0.06em; }
+  .card .slug { font: 17px/1.3 var(--page); color: var(--ink); margin-top: 10px; }
+  .card .sum { font: 18px/1.4 var(--ui); color: var(--ink-soft); margin-top: 10px; min-height: 50px; }
+  .card .cast { font: 16px/1 var(--ui); color: rgba(212,168,67,0.75); margin-top: 12px; }
+  .frame { position: absolute; width: 330px; height: 196px; border-radius: 14px; border: 1px solid var(--line); overflow: hidden;
+           background: radial-gradient(ellipse at 30% 70%, rgba(212,168,67,0.16), transparent 60%), linear-gradient(180deg, #191813, #0b0b0a); }
+  .frame .shot { position: absolute; left: 16px; top: 14px; font: 700 14px/1 var(--page); color: var(--gold); letter-spacing: 0.1em; }
+  .frame .cam { position: absolute; left: 16px; right: 16px; bottom: 14px; font: 15px/1.35 var(--ui); color: var(--ink-soft); }
+  .frame .bracket { position: absolute; inset: 44px 70px 52px; border: 1px dashed rgba(212,168,67,0.28); border-radius: 4px; }
+  .chips { left: 860px; top: 900px; display: flex; gap: 14px; }
+  .chip { border: 1px solid var(--line); border-radius: 999px; padding: 10px 20px; font: 19px/1 var(--ui); color: var(--ink); background: var(--surface); }
+  .chip em { font: normal 16px var(--page); color: var(--gold); margin-left: 8px; }
+
+  /* the number */
+  #num { left: 0; right: 0; top: 300px; text-align: center; }
+  #num .big { font: 400 260px/1 var(--display); color: var(--gold); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  #num .meter { width: 760px; height: 6px; border-radius: 6px; background: rgba(255,255,255,0.07); margin: 34px auto 0; overflow: hidden; }
+  #num .meter i { display: block; height: 100%; background: var(--gold); width: 0; border-radius: 6px; }
+  #num .lbl { font: 400 38px/1.35 var(--ui); color: var(--ink); margin: 40px auto 0; max-width: 1100px; }
+  #num .src { font: 20px var(--page); color: var(--ink-muted); margin-top: 22px; }
+
+  /* the ask */
+  #ask { left: 0; right: 0; top: 270px; text-align: center; }
+  #ask .btn { display: inline-block; margin-top: 56px; background: var(--gold); color: #141006; font: 600 36px/1 var(--ui);
+              padding: 28px 56px; border-radius: 999px; box-shadow: 0 20px 60px -20px rgba(212,168,67,0.55); }
+  #ask .terms { font: 400 27px/1.5 var(--ui); color: var(--ink-soft); margin-top: 40px; }
+  #ask .url { font: 24px var(--page); color: var(--gold); margin-top: 22px; letter-spacing: 0.02em; }
+
+  /* player controls (hidden while rendering) */
+  #controls { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 12px; align-items: center;
+              background: rgba(20,19,17,0.86); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px;
+              font: 14px var(--ui); color: var(--ink-soft); backdrop-filter: blur(8px); z-index: 5; }
+  #controls button { background: var(--gold); color: #141006; border: 0; border-radius: 999px; padding: 6px 14px; font: 600 14px var(--ui); cursor: pointer; }
+  #controls input { width: min(46vw, 420px); accent-color: #d4a843; }
+  body.render #controls { display: none; }
+  @media (max-width: 520px) { #controls { left: 16px; right: 16px; transform: none; } #controls input { width: 100%; } }
+</style>
+</head>
+<body>
+<div id="viewport"><div id="stage">
+  <div class="glow" id="glow" style="width:1400px;height:900px;left:260px;top:-300px"></div>
+  <div class="grain"></div>
+
+  <!-- 1 · the hook -->
+  <div class="layer" id="s-hook">
+    <div class="abs display" style="left:0;right:0;top:330px;text-align:center;font-size:118px;line-height:1.08">
+      <span data-w>Your story</span> <span data-w>is in</span> <span data-w>Nepali.</span>
+    </div>
+    <div class="abs" id="hook2" style="left:0;right:0;top:520px;text-align:center;font:400 54px/1.3 var(--display);color:var(--gold)">
+      Your screenwriting software should read it.
+    </div>
+    <div class="abs" id="hook3" style="left:0;right:0;top:660px;text-align:center;font:400 46px/1 var(--ui);color:var(--ink-soft)">
+      आज तिम्रो चियामा चिनी छैन।
+    </div>
+  </div>
+
+  <!-- 2 · the name and the map -->
+  <div class="layer" id="s-brand">
+    <div class="abs" id="brandmark" style="left:0;right:0;top:330px;text-align:center;font:600 112px/1 var(--ui);color:var(--ink)">BAAKHAPAA</div>
+    <div class="abs" id="brandsub" style="left:0;right:0;top:486px;text-align:center;font:400 40px/1.35 var(--display);color:var(--ink-soft)">
+      A screenwriting studio that reads Nepali and English.
+    </div>
+    <div class="abs" style="left:0;right:0;top:640px;display:flex;justify-content:center;gap:28px" id="map">
+      <div class="mapi"><b>01</b>Write</div><div class="mapi"><b>02</b>Read</div><div class="mapi"><b>03</b>Learn</div><div class="mapi"><b>04</b>Plan</div>
+    </div>
+  </div>
+
+  <!-- chrome kept across the four chapters -->
+  <div class="abs" id="rail"><span><b>01</b>Write</span><span><b>02</b>Read</span><span><b>03</b>Learn</span><span><b>04</b>Plan</span></div>
+  <div class="abs" id="mark">BAAKHAPAA</div>
+
+  <!-- 3,4,5 · Write / Read / Rewrite captions -->
+  <div class="abs cap" id="c-write">
+    <div class="n">01</div><h2>Write.</h2>
+    <p>It formats as you type. <strong>A letter and Tab</strong> give you the scene heading, the name, the direction.</p>
+    <div class="keys">
+      <div class="key" id="k1"><kbd>i</kbd><span>→ INT.</span></div>
+      <div class="key" id="k2"><kbd>Tab</kbd><span>→ SITA</span></div>
+      <div class="key" id="k3"><kbd>(</kbd><span>→ (direction)</span></div>
+    </div>
+  </div>
+  <div class="abs cap" id="c-read">
+    <div class="n">02</div><h2>Read.</h2>
+    <p>A craft linter marks the line that <strong>says the feeling out loud</strong> instead of playing it — in Devanagari too.</p>
+    <div class="foot"><i></i>No AI call. On every plan, free included.</div>
+  </div>
+  <div class="abs cap" id="c-fix">
+    <div class="n">02</div><h2>Take the note.</h2>
+    <p>Let them fight about the tea, not the grievance. <strong>The notes clear</strong> when the page gets better.</p>
+    <div class="foot"><i></i>Both drafts are checked by the real linter.</div>
+  </div>
+
+  <div class="abs" id="win">
+    <div class="bar">
+      <span class="dots"><i></i><i></i><i></i></span>
+      <span class="title" id="wintitle">Chiya — Draft 1</span>
+      <span class="tabs"><span>Script</span><span>Corkboard</span><span>Outline</span></span>
+      <span class="pg">p. 1 / 1</span>
+    </div>
+    <div class="body">
+      <div class="papers"><div class="paper" id="paperA"></div><div class="paper" id="paperB"></div></div>
+      <div class="notes" id="notes">
+        <div class="note" id="n0"><div class="sev"><i style="background:var(--high)"></i>High</div>
+          <div class="msg">The character states the real grievance out loud.</div>
+          <div class="fix">→ Let them fight about the small wrong thing</div></div>
+        <div class="note" id="n1"><div class="sev"><i style="background:var(--medium)"></i>Medium</div>
+          <div class="msg">An emotional parenthetical is doing the actor's work.</div>
+          <div class="fix">→ Put the feeling into a physical thing that changes hands</div></div>
+        <div id="zero"><div class="big">0</div><div class="lbl">notes from the linter.</div>
+          <div class="sub">Sita leaves the sugar out. Ram pushes the glass back. Nobody says it.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6 · Learn -->
+  <div class="abs cap" id="c-learn">
+    <div class="n">03</div><h2>Learn.</h2>
+    <p><strong>Nineteen lessons</strong>, free on every plan. Each one ends with you writing — graded by the same checks.</p>
+    <div class="foot"><i></i>The page, and the story the page is for.</div>
+  </div>
+  <div class="abs" id="lesson">
+    <div class="eyebrow">The page · Lesson 1 of 19</div>
+    <h3>What a screenplay is</h3>
+    <div class="task">Write one correctly formatted scene heading and one action line beneath it.</div>
+    <div class="input" id="lessonInput"></div>
+    <div style="position:relative">
+      <div class="verdict" id="notyet"><b>Not yet.</b><span>Found 0 scene heading(s); this exercise needs 1. A heading looks like: INT. LOCATION - DAY</span></div>
+      <div class="verdict" id="passed" style="top:0;margin-top:22px"><b>Passed.</b><span>One scene heading, one action line. On to lesson two.</span></div>
+    </div>
+  </div>
+
+  <!-- 7 · Plan -->
+  <div class="abs cap" id="c-plan">
+    <div class="n">04</div><h2>Plan.</h2>
+    <p>Your scenes become a <strong>corkboard</strong>, a <strong>shot list</strong> and a <strong>production package</strong>. Move a card and the scene moves in the script.</p>
+  </div>
+  <div class="abs" id="plan" style="left:0;top:0;width:1920px;height:1080px">
+    <div class="card" id="card0"><div class="no">SCENE 1</div><div class="slug">INT. CHIYA PASAL - DAY</div><div class="sum">Two glasses. One has no sugar.</div><div class="cast">Sita · Ram</div></div>
+    <div class="card" id="card1"><div class="no">SCENE 2</div><div class="slug">EXT. BAGMATI BRIDGE - DUSK</div><div class="sum">Ram walks home the long way.</div><div class="cast">Ram</div></div>
+    <div class="card" id="card2"><div class="no">SCENE 3</div><div class="slug">INT. BUS PARK - NIGHT</div><div class="sum">Sita buys one ticket.</div><div class="cast">Sita</div></div>
+    <div class="frame" id="f0"><div class="shot">WIDE</div><div class="bracket"></div><div class="cam">Hold on the counter. Let the glasses land.</div></div>
+    <div class="frame" id="f1"><div class="shot">MEDIUM</div><div class="bracket"></div><div class="cam">Track with Ram. Dusk light behind.</div></div>
+    <div class="frame" id="f2"><div class="shot">CLOSE</div><div class="bracket"></div><div class="cam">On the ticket. One, not two.</div></div>
+  </div>
+  <div class="abs chips" id="chips">
+    <span class="chip">PDF</span><span class="chip">Final Draft<em>.fdx</em></span><span class="chip">Word<em>.docx</em></span><span class="chip">Production package<em>PDF</em></span>
+  </div>
+
+  <!-- 8 · the number -->
+  <div class="abs" id="num">
+    <div class="big" id="numv">0%</div>
+    <div class="meter"><i id="numm"></i></div>
+    <div class="lbl">of real writers' problems matched to the right craft technique — <span class="gold">Nepali included.</span></div>
+    <div class="src">Measured: eval_retrieval.py · 46 real queries</div>
+  </div>
+
+  <!-- 9 · the ask -->
+  <div class="abs" id="ask">
+    <div class="kicker" id="askk">Baakhapaa</div>
+    <div class="display" id="askh" style="font-size:104px;line-height:1.05;margin-top:34px">Your next script starts<br />on a blank page.</div>
+    <div id="askb"><span class="btn">Start writing — free</span></div>
+    <div class="terms" id="askt">Free for three projects · Pro is Rs 999 a month, with Khalti or eSewa</div>
+    <div class="url" id="asku">baakhapaascript.vercel.app</div>
+  </div>
+
+  <div class="abs" id="progress"></div>
+</div></div>
+
+<div id="controls">
+  <button id="play" type="button">Pause</button>
+  <input id="scrub" type="range" min="0" max="67" step="0.01" value="0" aria-label="Position in the film" />
+  <span id="clock">0:00</span>
+</div>
+
+<style>
+  .mapi { font: 400 44px/1 var(--display); color: var(--ink); border: 1px solid var(--line); border-radius: 18px;
+          padding: 26px 34px; background: var(--surface); display: flex; gap: 16px; align-items: baseline; }
+  .mapi b { font: 400 20px/1 var(--page); color: var(--gold); }
+</style>
+
+<script>
+/* ---- the scene on the page: landingHero.json, then tourRewrite.json ---- */
+const DRAFT_A = [
+  ["heading", "INT. CHIYA PASAL - DAY"], ["blank"],
+  ["action", "Sita sets two glasses on the counter. One has no sugar."], ["blank"],
+  ["character", "SITA"], ["dialogue", "तिमीले कहिल्यै मेरो साथ दिएनौ।", 0], ["blank"],
+  ["character", "RAM"], ["paren", "(रिसाएर)", 1], ["dialogue", "चिया चिसो भयो।"],
+];
+const DRAFT_B = [
+  ["heading", "INT. CHIYA PASAL - DAY"], ["blank"],
+  ["action", "Sita sets two glasses on the counter. One has no sugar."], ["blank"],
+  ["character", "SITA"], ["dialogue", "आज तिम्रो चियामा चिनी छैन।", null, true], ["blank"],
+  ["character", "RAM"], ["paren", "(pushes the glass back across the counter)", null, true],
+  ["dialogue", "चिया त चिसो भइसक्यो", null, true],
+];
+
+/* ---- the clock ---- */
+const T = {
+  hook: [0, 5.6], brand: [5.6, 10.6],
+  write: [10.6, 21.2], read: [21.2, 30.6], fix: [30.6, 37.8],
+  learn: [37.8, 46.2], plan: [46.2, 54.6], num: [54.6, 60.6], ask: [60.6, 67],
+};
+const DURATION = 67;
+
+/* ---- helpers: every value is a pure function of t ---- */
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const out3 = (x) => 1 - Math.pow(1 - x, 3);
+const inOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const prog = (t, start, dur, ease = out3) => ease(clamp((t - start) / dur));
+const $ = (id) => document.getElementById(id);
+
+/* Show an element between two moments: rise in, then fade out. */
+function show(el, t, a, b, { dy = 18, dur = 0.7, outDur = 0.45, scale = 0 } = {}) {
+  const i = prog(t, a, dur);
+  const o = b == null ? 0 : clamp((t - b) / outDur);
+  const op = i * (1 - o);
+  el.style.opacity = op.toFixed(4);
+  el.style.visibility = op < 0.002 ? "hidden" : "visible";
+  const s = scale ? 1 - scale * (1 - i) : 1;
+  el.style.transform = `translateY(${((1 - i) * dy - o * 10).toFixed(2)}px) scale(${s.toFixed(4)})`;
+  return op;
+}
+
+/* Devanagari is typed by grapheme, never by code unit: slicing a conjunct in
+   half draws a dotted circle, which looks like the product cannot render it. */
+const seg = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter("ne", { granularity: "grapheme" }) : null;
+const graphemes = (s) => (seg ? [...seg.segment(s)].map((x) => x.segment) : [...s]);
+
+/* ---- build the two papers ---- */
+function buildPaper(el, draft, withDots) {
+  return draft.map(([kind, text, flag, changed]) => {
+    const p = document.createElement("p");
+    p.className = kind;
+    if (kind === "blank") { el.appendChild(p); return { kind, p }; }
+    const span = document.createElement(flag != null || changed ? "mark" : "span");
+    p.appendChild(span);
+    let dot = null;
+    if (withDots && flag != null) {
+      dot = document.createElement("i");
+      dot.className = "dot";
+      dot.style.background = flag === 0 ? "var(--high)" : "var(--medium)";
+      p.appendChild(dot);
+    }
+    el.appendChild(p);
+    return { kind, text, flag, changed, p, span, dot, g: graphemes(text) };
+  });
+}
+const A = buildPaper($("paperA"), DRAFT_A, true);
+const B = buildPaper($("paperB"), DRAFT_B, false);
+B.forEach((l) => { if (l.span) l.span.textContent = l.text; });
+
+/* Typing schedule for draft A, by line. Names and the parenthetical start on
+   a key (the Write caption lights it); the rest types at a writer's pace. */
+const CPS = 26;
+const schedule = [];
+{
+  let at = T.write[0] + 1.0;
+  A.forEach((l, i) => {
+    if (l.kind === "blank") { at += 0.18; return; }
+    const dur = l.g.length / (l.kind === "dialogue" ? 18 : CPS);
+    schedule[i] = [at, dur];
+    at += dur + 0.32;
+  });
+}
+const KEYS = [["k1", 0], ["k2", 4], ["k3", 8]]; // key, line index it fires on
+
+/* ---- the lesson ---- */
+const WRONG = "Chiya pasal, morning.";
+const RIGHT = "INT. CHIYA PASAL - DAY\n\nSita sets two glasses on the counter.";
+
+/* ---- the plan's layout ---- */
+const CARD_X = [860, 1214, 1568], CARD_Y = 250, FRAME_Y = 520;
+
+function typed(text, t, start, cps) {
+  const g = graphemes(text);
+  const n = Math.floor(clamp((t - start) * cps, 0, g.length));
+  return { s: g.slice(0, n).join(""), done: n >= g.length, n };
+}
+
+/* ---- the frame ---- */
+function seek(t) {
+  t = clamp(t, 0, DURATION);
+  const caretOn = Math.floor(t * 2.2) % 2 === 0;
+
+  // background glow drifts slowly across the whole film
+  $("glow").style.transform = `translate(${Math.sin(t / 9) * 120}px, ${Math.cos(t / 11) * 40}px)`;
+  $("progress").style.width = `${(t / DURATION) * 100}%`;
+
+  /* 1 · hook — the words rise in reading order */
+  const words = document.querySelectorAll("#s-hook [data-w]");
+  words.forEach((w, i) => show(w, t, 0.35 + i * 0.32, T.hook[1] - 0.6, { dy: 26 }));
+  words.forEach((w) => (w.style.display = "inline-block"));
+  show($("hook2"), t, 1.7, T.hook[1] - 0.6);
+  show($("hook3"), t, 2.7, T.hook[1] - 0.6, { dy: 10 });
+
+  /* 2 · the name, then the map of what follows */
+  const bm = show($("brandmark"), t, T.brand[0] + 0.1, T.brand[1] - 0.5, { dy: 0, scale: 0.04, dur: 1.0 });
+  $("brandmark").style.letterSpacing = `${(0.52 - 0.18 * prog(t, T.brand[0], 1.4)).toFixed(3)}em`;
+  show($("brandsub"), t, T.brand[0] + 0.8, T.brand[1] - 0.5);
+  [...document.querySelectorAll(".mapi")].forEach((m, i) => show(m, t, T.brand[0] + 1.6 + i * 0.28, T.brand[1] - 0.5, { dy: 14 }));
+  void bm;
+
+  /* chrome across the four chapters */
+  const chapters = [[T.write[0], T.fix[1]], [T.write[0], T.fix[1]], T.learn, T.plan];
+  show($("rail"), t, T.write[0] + 0.2, T.plan[1] - 0.4, { dy: 0 });
+  show($("mark"), t, T.write[0] + 0.2, T.plan[1] - 0.4, { dy: 0 });
+  const rail = $("rail").children;
+  const active = t < T.read[0] ? 0 : t < T.learn[0] ? 1 : t < T.plan[0] ? 2 : 3;
+  [...rail].forEach((s, i) => { s.className = i === active ? "on" : i < active ? "done" : ""; });
+  void chapters;
+
+  /* 3 · Write: caption, keys, and the scene typed onto the page */
+  show($("c-write"), t, T.write[0] + 0.3, T.read[0] - 0.3);
+  show($("c-read"), t, T.read[0] + 0.25, T.fix[0] - 0.3);
+  show($("c-fix"), t, T.fix[0] + 0.25, T.fix[1] - 0.4);
+  const winOp = show($("win"), t, T.write[0] + 0.15, T.fix[1] - 0.45, { dy: 30, dur: 0.9, scale: 0.02 });
+
+  if (winOp > 0) {
+    A.forEach((l, i) => {
+      if (l.kind === "blank") return;
+      const [st, dur] = schedule[i];
+      const cps = l.g.length / dur;
+      const ty = typed(l.text, t, st, cps);
+      l.span.textContent = ty.s;
+      const typing = t >= st && (!ty.done || t < st + dur + 0.32);
+      const last = i === A.length - 1 && ty.done;
+      if ((typing || (last && t < T.read[0] + 1.2)) && caretOn && t < T.fix[0]) {
+        const c = document.createElement("span");
+        c.className = "caret";
+        l.span.appendChild(c);
+      }
+      // the linter's marks, in reading order, once the page is written
+      if (l.flag != null) {
+        const at = T.read[0] + 0.9 + l.flag * 1.3;
+        l.span.style.backgroundSize = `${(prog(t, at, 0.7) * 100).toFixed(1)}% 100%`;
+        const d = prog(t, at, 0.45);
+        l.dot.style.opacity = d.toFixed(3);
+        l.dot.style.transform = `scale(${(0.3 + 0.7 * d).toFixed(3)})`;
+      }
+    });
+    KEYS.forEach(([id, line]) => {
+      const st = schedule[line][0];
+      $(id).className = t >= st - 0.15 && t < st + 1.1 ? "key lit" : "key";
+    });
+
+    // the notes arrive beside the lines they name, then leave when the page is fixed
+    show($("n0"), t, T.read[0] + 1.05, T.fix[0] + 0.2, { dy: 14 });
+    show($("n1"), t, T.read[0] + 2.35, T.fix[0] + 0.2, { dy: 14 });
+
+    // the rewrite: draft 2 replaces draft 1, its changed lines marked lightly
+    // Out, then in — never both at once, or two drafts read as one smudge.
+    const outA = prog(t, T.fix[0] + 0.35, 0.4, inOut);
+    const inB = prog(t, T.fix[0] + 0.8, 0.5, inOut);
+    $("paperA").style.opacity = (1 - outA).toFixed(3);
+    $("paperB").style.opacity = inB.toFixed(3);
+    $("wintitle").textContent = inB > 0 ? "Chiya — Draft 2" : "Chiya — Draft 1";
+    let k = 0;
+    B.forEach((l) => {
+      if (!l.changed) return;
+      l.span.style.background = "linear-gradient(rgba(212,168,67,0.2), rgba(212,168,67,0.2)) no-repeat";
+      l.span.style.backgroundSize = `${(prog(t, T.fix[0] + 1.3 + k * 0.35, 0.6) * 100).toFixed(1)}% 100%`;
+      k += 1;
+    });
+    show($("zero"), t, T.fix[0] + 1.9, null, { dy: 12 });
+  }
+
+  /* 6 · Learn: a wrong answer, the grader's real reply, the fix, the pass */
+  show($("c-learn"), t, T.learn[0] + 0.25, T.learn[1] - 0.35);
+  const lo = show($("lesson"), t, T.learn[0] + 0.15, T.learn[1] - 0.4, { dy: 30, dur: 0.9, scale: 0.02 });
+  if (lo > 0) {
+    const w0 = T.learn[0] + 1.0, w1 = w0 + WRONG.length / 22;
+    const clearAt = w1 + 2.0, r0 = clearAt + 0.3;
+    let text, caretShow = caretOn;
+    if (t < clearAt) text = typed(WRONG, t, w0, 22).s;
+    else text = typed(RIGHT, t, r0, 30).s;
+    const rDone = t > r0 + graphemes(RIGHT).length / 30;
+    $("lessonInput").textContent = text;
+    if (caretShow && !(rDone && t > r0 + graphemes(RIGHT).length / 30 + 1.2)) {
+      const c = document.createElement("span");
+      c.className = "caret";
+      $("lessonInput").appendChild(c);
+    }
+    show($("notyet"), t, w1 + 0.35, clearAt, { dy: 8, outDur: 0.3 });
+    show($("passed"), t, r0 + graphemes(RIGHT).length / 30 + 0.35, null, { dy: 8 });
+  }
+
+  /* 7 · Plan: the cards deal out of one stack into scene order, the shot
+     list forms under them, and the page's exports line up beneath */
+  show($("c-plan"), t, T.plan[0] + 0.25, T.plan[1] - 0.35);
+  const po = show($("plan"), t, T.plan[0] + 0.1, T.plan[1] - 0.4, { dy: 0 });
+  if (po > 0) {
+    const deal = prog(t, T.plan[0] + 0.7, 1.1, inOut);
+    [0, 1, 2].forEach((i) => {
+      const card = $(`card${i}`);
+      const x = CARD_X[1] + (CARD_X[i] - CARD_X[1]) * deal;
+      const y = CARD_Y + (2 - i) * 8 * (1 - deal);
+      const r = (i - 1) * 3 * (1 - deal);
+      card.style.left = `${x}px`;
+      card.style.top = `${y}px`;
+      card.style.transform = `rotate(${r}deg)`;
+      card.style.zIndex = String(3 - i);
+      const f = $(`f${i}`);
+      f.style.left = `${CARD_X[i]}px`;
+      f.style.top = `${FRAME_Y}px`;
+      show(f, t, T.plan[0] + 2.2 + i * 0.3, null, { dy: 16 });
+    });
+  }
+  show($("chips"), t, T.plan[0] + 3.6, T.plan[1] - 0.4, { dy: 12 });
+
+  /* 8 · the number: it counts, because the movement is the measurement */
+  const no = show($("num"), t, T.num[0] + 0.15, T.num[1] - 0.4, { dy: 16 });
+  if (no > 0) {
+    const c = prog(t, T.num[0] + 0.4, 1.8);
+    $("numv").textContent = `${(91.3 * c).toFixed(1)}%`;
+    $("numm").style.width = `${(91.3 * c).toFixed(2)}%`;
+  }
+
+  /* 9 · the ask */
+  show($("askk"), t, T.ask[0] + 0.2, null, { dy: 10 });
+  show($("askh"), t, T.ask[0] + 0.45, null, { dy: 22, dur: 0.9 });
+  show($("askb"), t, T.ask[0] + 1.2, null, { dy: 14, scale: 0.04 });
+  show($("askt"), t, T.ask[0] + 1.7, null, { dy: 10 });
+  show($("asku"), t, T.ask[0] + 2.0, null, { dy: 10 });
+}
+
+/* ---- playback, for a browser; the renderer calls seek() itself ---- */
+const stage = $("stage");
+function fit() {
+  const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+  stage.style.transform = `scale(${s})`;
+  stage.style.margin = `${(1080 * s - 1080) / 2}px ${(1920 * s - 1920) / 2}px`;
+}
+window.addEventListener("resize", fit);
+fit();
+
+window.seek = seek;
+window.DURATION = DURATION;
+seek(0);
+
+if (!/render/.test(location.hash)) {
+  let playing = true, t0 = performance.now(), base = 0;
+  try {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { playing = false; base = 26; }
+  } catch (e) { /* no matchMedia */ }
+  const play = $("play"), scrub = $("scrub"), clock = $("clock");
+  const now = () => (playing ? base + (performance.now() - t0) / 1000 : base);
+  play.textContent = playing ? "Pause" : "Play";
+  play.addEventListener("click", () => {
+    base = now() >= DURATION ? 0 : now();
+    playing = !playing; t0 = performance.now();
+    play.textContent = playing ? "Pause" : "Play";
+  });
+  scrub.addEventListener("input", () => { base = Number(scrub.value); t0 = performance.now(); });
+  (function tick() {
+    let t = now();
+    if (t >= DURATION) { t = DURATION; playing = false; base = DURATION; play.textContent = "Replay"; }
+    seek(t);
+    scrub.value = String(t);
+    clock.textContent = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+    requestAnimationFrame(tick);
+  })();
+} else {
+  document.body.classList.add("render");
+}
+</script>
+</body>
+</html>

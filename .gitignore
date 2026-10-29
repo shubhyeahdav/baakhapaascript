@@ -70,3 +70,7 @@ motion/out/
 
 # Throwaway browser walk-throughs; never committed.
 *.tmp.mjs
+
+# promo renders: frames and spot-check stills are scratch
+docs/promo/.frames/
+docs/promo/still-*.png

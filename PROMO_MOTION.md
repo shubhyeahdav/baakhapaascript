@@ -34,6 +34,29 @@ is a new tool:
 
 ---
 
+## Made so far
+
+**The English launch film** (asset 2, 2026-10-29) —
+`docs/promo/baakhapaa-promo-en.mp4`, 67 s, 1920×1080, no audio track, with
+`baakhapaa-promo-en-poster.jpg` beside it. Four chapters (Write, Read, Learn,
+Plan), each a caption beside a replica of the real screen. It is made to be
+read with the sound off.
+
+- **Source:** `baakhapaa-frontend/scripts/promo/film.html`. Every frame is a
+  function of one number, `seek(t)`, so the same file plays in a browser and
+  renders exactly.
+- **Render:** `node scripts/promo-render.mjs` steps that clock at 30 fps and
+  encodes the frames with ffmpeg. This is the frame-accurate render the tools
+  table below names Remotion for, without the dependency.
+- **Check single frames:** `--stills 16,25,35` writes PNG stills before you
+  spend the ~6 minutes on a full render.
+- **What it shows:** the scene, both drafts, the linter's notes, lesson 1 and
+  its grader text, and 91.3% — all the same sources the landing page and tour
+  use.
+- **What it does not show:** AI generation of any kind.
+- **Not done yet:** a narrated version. `voice.py` needs the Kokoro model,
+  which the cloud session cannot download.
+
 ## What to make, in order
 
 | # | Asset | Length / shape | Where it lives | Blocks on |
