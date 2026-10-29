@@ -240,8 +240,8 @@ export const STRINGS = {
     "Start writing — free": "निःशुल्क लेख्न सुरु गर्नुहोस्",
     "See pricing": "मूल्य हेर्नुहोस्",
     "Real output from the linter on this scene.": "यो दृश्यमा लिन्टरले दिएको वास्तविक नतिजा।",
-    "of real writers' problems matched to the right craft technique, Nepali included":
-      "लेखकका वास्तविक समस्यामा सही शिल्प-प्रविधि मिल्यो, नेपालीसमेत",
+    "of test problems matched to the right craft technique, Nepali included":
+      "परीक्षण-समस्यामा सही शिल्प-प्रविधि मिल्यो, नेपालीसमेत",
     "graded lessons, free on every plan": "जाँचिने पाठ, सबै योजनामा निःशुल्क",
     "AI calls to check a draft": "ड्राफ्ट जाँच्न एआई कल",
     Write: "लेख्नुहोस्",

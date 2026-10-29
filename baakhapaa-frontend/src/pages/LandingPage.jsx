@@ -33,15 +33,22 @@ export const HERO_FLAGS = hero.flags;
 
 // Each number traces to a measurement, not a hope — and the page says which.
 // The source is printed under the number, so a reader can check it:
-//   91.3%  eval_retrieval.py, real queries incl. Nepali, n=46 (MONTH_3_TASKS.md)
+//   91.3%  eval_retrieval.py, 46 test queries incl. Nepali (MONTH_3_TASKS.md)
+//
+// "Test", not "real". This label read "of real writers' problems" until
+// 2026-10-29, and the eval's own docstring calls the chip queries "real
+// queries typed by nobody": all 46 are phrasings written into
+// eval_retrieval.py to sound like a writer's complaint. No writer has used the
+// product yet -- the pilot in PILOT.md has not run -- so "real writers" was
+// the one word on this band a reader could check and find untrue.
 //   19     lessons.py — both tracks, free on every tier
 //   0      linter.py is regular expressions; it calls no model
 const PROOF = [
   {
     value: "91.3%",
     meter: 91.3,
-    label: "of real writers' problems matched to the right craft technique, Nepali included",
-    source: "eval_retrieval.py · 46 real queries",
+    label: "of test problems matched to the right craft technique, Nepali included",
+    source: "eval_retrieval.py · 46 test queries",
   },
   { value: "19", label: "graded lessons, free on every plan", source: "lessons.py · two tracks" },
   { value: "0", label: "AI calls to check a draft", source: "linter.py · rules, no model" },
@@ -229,7 +236,11 @@ function ProofBand() {
                   <span className="landing-meter block h-full rounded-full bg-gold" style={{ width: `${p.meter}%` }} />
                 </span>
               )}
-              <span className="block mt-3 text-[13.5px] text-inkSoft leading-snug max-w-[18rem]">{t(p.label)}</span>
+              {/* aria-hidden: the same words are already the <dt> above, for
+                  screen readers. Without this every label was announced twice
+                  -- "graded lessons, nineteen, graded lessons" -- while looking
+                  fine to anyone who could see it. */}
+              <span aria-hidden="true" className="block mt-3 text-[13.5px] text-inkSoft leading-snug max-w-[18rem]">{t(p.label)}</span>
               <span className="block mt-2 font-mono text-[10.5px] text-inkMuted">
                 {t("Source")}: {p.source}
               </span>

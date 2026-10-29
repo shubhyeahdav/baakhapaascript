@@ -1,9 +1,30 @@
+/* What to say when the server cannot be reached at all.
+ *
+ * Two audiences, two sentences. A developer running the site locally has
+ * usually just not started uvicorn, and the useful thing is to say so. A writer
+ * on the deployed site cannot start anything — and "make sure the backend is
+ * running" was exactly what they were shown when the Railway service went
+ * away, which reads as the product blaming them for an outage.
+ *
+ * The production sentence makes no promise about their work. On the sign-in
+ * page there is none at stake, and in the editor an unsaved edit genuinely is
+ * unsaved while the server is gone; "your work is safe" would be the one
+ * reassuring thing that could be false. `import.meta.env.DEV` is Vite's own
+ * flag, true under `vite` and false in `vite build`. */
+export const UNREACHABLE = {
+  dev: "Can't reach the server — make sure the backend is running, then try again.",
+  prod: "Baakhapaa can't reach its server right now. That's on our side — please try again in a few minutes.",
+};
+
+export const unreachableMessage = (isDev = Boolean(import.meta.env?.DEV)) =>
+  (isDev ? UNREACHABLE.dev : UNREACHABLE.prod);
+
 // Turn an axios error into a message a user can act on. Distinguishes a real
 // server response (use its detail) from a network failure (server unreachable),
 // so a backend/CORS problem no longer looks like "wrong password".
 export function authErrorMessage(err, fallback) {
   if (err?.request && !err?.response) {
-    return "Can't reach the server — make sure the backend is running, then try again.";
+    return unreachableMessage();
   }
   if (!err?.response) return fallback;
 
