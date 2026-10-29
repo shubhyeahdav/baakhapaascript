@@ -14,6 +14,13 @@
       "runtimeArgs": ["--env-file=scripts/demo.env", "scripts/start-site.mjs"],
       "cwd": "${workspaceFolder}",
       "port": 3000
+    },
+    {
+      "name": "website (free AI)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--env-file=scripts/free-ai.env", "scripts/start-site.mjs"],
+      "cwd": "${workspaceFolder}",
+      "port": 3000
     }
   ]
 }
