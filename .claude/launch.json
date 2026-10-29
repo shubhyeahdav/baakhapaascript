@@ -7,6 +7,13 @@
       "runtimeArgs": ["scripts/start-site.mjs"],
       "cwd": "${workspaceFolder}",
       "port": 3000
+    },
+    {
+      "name": "website (demo)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--env-file=scripts/demo.env", "scripts/start-site.mjs"],
+      "cwd": "${workspaceFolder}",
+      "port": 3000
     }
   ]
 }
