@@ -11,7 +11,7 @@
  * Inside a beat the cut from card to footage is a straight cut, on the voice,
  * which is where a cut belongs anyway.
  *
- *   C:/addeity-video/.venv-tts/Scripts/python.exe scripts/demo/voice.py
+ *   <kokoro-env>/Scripts/python.exe scripts/demo/voice.py
  *   node scripts/demo-motion.mjs
  *   node scripts/demo-assemble.mjs
  */

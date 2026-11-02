@@ -2,10 +2,10 @@
 
 Kokoro-82M, Apache 2.0, through ONNX Runtime — nothing is uploaded and no
 service is signed into. The model and its venv already live at
-C:\\addeity-video; this borrows them rather than installing a second copy of a
+another project's folder; this borrows them rather than installing a second copy of a
 300 MB model.
 
-    C:/addeity-video/.venv-tts/Scripts/python.exe scripts/demo/voice.py
+    <kokoro-env>/Scripts/python.exe scripts/demo/voice.py
 
 Writes one wav per beat to docs/demo-video/voice/ and a lines.json of
 durations. THE PICTURE FOLLOWS THE VOICE: the assembler reads that json and
@@ -49,7 +49,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 
 # SELF-CONTAINED SINCE 2026-10-29. This borrowed its model and its loudness
-# helpers from C:\addeity-video, a different project's folder, and when that
+# helpers from a different project's folder, and when that
 # folder disappeared every narration in this repository stopped being
 # rebuildable. The model now lives in this repository's own `.tts/` (gitignored
 # -- it is 310 MB) and the two helpers below are copied in.
