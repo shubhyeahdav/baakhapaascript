@@ -42,15 +42,57 @@ import numpy as np
 import soundfile as sf
 from scipy import signal
 
-TOOLS = r"C:\addeity-video\tools"
-MODELS = r"C:\addeity-video\models\kokoro"
-sys.path.insert(0, TOOLS)
-from kokoro_voice import master, SR  # noqa: E402  (loudness helpers only)
-
-from kokoro_onnx import Kokoro  # noqa: E402
-from kokoro_onnx.tokenizer import Tokenizer  # noqa: E402
+from kokoro_onnx import Kokoro
+from kokoro_onnx.tokenizer import Tokenizer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+
+# SELF-CONTAINED SINCE 2026-10-29. This borrowed its model and its loudness
+# helpers from C:\addeity-video, a different project's folder, and when that
+# folder disappeared every narration in this repository stopped being
+# rebuildable. The model now lives in this repository's own `.tts/` (gitignored
+# -- it is 310 MB) and the two helpers below are copied in.
+#
+#   .tts/venv/                       python -m venv .tts/venv
+#   .tts/models/kokoro/kokoro-v1.0.onnx
+#   .tts/models/kokoro/voices-v1.0.bin
+#
+# Run with `.tts/venv/Scripts/python.exe scripts/demo/voice.py --comp=tutorial`.
+MODELS = os.environ.get("KOKORO_MODELS", os.path.join(REPO, ".tts", "models", "kokoro"))
+
+SR = 48000
+
+
+def lufs(x):
+    """Integrated loudness (ITU-R BS.1770: K-weighting, 400 ms blocks, gated)
+    of a (2, n) signal at 48 kHz."""
+    b1, a1 = [1.53512485958697, -2.69169618940638, 1.19839281085285], [1.0, -1.69065929318241, 0.73248077421585]
+    b2, a2 = [1.0, -2.0, 1.0], [1.0, -1.99004745483398, 0.99007225036621]
+    y = signal.lfilter(b2, a2, signal.lfilter(b1, a1, x, axis=1), axis=1)
+    blk, hop = int(0.4 * SR), int(0.1 * SR)
+    ms = np.array([np.mean(y[:, i:i + blk] ** 2, axis=1).sum() for i in range(0, y.shape[1] - blk, hop)])
+    ms = ms[-0.691 + 10 * np.log10(ms + 1e-12) > -70]
+    rel = -0.691 + 10 * np.log10(ms.mean()) - 10
+    ms = ms[-0.691 + 10 * np.log10(ms) > rel]
+    return -0.691 + 10 * np.log10(ms.mean())
+
+
+def master(mix, target=-14.0, ceiling_db=-1.5):
+    """Bring a (2, n) mix to the target loudness under a gentle look-ahead
+    limiter, so no line is louder or quieter than its neighbour."""
+    ceiling = 10 ** (ceiling_db / 20)
+    for _ in range(3):
+        mix = mix * 10 ** ((target - lufs(mix)) / 20)
+        peak = np.max(np.abs(mix), axis=0)
+        win = int(0.005 * SR)
+        env = signal.convolve(np.pad(peak, (win, win), mode="edge"),
+                              np.ones(2 * win + 1) / (2 * win + 1), mode="valid")
+        env = np.maximum(env, peak)
+        g = np.minimum(1.0, ceiling / np.maximum(env, 1e-9))
+        g = signal.sosfiltfilt(signal.butter(2, 25, "lowpass", fs=SR, output="sos"), g)
+        mix = mix * np.minimum(g, ceiling / np.maximum(peak, 1e-9))
+    return mix
 OUT = os.path.join(HERE, "..", "..", "..", "docs", "demo-video", "voice")
 
 VOICE = "af_heart"
@@ -99,6 +141,56 @@ UPDATE_LINES = [
      "The live build still has the Devanagari bug."),
 ]
 
+# The tutorial (TUTORIAL_VIDEO_PLAN.md). Second person, one physical action per
+# chapter: "press Tab" is something a viewer can do from the video, "smart
+# formatting" is a claim.
+TUTORIAL_LINES = [
+    ("t00-intro",
+     "Baakhapaa in three minutes. From a blank account to a finished page."),
+
+    ("t01-project",
+     "Start with a new project. Give it a title, pick a format, a short film here, "
+     "and create it."),
+
+    ("t02-heading",
+     "Every scene starts with where we are. Type the letter i, and Baakhapaa offers "
+     "the heading for an interior scene. Press Tab to take it. "
+     "Then the place, a dash, and the time of day."),
+
+    ("t03-dialogue",
+     "Press Enter for the action. Tab moves you to the character column. "
+     "Type the name, press Enter, and you are writing their line. "
+     "Enter again brings you back to the action."),
+
+    ("t04-nepali",
+     "To write in Nepali, switch the keyboard with the Nepali key beside the A. "
+     "Type a word the way it sounds, namaste, and it becomes Devanagari."),
+
+    ("t05-craft",
+     "As you write, the craft check reads the page. A dot in the margin marks a line "
+     "worth a second look, a feeling stated instead of played. It reads Nepali too."),
+
+    ("t06-assist",
+     "Stuck? Open Assist and press Read my page. It matches what you have written to "
+     "a technique, and shows it on the page. To name the problem yourself, "
+     "ask about something specific."),
+
+    ("t07-views",
+     "The Corkboard shows every scene as a card. Drag one, and the scene moves in the "
+     "script itself. The Outline shows where the time went."),
+
+    ("t08-export",
+     "When it is ready to leave, open File. PDF for reading, Final Draft for "
+     "production, Word for editing."),
+
+    ("t09-learn",
+     "And the course is free on every plan. Nineteen lessons, each graded by the same "
+     "craft check, in English or Nepali."),
+
+    ("t10-close",
+     "That is everything you need to start. Your next script begins on a blank page."),
+]
+
 LINES = [
     ("01-gap",
      "Nepal writes. Its writing tools do not read Nepali."),
@@ -136,7 +228,14 @@ LINES = [
 ]
 
 _tok = Tokenizer()
-_kokoro = Kokoro(os.path.join(MODELS, "kokoro-v1.0.onnx"),
+def _model_file():
+    for name in ("kokoro-v1.0.onnx", "kokoro-v1.0.fp16.onnx", "kokoro-v1.0.int8.onnx"):
+        if os.path.exists(os.path.join(MODELS, name)):
+            return os.path.join(MODELS, name)
+    raise SystemExit(f"No Kokoro model in {MODELS}. See the comment at the top of this file.")
+
+
+_kokoro = Kokoro(_model_file(),
                  os.path.join(MODELS, "voices-v1.0.bin"))
 
 
@@ -193,7 +292,11 @@ def main():
     the ids its own beats name.
     """
     os.makedirs(OUT, exist_ok=True)
-    lines = UPDATE_LINES if "--comp=update" in sys.argv else LINES
+    comps = {"pitch": LINES, "update": UPDATE_LINES, "tutorial": TUTORIAL_LINES}
+    comp = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--comp=")), "pitch")
+    if comp not in comps:
+        raise SystemExit(f"no composition {comp!r}; have {', '.join(comps)}")
+    lines = comps[comp]
     existing = {}
     path = os.path.join(OUT, "lines.json")
     if os.path.exists(path):

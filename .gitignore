@@ -74,3 +74,7 @@ motion/out/
 # promo renders: frames and spot-check stills are scratch
 docs/promo/.frames/
 docs/promo/still-*.png
+
+# Local text-to-speech: the Kokoro model (310 MB) and its Python env. Rebuilt
+# by hand from the comment at the top of scripts/demo/voice.py; never committed.
+.tts/

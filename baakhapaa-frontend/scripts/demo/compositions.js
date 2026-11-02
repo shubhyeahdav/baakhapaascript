@@ -96,9 +96,57 @@ export const UPDATE = [
   },
 ];
 
+/**
+ * The tutorial: a new writer from a blank account to an exported page, in the
+ * order they will meet it. TUTORIAL_VIDEO_PLAN.md has the script and the
+ * reasons for what is left out.
+ *
+ * Each step is a short card and then the product doing the thing. The card's
+ * `foot` names the physical action — the key to press — because most of this
+ * will be watched with the sound off, and a tutorial that only works with the
+ * sound on teaches nobody on a bus.
+ *
+ * "Step N" stays on the cards on purpose. A kicker that only decorates a
+ * heading is noise; a step number in a tutorial is the information a viewer
+ * needs to find their place again after pausing.
+ */
+const STEP_HOLD = 2.6;
+const step = (n, id, lines, foot, clip, extra = {}) => ({
+  id, voice: id, hold: STEP_HOLD, clip,
+  kicker: `Step ${n}`, lines, foot, ...extra,
+});
+
+export const TUTORIAL = [
+  { id: "t00-intro", voice: "t00-intro",
+    kicker: "Baakhapaa", lines: ["In three minutes."],
+    foot: "From a blank account to a finished page." },
+  step(1, "t01-project", ["Start a project."],
+       "Title  →  format  →  Create project", "t01-project"),
+  step(2, "t02-heading", ["Your first", "scene heading."],
+       "Type  i  then press Tab  →  INT.", "t02-heading"),
+  step(3, "t03-dialogue", ["Characters", "and dialogue."],
+       "Tab  →  character column     Enter  →  their line", "t03-dialogue"),
+  step(4, "t04-nepali", ["Write in Nepali."],
+       "Press अ   ·   type namaste  →  नमस्ते", "t04-nepali"),
+  step(5, "t05-craft", ["The craft check."],
+       "A dot in the margin marks a line worth a second look", "t05-craft"),
+  step(6, "t06-assist", ["Help on a", "stuck scene."],
+       "Assist  →  Read my page", "t06-assist"),
+  step(7, "t07-views", ["See the", "whole script."],
+       "Corkboard   ·   Outline", "t07-views"),
+  step(8, "t08-export", ["Export."],
+       "File  →  PDF   ·   Final Draft   ·   Word", "t08-export"),
+  step(9, "t09-learn", ["Learn as you go."],
+       "19 lessons, free on every plan", "t09-learn"),
+  { id: "t10-close", voice: "t10-close",
+    kicker: "", lines: ["Start writing."],
+    end: "baakhapaascript.vercel.app" },
+];
+
 export const COMPOSITIONS = {
   pitch: { beats: PITCH, out: "baakhapaa-demo.mp4" },
   update: { beats: UPDATE, out: "baakhapaa-update.mp4" },
+  tutorial: { beats: TUTORIAL, out: "baakhapaa-tutorial.mp4" },
 };
 
 /** `--comp=update` from argv, defaulting to the pitch. */
