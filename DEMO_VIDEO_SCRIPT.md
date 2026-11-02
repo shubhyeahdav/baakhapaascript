@@ -32,7 +32,7 @@ animate themselves in, so the transition is already there.
 ### Rebuild
 
 ```bash
-C:/addeity-video/.venv-tts/Scripts/python.exe scripts/demo/voice.py
+<kokoro-env>/Scripts/python.exe scripts/demo/voice.py
 ```
 ```bash
 node scripts/demo-motion.mjs && node scripts/demo-video.mjs && node scripts/demo-assemble.mjs

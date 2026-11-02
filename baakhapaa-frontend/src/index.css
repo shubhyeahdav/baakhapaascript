@@ -140,7 +140,21 @@ html, body {
 .screenplay-container {
   background-color: #0B0B0A;
   padding: 2.5rem 1rem;
-  min-height: 100%;
+  /* ZERO, not 100%. This was `min-height: 100%` from July, and it hid the
+     format suggestions from everyone writing on a laptop.
+
+     The container is `flex-1` in a column, with the suggestion strip as its
+     sibling underneath. A flex child with `min-height: 100%` can never shrink
+     below the whole column, so when the strip arrived there was no room for
+     it: it was squeezed to 17px and pushed out under the bottom edge. Measured
+     at 1600x900, the strip sat at y=900-917 on a 900px screen, 852px below the
+     line being typed. Typing `i` offered INT. and nobody could see it.
+
+     The element also carries Tailwind's `min-h-0`, which exists to prevent
+     exactly this, but both are single-class rules and this file loads after
+     the utilities, so this one silently won. `flex-1` already makes the
+     container fill the column; the percentage only ever stopped it shrinking. */
+  min-height: 0;
   display: flex;
   justify-content: center;
   align-items: flex-start;

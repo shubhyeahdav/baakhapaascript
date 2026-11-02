@@ -7,7 +7,7 @@
  * from 16 to 90 is the argument of that beat, and a pan over a static "90%"
  * is not the same claim.
  *
- *   C:/addeity-video/.venv-tts/Scripts/python.exe scripts/demo/voice.py
+ *   <kokoro-env>/Scripts/python.exe scripts/demo/voice.py
  *   node scripts/demo-motion.mjs
  *   node scripts/demo-assemble.mjs
  *
@@ -33,7 +33,7 @@ const TAIL = 0.35;
 
 const linesPath = join(OUT, "voice", "lines.json");
 if (!existsSync(linesPath)) {
-  console.error(`No ${linesPath}.\nRun:  C:/addeity-video/.venv-tts/Scripts/python.exe scripts/demo/voice.py`);
+  console.error(`No ${linesPath}.\nRun:  <kokoro-env>/Scripts/python.exe scripts/demo/voice.py`);
   process.exit(1);
 }
 const VOICE = JSON.parse(readFileSync(linesPath, "utf8"));

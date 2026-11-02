@@ -170,7 +170,7 @@ describe("what a crawler with no JavaScript gets", () => {
   });
 
   it("ships structured data", () => {
-    // 69% of the sites in the Addeity sample carried none, and it is one of the
+    // 69% of the sites in an audit sample carried none, and it is one of the
     // few checklist items the measurements rate as a real gap.
     const html = read("index.html");
     const block = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);

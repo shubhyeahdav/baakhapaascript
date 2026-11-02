@@ -256,6 +256,151 @@ await beat("u04-keys", async (page) => {
   await page.waitForTimeout(2500);
 });
 
+
+/* ── the tutorial (TUTORIAL_VIDEO_PLAN.md) ──────────────────────────────── */
+/**
+ * Typed at a person's pace. The other videos type in chunks because the
+ * typing is not the point; here it IS the point — a viewer is watching which
+ * key does what — so every key arrives on its own.
+ */
+const typeSlow = (page, text, delay = 85) => page.keyboard.type(text, { delay });
+
+/** The tutorial's project, opened with an empty page and the caret in it. */
+const TUTORIAL_TITLE = "Bus Park";
+async function openTutorialPage(page, content = "") {
+  await signIn(page);
+  await openProject(page, new RegExp(`^Open ${TUTORIAL_TITLE}`));
+  const editor = page.getByLabel("Screenplay");
+  await editor.waitFor({ timeout: 20000 });
+  await editor.fill(content);
+  await editor.click();
+  await page.keyboard.press("Control+End");
+  return editor;
+}
+
+// 1 · a new project
+await beat("t01-project", async (page) => {
+  await signIn(page);
+  await page.goto(`${APP}/projects/new`);
+  await page.waitForTimeout(1500);
+  const title = page.getByLabel(/Project Title/i).or(page.getByPlaceholder(/title/i)).first();
+  await title.click();
+  await typeSlow(page, TUTORIAL_TITLE, 110);
+  await page.waitForTimeout(600);
+  await page.getByText("Short Film", { exact: true }).click();
+  await page.waitForTimeout(900);
+  await page.getByRole("button", { name: /Create project/i }).click();
+  await page.waitForTimeout(4500);
+});
+
+// 2 · the scene heading: i, Tab, a place, a dash, a time
+await beat("t02-heading", async (page) => {
+  await openTutorialPage(page);
+  await page.waitForTimeout(1200);
+  await typeSlow(page, "i", 0);
+  await page.waitForTimeout(1300);          // let the suggestion strip be seen
+  await page.keyboard.press("Tab");
+  await page.waitForTimeout(700);
+  await typeSlow(page, "BUS PARK, KALANKI - ");
+  await typeSlow(page, "n", 0);
+  await page.waitForTimeout(1200);
+  await page.keyboard.press("Tab");
+  await page.waitForTimeout(1800);
+});
+
+// 3 · action, character, dialogue, and back
+await beat("t03-dialogue", async (page) => {
+  await openTutorialPage(page, "INT. BUS PARK, KALANKI - NIGHT");
+  await page.waitForTimeout(900);
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(500);
+  await typeSlow(page, "Engines idle. SITA waits under the timetable.", 45);
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(600);
+  await page.keyboard.press("Tab");
+  await page.waitForTimeout(800);
+  await typeSlow(page, "SITA");
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(700);
+  await typeSlow(page, "Pokhara jane bus kahile?", 60);
+  await page.waitForTimeout(500);
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(1800);
+});
+
+// 4 · Nepali typing: switch to अ, type it as it sounds
+await beat("t04-nepali", async (page) => {
+  await openTutorialPage(page,
+    "INT. BUS PARK, KALANKI - NIGHT\n\nEngines idle. SITA waits under the timetable.\n\n" +
+    " ".repeat(22) + "RAM\n" + " ".repeat(10));
+  await page.waitForTimeout(900);
+  await page.getByRole("button", { name: "अ" }).click();
+  await page.waitForTimeout(1200);
+  await page.getByLabel("Screenplay").click();
+  await page.keyboard.press("Control+End");
+  await typeSlow(page, "namaste ", 140);
+  await page.waitForTimeout(2600);
+  await page.getByRole("button", { name: "A", exact: true }).click();
+});
+
+// 5 · the craft check, on a draft that has something to find
+await beat("t05-craft", async (page) => {
+  await signIn(page);
+  await openProject(page, /^Open Chiya Pasal/);
+  const editor = page.getByLabel("Screenplay");
+  await editor.waitFor({ timeout: 20000 });
+  await editor.fill(NEPALI_DRAFT);
+  await page.keyboard.press("Control+s");
+  await page.waitForTimeout(3500);          // margin dots arrive with the lint
+  await page.getByRole("button", { name: /^Craft$/i }).click();
+  await page.waitForTimeout(5000);
+});
+
+// 6 · Read my page, then the door to everything else
+await beat("t06-assist", async (page) => {
+  await signIn(page);
+  await openProject(page, /^Open Chiya Pasal/);
+  await page.waitForTimeout(1500);
+  await page.getByRole("button", { name: /^Assist$/i }).click().catch(() => {});
+  await page.waitForTimeout(800);
+  await page.getByRole("button", { name: "Read my page" }).click();
+  await page.waitForTimeout(4200);
+  await page.getByRole("button", { name: /Ask about something specific/i }).click();
+  await page.waitForTimeout(2600);
+});
+
+// 7 · Corkboard, then Outline
+await beat("t07-views", async (page) => {
+  await signIn(page);
+  await openProject(page, /^Open Chiya Pasal/);
+  await page.waitForTimeout(1200);
+  await page.getByRole("tab", { name: "Corkboard" }).click();
+  await page.waitForTimeout(3600);
+  await page.getByRole("tab", { name: "Outline" }).click();
+  await page.waitForTimeout(3600);
+});
+
+// 8 · File: the export formats, shown rather than downloaded
+await beat("t08-export", async (page) => {
+  await signIn(page);
+  await openProject(page, /^Open Chiya Pasal/);
+  await page.waitForTimeout(1500);
+  await page.getByRole("button", { name: /^File$/ }).click();
+  await page.waitForTimeout(1200);
+  await page.getByRole("menuitem", { name: /Export PDF/ }).hover();
+  await page.waitForTimeout(3600);
+  await page.keyboard.press("Escape");
+});
+
+// 9 · the course
+await beat("t09-learn", async (page) => {
+  await signIn(page);
+  await page.goto(`${APP}/learn`);
+  await page.waitForTimeout(3000);
+  await page.mouse.wheel(0, 320);
+  await page.waitForTimeout(2600);
+});
+
 await browser.close();
 console.log("\nnext: node scripts/demo-video-assemble.mjs");
 
